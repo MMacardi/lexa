@@ -1,0 +1,29 @@
+# dependencies & build output
+node_modules/
+**/node_modules/
+backend/dist/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+
+# secrets / local env (keep *.example)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# deliverables (submitted separately, not part of source)
+2024998004014_Anton Volkov/
+
+# Claude Code local settings
+.claude/
+
+# local doc generator (not part of deploy)
+make_report.py

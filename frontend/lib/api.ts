@@ -1,0 +1,65 @@
+// Typed client for the Express backend. One place that knows the URL shape.
+
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+
+// Default account when the user hasn't picked one yet (see lib/account.tsx).
+export const DEFAULT_TELEGRAM_ID = process.env.NEXT_PUBLIC_TELEGRAM_ID ?? "dev-user";
+
+export interface Example {
+  id: string;
+  wordId: string;
+  sentenceEn: string;
+  sentenceZh: string;
+  sourceName: string;
+  sourceUrl: string;
+  createdAt: string;
+}
+
+export interface Word {
+  id: string;
+  word: string;
+  phonetic: string | null;
+  partOfSpeech: string | null;
+  meaningZh: string | null;
+  collocations: string[];
+  synonyms: string[];
+  antonyms: string[];
+  reviewCount: number;
+  nextReviewAt: string | null;
+  createdAt: string;
+  examples: Example[];
+}
+
+async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Request failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const api = {
+  listWords: (telegramId: string) =>
+    http<Word[]>(`/api/words?telegramId=${encodeURIComponent(telegramId)}`),
+  getWord: (id: string) => http<Word>(`/api/words/${id}`),
+  addWord: (word: string, telegramId: string) =>
+    http<Word>(`/api/words`, {
+      method: "POST",
+      body: JSON.stringify({ word, telegramId }),
+    }),
+  reviewWord: (id: string) =>
+    http<Word>(`/api/words/${id}/review`, { method: "POST" }),
+  deleteWord: (id: string) =>
+    http<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
+};
+
+// A word is "due" if it has never been reviewed, or its scheduled review time
+// has passed. Used for the due badges and the header counter.
+export function isDue(word: Word): boolean {
+  if (!word.nextReviewAt) return true;
+  return new Date(word.nextReviewAt).getTime() <= Date.now();
+}
