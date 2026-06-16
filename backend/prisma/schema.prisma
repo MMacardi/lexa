@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  telegramId String   @unique
+  createdAt  DateTime @default(now())
+  words      Word[]
+}
+
+model Word {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  word         String
+  phonetic     String?
+  partOfSpeech String?
+  meaningZh    String?
+  collocations String[]
+  synonyms     String[]
+  antonyms     String[]
+  reviewCount  Int       @default(0)
+  nextReviewAt DateTime?
+  createdAt    DateTime  @default(now())
+  examples     Example[]
+
+  @@unique([userId, word])
+}
+
+model Example {
+  id         String   @id @default(cuid())
+  wordId     String
+  word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  sentenceEn String
+  sentenceZh String
+  sourceName String
+  sourceUrl  String
+  createdAt  DateTime @default(now())
+}

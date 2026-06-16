@@ -1,0 +1,41 @@
+{
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "loopback"
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/root/.openclaw/workspace",
+      "model": { "primary": "qwen/qwen-plus" }
+    },
+    "list": [{ "id": "main", "model": "qwen/qwen-plus" }]
+  },
+  "session": { "dmScope": "per-channel-peer" },
+  "tools": { "profile": "coding" },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "qwen": {
+        "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen-plus",
+            "name": "qwen-plus",
+            "reasoning": false,
+            "input": ["text"],
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "auth": {
+    "profiles": { "qwen:default": { "provider": "qwen", "mode": "api_key" } }
+  },
+  "channels": {
+    "telegram": { "enabled": true }
+  }
+}

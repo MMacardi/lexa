@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* Lexa design tokens — calm editorial palette */
+@theme {
+  --color-paper: #f4f1ec;
+  --color-surface: #fcfbf8;
+  --color-ink: #2e2a26;
+  --color-ink-muted: #6b6356;
+  --color-ink-soft: #8a8273;
+  --color-ink-faint: #a89f8f;
+  --color-sage: #7c9885;
+  --color-sage-deep: #3f5a4a;
+  --color-sage-tint: #eef2ee;
+  --color-news-hl: #e4ebe4;
+  --color-taupe: #c9b8a8;
+  --color-taupe-dim: #bcae9c;
+  --color-warn: #c09180;
+  --color-warn-text: #a06a58;
+  --color-warn-bg: #f6ece8;
+  --color-track: #ece6dc;
+  --color-dot-empty: #dcd4c7;
+
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
+  --font-zh: "Noto Sans SC", "Hanken Grotesk", sans-serif;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  background: #e7e4de;
+  font-family: var(--font-sans);
+  color: #2e2a26;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(46, 42, 38, 0.16);
+  border-radius: 99px;
+}
+
+/* ---- Animations ---- */
+@keyframes lexaFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lexaFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lexaPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lexaFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.anim-fade-up { animation: lexaFadeUp 0.5s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+.anim-fade-in { animation: lexaFadeIn 0.5s ease both; }
+.anim-pop { animation: lexaPop 0.4s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-fade-in, .anim-pop { animation: none; }
+}
+
+/* 3D flip card */
+.flip-scene { perspective: 1600px; }
+.flip-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.26, 1);
+}
+.flip-card.is-flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back { transform: rotateY(180deg); }

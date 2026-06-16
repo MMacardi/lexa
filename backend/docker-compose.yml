@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16
+    container_name: vocab-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vocab
+      POSTGRES_PASSWORD: vocab
+      POSTGRES_DB: vocab
+    # Host port 5433 avoids clashing with a native Postgres already on 5432.
+    # Inside the container Postgres still listens on 5432.
+    ports:
+      - "5433:5432"
+    volumes:
+      - vocab-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocab -d vocab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  vocab-pgdata:
