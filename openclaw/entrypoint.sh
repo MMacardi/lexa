@@ -17,7 +17,8 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   openclaw config set channels.telegram.botToken "$TELEGRAM_BOT_TOKEN" || true
 fi
 if [ -n "$BAILIAN_API_KEY" ]; then
-  printf '%s' "$BAILIAN_API_KEY" | openclaw models auth paste-token --provider qwen --profile-id qwen:default || true
+  # Trailing newline submits the interactive paste-token prompt (no TTY here).
+  printf '%s\n' "$BAILIAN_API_KEY" | openclaw models auth paste-token --provider qwen --profile-id qwen:default || true
 fi
 
 # Telegram allow-list (who may DM the bot). Comma-separated ids in TELEGRAM_ALLOW_FROM.
