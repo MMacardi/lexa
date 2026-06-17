@@ -1,5 +1,6 @@
 # OpenClaw assistant gateway (Telegram entry point) for Railway.
-FROM node:20-slim
+# OpenClaw requires Node >= 22.12.
+FROM node:22-slim
 
 # Tools some OpenClaw skills shell out to; keep the image small otherwise.
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
