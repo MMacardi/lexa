@@ -19,6 +19,16 @@ fi
 if [ -n "$BAILIAN_API_KEY" ]; then
   # Trailing newline submits the interactive paste-token prompt (no TTY here).
   printf '%s\n' "$BAILIAN_API_KEY" | openclaw models auth paste-token --provider qwen --profile-id qwen:default || true
+  # The configured agent "main" reads auth from its own dir; paste-token writes to
+  # the default agentDir. Copy the key into the agent's store so the gateway finds it.
+  SRC=$(find "$OC" -name auth-profiles.json 2>/dev/null | grep -v '/agents/main/agent/' | head -n1)
+  if [ -n "$SRC" ]; then
+    mkdir -p "$OC/agents/main/agent"
+    cp "$SRC" "$OC/agents/main/agent/auth-profiles.json"
+    echo "[entrypoint] copied auth-profiles.json from $SRC -> agents/main/agent/"
+  else
+    echo "[entrypoint] WARN: no auth-profiles.json found after paste-token"
+  fi
 fi
 
 # Telegram allow-list (who may DM the bot). Comma-separated ids in TELEGRAM_ALLOW_FROM.
