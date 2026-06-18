@@ -16,24 +16,11 @@ cp -r /seed/.openclaw/workspace/skills/vocab-assistant "$OC/workspace/skills/voc
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   openclaw config set channels.telegram.botToken "$TELEGRAM_BOT_TOKEN" || true
 fi
-if [ -n "$BAILIAN_API_KEY" ]; then
-  # Write the Qwen auth profile directly where the "main" agent reads it
-  # (deterministic — no interactive paste-token / TTY needed).
-  mkdir -p "$OC/agents/main/agent"
-  cat > "$OC/agents/main/agent/auth-profiles.json" <<EOF
-{
-  "version": 1,
-  "profiles": {
-    "qwen:default": {
-      "type": "token",
-      "provider": "qwen",
-      "token": "$BAILIAN_API_KEY"
-    }
-  }
-}
-EOF
-  echo "[entrypoint] wrote qwen auth profile to agents/main/agent/auth-profiles.json"
-fi
+# NOTE: Qwen agent auth is configured ONCE manually in the Railway Console:
+#   openclaw models auth paste-token --provider qwen --profile-id qwen:default
+# It is stored in the persistent volume (/root/.openclaw) and survives restarts
+# and redeploys, so the entrypoint deliberately does NOT touch auth here (writing
+# it on every boot was clobbering the working manual setup).
 
 # Telegram allow-list (who may DM the bot). Comma-separated ids in TELEGRAM_ALLOW_FROM.
 ALLOW="${TELEGRAM_ALLOW_FROM:-865277762}"
