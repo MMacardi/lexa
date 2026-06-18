@@ -7,9 +7,9 @@
   "agents": {
     "defaults": {
       "workspace": "/root/.openclaw/workspace",
-      "model": { "primary": "qwen/qwen-vl-max" }
+      "model": { "primary": "qwen/qwen3-vl-plus" }
     },
-    "list": [{ "id": "main", "model": "qwen/qwen-vl-max" }]
+    "list": [{ "id": "main", "model": "qwen/qwen3-vl-plus" }]
   },
   "session": { "dmScope": "per-channel-peer" },
   "tools": { "profile": "coding" },
@@ -21,12 +21,12 @@
         "api": "openai-completions",
         "models": [
           {
-            "id": "qwen-vl-max",
-            "name": "qwen-vl-max",
+            "id": "qwen3-vl-plus",
+            "name": "qwen3-vl-plus",
             "reasoning": false,
             "input": ["text", "image"],
-            "contextWindow": 32768,
-            "maxTokens": 2048
+            "contextWindow": 131072,
+            "maxTokens": 8192
           },
           {
             "id": "qwen-plus",
