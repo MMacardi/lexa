@@ -17,10 +17,8 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   openclaw config set channels.telegram.botToken "$TELEGRAM_BOT_TOKEN" || true
 fi
 if [ -n "$BAILIAN_API_KEY" ]; then
-  # Run the same command that works in the Console: it both stores the key and
-  # wires the profile to the agent. Trailing newline submits the prompt (no TTY).
-  printf '%s\n' "$BAILIAN_API_KEY" | openclaw models auth paste-token --provider qwen --profile-id qwen:default || true
-  # Belt-and-suspenders: also ensure the key file exists where the agent reads it.
+  # Write the Qwen auth profile directly where the "main" agent reads it
+  # (deterministic — no interactive paste-token / TTY needed).
   mkdir -p "$OC/agents/main/agent"
   cat > "$OC/agents/main/agent/auth-profiles.json" <<EOF
 {
@@ -34,7 +32,7 @@ if [ -n "$BAILIAN_API_KEY" ]; then
   }
 }
 EOF
-  echo "[entrypoint] qwen auth configured (paste-token + auth-profiles.json)"
+  echo "[entrypoint] wrote qwen auth profile to agents/main/agent/auth-profiles.json"
 fi
 
 # Telegram allow-list (who may DM the bot). Comma-separated ids in TELEGRAM_ALLOW_FROM.
