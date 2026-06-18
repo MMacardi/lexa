@@ -7,9 +7,9 @@
   "agents": {
     "defaults": {
       "workspace": "/root/.openclaw/workspace",
-      "model": { "primary": "qwen/qwen-plus" }
+      "model": { "primary": "qwen/qwen-vl-max" }
     },
-    "list": [{ "id": "main", "model": "qwen/qwen-plus" }]
+    "list": [{ "id": "main", "model": "qwen/qwen-vl-max" }]
   },
   "session": { "dmScope": "per-channel-peer" },
   "tools": { "profile": "coding" },
@@ -20,6 +20,14 @@
         "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api": "openai-completions",
         "models": [
+          {
+            "id": "qwen-vl-max",
+            "name": "qwen-vl-max",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "contextWindow": 32768,
+            "maxTokens": 2048
+          },
           {
             "id": "qwen-plus",
             "name": "qwen-plus",

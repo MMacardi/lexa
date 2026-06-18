@@ -18,6 +18,10 @@ example sentences, translations, or definitions yourself.**
   (`add-word.mjs "<word>" "<senderTelegramId>"`) and reply with its output.
 - Message asking to see saved words — "list", "my words", "my vocabulary" → run the
   skill's **list** flow (`list-words.mjs "<senderTelegramId>"`).
+- **Image/photo of a word**: if the user sends a picture that contains an English
+  word, read that word from the image, then run the **add** flow with it — exactly
+  as if they had typed `add <word>`. If several words are visible, pick the single
+  most prominent English word.
 - Never treat `add <word>` as a reminder, task, or cron job. It always means
   "save this English word."
 - Always pass the sender's Telegram numeric user ID so you read/write the correct
