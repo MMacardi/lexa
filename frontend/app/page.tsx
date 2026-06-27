@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { AddWordForm } from "@/components/AddWordForm";
+import { StatsPanel } from "@/components/StatsPanel";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -174,7 +175,9 @@ export default function TodayPage() {
             {wotd.phonetic && <span className="text-[15px] text-ink-faint">{wotd.phonetic}</span>}
           </div>
           {wotd.meaningZh && (
-            <div className="mt-1.5 font-zh text-[18px] font-medium text-sage">{wotd.meaningZh}</div>
+            <div className={`mt-1.5 text-[18px] font-medium text-sage ${wotd.targetLang === "zh" ? "font-zh" : ""}`}>
+              {wotd.meaningZh}
+            </div>
           )}
           {wotd.examples[0] && (
             <p className="mt-4 font-serif text-[16px] leading-relaxed text-[#544e45]">
@@ -183,6 +186,8 @@ export default function TodayPage() {
           )}
         </div>
       </div>
+
+      <StatsPanel />
 
       {/* this week */}
       <div>
@@ -206,7 +211,9 @@ export default function TodayPage() {
               <div className="flex items-baseline gap-2.5">
                 <span className="font-serif text-[22px] font-semibold text-ink">{w.word}</span>
                 {w.meaningZh && (
-                  <span className="font-zh text-sm text-sage">{w.meaningZh}</span>
+                  <span className={`text-sm text-sage ${w.targetLang === "zh" ? "font-zh" : ""}`}>
+                    {w.meaningZh}
+                  </span>
                 )}
               </div>
               <div className="mt-1 text-xs font-medium text-ink-faint">

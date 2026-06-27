@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Lexa — learn English through the news",
@@ -26,14 +26,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <div className="flex min-h-screen flex-col md:flex-row">
-            <Sidebar />
-            <main className="min-w-0 flex-1 bg-paper">
-              <div className="mx-auto max-w-[1040px] px-5 py-8 sm:px-10 sm:py-10">
-                {children}
-              </div>
-            </main>
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

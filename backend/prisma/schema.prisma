@@ -19,6 +19,8 @@ model Word {
   userId       String
   user         User      @relation(fields: [userId], references: [id])
   word         String
+  sourceLang   String    @default("en")
+  targetLang   String    @default("zh")
   phonetic     String?
   partOfSpeech String?
   meaningZh    String?
@@ -31,6 +33,14 @@ model Word {
   examples     Example[]
 
   @@unique([userId, word])
+}
+
+model ReviewEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Example {

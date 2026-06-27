@@ -5,8 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { pairLabel } from "@/lib/langs";
 import { AddWordForm } from "@/components/AddWordForm";
-import { AccountSwitcher } from "@/components/AccountSwitcher";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -27,11 +27,17 @@ function MasteryDots({ count }: { count: number }) {
   );
 }
 
+// Use a CJK-capable font only when the target text is Chinese.
+function targetFont(lang: string) {
+  return lang === "zh" ? "font-zh" : "";
+}
+
 export default function WordsPage() {
   const { accountId } = useAccount();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [pair, setPair] = useState<string>("all");
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
@@ -47,10 +53,14 @@ export default function WordsPage() {
   const mastered = words.filter((w) => w.reviewCount >= 5).length;
   const learning = words.length - mastered;
 
+  // Distinct language pairs present in the collection.
+  const pairs = Array.from(new Set(words.map((w) => `${w.sourceLang}>${w.targetLang}`)));
+
   const q = query.trim().toLowerCase();
   const filtered = words.filter((w) => {
     if (filter === "mastered" && w.reviewCount < 5) return false;
     if (filter === "learning" && w.reviewCount >= 5) return false;
+    if (pair !== "all" && `${w.sourceLang}>${w.targetLang}` !== pair) return false;
     return (
       !q ||
       w.word.toLowerCase().includes(q) ||
@@ -73,7 +83,6 @@ export default function WordsPage() {
 
       <div className="anim-fade-up space-y-3" style={{ animationDelay: "60ms" }}>
         <AddWordForm />
-        <AccountSwitcher />
       </div>
 
       {isLoading && (
@@ -83,9 +92,7 @@ export default function WordsPage() {
           ))}
         </div>
       )}
-      {isError && (
-        <ErrorState message={(error as Error).message} onRetry={() => refetch()} />
-      )}
+      {isError && <ErrorState message={(error as Error).message} onRetry={() => refetch()} />}
 
       {data && words.length === 0 && (
         <p className="rounded-[18px] border border-dashed border-black/[0.12] bg-surface/60 p-8 text-center text-sm text-ink-soft">
@@ -95,6 +102,37 @@ export default function WordsPage() {
 
       {data && words.length > 0 && (
         <>
+          {/* language-pair filter (only when more than one pair exists) */}
+          {pairs.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Pair</span>
+              <button
+                onClick={() => setPair("all")}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                  pair === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                )}
+              >
+                All
+              </button>
+              {pairs.map((p) => {
+                const [s, t] = p.split(">");
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPair(p)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                      pair === p ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                    )}
+                  >
+                    {pairLabel(s, t)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2.5">
             <input
               value={query}
@@ -121,7 +159,7 @@ export default function WordsPage() {
           <div className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-surface">
             <div className="grid grid-cols-[1.4fr_0.7fr] gap-4 border-b border-black/[0.07] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint sm:grid-cols-[1.4fr_1.1fr_1fr_0.7fr]">
               <span>Word</span>
-              <span className="hidden sm:block">中文</span>
+              <span className="hidden sm:block">Meaning</span>
               <span className="hidden sm:block">Source</span>
               <span className="text-right">Mastery</span>
             </div>
@@ -138,11 +176,14 @@ export default function WordsPage() {
                       {w.word}
                     </span>{" "}
                     {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
-                    <span className="mt-0.5 block truncate font-zh text-sm text-sage sm:hidden">
+                    <span className="mt-0.5 block text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                      {pairLabel(w.sourceLang, w.targetLang)}
+                    </span>
+                    <span className={cn("mt-0.5 block truncate text-sm text-sage sm:hidden", targetFont(w.targetLang))}>
                       {w.meaningZh}
                     </span>
                   </Link>
-                  <span className="hidden truncate font-zh text-[17px] text-sage-deep sm:block">
+                  <span className={cn("hidden truncate text-[17px] text-sage-deep sm:block", targetFont(w.targetLang))}>
                     {w.meaningZh}
                   </span>
                   <span className="hidden text-sm font-medium text-ink-soft sm:block">

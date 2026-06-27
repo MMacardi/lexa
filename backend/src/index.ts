@@ -1,18 +1,24 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { env } from "./lib/env.js";
 import { wordsRouter } from "./routes/words.js";
+import { authRouter } from "./routes/auth.js";
 
 const app = express();
-app.use(cors()); // dev: allow the Next.js frontend (different port) to call us
+// Reflect the request origin and allow credentials so the browser can send the
+// session cookie cross-site (Vercel frontend -> Railway backend).
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Liveness probe. Railway and Docker can hit this to know the server is up.
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// REST API consumed by the frontend.
+// REST API consumed by the frontend and the bot.
+app.use("/api", authRouter);
 app.use("/api", wordsRouter);
 
 app.listen(env.PORT, () => {

@@ -1,40 +1,68 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { DEFAULT_TELEGRAM_ID } from "@/lib/api";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
-// The web app has no login, so "which account am I viewing" is a client-side
-// choice persisted in localStorage. The Telegram bot keys words by the sender's
-// real Telegram ID; here you can type that ID in to view that person's words.
-
-const STORAGE_KEY = "vocab.telegramId";
-
+// Auth-backed account context. The "account" is now the logged-in Telegram user
+// (verified via the Telegram Login Widget, or the dev shortcut locally), stored
+// server-side in a session cookie — no more free-text account stub.
 type AccountCtx = {
-  accountId: string;
-  setAccountId: (id: string) => void;
+  accountId: string; // logged-in Telegram id, or "" when signed out
+  authed: boolean;
+  ready: boolean; // initial /me check finished
+  loginDev: (id: string) => Promise<void>;
+  loginTelegram: (data: Record<string, unknown>) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const Ctx = createContext<AccountCtx>({
-  accountId: DEFAULT_TELEGRAM_ID,
-  setAccountId: () => {},
+  accountId: "",
+  authed: false,
+  ready: false,
+  loginDev: async () => {},
+  loginTelegram: async () => {},
+  logout: async () => {},
 });
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
-  const [accountId, setAccountIdState] = useState(DEFAULT_TELEGRAM_ID);
+  const [accountId, setAccountId] = useState("");
+  const [ready, setReady] = useState(false);
 
-  // Load the saved account on mount (client only).
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setAccountIdState(saved);
+  const refresh = useCallback(async () => {
+    try {
+      const me = await api.me();
+      setAccountId(me.telegramId);
+    } catch {
+      setAccountId("");
+    } finally {
+      setReady(true);
+    }
   }, []);
 
-  function setAccountId(id: string) {
-    const next = id.trim() || DEFAULT_TELEGRAM_ID;
-    localStorage.setItem(STORAGE_KEY, next);
-    setAccountIdState(next);
-  }
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  return <Ctx.Provider value={{ accountId, setAccountId }}>{children}</Ctx.Provider>;
+  const loginDev = async (id: string) => {
+    const r = await api.loginDev(id.trim());
+    setAccountId(r.telegramId);
+  };
+  const loginTelegram = async (data: Record<string, unknown>) => {
+    const r = await api.loginTelegram(data);
+    setAccountId(r.telegramId);
+  };
+  const logout = async () => {
+    await api.logout();
+    setAccountId("");
+  };
+
+  return (
+    <Ctx.Provider
+      value={{ accountId, authed: !!accountId, ready, loginDev, loginTelegram, logout }}
+    >
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export const useAccount = () => useContext(Ctx);
