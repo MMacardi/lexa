@@ -5,15 +5,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useFlip } from "@/lib/prefs";
+import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 
 interface Question {
   word: Word;
   prompt: string;
   options: string[];
   correct: string;
+  promptTarget: boolean;
+  optionsTarget: boolean;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -25,19 +32,29 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildQuiz(words: Word[]): Question[] {
-  const eligible = words.filter((w) => w.meaningZh);
+function buildQuiz(pool: Word[], flip: boolean): Question[] {
+  const eligible = pool.filter((w) => w.meaningZh);
   return shuffle(eligible)
     .slice(0, 8)
     .map((w) => {
-      const distractors = shuffle(words.filter((x) => x.id !== w.id))
-        .slice(0, 3)
-        .map((x) => x.word);
+      const others = shuffle(eligible.filter((x) => x.id !== w.id)).slice(0, 3);
+      if (flip) {
+        return {
+          word: w,
+          prompt: w.meaningZh as string,
+          options: shuffle([w.word, ...others.map((x) => x.word)]),
+          correct: w.word,
+          promptTarget: true,
+          optionsTarget: false,
+        };
+      }
       return {
         word: w,
-        prompt: w.meaningZh as string,
-        options: shuffle([w.word, ...distractors]),
-        correct: w.word,
+        prompt: w.word,
+        options: shuffle([w.meaningZh as string, ...others.map((x) => x.meaningZh as string)]),
+        correct: w.meaningZh as string,
+        promptTarget: false,
+        optionsTarget: true,
       };
     });
 }
@@ -45,24 +62,44 @@ function buildQuiz(words: Word[]): Question[] {
 export default function QuizPage() {
   const { accountId } = useAccount();
   const qc = useQueryClient();
+  const [flip, setFlip] = useFlip("vocab.flip.quiz");
   const { data: allWords, isLoading } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
 
-  const [quiz, setQuiz] = useState<Question[] | null>(null);
+  const [started, setStarted] = useState(false);
+  const [selPairs, setSelPairs] = useState<string[] | null>(null);
+  const [quiz, setQuiz] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
 
+  const words = allWords ?? [];
+  const allPairs = Array.from(new Set(words.map(pairKey)));
+  const sel = selPairs ?? allPairs;
+
   useEffect(() => {
-    if (quiz === null && allWords && allWords.length >= 4) setQuiz(buildQuiz(allWords));
-  }, [allWords, quiz]);
+    if (selPairs === null && allWords) setSelPairs(allPairs);
+  }, [allWords, selPairs, allPairs]);
 
   const review = useMutation({
     mutationFn: (id: string) => api.reviewWord(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
   });
+
+  const pool = words.filter((w) => w.meaningZh && sel.includes(pairKey(w)));
+
+  function start() {
+    setQuiz(buildQuiz(pool, flip));
+    setIndex(0);
+    setSelected(null);
+    setScore(0);
+    setStarted(true);
+  }
+  function togglePair(p: string) {
+    setSelPairs(sel.includes(p) ? sel.filter((x) => x !== p) : [...sel, p]);
+  }
 
   if (isLoading)
     return (
@@ -72,7 +109,7 @@ export default function QuizPage() {
       </div>
     );
 
-  if (!allWords || allWords.length < 4)
+  if (words.length < 4)
     return (
       <div className="mx-auto max-w-[480px] rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <div className="text-3xl">📚</div>
@@ -86,8 +123,67 @@ export default function QuizPage() {
       </div>
     );
 
-  if (!quiz)
-    return <Skeleton className="mx-auto h-40 max-w-[620px] rounded-[24px]" />;
+  // ---------------- Setup ----------------
+  if (!started) {
+    return (
+      <div className="mx-auto max-w-[520px] space-y-6">
+        <h2 className="font-serif text-[28px] font-medium text-ink">Recall check</h2>
+        <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Direction</p>
+            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+              {[false, true].map((v) => (
+                <button
+                  key={String(v)}
+                  onClick={() => setFlip(v)}
+                  className={cn(
+                    "rounded-full px-3 py-1 transition-colors",
+                    flip === v ? "bg-sage text-white" : "text-ink-muted",
+                  )}
+                >
+                  {v ? "Meaning → Word" : "Word → Meaning"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {allPairs.length > 1 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                Language pairs
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {allPairs.map((p) => {
+                  const [s, t] = p.split(">");
+                  const on = sel.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => togglePair(p)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                        on
+                          ? "bg-sage text-white"
+                          : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                      )}
+                    >
+                      {on ? "✓ " : ""}
+                      {pairLabel(s, t)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+        <Button className="w-full" disabled={pool.length < 4} onClick={start}>
+          {pool.length < 4
+            ? "Need at least 4 words in this selection"
+            : `Start — ${Math.min(pool.length, 8)} questions →`}
+        </Button>
+      </div>
+    );
+  }
 
   const total = quiz.length;
 
@@ -99,17 +195,8 @@ export default function QuizPage() {
         <p className="mt-2 text-ink-soft">
           You got <span className="font-semibold text-sage-deep">{score}</span> of {total} right.
         </p>
-        <Button
-          variant="dark"
-          className="mt-7"
-          onClick={() => {
-            setQuiz(buildQuiz(allWords));
-            setIndex(0);
-            setSelected(null);
-            setScore(0);
-          }}
-        >
-          Try again
+        <Button variant="dark" className="mt-7" onClick={() => setStarted(false)}>
+          Back to setup
         </Button>
       </div>
     );
@@ -117,6 +204,7 @@ export default function QuizPage() {
   const q = quiz[index];
   const answered = selected !== null;
   const correct = answered && selected === q.correct;
+  const tFont = targetFont(q.word.targetLang);
 
   function choose(opt: string) {
     if (selected !== null) return;
@@ -126,27 +214,27 @@ export default function QuizPage() {
       review.mutate(q.word.id);
     }
   }
-
   function next() {
     setSelected(null);
     setIndex((i) => i + 1);
   }
 
+  const promptHint = flip
+    ? `Which ${langLabel(q.word.sourceLang)} word means:`
+    : `Pick the ${langLabel(q.word.targetLang)} meaning of:`;
+
   return (
     <div className="mx-auto max-w-[620px]">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="font-serif text-[28px] font-medium text-ink">Recall check</h2>
-        <div className="flex items-center gap-1.5">
-          {quiz.map((_, i) => (
-            <span
-              key={i}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                i === index ? "w-5 bg-sage" : i < index ? "w-1.5 bg-sage" : "w-1.5 bg-dot-empty",
-              )}
-            />
-          ))}
-          <span className="ml-2 text-[13px] font-semibold text-ink-faint">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setStarted(false)}
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            ⚙ Setup
+          </button>
+          <span className="text-[13px] font-semibold text-ink-faint">
             {index + 1} / {total}
           </span>
         </div>
@@ -156,8 +244,13 @@ export default function QuizPage() {
         key={index}
         className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-9 text-center"
       >
-        <div className="text-sm font-medium text-ink-soft">Which English word means</div>
-        <div className="mt-2.5 font-zh text-[48px] font-bold leading-tight text-sage-deep">
+        <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
+        <div
+          className={cn(
+            "mt-2.5 font-bold leading-tight text-sage-deep",
+            q.promptTarget ? cn("text-[44px]", tFont) : "font-serif text-[40px] text-ink",
+          )}
+        >
           {q.prompt}
         </div>
       </div>
@@ -187,6 +280,7 @@ export default function QuizPage() {
               className={cn(
                 "flex items-center justify-between rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
                 style,
+                q.optionsTarget && tFont,
                 !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
               )}
             >
@@ -200,20 +294,17 @@ export default function QuizPage() {
       {answered && (
         <div className="anim-fade-up mt-4">
           <div className="rounded-[18px] bg-sage-tint p-5">
-            <p
-              className={cn(
-                "text-base font-semibold",
-                correct ? "text-sage-deep" : "text-warn-text",
-              )}
-            >
+            <p className={cn("text-base font-semibold", correct ? "text-sage-deep" : "text-warn-text")}>
               {correct ? "Exactly right." : `Not quite — the answer is “${q.correct}”.`}
             </p>
             {q.word.examples[0] && (
               <p className="mt-2.5 font-serif text-[17px] leading-relaxed text-[#544e45]">
                 “{q.word.examples[0].sentenceEn}”
-                <span className="mt-1 block font-zh text-sm not-italic text-ink-soft">
-                  {q.word.examples[0].sentenceZh}
-                </span>
+                {q.word.examples[0].sentenceZh && (
+                  <span className={cn("mt-1 block text-sm not-italic text-ink-soft", tFont)}>
+                    {q.word.examples[0].sentenceZh}
+                  </span>
+                )}
               </p>
             )}
           </div>

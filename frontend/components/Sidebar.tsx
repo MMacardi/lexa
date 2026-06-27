@@ -16,7 +16,7 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { accountId } = useAccount();
+  const { accountId, logout } = useAccount();
   const { data } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -81,6 +81,19 @@ export function Sidebar() {
         <div className="mt-2.5 text-xs font-medium text-taupe-dim">
           {total} collected · {due} due
         </div>
+      </div>
+
+      {/* account + logout */}
+      <div className="flex items-center justify-between gap-2 md:mt-3">
+        <span className="truncate text-xs font-medium text-ink-faint" title={accountId}>
+          👤 {accountId}
+        </span>
+        <button
+          onClick={() => logout()}
+          className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-muted hover:bg-black/[0.04]"
+        >
+          Log out
+        </button>
       </div>
     </aside>
   );

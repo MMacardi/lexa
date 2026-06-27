@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
+import { EditWordForm } from "@/components/EditWordForm";
+
+const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
 
 function Pills({ label, items }: { label: string; items: string[] }) {
   if (!items.length) return null;
@@ -29,6 +34,7 @@ function Pills({ label, items }: { label: string; items: string[] }) {
 
 export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [editing, setEditing] = useState(false);
   const { data: word, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
@@ -62,9 +68,21 @@ export default function WordDetailPage() {
 
   return (
     <div className="anim-fade-up space-y-7">
-      <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
-        ← My words
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
+          ← My words
+        </Link>
+        {!editing && (
+          <button
+            onClick={() => setEditing(true)}
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            ✎ Edit
+          </button>
+        )}
+      </div>
+
+      {editing && <EditWordForm word={word} onDone={() => setEditing(false)} />}
 
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-baseline gap-3">
@@ -77,9 +95,14 @@ export default function WordDetailPage() {
               {word.partOfSpeech}
             </span>
           )}
+          <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
+            {pairLabel(word.sourceLang, word.targetLang)}
+          </span>
         </div>
         {word.meaningZh && (
-          <p className="font-zh text-[22px] font-medium text-sage-deep">{word.meaningZh}</p>
+          <p className={cn("text-[22px] font-medium text-sage-deep", targetFont(word.targetLang))}>
+            {word.meaningZh}
+          </p>
         )}
         <div className="flex items-center gap-2 pt-1">
           {[0, 1, 2].map((i) => (
@@ -110,7 +133,11 @@ export default function WordDetailPage() {
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
             <p className="font-serif text-[19px] leading-relaxed text-ink">{ex.sentenceEn}</p>
-            <p className="mt-2 font-zh text-[15px] text-ink-soft">{ex.sentenceZh}</p>
+            {ex.sentenceZh && (
+              <p className={cn("mt-2 text-[15px] text-ink-soft", targetFont(word.targetLang))}>
+                {ex.sentenceZh}
+              </p>
+            )}
             <a
               href={ex.sourceUrl}
               target="_blank"

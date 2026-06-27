@@ -2,6 +2,7 @@ import { prisma } from "../services/db.js";
 import { searchNews } from "../services/search.js";
 import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema } from "../lib/schemas.js";
+import { langName } from "../lib/langs.js";
 
 export interface ExampleSearchResult {
   wordId: string;
@@ -34,22 +35,31 @@ function sourceNameFromUrl(url: string): string {
 export async function runExampleSearch(params: {
   userId: string;
   word: string;
+  sourceLang?: string;
+  targetLang?: string;
 }): Promise<ExampleSearchResult> {
   const word = params.word.trim().toLowerCase();
+  const sourceLang = params.sourceLang ?? "en";
+  const targetLang = params.targetLang ?? "zh";
+  const sourceName = langName(sourceLang);
+  const targetName = langName(targetLang);
 
   // 1. External tool call — the part that makes this a real agent, not a chat loop.
-  const articles = await searchNews(word);
+  // English: restrict to news domains; other languages: open web (to find
+  // authentic sentences in that language).
+  const articles = await searchNews(word, { restrictNews: sourceLang === "en" });
   if (articles.length === 0) {
-    throw new Error(`No news articles found containing "${word}"`);
+    throw new Error(`No sources found containing "${word}"`);
   }
 
   // 2. LLM step 1: choose one natural sentence and which excerpt it came from.
   const numbered = articles.map((a, i) => `[${i}] ${a.content}`).join("\n\n");
   const selection = await chatJson({
     system:
-      "You are an English teacher selecting an example sentence for a learner. " +
-      "From the numbered news excerpts, choose ONE complete, natural sentence " +
-      "that contains the target word and reads clearly on its own. " +
+      `You are a ${sourceName} language teacher selecting an example sentence ` +
+      `for a learner. From the numbered excerpts, choose ONE complete, natural ` +
+      `${sourceName} sentence that contains the target word and reads clearly on ` +
+      "its own. " +
       'Respond as JSON: {"sentence": string, "sourceIndex": number}, where ' +
       "sourceIndex is the [n] of the excerpt the sentence came from.",
     user: `Target word: ${word}\n\nExcerpts:\n${numbered}`,
@@ -59,10 +69,10 @@ export async function runExampleSearch(params: {
   // Guard against an out-of-range index from the model.
   const source = articles[selection.sourceIndex] ?? articles[0];
 
-  // 3. LLM step 2: translate the chosen sentence to Chinese.
+  // 3. LLM step 2: translate the chosen sentence to the target language.
   const translation = await chatJson({
     system:
-      "Translate the English sentence into natural Simplified Chinese. " +
+      `Translate the ${sourceName} sentence into natural ${targetName}. ` +
       'Respond as JSON: {"translation": string}.',
     user: selection.sentence,
     schema: translationSchema,
@@ -71,8 +81,8 @@ export async function runExampleSearch(params: {
   // 4. Persist. Upsert the word (one row per user+word), then add the example.
   const wordRecord = await prisma.word.upsert({
     where: { userId_word: { userId: params.userId, word } },
-    create: { userId: params.userId, word },
-    update: {},
+    create: { userId: params.userId, word, sourceLang, targetLang },
+    update: { sourceLang, targetLang },
   });
 
   const example = await prisma.example.create({
