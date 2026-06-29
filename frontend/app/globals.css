@@ -19,19 +19,62 @@
   --color-warn-bg: #f6ece8;
   --color-track: #ece6dc;
   --color-dot-empty: #dcd4c7;
+  --color-onyx: #2e2a26; /* decorative dark panels (stays dark in dark mode) */
+  --color-quote: #544e45; /* example-sentence body text */
 
   --font-serif: "Newsreader", Georgia, serif;
   --font-sans: "Hanken Grotesk", system-ui, sans-serif;
   --font-zh: "Noto Sans SC", "Hanken Grotesk", sans-serif;
 }
 
+:root {
+  --app-bg: #e7e4de;
+}
+
+/* ---- Dark theme: redefine the palette under html.dark ---- */
+html.dark {
+  --app-bg: #100e0c;
+  --color-paper: #16130f;
+  --color-surface: #211d18;
+  --color-ink: #ece7df;
+  --color-ink-muted: #c0b6a6;
+  --color-ink-soft: #9b9384;
+  --color-ink-faint: #756d60;
+  --color-sage: #87a791;
+  --color-sage-deep: #a9c6b0;
+  --color-sage-tint: #20302a;
+  --color-news-hl: #2a3a2e;
+  --color-taupe: #c9b8a8;
+  --color-taupe-dim: #8a7d6b;
+  --color-warn: #c79a89;
+  --color-warn-text: #d6a795;
+  --color-warn-bg: #2e211c;
+  --color-track: #2c2722;
+  --color-dot-empty: #39332c;
+  --color-onyx: #050403;
+  --color-quote: #c6bdaf;
+}
+
+/* In dark mode the faint black hairlines/fills become invisible — lift them. */
+html.dark .border-black\/\[0\.06\],
+html.dark .border-black\/\[0\.07\],
+html.dark .border-black\/\[0\.08\],
+html.dark .border-black\/\[0\.05\] {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+html.dark .bg-black\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.04); }
+html.dark .bg-black\/\[0\.04\] { background-color: rgba(255, 255, 255, 0.05); }
+html.dark .hover\:bg-black\/\[0\.03\]:hover { background-color: rgba(255, 255, 255, 0.05); }
+html.dark .hover\:bg-black\/\[0\.04\]:hover { background-color: rgba(255, 255, 255, 0.06); }
+
 html {
   -webkit-font-smoothing: antialiased;
 }
 body {
-  background: #e7e4de;
+  background: var(--app-bg);
   font-family: var(--font-sans);
-  color: #2e2a26;
+  color: var(--color-ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 ::-webkit-scrollbar {
@@ -69,18 +112,60 @@ body {
   .anim-fade-up, .anim-fade-in, .anim-pop { animation: none; }
 }
 
-/* 3D flip card */
-.flip-scene { perspective: 1600px; }
+/* 3D flip card — grid stacking lets the card size to the taller face (no overlap) */
+.flip-scene { perspective: 1800px; }
 .flip-card {
-  position: relative;
+  display: grid;
   transform-style: preserve-3d;
   transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.26, 1);
 }
 .flip-card.is-flipped { transform: rotateY(180deg); }
 .flip-face {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 .flip-back { transform: rotateY(180deg); }
+
+/* ---- Confetti (session-complete celebration) ---- */
+@keyframes lexaConfetti {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 60;
+  animation: lexaConfetti linear forwards;
+}
+
+/* ⌘K command palette pop */
+@keyframes lexaScaleIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.anim-scale-in { animation: lexaScaleIn 0.16s ease both; }
+
+/* Toast slide-in (from the right) */
+@keyframes lexaToastIn {
+  from { opacity: 0; transform: translateX(40px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lexaToastOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(40px) scale(0.96); }
+}
+.anim-toast-in { animation: lexaToastIn 0.32s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+.anim-toast-out { animation: lexaToastOut 0.28s ease both; }
+@keyframes lexaShine {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece, .flip-card { animation: none; transition: none; }
+}

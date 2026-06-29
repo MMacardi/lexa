@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
@@ -38,15 +38,35 @@ export default function WordsPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [pair, setPair] = useState<string>("all");
+  const [coll, setColl] = useState<string>("all");
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
+  const { data: collections } = useQuery({
+    queryKey: ["collections", accountId],
+    queryFn: () => api.collections(accountId),
+  });
+
+  // Honor a ?coll= deep link from the Collections page.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("coll");
+    if (c) setColl(c);
+  }, []);
 
   const del = useMutation({
     mutationFn: (id: string) => api.deleteWord(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
+  });
+
+  const delCollection = useMutation({
+    mutationFn: (id: string) => api.deleteCollection(id),
+    onSuccess: () => {
+      setColl("all");
+      qc.invalidateQueries({ queryKey: ["collections"] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+    },
   });
 
   const words = data ?? [];
@@ -61,6 +81,7 @@ export default function WordsPage() {
     if (filter === "mastered" && w.reviewCount < 5) return false;
     if (filter === "learning" && w.reviewCount >= 5) return false;
     if (pair !== "all" && `${w.sourceLang}>${w.targetLang}` !== pair) return false;
+    if (coll !== "all" && !(w.collections ?? []).some((c) => c.id === coll)) return false;
     return (
       !q ||
       w.word.toLowerCase().includes(q) ||
@@ -82,7 +103,7 @@ export default function WordsPage() {
       </div>
 
       <div className="anim-fade-up space-y-3" style={{ animationDelay: "60ms" }}>
-        <AddWordForm />
+        <AddWordForm defaultCollectionId={coll} />
       </div>
 
       {isLoading && (
@@ -102,6 +123,47 @@ export default function WordsPage() {
 
       {data && words.length > 0 && (
         <>
+          {/* collection filter */}
+          {collections && collections.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Set</span>
+              <button
+                onClick={() => setColl("all")}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                  coll === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                )}
+              >
+                All
+              </button>
+              {collections.map((c) => (
+                <span key={c.id} className="inline-flex items-center">
+                  <button
+                    onClick={() => setColl(c.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                      coll === c.id ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                    )}
+                  >
+                    {c.name} <span className="opacity-70">{c.count}</span>
+                  </button>
+                  {coll === c.id && (
+                    <button
+                      aria-label={`Delete collection ${c.name}`}
+                      onClick={() => {
+                        if (confirm(`Delete collection "${c.name}"? (words are kept)`))
+                          delCollection.mutate(c.id);
+                      }}
+                      className="ml-1 text-ink-faint hover:text-warn-text"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* language-pair filter (only when more than one pair exists) */}
           {pairs.length > 1 && (
             <div className="flex flex-wrap items-center gap-2">
@@ -147,7 +209,7 @@ export default function WordsPage() {
                 className={cn(
                   "rounded-full px-4 py-2.5 text-sm font-semibold transition-colors",
                   filter === p.key
-                    ? "bg-ink text-paper"
+                    ? "bg-onyx text-[#f4f1ec]"
                     : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
                 )}
               >

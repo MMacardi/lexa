@@ -41,7 +41,10 @@ export async function addWordForUser(params: {
 
   return prisma.word.findUniqueOrThrow({
     where: { id: example.wordId },
-    include: { examples: { orderBy: { createdAt: "desc" } } },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -102,7 +105,10 @@ export async function addWordManual(params: {
 
   return prisma.word.findUniqueOrThrow({
     where: { id: wordRecord.id },
-    include: { examples: { orderBy: { createdAt: "desc" } } },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -113,7 +119,10 @@ export async function listWordsForUser(telegramId: string) {
   return prisma.word.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
-    include: { examples: { orderBy: { createdAt: "desc" } } },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -121,7 +130,10 @@ export async function listWordsForUser(telegramId: string) {
 export async function getWord(id: string) {
   return prisma.word.findUnique({
     where: { id },
-    include: { examples: { orderBy: { createdAt: "desc" } } },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -165,7 +177,17 @@ export async function updateWord(
   ] as const) {
     if (fields[k] !== undefined) data[k] = fields[k];
   }
-  await prisma.word.update({ where: { id }, data });
+  try {
+    await prisma.word.update({ where: { id }, data });
+  } catch (err) {
+    // Renaming to a word the user already has trips the (userId, word) unique index.
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      throw new Error(
+        `You already have “${data.word ?? fields.word}” in your collection — rename it differently.`,
+      );
+    }
+    throw err;
+  }
 
   if (fields.example) {
     const ex = fields.example;
@@ -198,7 +220,10 @@ export async function updateWord(
 
   return prisma.word.findUniqueOrThrow({
     where: { id },
-    include: { examples: { orderBy: { createdAt: "desc" } } },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -235,6 +260,7 @@ export async function getStats(telegramId: string) {
     trainedToday: 0,
     streak: 0,
     days: [] as { date: string; added: number; reviews: number }[],
+    heat: [] as { date: string; count: number }[],
   };
   if (!user) return empty;
 
@@ -243,7 +269,9 @@ export async function getStats(telegramId: string) {
     where: { userId: user.id },
     select: { reviewCount: true, nextReviewAt: true, createdAt: true },
   });
-  const since = new Date(now - 13 * 86400_000);
+  // Pull a wide window (for the heatmap); the 14-day chart is a subset of it.
+  const HEAT_DAYS = 119; // 17 weeks
+  const since = new Date(now - (HEAT_DAYS - 1) * 86400_000);
   since.setHours(0, 0, 0, 0);
   const events = await prisma.reviewEvent.findMany({
     where: { userId: user.id, createdAt: { gte: since } },
@@ -272,6 +300,15 @@ export async function getStats(telegramId: string) {
     days.push({ date: k, added: addedMap.get(k) ?? 0, reviews: reviewMap.get(k) ?? 0 });
   }
 
+  // Wide heatmap series (reviews per day, last 119 days).
+  const heat: { date: string; count: number }[] = [];
+  for (let i = HEAT_DAYS - 1; i >= 0; i--) {
+    const d = new Date(now - i * 86400_000);
+    d.setHours(0, 0, 0, 0);
+    const k = d.toISOString().slice(0, 10);
+    heat.push({ date: k, count: reviewMap.get(k) ?? 0 });
+  }
+
   const todayKey = key(new Date(now));
   const trainedToday = reviewMap.get(todayKey) ?? 0;
 
@@ -284,5 +321,54 @@ export async function getStats(telegramId: string) {
     else break;
   }
 
-  return { total, mastered, learning: total - mastered, due, trainedToday, streak, days };
+  return { total, mastered, learning: total - mastered, due, trainedToday, streak, days, heat };
+}
+
+// ---------------- Collections (word sets like "IELTS", "adjectives") ----------------
+
+/** A user's collections, each with how many words it holds. */
+export async function listCollections(telegramId: string) {
+  const user = await prisma.user.findUnique({ where: { telegramId } });
+  if (!user) return [];
+  const cols = await prisma.collection.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+    include: { _count: { select: { words: true } } },
+  });
+  return cols.map((c) => ({ id: c.id, name: c.name, count: c._count.words }));
+}
+
+/** Create a named collection for a user. */
+export async function createCollection(telegramId: string, name: string) {
+  const user = await ensureUser(telegramId);
+  try {
+    const c = await prisma.collection.create({
+      data: { userId: user.id, name: name.trim() },
+    });
+    return { id: c.id, name: c.name, count: 0 };
+  } catch (err) {
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      throw new Error(`You already have a collection called “${name.trim()}”.`);
+    }
+    throw err;
+  }
+}
+
+export async function renameCollection(id: string, name: string) {
+  const c = await prisma.collection.update({ where: { id }, data: { name: name.trim() } });
+  return { id: c.id, name: c.name };
+}
+
+/** Delete a collection (words themselves are untouched). */
+export async function deleteCollection(id: string) {
+  return prisma.collection.delete({ where: { id } });
+}
+
+/** Add or remove a word from a collection. */
+export async function setWordInCollection(collectionId: string, wordId: string, member: boolean) {
+  await prisma.collection.update({
+    where: { id: collectionId },
+    data: { words: member ? { connect: { id: wordId } } : { disconnect: { id: wordId } } },
+  });
+  return { ok: true };
 }

@@ -10,6 +10,9 @@ import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
+import { CollectionChips } from "@/components/CollectionChips";
+import { SpeakButton } from "@/components/SpeakButton";
+import { downloadShareCard } from "@/lib/shareCard";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
 
@@ -73,12 +76,29 @@ export default function WordDetailPage() {
           ← My words
         </Link>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-          >
-            ✎ Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                downloadShareCard({
+                  word: word.word,
+                  phonetic: word.phonetic,
+                  partOfSpeech: word.partOfSpeech,
+                  meaning: word.meaningZh,
+                  example: word.examples[0]?.sentenceEn,
+                  source: word.examples[0]?.sourceName,
+                })
+              }
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            >
+              ↗ Share
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            >
+              ✎ Edit
+            </button>
+          </div>
         )}
       </div>
 
@@ -89,6 +109,7 @@ export default function WordDetailPage() {
           <h1 className="font-serif text-[44px] font-semibold leading-none tracking-[-0.02em] text-ink">
             {word.word}
           </h1>
+          <SpeakButton text={word.word} lang={word.sourceLang} />
           {word.phonetic && <span className="text-[18px] text-ink-faint">{word.phonetic}</span>}
           {word.partOfSpeech && (
             <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
@@ -116,6 +137,8 @@ export default function WordDetailPage() {
           </span>
         </div>
       </div>
+
+      <CollectionChips word={word} />
 
       <div className="grid gap-5 sm:grid-cols-3">
         <Pills label="Collocations" items={word.collocations} />
