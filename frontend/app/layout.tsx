@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
+import { themeBootScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "Lexa — learn English through the news",
@@ -15,6 +16,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Set the theme class before first paint to avoid a flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* App Router root layout: these load globally for every page. */}

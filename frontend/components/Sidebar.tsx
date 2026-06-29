@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -12,11 +13,13 @@ const NAV = [
   { href: "/review", label: "Flashcards" },
   { href: "/quiz", label: "Recall check" },
   { href: "/words", label: "My words" },
+  { href: "/collections", label: "Collections" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { accountId, logout } = useAccount();
+  const { theme, toggle } = useTheme();
   const { data } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -29,13 +32,21 @@ export function Sidebar() {
 
   return (
     <aside className="flex shrink-0 flex-col gap-6 border-b border-black/[0.07] bg-surface px-4 py-5 md:sticky md:top-0 md:h-screen md:w-[252px] md:border-b-0 md:border-r md:px-[18px] md:py-[26px]">
-      <div className="flex items-center justify-between md:block">
+      <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2 px-2 md:px-2.5">
           <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink">
             Lexa
           </span>
           <span className="h-[7px] w-[7px] rounded-full bg-sage" />
         </div>
+        <button
+          onClick={toggle}
+          title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          aria-label="Toggle theme"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[17px] text-ink-muted transition-colors hover:bg-black/[0.04]"
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
       </div>
 
       <nav className="flex flex-wrap gap-1 md:mt-2 md:flex-col">
@@ -65,7 +76,7 @@ export function Sidebar() {
       </nav>
 
       {/* progress card (real data) — hidden on mobile */}
-      <div className="mt-auto hidden rounded-[18px] bg-ink p-[18px] md:block">
+      <div className="mt-auto hidden rounded-[18px] bg-onyx p-[18px] md:block">
         <div className="flex items-baseline gap-2">
           <span className="font-serif text-[30px] font-bold leading-none text-white">
             {mastered}

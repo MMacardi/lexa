@@ -9,6 +9,8 @@ import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SpeakButton } from "@/components/SpeakButton";
+import { Confetti } from "@/components/Confetti";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
@@ -23,9 +25,24 @@ export default function FlashcardsPage() {
     queryFn: () => api.listWords(accountId),
   });
 
+  const { data: collections } = useQuery({
+    queryKey: ["collections", accountId],
+    queryFn: () => api.collections(accountId),
+  });
+
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
+  const [selColl, setSelColl] = useState<string>("all");
   const [onlyDue, setOnlyDue] = useState(true);
+
+  const inColl = (w: Word) =>
+    selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
+
+  // Preset the collection from a ?coll= deep link (e.g. from the Collections page).
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("coll");
+    if (c) setSelColl(c);
+  }, []);
 
   const [deck, setDeck] = useState<Word[]>([]);
   const [index, setIndex] = useState(0);
@@ -49,11 +66,16 @@ export default function FlashcardsPage() {
 
   const review = useMutation({
     mutationFn: (id: string) => api.reviewWord(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 
   function buildDeck() {
-    return words.filter((w) => sel.includes(pairKey(w)) && (onlyDue ? isDue(w) : true));
+    return words.filter(
+      (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
+    );
   }
 
   function start() {
@@ -108,7 +130,7 @@ export default function FlashcardsPage() {
   // ---------------- Setup screen ----------------
   if (!started) {
     const candidate = words.filter(
-      (w) => sel.includes(pairKey(w)) && (onlyDue ? isDue(w) : true),
+      (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
     );
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
@@ -133,6 +155,42 @@ export default function FlashcardsPage() {
               ))}
             </div>
           </div>
+
+          {/* collection */}
+          {collections && collections.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                Collection
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelColl("all")}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                    selColl === "all"
+                      ? "bg-sage text-white"
+                      : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                  )}
+                >
+                  All words
+                </button>
+                {collections.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelColl(c.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                      selColl === c.id
+                        ? "bg-sage text-white"
+                        : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                    )}
+                  >
+                    {c.name} <span className="opacity-70">{c.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* pairs */}
           {allPairs.length > 1 && (
@@ -192,6 +250,7 @@ export default function FlashcardsPage() {
   if (done)
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+        {known > 0 && <Confetti />}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint">
           <svg width="40" height="40" viewBox="0 0 34 34" fill="none">
             <path d="M9 17.5l5 5L25 11" stroke="#7c9885" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -309,33 +368,43 @@ export default function FlashcardsPage() {
             touchAction: "pan-y",
           }}
         >
-          <div className="flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
-            {!flipped ? (
-              <div key="front" className="anim-fade-in flex flex-1 flex-col items-center justify-center text-center">
-                {!flip ? (
-                  <>
-                    {word.partOfSpeech && (
-                      <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">
-                        {word.partOfSpeech}
-                      </span>
-                    )}
-                    <div className="mt-4 font-serif text-[52px] font-medium leading-tight tracking-[-0.025em] text-ink">
-                      {word.word}
+          <div className="flip-scene">
+            <div className={cn("flip-card", flipped && "is-flipped")}>
+              {/* FRONT */}
+              <div className="flip-face flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+                <div className="flex flex-1 flex-col items-center justify-center text-center">
+                  {!flip ? (
+                    <>
+                      {word.partOfSpeech && (
+                        <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">
+                          {word.partOfSpeech}
+                        </span>
+                      )}
+                      <div className="mt-4 flex items-center gap-3">
+                        <div className="font-serif text-[52px] font-medium leading-tight tracking-[-0.025em] text-ink">
+                          {word.word}
+                        </div>
+                        <SpeakButton text={word.word} lang={word.sourceLang} />
+                      </div>
+                      {word.phonetic && <div className="mt-3 text-[20px] text-ink-faint">{word.phonetic}</div>}
+                    </>
+                  ) : (
+                    <div className={cn("font-serif text-[38px] font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}>
+                      {word.meaningZh}
                     </div>
-                    {word.phonetic && <div className="mt-3 text-[20px] text-ink-faint">{word.phonetic}</div>}
-                  </>
-                ) : (
-                  <div className={cn("font-serif text-[38px] font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}>
-                    {word.meaningZh}
+                  )}
+                  <div className="mt-7 text-sm font-medium text-ink-faint">
+                    Click to reveal · {langLabel(flip ? word.sourceLang : word.targetLang)}
                   </div>
-                )}
-                <div className="mt-7 text-sm font-medium text-[#cabfae]">
-                  Click to reveal · {langLabel(flip ? word.sourceLang : word.targetLang)}
                 </div>
               </div>
-            ) : (
-              <div key="back" className="anim-fade-in flex flex-1 flex-col justify-center">
-                <div className="font-serif text-[28px] font-medium text-ink">{word.word}</div>
+
+              {/* BACK */}
+              <div className="flip-face flip-back flex min-h-[320px] flex-col justify-center rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+                <div className="flex items-center gap-3">
+                  <div className="font-serif text-[28px] font-medium text-ink">{word.word}</div>
+                  <SpeakButton text={word.word} lang={word.sourceLang} size="sm" />
+                </div>
                 {word.meaningZh && (
                   <div className={cn("mt-2 text-[26px] font-bold text-sage-deep", targetFont(word.targetLang))}>
                     {word.meaningZh}
@@ -344,7 +413,7 @@ export default function FlashcardsPage() {
                 {example && (
                   <>
                     <div className="my-4 h-px bg-black/[0.07]" />
-                    <p className="font-serif text-[18px] leading-relaxed text-[#544e45]">
+                    <p className="font-serif text-[18px] leading-relaxed text-quote">
                       {example.sentenceEn}
                     </p>
                     {example.sentenceZh && (
@@ -358,7 +427,7 @@ export default function FlashcardsPage() {
                   </>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -371,7 +440,7 @@ export default function FlashcardsPage() {
           ✓ I know it
         </Button>
       </div>
-      <p className="mt-4 text-[13px] font-medium text-[#b3aa9a]">
+      <p className="mt-4 text-[13px] font-medium text-ink-faint">
         Drag the card left or right, or use the buttons.
       </p>
     </div>

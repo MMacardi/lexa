@@ -1,33 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { LANGS, langLabel } from "@/lib/langs";
+import { langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LangSelect } from "@/components/LangSelect";
+import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 
 type Mode = "auto" | "manual";
 
-function LangSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 rounded-[14px] border border-black/[0.08] bg-surface px-3 text-[15px] text-ink focus:border-sage focus:outline-none"
-    >
-      {LANGS.map((l) => (
-        <option key={l.code} value={l.code}>
-          {l.native}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-export function AddWordForm() {
+// `defaultCollectionId` is the active "Set" filter from My words ("all" or an
+// id). When it's a real collection, the new word is pre-assigned to it.
+export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: string }) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
 
@@ -40,6 +28,18 @@ export function AddWordForm() {
   const [exEn, setExEn] = useState("");
   const [exZh, setExZh] = useState("");
   const [src, setSrc] = useState("");
+  // optional collections to drop the word into (multi-select)
+  const [collIds, setCollIds] = useState<string[]>([]);
+
+  const { data: collections } = useQuery({
+    queryKey: ["collections", accountId],
+    queryFn: () => api.collections(accountId),
+  });
+
+  // Follow the active "Set" filter as the default selection.
+  useEffect(() => {
+    setCollIds(defaultCollectionId && defaultCollectionId !== "all" ? [defaultCollectionId] : []);
+  }, [defaultCollectionId]);
 
   const reset = () => {
     setWord("");
@@ -50,30 +50,36 @@ export function AddWordForm() {
   };
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const base = { word: word.trim(), telegramId: accountId, sourceLang, targetLang };
-      if (mode === "manual") {
-        return api.addWordManual({
-          ...base,
-          meaningZh: meaning.trim() || undefined,
-          example: exEn.trim()
-            ? { sentenceEn: exEn.trim(), sentenceZh: exZh.trim() || undefined, sourceName: src.trim() || undefined }
-            : undefined,
-        });
-      }
-      return api.addWord(base);
+      const created =
+        mode === "manual"
+          ? await api.addWordManual({
+              ...base,
+              meaningZh: meaning.trim() || undefined,
+              example: exEn.trim()
+                ? { sentenceEn: exEn.trim(), sentenceZh: exZh.trim() || undefined, sourceName: src.trim() || undefined }
+                : undefined,
+            })
+          : await api.addWord(base);
+      await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
+      return created;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
-      reset();
+      qc.invalidateQueries({ queryKey: ["collections"] });
+      reset(); // keep collIds so several words can go into the same set(s)
     },
   });
+
+  // Only the word (auto) — or word + meaning (manual) — are required.
+  const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (word.trim()) mutation.mutate();
+        if (canSubmit) mutation.mutate();
       }}
       className="space-y-2.5 rounded-[18px] border border-black/[0.06] bg-surface/70 p-4"
     >
@@ -108,17 +114,27 @@ export function AddWordForm() {
           placeholder={`Word in ${langLabel(sourceLang)}`}
           disabled={mutation.isPending}
         />
-        <Button type="submit" disabled={mutation.isPending || !word.trim()} className="shrink-0">
+        <Button type="submit" disabled={mutation.isPending || !canSubmit} className="shrink-0">
           {mutation.isPending ? (mode === "auto" ? "Searching…" : "Saving…") : "Add word →"}
         </Button>
       </div>
 
       {mode === "manual" && (
         <div className="space-y-2">
-          <Input value={meaning} onChange={(e) => setMeaning(e.target.value)} placeholder={`Meaning (${langLabel(targetLang)})`} />
+          <Input value={meaning} onChange={(e) => setMeaning(e.target.value)} placeholder={`Meaning (${langLabel(targetLang)}) — required`} />
           <Input value={exEn} onChange={(e) => setExEn(e.target.value)} placeholder={`Example sentence (${langLabel(sourceLang)})`} />
           <Input value={exZh} onChange={(e) => setExZh(e.target.value)} placeholder={`Example translation (${langLabel(targetLang)})`} />
           <Input value={src} onChange={(e) => setSrc(e.target.value)} placeholder="Source (optional)" />
+        </div>
+      )}
+
+      {/* optional collections — pretty dropdown multi-select */}
+      {collections && collections.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            Add to set
+          </span>
+          <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} />
         </div>
       )}
 

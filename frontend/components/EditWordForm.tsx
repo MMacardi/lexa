@@ -3,28 +3,12 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
-import { LANGS } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LangSelect } from "@/components/LangSelect";
 
 const csv = (a: string[]) => a.join(", ");
 const parse = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
-
-function LangSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 rounded-[14px] border border-black/[0.08] bg-surface px-3 text-[15px] text-ink focus:border-sage focus:outline-none"
-    >
-      {LANGS.map((l) => (
-        <option key={l.code} value={l.code}>
-          {l.native}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

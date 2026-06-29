@@ -131,7 +131,7 @@ export default function TodayPage() {
       <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
         <Link
           href="/review"
-          className="anim-fade-up group flex flex-col rounded-[24px] bg-ink p-7 transition-transform hover:-translate-y-0.5"
+          className="anim-fade-up group flex flex-col rounded-[24px] bg-onyx p-7 transition-transform hover:-translate-y-0.5"
           style={{ animationDelay: "120ms" }}
         >
           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-taupe-dim">
@@ -180,7 +180,7 @@ export default function TodayPage() {
             </div>
           )}
           {wotd.examples[0] && (
-            <p className="mt-4 font-serif text-[16px] leading-relaxed text-[#544e45]">
+            <p className="mt-4 font-serif text-[16px] leading-relaxed text-quote">
               “<Highlight text={wotd.examples[0].sentenceEn} word={wotd.word} />”
             </p>
           )}

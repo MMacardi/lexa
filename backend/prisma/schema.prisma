@@ -8,10 +8,23 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  telegramId String   @unique
-  createdAt  DateTime @default(now())
-  words      Word[]
+  id          String       @id @default(cuid())
+  telegramId  String       @unique
+  createdAt   DateTime     @default(now())
+  words       Word[]
+  collections Collection[]
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  words     Word[]   @relation("CollectionWords")
+
+  @@unique([userId, name])
+  @@index([userId])
 }
 
 model Word {
@@ -31,6 +44,7 @@ model Word {
   nextReviewAt DateTime?
   createdAt    DateTime  @default(now())
   examples     Example[]
+  collections  Collection[] @relation("CollectionWords")
 
   @@unique([userId, word])
 }

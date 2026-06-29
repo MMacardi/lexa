@@ -10,6 +10,11 @@ import {
   deleteWord,
   updateWord,
   getStats,
+  listCollections,
+  createCollection,
+  renameCollection,
+  deleteCollection,
+  setWordInCollection,
 } from "../services/vocab.js";
 
 // REST API consumed by the Next.js frontend. All word endpoints live here.
@@ -37,6 +42,74 @@ wordsRouter.get("/stats", async (req, res) => {
   const telegramId = readSession(req) ?? String(req.query.telegramId ?? "dev-user");
   const stats = await getStats(telegramId);
   res.json(stats);
+});
+
+// ---------------- Collections ----------------
+
+// GET /api/collections  -> the user's word sets (with counts)
+wordsRouter.get("/collections", async (req, res) => {
+  const telegramId = readSession(req) ?? String(req.query.telegramId ?? "dev-user");
+  res.json(await listCollections(telegramId));
+});
+
+const collectionBody = z.object({
+  name: z.string().min(1).max(60),
+  telegramId: z.string().min(1).default("dev-user"),
+});
+
+// POST /api/collections  -> create a new collection
+wordsRouter.post("/collections", async (req, res) => {
+  const parsed = collectionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  try {
+    res.status(201).json(await createCollection(telegramId, parsed.data.name));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// PATCH /api/collections/:id  -> rename
+wordsRouter.patch("/collections/:id", async (req, res) => {
+  const name = z.string().min(1).max(60).safeParse(req.body?.name);
+  if (!name.success) {
+    res.status(400).json({ error: "Invalid name" });
+    return;
+  }
+  try {
+    res.json(await renameCollection(req.params.id, name.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// DELETE /api/collections/:id  -> remove the collection (words kept)
+wordsRouter.delete("/collections/:id", async (req, res) => {
+  try {
+    await deleteCollection(req.params.id);
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: "Collection not found" });
+  }
+});
+
+// PUT/DELETE /api/collections/:id/words/:wordId  -> add / remove a word
+wordsRouter.put("/collections/:id/words/:wordId", async (req, res) => {
+  try {
+    res.json(await setWordInCollection(req.params.id, req.params.wordId, true));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+wordsRouter.delete("/collections/:id/words/:wordId", async (req, res) => {
+  try {
+    res.json(await setWordInCollection(req.params.id, req.params.wordId, false));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 // GET /api/words/:id  -> one word with examples
@@ -126,7 +199,7 @@ wordsRouter.patch("/words/:id", async (req, res) => {
     res.json(word);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 

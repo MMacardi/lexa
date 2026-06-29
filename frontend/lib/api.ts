@@ -30,6 +30,13 @@ export interface Word {
   nextReviewAt: string | null;
   createdAt: string;
   examples: Example[];
+  collections?: { id: string; name: string }[];
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  count: number;
 }
 
 export interface Stats {
@@ -40,6 +47,7 @@ export interface Stats {
   trainedToday: number;
   streak: number;
   days: { date: string; added: number; reviews: number }[];
+  heat: { date: string; count: number }[];
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
@@ -99,6 +107,26 @@ export const api = {
     http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   stats: (telegramId: string) =>
     http<Stats>(`/api/stats?telegramId=${encodeURIComponent(telegramId)}`),
+
+  // --- collections ---
+  collections: (telegramId: string) =>
+    http<Collection[]>(`/api/collections?telegramId=${encodeURIComponent(telegramId)}`),
+  createCollection: (name: string, telegramId: string) =>
+    http<Collection>(`/api/collections`, {
+      method: "POST",
+      body: JSON.stringify({ name, telegramId }),
+    }),
+  renameCollection: (id: string, name: string) =>
+    http<{ id: string; name: string }>(`/api/collections/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  deleteCollection: (id: string) =>
+    http<{ ok: true }>(`/api/collections/${id}`, { method: "DELETE" }),
+  addWordToCollection: (collectionId: string, wordId: string) =>
+    http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "PUT" }),
+  removeWordFromCollection: (collectionId: string, wordId: string) =>
+    http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "DELETE" }),
 
   // --- auth ---
   me: () => http<{ telegramId: string }>(`/api/auth/me`),

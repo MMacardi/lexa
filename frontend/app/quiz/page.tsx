@@ -8,8 +8,12 @@ import { useAccount } from "@/lib/account";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Confetti } from "@/components/Confetti";
 import { cn } from "@/lib/utils";
+
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
@@ -68,11 +72,19 @@ export default function QuizPage() {
     queryFn: () => api.listWords(accountId),
   });
 
+  const { data: collections } = useQuery({
+    queryKey: ["collections", accountId],
+    queryFn: () => api.collections(accountId),
+  });
+
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
+  const [selColl, setSelColl] = useState<string>("all");
+  const [mode, setMode] = useState<"choice" | "type">("choice");
   const [quiz, setQuiz] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [typed, setTyped] = useState("");
   const [score, setScore] = useState(0);
 
   const words = allWords ?? [];
@@ -85,15 +97,27 @@ export default function QuizPage() {
 
   const review = useMutation({
     mutationFn: (id: string) => api.reviewWord(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 
-  const pool = words.filter((w) => w.meaningZh && sel.includes(pairKey(w)));
+  const inColl = (w: Word) =>
+    selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
+  const pool = words.filter((w) => w.meaningZh && sel.includes(pairKey(w)) && inColl(w));
+
+  // Preset the collection from a ?coll= deep link.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("coll");
+    if (c) setSelColl(c);
+  }, []);
 
   function start() {
     setQuiz(buildQuiz(pool, flip));
     setIndex(0);
     setSelected(null);
+    setTyped("");
     setScore(0);
     setStarted(true);
   }
@@ -147,6 +171,59 @@ export default function QuizPage() {
             </div>
           </div>
 
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Answer mode</p>
+            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+              {(["choice", "type"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={cn(
+                    "rounded-full px-3 py-1 transition-colors",
+                    mode === m ? "bg-sage text-white" : "text-ink-muted",
+                  )}
+                >
+                  {m === "choice" ? "Multiple choice" : "Type it"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {collections && collections.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                Collection
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelColl("all")}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                    selColl === "all"
+                      ? "bg-sage text-white"
+                      : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                  )}
+                >
+                  All words
+                </button>
+                {collections.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelColl(c.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                      selColl === c.id
+                        ? "bg-sage text-white"
+                        : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                    )}
+                  >
+                    {c.name} <span className="opacity-70">{c.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {allPairs.length > 1 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
@@ -190,6 +267,7 @@ export default function QuizPage() {
   if (index >= total)
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+        {score / total >= 0.6 && <Confetti />}
         <div className="text-4xl">🎯</div>
         <h2 className="mt-4 font-serif text-[32px] font-medium text-ink">Recall check done</h2>
         <p className="mt-2 text-ink-soft">
@@ -214,8 +292,18 @@ export default function QuizPage() {
       review.mutate(q.word.id);
     }
   }
+  function submitTyped() {
+    if (selected !== null || !typed.trim()) return;
+    const ok = norm(typed) === norm(q.correct);
+    setSelected(ok ? q.correct : typed.trim());
+    if (ok) {
+      setScore((s) => s + 1);
+      review.mutate(q.word.id);
+    }
+  }
   function next() {
     setSelected(null);
+    setTyped("");
     setIndex((i) => i + 1);
   }
 
@@ -240,6 +328,13 @@ export default function QuizPage() {
         </div>
       </div>
 
+      <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
+        <div
+          className="h-full rounded-full bg-sage transition-[width] duration-300"
+          style={{ width: `${(index / total) * 100}%` }}
+        />
+      </div>
+
       <div
         key={index}
         className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-9 text-center"
@@ -255,41 +350,69 @@ export default function QuizPage() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {q.options.map((opt) => {
-          const isCorrect = opt === q.correct;
-          const isChosen = opt === selected;
-          let style = "border-black/[0.08] bg-surface text-ink";
-          let mark = "";
-          if (answered) {
-            if (isCorrect) {
-              style = "border-sage bg-sage-tint text-sage-deep";
-              mark = "✓";
-            } else if (isChosen) {
-              style = "border-warn bg-warn-bg text-warn-text";
-              mark = "✗";
-            } else {
-              style = "border-black/[0.05] bg-[#faf8f4] text-[#b3aa9a]";
+      {mode === "choice" ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {q.options.map((opt) => {
+            const isCorrect = opt === q.correct;
+            const isChosen = opt === selected;
+            let style = "border-black/[0.08] bg-surface text-ink";
+            let mark = "";
+            if (answered) {
+              if (isCorrect) {
+                style = "border-sage bg-sage-tint text-sage-deep";
+                mark = "✓";
+              } else if (isChosen) {
+                style = "border-warn bg-warn-bg text-warn-text";
+                mark = "✗";
+              } else {
+                style = "border-black/[0.05] bg-paper text-ink-faint";
+              }
             }
-          }
-          return (
-            <button
-              key={opt}
-              onClick={() => choose(opt)}
-              disabled={answered}
-              className={cn(
-                "flex items-center justify-between rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
-                style,
-                q.optionsTarget && tFont,
-                !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
-              )}
-            >
-              <span>{opt}</span>
-              <span className="text-xl font-bold">{mark}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={opt}
+                onClick={() => choose(opt)}
+                disabled={answered}
+                className={cn(
+                  "flex items-center justify-between rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
+                  style,
+                  q.optionsTarget && tFont,
+                  !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
+                )}
+              >
+                <span>{opt}</span>
+                <span className="text-xl font-bold">{mark}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <form
+          className="mt-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitTyped();
+          }}
+        >
+          <Input
+            autoFocus
+            value={typed}
+            disabled={answered}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={`Type the ${langLabel(q.optionsTarget ? q.word.targetLang : q.word.sourceLang)} answer…`}
+            className={cn(
+              "h-14 flex-1 text-[18px]",
+              q.optionsTarget && tFont,
+              answered && (correct ? "border-sage" : "border-warn"),
+            )}
+          />
+          {!answered && (
+            <Button type="submit" size="lg" disabled={!typed.trim()} className="shrink-0">
+              Check
+            </Button>
+          )}
+        </form>
+      )}
 
       {answered && (
         <div className="anim-fade-up mt-4">
@@ -298,7 +421,7 @@ export default function QuizPage() {
               {correct ? "Exactly right." : `Not quite — the answer is “${q.correct}”.`}
             </p>
             {q.word.examples[0] && (
-              <p className="mt-2.5 font-serif text-[17px] leading-relaxed text-[#544e45]">
+              <p className="mt-2.5 font-serif text-[17px] leading-relaxed text-quote">
                 “{q.word.examples[0].sentenceEn}”
                 {q.word.examples[0].sentenceZh && (
                   <span className={cn("mt-1 block text-sm not-italic text-ink-soft", tFont)}>

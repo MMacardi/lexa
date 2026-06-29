@@ -6,7 +6,7 @@ type Size = "default" | "sm" | "lg";
 
 const variants: Record<Variant, string> = {
   default: "bg-sage text-white hover:bg-sage-deep",
-  dark: "bg-ink text-paper hover:bg-ink/90",
+  dark: "bg-onyx text-[#f4f1ec] hover:opacity-90",
   outline: "border border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
   warn: "border-[1.5px] border-warn bg-surface text-warn-text hover:bg-warn-bg",
   ghost: "text-ink-muted hover:bg-black/[0.04]",
