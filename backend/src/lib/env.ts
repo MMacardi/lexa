@@ -7,6 +7,7 @@ import { z } from "zod";
 const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   PORT: z.coerce.number().default(3000),
+  CORS_ORIGIN: z.string().default(""),
   BAILIAN_API_KEY: z.string().default(""),
   BAILIAN_BASE_URL: z.string().url(),
   TAVILY_API_KEY: z.string().default(""),
