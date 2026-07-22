@@ -7,10 +7,20 @@ import { authRouter } from "./routes/auth.js";
 
 const app = express();
 
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, "");
+  }
+}
+
 const allowedOrigins = new Set(
   [env.CORS_ORIGIN, process.env.FRONTEND_URL, "http://localhost:3001"]
     .flatMap((value) => (value ? value.split(",") : []))
-    .map((value) => value.trim())
+    .map(normalizeOrigin)
     .filter(Boolean),
 );
 
