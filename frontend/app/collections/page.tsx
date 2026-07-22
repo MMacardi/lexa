@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 export default function CollectionsPage() {
   const qc = useQueryClient();
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const [name, setName] = useState("");
 
   const { data: collections, isLoading } = useQuery({
@@ -43,11 +45,8 @@ export default function CollectionsPage() {
   return (
     <div className="space-y-7">
       <div className="anim-fade-up">
-        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">Collections</h1>
-        <p className="mt-1.5 text-ink-soft">
-          Group words into sets like <span className="font-medium text-ink-muted">IELTS</span> or{" "}
-          <span className="font-medium text-ink-muted">adjectives</span>, then study or quiz just that set.
-        </p>
+        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{t("nav.collections")}</h1>
+        <p className="mt-1.5 text-ink-soft">{t("col.pageSubtitle")}</p>
       </div>
 
       {/* create */}
@@ -62,11 +61,11 @@ export default function CollectionsPage() {
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="New collection name (e.g. IELTS adjectives)"
+          placeholder={t("col.createPlaceholder")}
           className="min-w-[220px] flex-1"
         />
         <Button type="submit" disabled={!name.trim() || create.isPending} className="shrink-0">
-          {create.isPending ? "Creating…" : "Create set"}
+          {create.isPending ? t("col.creating") : t("col.create")}
         </Button>
         {create.isError && (
           <p className="w-full text-sm font-medium text-warn-text">{(create.error as Error).message}</p>
@@ -83,7 +82,7 @@ export default function CollectionsPage() {
 
       {collections && collections.length === 0 && (
         <p className="rounded-[18px] border border-dashed border-black/[0.12] bg-surface/60 p-8 text-center text-sm text-ink-soft">
-          No collections yet — create your first set above.
+          {t("col.emptyList")}
         </p>
       )}
 
@@ -112,6 +111,7 @@ function CollectionCard({
   words: Word[];
   onChanged: () => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(collection.name);
 
@@ -142,7 +142,7 @@ function CollectionCard({
           >
             <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus className="h-9" />
             <button type="submit" className="text-sm font-semibold text-sage-deep hover:underline">
-              Save
+              {t("common.save")}
             </button>
             <button
               type="button"
@@ -158,11 +158,14 @@ function CollectionCard({
         ) : (
           <>
             <div className="min-w-0">
-              <h3 className="truncate font-serif text-[22px] font-semibold text-ink">
+              <Link
+                href={`/collections/${collection.id}`}
+                className="block truncate font-serif text-[22px] font-semibold text-ink hover:text-sage-deep"
+              >
                 {collection.name}
-              </h3>
+              </Link>
               <p className="text-[13px] font-medium text-ink-soft">
-                {count} {count === 1 ? "word" : "words"}
+                {count === 1 ? t("col.word", { n: count }) : t("col.words", { n: count })}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -175,8 +178,7 @@ function CollectionCard({
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`Delete collection "${collection.name}"? (words are kept)`))
-                    remove.mutate();
+                  if (confirm(t("col.deleteConfirm", { name: collection.name }))) remove.mutate();
                 }}
                 aria-label="Delete"
                 className="rounded-lg px-2 py-1 text-sm text-ink-faint hover:bg-black/[0.04] hover:text-warn-text"
@@ -199,20 +201,20 @@ function CollectionCard({
             {w.word}
           </Link>
         ))}
-        {count > 6 && <span className="px-1 py-0.5 text-sm text-ink-faint">+{count - 6} more</span>}
-        {count === 0 && <span className="text-sm text-ink-faint">Empty — add words from any word page.</span>}
+        {count > 6 && <span className="px-1 py-0.5 text-sm text-ink-faint">{t("col.more", { n: count - 6 })}</span>}
+        {count === 0 && <span className="text-sm text-ink-faint">{t("col.cardEmpty")}</span>}
       </div>
 
       {/* actions */}
       <div className="mt-4 flex flex-wrap gap-2 pt-1">
-        <Action href={`/review?coll=${collection.id}`} disabled={count < 1}>
-          🃏 Study
+        <Action href={`/review?coll=${collection.id}`} disabled={count < 1} reason={t("col.needWords")}>
+          {t("col.study")}
         </Action>
-        <Action href={`/quiz?coll=${collection.id}`} disabled={count < 4}>
-          🎯 Quiz
+        <Action href={`/quiz?coll=${collection.id}`} disabled={count < 4} reason={t("col.needFour")}>
+          {t("col.quiz")}
         </Action>
-        <Action href={`/words?coll=${collection.id}`} variant="ghost">
-          View words →
+        <Action href={`/collections/${collection.id}`} variant="ghost">
+          {t("col.open")} →
         </Action>
       </div>
     </div>
@@ -222,11 +224,13 @@ function CollectionCard({
 function Action({
   href,
   disabled,
+  reason,
   variant = "solid",
   children,
 }: {
   href: string;
   disabled?: boolean;
+  reason?: string;
   variant?: "solid" | "ghost";
   children: React.ReactNode;
 }) {
@@ -236,8 +240,16 @@ function Action({
       : "border border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]";
   if (disabled)
     return (
-      <span className="cursor-not-allowed rounded-full border border-black/[0.05] px-3.5 py-1.5 text-sm font-semibold text-ink-faint/50">
-        {children}
+      <span className="group relative inline-block">
+        <span className="inline-block cursor-not-allowed rounded-full border border-black/[0.05] px-3.5 py-1.5 text-sm font-semibold text-ink-faint/50">
+          {children}
+        </span>
+        {reason && (
+          <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-onyx px-2.5 py-1.5 text-xs font-medium text-[#f4f1ec] shadow-lg group-hover:block">
+            {reason}
+            <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-onyx" />
+          </span>
+        )}
       </span>
     );
   return (

@@ -5,8 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { pairLabel } from "@/lib/langs";
 import { AddWordForm } from "@/components/AddWordForm";
+import { CollectionSelect } from "@/components/CollectionSelect";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ function targetFont(lang: string) {
 
 export default function WordsPage() {
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -60,15 +63,6 @@ export default function WordsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
   });
 
-  const delCollection = useMutation({
-    mutationFn: (id: string) => api.deleteCollection(id),
-    onSuccess: () => {
-      setColl("all");
-      qc.invalidateQueries({ queryKey: ["collections"] });
-      qc.invalidateQueries({ queryKey: ["words"] });
-    },
-  });
-
   const words = data ?? [];
   const mastered = words.filter((w) => w.reviewCount >= 5).length;
   const learning = words.length - mastered;
@@ -90,16 +84,16 @@ export default function WordsPage() {
   });
 
   const pills: { key: Filter; label: string }[] = [
-    { key: "all", label: `All ${words.length}` },
-    { key: "learning", label: `Learning ${learning}` },
-    { key: "mastered", label: `Mastered ${mastered}` },
+    { key: "all", label: t("words.pill.all", { n: words.length }) },
+    { key: "learning", label: t("words.pill.learning", { n: learning }) },
+    { key: "mastered", label: t("words.pill.mastered", { n: mastered }) },
   ];
 
   return (
     <div className="space-y-6">
       <div className="anim-fade-up flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">My words</h1>
-        <span className="text-[15px] font-semibold text-sage">{words.length} words</span>
+        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{t("words.title")}</h1>
+        <span className="text-[15px] font-semibold text-sage">{t("words.count", { n: words.length })}</span>
       </div>
 
       <div className="anim-fade-up space-y-3" style={{ animationDelay: "60ms" }}>
@@ -117,7 +111,7 @@ export default function WordsPage() {
 
       {data && words.length === 0 && (
         <p className="rounded-[18px] border border-dashed border-black/[0.12] bg-surface/60 p-8 text-center text-sm text-ink-soft">
-          No words yet — add one above.
+          {t("words.empty")}
         </p>
       )}
 
@@ -126,48 +120,15 @@ export default function WordsPage() {
           {/* collection filter */}
           {collections && collections.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Set</span>
-              <button
-                onClick={() => setColl("all")}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                  coll === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                )}
-              >
-                All
-              </button>
-              {collections.map((c) => (
-                <span key={c.id} className="inline-flex items-center">
-                  <button
-                    onClick={() => setColl(c.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                      coll === c.id ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                    )}
-                  >
-                    {c.name} <span className="opacity-70">{c.count}</span>
-                  </button>
-                  {coll === c.id && (
-                    <button
-                      aria-label={`Delete collection ${c.name}`}
-                      onClick={() => {
-                        if (confirm(`Delete collection "${c.name}"? (words are kept)`))
-                          delCollection.mutate(c.id);
-                      }}
-                      className="ml-1 text-ink-faint hover:text-warn-text"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </span>
-              ))}
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.set")}</span>
+              <CollectionSelect options={collections} value={coll} onChange={setColl} />
             </div>
           )}
 
           {/* language-pair filter (only when more than one pair exists) */}
           {pairs.length > 1 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Pair</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.pair")}</span>
               <button
                 onClick={() => setPair("all")}
                 className={cn(
@@ -175,7 +136,7 @@ export default function WordsPage() {
                   pair === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
                 )}
               >
-                All
+                {t("common.all")}
               </button>
               {pairs.map((p) => {
                 const [s, t] = p.split(">");
@@ -199,7 +160,7 @@ export default function WordsPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="🔍  Search your words"
+              placeholder={t("words.search")}
               className="h-11 min-w-[200px] flex-1 rounded-[14px] border border-black/[0.07] bg-surface px-4 text-[15px] text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none"
             />
             {pills.map((p) => (
@@ -220,13 +181,13 @@ export default function WordsPage() {
 
           <div className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-surface">
             <div className="grid grid-cols-[1.4fr_0.7fr] gap-4 border-b border-black/[0.07] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint sm:grid-cols-[1.4fr_1.1fr_1fr_0.7fr]">
-              <span>Word</span>
-              <span className="hidden sm:block">Meaning</span>
-              <span className="hidden sm:block">Source</span>
-              <span className="text-right">Mastery</span>
+              <span>{t("words.col.word")}</span>
+              <span className="hidden sm:block">{t("words.col.meaning")}</span>
+              <span className="hidden sm:block">{t("words.col.source")}</span>
+              <span className="text-right">{t("words.col.mastery")}</span>
             </div>
             {filtered.length === 0 ? (
-              <p className="px-6 py-8 text-center text-sm text-ink-soft">No matches.</p>
+              <p className="px-6 py-8 text-center text-sm text-ink-soft">{t("common.noMatches")}</p>
             ) : (
               filtered.map((w: Word) => (
                 <div
@@ -256,7 +217,7 @@ export default function WordsPage() {
                     <button
                       aria-label={`Delete ${w.word}`}
                       onClick={() => {
-                        if (confirm(`Delete "${w.word}"?`)) del.mutate(w.id);
+                        if (confirm(t("words.deleteConfirm", { word: w.word }))) del.mutate(w.id);
                       }}
                       className="text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
                     >

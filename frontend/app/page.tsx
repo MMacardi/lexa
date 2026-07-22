@@ -4,8 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { AddWordForm } from "@/components/AddWordForm";
 import { StatsPanel } from "@/components/StatsPanel";
+import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -41,13 +43,15 @@ function Stat({ value, label, accent }: { value: React.ReactNode; label: string;
 
 export default function TodayPage() {
   const { accountId } = useAccount();
+  const { t, locale } = useI18n();
   const { data: words, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
 
+  const dateLocale = locale === "ru" ? "ru-RU" : locale === "zh" ? "zh-CN" : "en-US";
   const dateStr = new Date()
-    .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+    .toLocaleDateString(dateLocale, { weekday: "long", month: "long", day: "numeric" })
     .replace(",", " ·");
 
   if (isLoading)
@@ -80,12 +84,9 @@ export default function TodayPage() {
             {dateStr}
           </div>
           <h1 className="mt-3 font-serif text-[40px] font-medium leading-[1.08] tracking-[-0.01em] text-ink">
-            Start your collection
+            {t("today.emptyTitle")}
           </h1>
-          <p className="mt-2 text-ink-soft">
-            Add your first English word — I&apos;ll find a real news sentence and translate it.
-            You can also message the Telegram bot with <code className="rounded bg-sage-tint px-1 text-sage-deep">add sanction</code>.
-          </p>
+          <p className="mt-2 text-ink-soft">{t("today.emptyText")}</p>
         </div>
         <AddWordForm />
       </div>
@@ -103,7 +104,7 @@ export default function TodayPage() {
             {dateStr}
           </div>
           <h1 className="mt-3 font-serif text-[40px] font-medium leading-[1.08] tracking-[-0.01em] text-ink">
-            Good day — ready for today&apos;s words?
+            {t("today.greeting")}
           </h1>
         </div>
         {due > 0 && (
@@ -111,7 +112,7 @@ export default function TodayPage() {
             href="/review"
             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-sage px-6 py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
           >
-            Start review →
+            {t("today.startReview")}
           </Link>
         )}
       </div>
@@ -121,10 +122,10 @@ export default function TodayPage() {
         className="anim-fade-up grid grid-cols-2 gap-3.5 sm:grid-cols-4"
         style={{ animationDelay: "60ms" }}
       >
-        <Stat value={due} label="due for review" />
-        <Stat value={collected} label="words collected" accent />
-        <Stat value={learning} label="still learning" />
-        <Stat value={mastered} label="mastered" />
+        <Stat value={due} label={t("today.dueForReview")} />
+        <Stat value={collected} label={t("today.wordsCollected")} accent />
+        <Stat value={learning} label={t("today.stillLearning")} />
+        <Stat value={mastered} label={t("today.mastered")} />
       </div>
 
       {/* due panel + word of the day */}
@@ -135,20 +136,20 @@ export default function TodayPage() {
           style={{ animationDelay: "120ms" }}
         >
           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-taupe-dim">
-            Due for review
+            {t("today.duePanel")}
           </div>
           <div className="mt-3 flex items-baseline gap-2.5">
             <span className="font-serif text-[52px] font-semibold leading-none text-white">
               {due}
             </span>
-            <span className="text-[17px] font-medium text-taupe">words ready</span>
+            <span className="text-[17px] font-medium text-taupe">{t("today.wordsReady")}</span>
           </div>
           <p className="mt-3 max-w-[340px] text-[15px] leading-relaxed text-[#d8cfc1]">
-            A quick flashcard session keeps your memory fresh — just a few minutes.
+            {t("today.dueBlurb")}
           </p>
           <span className="mt-auto pt-6">
             <span className="inline-flex items-center gap-2 rounded-full bg-sage px-5 py-3 text-[15px] font-semibold text-white">
-              Open flashcards →
+              {t("today.openFlashcards")}
             </span>
           </span>
         </Link>
@@ -158,7 +159,7 @@ export default function TodayPage() {
           style={{ animationDelay: "160ms" }}
         >
           <div className="flex items-baseline justify-between">
-            <h3 className="font-serif text-[20px] font-medium italic text-ink">Word of the day</h3>
+            <h3 className="font-serif text-[20px] font-medium italic text-ink">{t("today.wotd")}</h3>
             {wotd.examples[0] && (
               <span className="text-[13px] font-medium text-ink-faint">
                 {wotd.examples[0].sourceName}
@@ -187,17 +188,19 @@ export default function TodayPage() {
         </div>
       </div>
 
+      <DailyGoalCard />
+
       <StatsPanel />
 
       {/* this week */}
       <div>
         <div className="mb-4 flex items-center gap-3">
           <h3 className="font-serif text-[21px] font-medium italic text-ink-soft">
-            Recently · from the news
+            {t("today.recent")}
           </h3>
           <span className="h-px flex-1 bg-black/[0.08]" />
           <Link href="/words" className="text-sm font-semibold text-sage hover:text-sage-deep">
-            View all →
+            {t("today.viewAll")}
           </Link>
         </div>
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">

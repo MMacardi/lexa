@@ -5,12 +5,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
 import { Confetti } from "@/components/Confetti";
+import { CollectionSelect } from "@/components/CollectionSelect";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
@@ -19,6 +21,7 @@ const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 export default function FlashcardsPage() {
   const qc = useQueryClient();
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const [flip, setFlip] = useFlip("vocab.flip.review");
   const { data: allWords, isLoading } = useQuery({
     queryKey: ["words", accountId],
@@ -120,9 +123,9 @@ export default function FlashcardsPage() {
   if (words.length === 0)
     return (
       <p className="text-sm text-ink-soft">
-        No words to review yet.{" "}
+        {t("review.noWords")}{" "}
         <Link href="/words" className="font-semibold text-sage hover:text-sage-deep">
-          Add some first.
+          {t("review.addFirst")}
         </Link>
       </p>
     );
@@ -134,12 +137,12 @@ export default function FlashcardsPage() {
     );
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
-        <h2 className="font-serif text-[28px] font-medium text-ink">Quick review</h2>
+        <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
 
         <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
           {/* direction */}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Direction</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.direction")}</p>
             <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
               {[false, true].map((v) => (
                 <button
@@ -150,7 +153,7 @@ export default function FlashcardsPage() {
                     flip === v ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {v ? "Meaning → Word" : "Word → Meaning"}
+                  {v ? t("review.meaningToWord") : t("review.wordToMeaning")}
                 </button>
               ))}
             </div>
@@ -160,35 +163,9 @@ export default function FlashcardsPage() {
           {collections && collections.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                Collection
+                {t("review.collection")}
               </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelColl("all")}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                    selColl === "all"
-                      ? "bg-sage text-white"
-                      : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                  )}
-                >
-                  All words
-                </button>
-                {collections.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelColl(c.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                      selColl === c.id
-                        ? "bg-sage text-white"
-                        : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                    )}
-                  >
-                    {c.name} <span className="opacity-70">{c.count}</span>
-                  </button>
-                ))}
-              </div>
+              <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
             </div>
           )}
 
@@ -196,7 +173,7 @@ export default function FlashcardsPage() {
           {allPairs.length > 1 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                Language pairs
+                {t("review.pairs")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {allPairs.map((p) => {
@@ -230,14 +207,16 @@ export default function FlashcardsPage() {
               onChange={(e) => setOnlyDue(e.target.checked)}
               className="h-4 w-4 accent-[#7c9885]"
             />
-            Only words due for review
+            {t("review.onlyDue")}
           </label>
         </div>
 
         <Button className="w-full" disabled={candidate.length === 0} onClick={start}>
           {candidate.length === 0
-            ? "Nothing to train in this selection"
-            : `Start — ${candidate.length} card${candidate.length === 1 ? "" : "s"} →`}
+            ? t("review.nothing")
+            : candidate.length === 1
+              ? t("review.startOne", { n: candidate.length })
+              : t("review.start", { n: candidate.length })}
         </Button>
       </div>
     );
@@ -256,20 +235,20 @@ export default function FlashcardsPage() {
             <path d="M9 17.5l5 5L25 11" stroke="#7c9885" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="mt-5 font-serif text-[32px] font-medium text-ink">Session complete</h2>
-        <p className="mt-2 text-ink-soft">You reviewed {total} word{total === 1 ? "" : "s"}.</p>
+        <h2 className="mt-5 font-serif text-[32px] font-medium text-ink">{t("review.complete")}</h2>
+        <p className="mt-2 text-ink-soft">{t("review.reviewed", { n: total })}</p>
         <div className="mt-6 flex gap-3.5">
           <div className="rounded-[18px] border border-black/[0.07] bg-paper px-7 py-4">
             <div className="font-serif text-[30px] font-bold text-sage">{known}</div>
-            <div className="mt-0.5 text-[13px] font-medium text-ink-soft">known</div>
+            <div className="mt-0.5 text-[13px] font-medium text-ink-soft">{t("review.known")}</div>
           </div>
           <div className="rounded-[18px] border border-black/[0.07] bg-paper px-7 py-4">
             <div className="font-serif text-[30px] font-bold text-warn">{learning}</div>
-            <div className="mt-0.5 text-[13px] font-medium text-ink-soft">learning</div>
+            <div className="mt-0.5 text-[13px] font-medium text-ink-soft">{t("review.learningCount")}</div>
           </div>
         </div>
         <Button variant="dark" className="mt-8" onClick={() => setStarted(false)}>
-          Back to setup
+          {t("review.backToSetup")}
         </Button>
       </div>
     );
@@ -314,13 +293,13 @@ export default function FlashcardsPage() {
     <div className="mx-auto flex max-w-[560px] flex-col items-center">
       <div className="w-full">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[28px] font-medium text-ink">Quick review</h2>
+          <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setStarted(false)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
-              ⚙ Setup
+              {t("review.setup")}
             </button>
             <span className="text-[15px] font-semibold text-ink-soft">
               {Math.min(index + 1, total)} / {total}
@@ -335,10 +314,10 @@ export default function FlashcardsPage() {
         </div>
         <div className="mt-3 flex justify-between text-sm font-semibold">
           <span className="flex items-center gap-2 text-warn-text">
-            <span className="h-2.5 w-2.5 rounded-full bg-warn" /> Learning {learning}
+            <span className="h-2.5 w-2.5 rounded-full bg-warn" /> {t("review.learningLabel", { n: learning })}
           </span>
           <span className="flex items-center gap-2 text-sage-deep">
-            Known {known} <span className="h-2.5 w-2.5 rounded-full bg-sage" />
+            {t("review.knownLabel", { n: known })} <span className="h-2.5 w-2.5 rounded-full bg-sage" />
           </span>
         </div>
       </div>
@@ -348,13 +327,13 @@ export default function FlashcardsPage() {
           className="pointer-events-none absolute left-1 top-12 z-10 -rotate-12 rounded-xl border-[3px] border-sage bg-paper/70 px-4 py-2 text-lg font-bold tracking-wider text-sage-deep"
           style={{ opacity: clamp(dragX / 110) }}
         >
-          KNOW
+          {t("review.knowBadge")}
         </div>
         <div
           className="pointer-events-none absolute right-1 top-12 z-10 rotate-12 rounded-xl border-[3px] border-warn bg-paper/70 px-4 py-2 text-lg font-bold tracking-wider text-warn-text"
           style={{ opacity: clamp(-dragX / 110) }}
         >
-          LEARNING
+          {t("review.learningBadge")}
         </div>
 
         <div
@@ -394,7 +373,7 @@ export default function FlashcardsPage() {
                     </div>
                   )}
                   <div className="mt-7 text-sm font-medium text-ink-faint">
-                    Click to reveal · {langLabel(flip ? word.sourceLang : word.targetLang)}
+                    {t("review.clickReveal", { lang: langLabel(flip ? word.sourceLang : word.targetLang) })}
                   </div>
                 </div>
               </div>
@@ -434,14 +413,14 @@ export default function FlashcardsPage() {
 
       <div className="flex gap-4">
         <Button variant="warn" size="lg" onClick={() => commit("learning", word)}>
-          ✕ Still learning
+          {t("review.stillLearning")}
         </Button>
         <Button size="lg" onClick={() => commit("known", word)}>
-          ✓ I know it
+          {t("review.iKnow")}
         </Button>
       </div>
       <p className="mt-4 text-[13px] font-medium text-ink-faint">
-        Drag the card left or right, or use the buttons.
+        {t("review.dragHint")}
       </p>
     </div>
   );

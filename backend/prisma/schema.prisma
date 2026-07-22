@@ -10,6 +10,11 @@ datasource db {
 model User {
   id          String       @id @default(cuid())
   telegramId  String       @unique
+  firstName   String?
+  lastName    String?
+  username    String?
+  photoUrl    String?
+  authVia     String       @default("dev") // "telegram" | "dev"
   createdAt   DateTime     @default(now())
   words       Word[]
   collections Collection[]

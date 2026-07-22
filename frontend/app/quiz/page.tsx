@@ -5,12 +5,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Confetti } from "@/components/Confetti";
+import { CollectionSelect } from "@/components/CollectionSelect";
 import { cn } from "@/lib/utils";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -65,6 +67,7 @@ function buildQuiz(pool: Word[], flip: boolean): Question[] {
 
 export default function QuizPage() {
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [flip, setFlip] = useFlip("vocab.flip.quiz");
   const { data: allWords, isLoading } = useQuery({
@@ -137,11 +140,11 @@ export default function QuizPage() {
     return (
       <div className="mx-auto max-w-[480px] rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <div className="text-3xl">📚</div>
-        <h2 className="mt-4 font-serif text-[26px] font-medium text-ink">Not enough words yet</h2>
+        <h2 className="mt-4 font-serif text-[26px] font-medium text-ink">{t("quiz.notEnough")}</h2>
         <p className="mt-2 text-ink-soft">
-          You need at least 4 words for a recall check.{" "}
+          {t("quiz.notEnoughText")}{" "}
           <Link href="/words" className="font-semibold text-sage hover:text-sage-deep">
-            Add more →
+            {t("quiz.addMore")}
           </Link>
         </p>
       </div>
@@ -151,10 +154,10 @@ export default function QuizPage() {
   if (!started) {
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
-        <h2 className="font-serif text-[28px] font-medium text-ink">Recall check</h2>
+        <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
         <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Direction</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.direction")}</p>
             <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
               {[false, true].map((v) => (
                 <button
@@ -165,14 +168,14 @@ export default function QuizPage() {
                     flip === v ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {v ? "Meaning → Word" : "Word → Meaning"}
+                  {v ? t("review.meaningToWord") : t("review.wordToMeaning")}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Answer mode</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
             <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
               {(["choice", "type"] as const).map((m) => (
                 <button
@@ -183,7 +186,7 @@ export default function QuizPage() {
                     mode === m ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {m === "choice" ? "Multiple choice" : "Type it"}
+                  {m === "choice" ? t("quiz.choice") : t("quiz.type")}
                 </button>
               ))}
             </div>
@@ -192,42 +195,16 @@ export default function QuizPage() {
           {collections && collections.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                Collection
+                {t("review.collection")}
               </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelColl("all")}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                    selColl === "all"
-                      ? "bg-sage text-white"
-                      : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                  )}
-                >
-                  All words
-                </button>
-                {collections.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelColl(c.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                      selColl === c.id
-                        ? "bg-sage text-white"
-                        : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                    )}
-                  >
-                    {c.name} <span className="opacity-70">{c.count}</span>
-                  </button>
-                ))}
-              </div>
+              <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
             </div>
           )}
 
           {allPairs.length > 1 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                Language pairs
+                {t("review.pairs")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {allPairs.map((p) => {
@@ -255,8 +232,8 @@ export default function QuizPage() {
         </div>
         <Button className="w-full" disabled={pool.length < 4} onClick={start}>
           {pool.length < 4
-            ? "Need at least 4 words in this selection"
-            : `Start — ${Math.min(pool.length, 8)} questions →`}
+            ? t("quiz.needFour")
+            : t("quiz.start", { n: Math.min(pool.length, 8) })}
         </Button>
       </div>
     );
@@ -269,12 +246,10 @@ export default function QuizPage() {
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         {score / total >= 0.6 && <Confetti />}
         <div className="text-4xl">🎯</div>
-        <h2 className="mt-4 font-serif text-[32px] font-medium text-ink">Recall check done</h2>
-        <p className="mt-2 text-ink-soft">
-          You got <span className="font-semibold text-sage-deep">{score}</span> of {total} right.
-        </p>
+        <h2 className="mt-4 font-serif text-[32px] font-medium text-ink">{t("quiz.done")}</h2>
+        <p className="mt-2 text-ink-soft">{t("quiz.score", { x: score, y: total })}</p>
         <Button variant="dark" className="mt-7" onClick={() => setStarted(false)}>
-          Back to setup
+          {t("review.backToSetup")}
         </Button>
       </div>
     );
@@ -308,19 +283,19 @@ export default function QuizPage() {
   }
 
   const promptHint = flip
-    ? `Which ${langLabel(q.word.sourceLang)} word means:`
-    : `Pick the ${langLabel(q.word.targetLang)} meaning of:`;
+    ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
+    : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
 
   return (
     <div className="mx-auto max-w-[620px]">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-serif text-[28px] font-medium text-ink">Recall check</h2>
+        <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setStarted(false)}
             className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            ⚙ Setup
+            {t("review.setup")}
           </button>
           <span className="text-[13px] font-semibold text-ink-faint">
             {index + 1} / {total}
@@ -399,7 +374,7 @@ export default function QuizPage() {
             value={typed}
             disabled={answered}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder={`Type the ${langLabel(q.optionsTarget ? q.word.targetLang : q.word.sourceLang)} answer…`}
+            placeholder={t("quiz.typeAnswer", { lang: langLabel(q.optionsTarget ? q.word.targetLang : q.word.sourceLang) })}
             className={cn(
               "h-14 flex-1 text-[18px]",
               q.optionsTarget && tFont,
@@ -408,7 +383,7 @@ export default function QuizPage() {
           />
           {!answered && (
             <Button type="submit" size="lg" disabled={!typed.trim()} className="shrink-0">
-              Check
+              {t("quiz.check")}
             </Button>
           )}
         </form>
@@ -418,7 +393,7 @@ export default function QuizPage() {
         <div className="anim-fade-up mt-4">
           <div className="rounded-[18px] bg-sage-tint p-5">
             <p className={cn("text-base font-semibold", correct ? "text-sage-deep" : "text-warn-text")}>
-              {correct ? "Exactly right." : `Not quite — the answer is “${q.correct}”.`}
+              {correct ? t("quiz.right") : t("quiz.wrong", { answer: q.correct })}
             </p>
             {q.word.examples[0] && (
               <p className="mt-2.5 font-serif text-[17px] leading-relaxed text-quote">
@@ -432,7 +407,7 @@ export default function QuizPage() {
             )}
           </div>
           <Button variant="dark" className="mt-4 w-full" onClick={next}>
-            {index + 1 >= total ? "See results" : "Next question →"}
+            {index + 1 >= total ? t("quiz.seeResults") : t("quiz.next")}
           </Button>
         </div>
       )}
