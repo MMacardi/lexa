@@ -3,11 +3,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LANGS } from "@/lib/langs";
+import { addCustomLang, useCustomLangs } from "@/lib/customLangs";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Pretty custom dropdown for picking a language. The menu is rendered in a
-// portal (position: fixed) so it always floats above the page — no z-index /
-// stacking-context bleed-through from neighbouring elements.
+// portal (position: fixed) so it always floats above the page, repositions on
+// scroll/resize (instead of closing), and has a search box.
 export function LangSelect({
   value,
   onChange,
@@ -17,35 +19,55 @@ export function LangSelect({
   onChange: (v: string) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLUListElement>(null);
-  const current = LANGS.find((l) => l.code === value);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const custom = useCustomLangs();
+  const all = [...LANGS.map((l) => ({ code: l.code, name: l.name })), ...custom];
+  const current = all.find((l) => l.code === value);
 
   useLayoutEffect(() => {
     if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
+    if (open) setQuery("");
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
+    const reposition = () => {
+      if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
+    };
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!triggerRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const close = () => setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
     };
   }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? all.filter((l) => l.name.toLowerCase().includes(q) || l.code.includes(q))
+    : all;
+
+  const onAddLanguage = () => {
+    const name = window.prompt(t("col.langPrompt"))?.trim();
+    if (!name) return;
+    const lang = addCustomLang(name);
+    onChange(lang.code);
+    setOpen(false);
+  };
 
   return (
     <div className={cn("relative", className)}>
@@ -58,7 +80,7 @@ export function LangSelect({
           open ? "border-sage" : "border-black/[0.08] hover:border-black/20",
         )}
       >
-        <span>{current?.native ?? value}</span>
+        <span>{current?.name ?? value}</span>
         <svg
           width="14"
           height="14"
@@ -73,33 +95,54 @@ export function LangSelect({
       {open &&
         rect &&
         createPortal(
-          <ul
+          <div
             ref={menuRef}
-            className="anim-scale-in fixed z-[80] max-h-64 overflow-auto rounded-[14px] border border-black/[0.08] bg-surface p-1.5 shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
-            style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 150) }}
+            className="anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 160) }}
           >
-            {LANGS.map((l) => {
-              const active = l.code === value;
-              return (
-                <li key={l.code}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(l.code);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-[15px] transition-colors",
-                      active ? "bg-sage-tint font-semibold text-sage-deep" : "text-ink hover:bg-black/[0.03]",
-                    )}
-                  >
-                    {l.native}
-                    {active && <span className="text-sage">✓</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>,
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("col.searchLang")}
+              className="border-b border-black/[0.06] bg-transparent px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none"
+            />
+            <ul className="overflow-auto p-1.5">
+              {filtered.length === 0 && (
+                <li className="px-3 py-3 text-center text-sm text-ink-faint">{t("common.noMatches")}</li>
+              )}
+              {filtered.map((l) => {
+                const active = l.code === value;
+                return (
+                  <li key={l.code}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange(l.code);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-[15px] transition-colors",
+                        active ? "bg-sage-tint font-semibold text-sage-deep" : "text-ink hover:bg-black/[0.03]",
+                      )}
+                    >
+                      {l.name}
+                      {active && <span className="text-sage">✓</span>}
+                    </button>
+                  </li>
+                );
+              })}
+              <li className="mt-1 border-t border-black/[0.06] pt-1">
+                <button
+                  type="button"
+                  onClick={onAddLanguage}
+                  className="w-full rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-sage-deep hover:bg-black/[0.03]"
+                >
+                  {t("col.addLanguage")}
+                </button>
+              </li>
+            </ul>
+          </div>,
           document.body,
         )}
     </div>

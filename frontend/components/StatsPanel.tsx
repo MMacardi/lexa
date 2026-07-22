@@ -6,6 +6,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useDailyGoal } from "@/lib/goal";
 import { pairLabel } from "@/lib/langs";
+import { useI18n } from "@/lib/i18n";
 import { Achievements } from "@/components/Achievements";
 import { cn } from "@/lib/utils";
 
@@ -28,63 +29,6 @@ function Tile({ value, label, accent }: { value: React.ReactNode; label: string;
   );
 }
 
-// Circular daily-goal progress ring (trained today vs. goal), with +/- to tune.
-function GoalRing({ done, goal, setGoal }: { done: number; goal: number; setGoal: (n: number) => void }) {
-  const pct = Math.min(1, done / goal);
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const hit = done >= goal;
-  return (
-    <div className="flex items-center gap-4 rounded-[16px] border border-black/[0.06] bg-paper p-4">
-      <div className="relative h-[84px] w-[84px] shrink-0">
-        <svg viewBox="0 0 84 84" className="h-full w-full -rotate-90">
-          <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-track)" strokeWidth="9" />
-          <circle
-            cx="42"
-            cy="42"
-            r={r}
-            fill="none"
-            stroke="var(--color-sage)"
-            strokeWidth="9"
-            strokeLinecap="round"
-            strokeDasharray={c}
-            strokeDashoffset={c * (1 - pct)}
-            style={{ transition: "stroke-dashoffset 0.6s ease" }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-serif text-[20px] font-bold leading-none text-ink">{done}</span>
-          <span className="text-[10px] font-medium text-ink-faint">/ {goal}</span>
-        </div>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[13px] font-semibold text-ink">
-          {hit ? "🎉 Daily goal reached!" : "Daily goal"}
-        </div>
-        <div className="mt-0.5 text-[12px] text-ink-soft">
-          {hit ? "Great work today." : `${Math.max(0, goal - done)} cards to go`}
-        </div>
-        <div className="mt-2 flex items-center gap-1.5">
-          <button
-            onClick={() => setGoal(goal - 1)}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-black/[0.08] text-ink-muted hover:bg-black/[0.04]"
-          >
-            −
-          </button>
-          <span className="w-6 text-center text-[13px] font-semibold text-ink">{goal}</span>
-          <button
-            onClick={() => setGoal(goal + 1)}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-black/[0.08] text-ink-muted hover:bg-black/[0.04]"
-          >
-            +
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Cumulative "words collected" line over the last 14 days — a real learning curve.
 // Day label — short month for long ranges, day+month for short ones.
 function dayLabel(iso: string, monthOnly: boolean) {
   const d = new Date(iso + "T00:00:00");
@@ -96,6 +40,7 @@ function dayLabel(iso: string, monthOnly: boolean) {
 // Cumulative "words collected" over the last `days` days, computed from each
 // word's createdAt — so any range works without extra API calls.
 function LearningCurve({ words, days }: { words: Word[]; days: number }) {
+  const { t } = useI18n();
   const times = words.map((w) => new Date(w.createdAt).getTime()).sort((a, b) => a - b);
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -211,7 +156,7 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
               className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-ink-faint"
               style={{ left: `${xPct(i)}%` }}
             >
-              {i === n - 1 ? "today" : dayLabel(p.date, monthOnly)}
+              {i === n - 1 ? t("stats.today") : dayLabel(p.date, monthOnly)}
             </span>
           ) : null,
         )}
@@ -239,6 +184,7 @@ function BarRow({ rows }: { rows: { label: string; value: number; cls: string }[
 }
 
 function Distributions({ words }: { words: Word[] }) {
+  const { t } = useI18n();
   const pairMap = new Map<string, number>();
   for (const w of words) {
     const k = pairLabel(w.sourceLang, w.targetLang);
@@ -253,22 +199,22 @@ function Distributions({ words }: { words: Word[] }) {
   const learning = words.filter((w) => w.reviewCount >= 1 && w.reviewCount < 5).length;
   const fresh = words.filter((w) => w.reviewCount === 0).length;
   const masteryRows = [
-    { label: "Mastered", value: mastered, cls: "bg-sage-deep" },
-    { label: "Learning", value: learning, cls: "bg-sage" },
-    { label: "New", value: fresh, cls: "bg-taupe" },
+    { label: t("stats.mastered"), value: mastered, cls: "bg-sage-deep" },
+    { label: t("stats.learning"), value: learning, cls: "bg-sage" },
+    { label: t("stats.new"), value: fresh, cls: "bg-taupe" },
   ];
 
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
-          By language pair
+          {t("stats.byPair")}
         </p>
         <BarRow rows={pairRows} />
       </div>
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
-          By progress
+          {t("stats.byProgress")}
         </p>
         <BarRow rows={masteryRows} />
       </div>
@@ -278,8 +224,10 @@ function Distributions({ words }: { words: Word[] }) {
 
 export function StatsPanel() {
   const { accountId } = useAccount();
-  const [goal, setGoal] = useDailyGoal();
+  const { t } = useI18n();
+  const [goal] = useDailyGoal();
   const [range, setRange] = useState<string>("14");
+  const [metric, setMetric] = useState<"collected" | "mastered">("collected");
   const { data } = useQuery({
     queryKey: ["stats", accountId],
     queryFn: () => api.stats(accountId),
@@ -300,30 +248,45 @@ export function StatsPanel() {
   const allDays = Math.ceil((Date.now() - earliest) / 86_400_000) + 1;
   const effDays = Math.min(730, Math.max(14, sel.days === 0 ? allDays : sel.days));
 
+  // Curve source: all words (collected) or only mastered ones. Mastered history
+  // isn't stored, so we approximate by createdAt of currently-mastered words.
+  const allWords = words ?? [];
+  const curveWords = metric === "mastered" ? allWords.filter((w) => w.reviewCount >= 5) : allWords;
+  const curveTotal = metric === "mastered" ? data.mastered : data.total;
+
   return (
-    <section className="anim-fade-up space-y-7 rounded-[24px] border border-black/[0.06] bg-surface p-6">
+    <section className="anim-fade-up space-y-7 rounded-[24px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <div className="flex items-baseline justify-between">
-        <h3 className="font-serif text-[20px] font-medium italic text-ink">Your progress</h3>
-        <span className="text-[13px] font-medium text-ink-faint">🔥 {data.streak}-day streak</span>
+        <h3 className="font-serif text-[20px] font-medium italic text-ink">{t("stats.title")}</h3>
+        <span className="text-[13px] font-medium text-ink-faint">{t("stats.streakSummary", { n: data.streak })}</span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile value={data.total} label="words collected" />
-        <Tile value={data.mastered} label="mastered" accent="text-sage" />
-        <Tile value={data.trainedToday} label="trained today" />
-        <Tile value={<>🔥 {data.streak}</>} label="day streak" accent="text-orange-500" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile value={data.total} label={t("stats.tile.collected")} />
+        <Tile value={data.mastered} label={t("stats.tile.mastered")} accent="text-sage" />
+        <Tile value={data.trainedToday} label={t("stats.tile.trainedToday")} />
+        <Tile value={<>🔥 {data.streak}</>} label={t("stats.tile.streak")} accent="text-orange-500" />
       </div>
 
-      <GoalRing done={data.trainedToday} goal={goal} setGoal={setGoal} />
-
-      {/* learning curve with a date-range selector */}
+      {/* learning curve: metric toggle + date-range selector */}
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
-            Words collected
-          </p>
+          <div className="flex gap-0.5 rounded-full bg-black/[0.05] p-0.5 text-[12px] font-semibold">
+            {(["collected", "mastered"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMetric(m)}
+                className={cn(
+                  "rounded-full px-3 py-1 transition-colors",
+                  metric === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {t(m === "collected" ? "stats.metricCollected" : "stats.metricMastered")}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3">
-            <span className="text-[12px] font-semibold text-sage-deep">{data.total} total</span>
+            <span className="text-[12px] font-semibold text-sage-deep">{t("stats.total", { n: curveTotal })}</span>
             <div className="flex gap-0.5 rounded-full bg-black/[0.05] p-0.5 text-[11px] font-semibold">
               {RANGES.map((r) => (
                 <button
@@ -340,7 +303,7 @@ export function StatsPanel() {
             </div>
           </div>
         </div>
-        <LearningCurve words={words ?? []} days={effDays} />
+        <LearningCurve words={curveWords} days={effDays} />
       </div>
 
       {words && words.length > 0 && <Distributions words={words} />}

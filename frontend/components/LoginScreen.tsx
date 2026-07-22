@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function LoginScreen() {
   const { loginDev } = useAccount();
+  const { t } = useI18n();
   const [id, setId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function LoginScreen() {
           <span className="font-serif text-[30px] font-semibold text-ink">Lexa</span>
           <span className="h-2 w-2 rounded-full bg-sage" />
         </div>
-        <p className="mt-2 text-ink-soft">Learn English through the news. Sign in to start.</p>
+        <p className="mt-2 text-ink-soft">{t("login.tagline")}</p>
 
         <div className="mt-7">
           <TelegramLoginButton />
@@ -40,7 +42,7 @@ export function LoginScreen() {
 
         <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-ink-faint">
           <span className="h-px flex-1 bg-black/[0.08]" />
-          dev sign-in
+          {t("login.dev")}
           <span className="h-px flex-1 bg-black/[0.08]" />
         </div>
 
@@ -48,17 +50,15 @@ export function LoginScreen() {
           <Input
             value={id}
             onChange={(e) => setId(e.target.value)}
-            placeholder="Telegram ID (e.g. 865277762)"
+            placeholder={t("login.idPlaceholder")}
             onKeyDown={(e) => e.key === "Enter" && dev()}
           />
           <Button onClick={dev} disabled={busy || !id.trim()} className="shrink-0">
-            {busy ? "…" : "Enter"}
+            {busy ? "…" : t("login.enter")}
           </Button>
         </div>
         {err && <p className="mt-2 text-sm text-warn-text">{err}</p>}
-        <p className="mt-4 text-xs text-ink-faint">
-          The dev sign-in is for local testing; production uses Telegram login.
-        </p>
+        <p className="mt-4 text-xs text-ink-faint">{t("login.devNote")}</p>
       </div>
     </main>
   );

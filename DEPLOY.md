@@ -49,6 +49,42 @@ Web app (Vercel, Next.js) ──────────────────
 
 ---
 
+## Render alternative
+If you want to move the backend and OpenClaw off Railway, use Render like this:
+
+### Backend on Render Web Service
+1. Create a new **Web Service** from this GitHub repo.
+2. Set **Root Directory = `backend`**.
+3. Use these commands:
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+4. Add a **Render PostgreSQL** database and set `DATABASE_URL` from the database connection string.
+5. Add environment variables:
+   - `BAILIAN_API_KEY`
+   - `BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`
+   - `TAVILY_API_KEY`
+   - `JWT_SECRET`
+   - `ALLOW_DEV_LOGIN=false`
+   - `COOKIE_SECURE=true`
+   - `PORT` is provided by Render automatically
+6. After deploy, copy the public backend URL and set the frontend `NEXT_PUBLIC_API_URL` to it in Vercel.
+
+### OpenClaw on Render Background Worker
+1. Create a new **Background Worker** from the same repo.
+2. Set **Root Directory = `openclaw`**.
+3. Render can build from the `Dockerfile` in that folder.
+4. Add environment variables:
+   - `TELEGRAM_BOT_TOKEN`
+   - `BAILIAN_API_KEY`
+   - `VOCAB_API_URL` = your Render backend URL
+   - `TELEGRAM_ALLOW_FROM` = `865277762` or a comma-separated allow-list
+5. Add a persistent disk mounted at `/root/.openclaw` so OpenClaw keeps its config.
+6. Keep only one OpenClaw instance running per bot token, or Telegram polling will conflict.
+
+Render is a good fit for the backend + worker pair; Vercel can stay on the frontend.
+
+---
+
 ## Local development
 ```bash
 # backend

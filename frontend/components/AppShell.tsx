@@ -1,6 +1,7 @@
 "use client";
 
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 import { LoginScreen } from "@/components/LoginScreen";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -11,11 +12,12 @@ import { AchievementWatcher } from "@/components/AchievementWatcher";
 // full sidebar + content shell.
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { ready, authed } = useAccount();
+  const { t } = useI18n();
 
   if (!ready)
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper">
-        <span className="text-sm text-ink-soft">Loading…</span>
+        <span className="text-sm text-ink-soft">{t("common.loading")}</span>
       </main>
     );
 
@@ -25,7 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
       <main className="min-w-0 flex-1 bg-paper">
-        <div className="mx-auto max-w-[1040px] px-5 py-8 sm:px-10 sm:py-10">{children}</div>
+        <div className="mx-auto max-w-[1040px] px-4 py-6 pb-24 sm:px-10 sm:py-10 md:pb-12">
+          {children}
+        </div>
       </main>
       <CommandPalette />
       <AchievementWatcher />

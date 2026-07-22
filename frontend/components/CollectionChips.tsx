@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Toggle which collections a word belongs to, with an inline "new collection".
 export function CollectionChips({ word }: { word: Word }) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
 
@@ -46,7 +48,7 @@ export function CollectionChips({ word }: { word: Word }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">Collections</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("word.collections")}</p>
       <div className="flex flex-wrap items-center gap-2">
         {(collections ?? []).map((c) => {
           const on = member.has(c.id);
@@ -80,7 +82,7 @@ export function CollectionChips({ word }: { word: Word }) {
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="New collection…"
+              placeholder={t("col.newPlaceholder")}
               className="h-9 w-40 rounded-full border border-black/[0.08] bg-surface px-3 text-sm text-ink focus:border-sage focus:outline-none"
             />
             <button
@@ -88,7 +90,7 @@ export function CollectionChips({ word }: { word: Word }) {
               disabled={!name.trim() || create.isPending}
               className="rounded-full bg-sage px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              Add
+              {t("common.add")}
             </button>
             <button
               type="button"
@@ -106,7 +108,7 @@ export function CollectionChips({ word }: { word: Word }) {
             onClick={() => setCreating(true)}
             className="rounded-full border border-dashed border-black/[0.15] px-3 py-1.5 text-sm font-semibold text-ink-faint hover:bg-black/[0.03]"
           >
-            + New collection
+            {t("col.newCollection")}
           </button>
         )}
       </div>
