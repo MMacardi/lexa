@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
+import { suggestWord } from "../services/suggest.js";
 import {
   addWordForUser,
   addWordManual,
@@ -143,6 +144,27 @@ const addBody = z.object({
       sourceUrl: z.string().optional(),
     })
     .optional(),
+});
+
+const suggestBody = z.object({
+  word: z.string().min(1),
+  sourceLang: z.string().min(2).default("en"),
+});
+
+// POST /api/words/suggest  -> "did you mean" spell-check for the AI add flow
+wordsRouter.post("/words/suggest", async (req, res) => {
+  const parsed = suggestBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await suggestWord(parsed.data.word, parsed.data.sourceLang));
+  } catch (err) {
+    console.error(err);
+    // On any LLM hiccup, fall back to the original word so adding still works.
+    res.json({ corrected: parsed.data.word.trim().toLowerCase(), suggestions: [] });
+  }
 });
 
 // POST /api/words  -> auto (runs both agents) or manual (uses provided fields)

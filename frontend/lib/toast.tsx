@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export interface Toast {
   id: number;
@@ -54,6 +55,7 @@ function ToastCard({
   toast: Toast & { leaving?: boolean };
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const goal = toast.tone === "goal";
   return (
     <div
@@ -83,7 +85,7 @@ function ToastCard({
         </div>
         <div className="min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
-            {goal ? "Daily goal" : "Achievement unlocked"}
+            {goal ? t("toast.goalLabel") : t("toast.achievement")}
           </div>
           <div className="truncate font-serif text-[18px] font-semibold leading-tight text-ink">
             {toast.title}

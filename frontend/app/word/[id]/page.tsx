@@ -7,6 +7,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { pairLabel } from "@/lib/langs";
+import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
@@ -37,6 +38,7 @@ function Pills({ label, items }: { label: string; items: string[] }) {
 
 export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const { data: word, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["word", id],
@@ -47,7 +49,7 @@ export default function WordDetailPage() {
     return (
       <div className="space-y-6">
         <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
-          ← My words
+          {t("word.back")}
         </Link>
         <Skeleton className="h-10 w-52" />
         <Skeleton className="h-6 w-72" />
@@ -58,10 +60,10 @@ export default function WordDetailPage() {
     return (
       <div className="space-y-4">
         <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
-          ← My words
+          {t("word.back")}
         </Link>
         <ErrorState
-          message={(error as Error)?.message ?? "Word not found."}
+          message={(error as Error)?.message ?? t("word.notFound")}
           onRetry={() => refetch()}
         />
       </div>
@@ -73,7 +75,7 @@ export default function WordDetailPage() {
     <div className="anim-fade-up space-y-7">
       <div className="flex items-center justify-between">
         <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
-          ← My words
+          {t("word.back")}
         </Link>
         {!editing && (
           <div className="flex items-center gap-2">
@@ -90,13 +92,13 @@ export default function WordDetailPage() {
               }
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
-              ↗ Share
+              {t("word.share")}
             </button>
             <button
               onClick={() => setEditing(true)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
-              ✎ Edit
+              {t("word.edit")}
             </button>
           </div>
         )}
@@ -133,7 +135,7 @@ export default function WordDetailPage() {
             />
           ))}
           <span className="ml-2 text-xs font-semibold text-ink-faint">
-            reviewed {word.reviewCount}×
+            {t("word.reviewedTimes", { n: word.reviewCount })}
           </span>
         </div>
       </div>
@@ -141,14 +143,14 @@ export default function WordDetailPage() {
       <CollectionChips word={word} />
 
       <div className="grid gap-5 sm:grid-cols-3">
-        <Pills label="Collocations" items={word.collocations} />
-        <Pills label="Synonyms" items={word.synonyms} />
-        <Pills label="Antonyms" items={word.antonyms} />
+        <Pills label={t("word.collocations")} items={word.collocations} />
+        <Pills label={t("word.synonyms")} items={word.synonyms} />
+        <Pills label={t("word.antonyms")} items={word.antonyms} />
       </div>
 
       <div className="space-y-3">
         <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">
-          From the news
+          {t("word.fromNews")}
         </h2>
         {word.examples.map((ex) => (
           <div

@@ -14,6 +14,14 @@ export const translationSchema = z.object({
 });
 export type Translation = z.infer<typeof translationSchema>;
 
+// Spell-check / "did you mean" for the AI add flow: the most likely intended
+// spelling plus a couple of alternative candidates.
+export const suggestSchema = z.object({
+  corrected: z.string().min(1),
+  suggestions: z.array(z.string()).default([]),
+});
+export type SuggestResult = z.infer<typeof suggestSchema>;
+
 // Vocabulary Tutor Agent: the full dictionary entry for a word.
 export const tutorSchema = z.object({
   phonetic: z.string(),

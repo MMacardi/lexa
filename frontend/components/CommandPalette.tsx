@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface Item {
@@ -22,6 +23,7 @@ export function CommandPalette() {
   const router = useRouter();
   const { accountId } = useAccount();
   const { theme, toggle } = useTheme();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -59,15 +61,15 @@ export function CommandPalette() {
 
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
-      { id: "go-today", icon: "🏠", label: "Go to Today", run: () => router.push("/") },
-      { id: "go-review", icon: "🃏", label: "Open Flashcards", run: () => router.push("/review") },
-      { id: "go-quiz", icon: "🎯", label: "Open Recall check", run: () => router.push("/quiz") },
-      { id: "go-words", icon: "📚", label: "Open My words", run: () => router.push("/words") },
-      { id: "go-collections", icon: "🗂", label: "Open Collections", run: () => router.push("/collections") },
+      { id: "go-today", icon: "🏠", label: t("cmd.goToday"), run: () => router.push("/") },
+      { id: "go-review", icon: "🃏", label: t("cmd.openFlashcards"), run: () => router.push("/review") },
+      { id: "go-quiz", icon: "🎯", label: t("cmd.openRecall"), run: () => router.push("/quiz") },
+      { id: "go-words", icon: "📚", label: t("cmd.openWords"), run: () => router.push("/words") },
+      { id: "go-collections", icon: "🗂", label: t("cmd.openCollections"), run: () => router.push("/collections") },
       {
         id: "theme",
         icon: theme === "dark" ? "☀️" : "🌙",
-        label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+        label: theme === "dark" ? t("cmd.themeLight") : t("cmd.themeDark"),
         run: () => toggle(),
       },
     ];
@@ -91,7 +93,7 @@ export function CommandPalette() {
         run: () => router.push(`/word/${w.id}`),
       }));
     return [...navMatches, ...wordMatches];
-  }, [q, words, router, theme, toggle]);
+  }, [q, words, router, theme, toggle, t]);
 
   useEffect(() => {
     if (active >= items.length) setActive(0);
@@ -131,12 +133,12 @@ export function CommandPalette() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onListKey}
-          placeholder="Search words or jump to a page…"
+          placeholder={t("cmd.placeholder")}
           className="w-full border-b border-black/[0.06] bg-transparent px-5 py-4 text-[16px] text-ink placeholder:text-ink-faint focus:outline-none"
         />
         <ul className="max-h-[340px] overflow-y-auto py-2">
           {items.length === 0 && (
-            <li className="px-5 py-6 text-center text-sm text-ink-soft">No matches.</li>
+            <li className="px-5 py-6 text-center text-sm text-ink-soft">{t("cmd.noMatches")}</li>
           )}
           {items.map((it, i) => (
             <li key={it.id}>
@@ -156,8 +158,8 @@ export function CommandPalette() {
           ))}
         </ul>
         <div className="flex items-center justify-between border-t border-black/[0.06] px-5 py-2.5 text-[11px] font-medium text-ink-faint">
-          <span>↑↓ to navigate · ↵ to open</span>
-          <span>Esc to close</span>
+          <span>{t("cmd.navHint")}</span>
+          <span>{t("cmd.escHint")}</span>
         </div>
       </div>
     </div>

@@ -39,6 +39,15 @@ export interface Collection {
   count: number;
 }
 
+export interface Profile {
+  telegramId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  photoUrl?: string | null;
+  authVia?: string; // "telegram" | "dev"
+}
+
 export interface Stats {
   total: number;
   mastered: number;
@@ -94,6 +103,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ...payload, mode: "auto" }),
     }),
+  suggestWord: (word: string, sourceLang: string) =>
+    http<{ corrected: string; suggestions: string[] }>(`/api/words/suggest`, {
+      method: "POST",
+      body: JSON.stringify({ word, sourceLang }),
+    }),
   addWordManual: (payload: AddManual) =>
     http<Word>(`/api/words`, {
       method: "POST",
@@ -129,9 +143,9 @@ export const api = {
     http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "DELETE" }),
 
   // --- auth ---
-  me: () => http<{ telegramId: string }>(`/api/auth/me`),
+  me: () => http<Profile>(`/api/auth/me`),
   loginTelegram: (data: Record<string, unknown>) =>
-    http<{ telegramId: string }>(`/api/auth/telegram`, {
+    http<Profile>(`/api/auth/telegram`, {
       method: "POST",
       body: JSON.stringify(data),
     }),

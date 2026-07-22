@@ -102,12 +102,7 @@ export function downloadShareCard(data: CardData) {
   // footer brand (anchored to the bottom)
   ctx.fillStyle = "#7c9885";
   ctx.font = "600 42px Georgia, serif";
-  ctx.fillText("Lexa", cx, S - 110);
-  if (data.source) {
-    ctx.fillStyle = "#a89f8f";
-    ctx.font = "400 26px Georgia, serif";
-    ctx.fillText(data.source, cx, S - 75);
-  }
+  ctx.fillText("Lexa", cx, S - 90);
 
   canvas.toBlob((blob) => {
     if (!blob) return;

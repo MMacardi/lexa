@@ -20,6 +20,24 @@ async function ensureUser(telegramId: string) {
   });
 }
 
+function publicProfile(u: {
+  telegramId: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  photoUrl: string | null;
+  authVia: string;
+}) {
+  return {
+    telegramId: u.telegramId,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    username: u.username,
+    photoUrl: u.photoUrl,
+    authVia: u.authVia,
+  };
+}
+
 // POST /api/auth/telegram — verify the Telegram Login Widget payload, start a session.
 authRouter.post("/auth/telegram", async (req, res) => {
   const data = req.body as TelegramAuthData;
@@ -32,14 +50,20 @@ authRouter.post("/auth/telegram", async (req, res) => {
     return;
   }
   const telegramId = String(data.id);
-  await ensureUser(telegramId);
-  setSessionCookie(res, telegramId);
-  res.json({
-    telegramId,
-    username: data.username ?? null,
+  const profile = {
     firstName: data.first_name ?? null,
+    lastName: data.last_name ?? null,
+    username: data.username ?? null,
     photoUrl: data.photo_url ?? null,
+    authVia: "telegram",
+  };
+  const user = await prisma.user.upsert({
+    where: { telegramId },
+    create: { telegramId, ...profile },
+    update: profile,
   });
+  setSessionCookie(res, telegramId);
+  res.json(publicProfile(user));
 });
 
 // POST /api/auth/dev — local-only shortcut to log in without the Telegram widget
@@ -61,14 +85,15 @@ authRouter.post("/auth/dev", async (req, res) => {
   res.json({ telegramId, dev: true });
 });
 
-// GET /api/auth/me — current session, or 401.
-authRouter.get("/auth/me", (req, res) => {
+// GET /api/auth/me — current session profile, or 401.
+authRouter.get("/auth/me", async (req, res) => {
   const telegramId = readSession(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json({ telegramId });
+  const user = await prisma.user.findUnique({ where: { telegramId } });
+  res.json(user ? publicProfile(user) : { telegramId });
 });
 
 // POST /api/auth/logout

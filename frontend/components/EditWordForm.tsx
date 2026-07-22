@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LangSelect } from "@/components/LangSelect";
@@ -21,6 +22,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function EditWordForm({ word, onDone }: { word: Word; onDone: () => void }) {
   const qc = useQueryClient();
+  const { t } = useI18n();
   const ex = word.examples[0];
 
   const [w, setW] = useState(word.word);
@@ -68,40 +70,40 @@ export function EditWordForm({ word, onDone }: { word: Word; onDone: () => void 
       className="space-y-3 rounded-[18px] border border-black/[0.06] bg-surface p-5"
     >
       <div className="flex flex-wrap items-end gap-3">
-        <Field label="Word">
+        <Field label={t("edit.word")}>
           <Input value={w} onChange={(e) => setW(e.target.value)} className="w-48" />
         </Field>
-        <Field label="From">
+        <Field label={t("edit.from")}>
           <LangSelect value={sourceLang} onChange={setSourceLang} />
         </Field>
-        <Field label="To">
+        <Field label={t("edit.to")}>
           <LangSelect value={targetLang} onChange={setTargetLang} />
         </Field>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Phonetic"><Input value={phonetic} onChange={(e) => setPhonetic(e.target.value)} /></Field>
-        <Field label="Part of speech"><Input value={pos} onChange={(e) => setPos(e.target.value)} /></Field>
+        <Field label={t("edit.phonetic")}><Input value={phonetic} onChange={(e) => setPhonetic(e.target.value)} /></Field>
+        <Field label={t("edit.pos")}><Input value={pos} onChange={(e) => setPos(e.target.value)} /></Field>
       </div>
-      <Field label="Meaning"><Input value={meaning} onChange={(e) => setMeaning(e.target.value)} /></Field>
+      <Field label={t("edit.meaning")}><Input value={meaning} onChange={(e) => setMeaning(e.target.value)} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Collocations (comma)"><Input value={coll} onChange={(e) => setColl(e.target.value)} /></Field>
-        <Field label="Synonyms (comma)"><Input value={syn} onChange={(e) => setSyn(e.target.value)} /></Field>
-        <Field label="Antonyms (comma)"><Input value={ant} onChange={(e) => setAnt(e.target.value)} /></Field>
+        <Field label={t("edit.collocations")}><Input value={coll} onChange={(e) => setColl(e.target.value)} /></Field>
+        <Field label={t("edit.synonyms")}><Input value={syn} onChange={(e) => setSyn(e.target.value)} /></Field>
+        <Field label={t("edit.antonyms")}><Input value={ant} onChange={(e) => setAnt(e.target.value)} /></Field>
       </div>
-      <Field label="Example"><Input value={exEn} onChange={(e) => setExEn(e.target.value)} /></Field>
+      <Field label={t("edit.example")}><Input value={exEn} onChange={(e) => setExEn(e.target.value)} /></Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Example translation"><Input value={exZh} onChange={(e) => setExZh(e.target.value)} /></Field>
-        <Field label="Source"><Input value={src} onChange={(e) => setSrc(e.target.value)} /></Field>
+        <Field label={t("edit.exampleTr")}><Input value={exZh} onChange={(e) => setExZh(e.target.value)} /></Field>
+        <Field label={t("edit.source")}><Input value={src} onChange={(e) => setSrc(e.target.value)} /></Field>
       </div>
 
       {save.isError && <p className="text-sm text-warn-text">{(save.error as Error).message}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={save.isPending || !w.trim()}>
-          {save.isPending ? "Saving…" : "Save changes"}
+          {save.isPending ? t("add.saving") : t("edit.saveChanges")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     </form>
