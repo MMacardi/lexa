@@ -1,6 +1,7 @@
 import { prisma } from "../services/db.js";
 import { chatJson } from "../services/llm.js";
 import { tutorSchema } from "../lib/schemas.js";
+import { langName } from "../lib/langs.js";
 
 /**
  * Vocabulary Tutor Agent.
@@ -10,14 +11,19 @@ import { tutorSchema } from "../lib/schemas.js";
 export async function runTutor(params: {
   wordId: string;
   word: string;
+  sourceLang?: string;
+  targetLang?: string;
 }): Promise<void> {
+  const sourceName = langName(params.sourceLang ?? "en");
+  const targetName = langName(params.targetLang ?? "zh");
   const result = await chatJson({
     system:
-      "You are a bilingual English-Chinese dictionary. For the given English " +
-      "word, respond as JSON with: phonetic (IPA, in slashes), partOfSpeech, " +
-      "meaningZh (Simplified Chinese definition), collocations (2-3 common " +
-      "phrases), synonyms (exactly 2), antonyms (exactly 2). Shape: " +
-      '{"phonetic": string, "partOfSpeech": string, "meaningZh": string, ' +
+      `You are a ${sourceName}-to-${targetName} dictionary. For the given ` +
+      `${sourceName} word, respond as JSON with: phonetic (pronunciation, e.g. ` +
+      "IPA in slashes), partOfSpeech, meaningZh (the definition written in " +
+      `${targetName}), collocations (2-3 common ${sourceName} phrases), synonyms ` +
+      `(exactly 2 ${sourceName} words), antonyms (exactly 2 ${sourceName} words). ` +
+      'Shape: {"phonetic": string, "partOfSpeech": string, "meaningZh": string, ' +
       '"collocations": string[], "synonyms": string[], "antonyms": string[]}.',
     user: params.word,
     schema: tutorSchema,

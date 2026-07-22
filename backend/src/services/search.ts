@@ -17,24 +17,31 @@ export interface SearchResult {
 }
 
 /**
- * Search recent news for articles using the target word.
- * Uses Tavily's REST API directly (no SDK) — one POST, restricted to news.
+ * Search the web for real sentences using the target word.
+ * Uses Tavily's REST API directly (no SDK). For English we restrict to the news
+ * domains above; for other source languages we search the open web so we can
+ * find authentic sentences in that language.
  */
-export async function searchNews(word: string): Promise<SearchResult[]> {
+export async function searchNews(
+  word: string,
+  opts: { restrictNews?: boolean } = {},
+): Promise<SearchResult[]> {
   if (!env.TAVILY_API_KEY) {
     throw new Error("TAVILY_API_KEY is not set — add it to backend/.env");
   }
 
+  const body: Record<string, unknown> = {
+    api_key: env.TAVILY_API_KEY,
+    query: `"${word}"`,
+    search_depth: "advanced",
+    max_results: 8,
+  };
+  if (opts.restrictNews) body.include_domains = NEWS_DOMAINS;
+
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: env.TAVILY_API_KEY,
-      query: `"${word}"`,
-      search_depth: "advanced",
-      include_domains: NEWS_DOMAINS,
-      max_results: 8,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
