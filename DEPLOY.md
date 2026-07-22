@@ -66,8 +66,11 @@ If you want to move the backend and OpenClaw off Railway, use Render like this:
    - `JWT_SECRET`
    - `ALLOW_DEV_LOGIN=false`
    - `COOKIE_SECURE=true`
+   - `CORS_ORIGIN=https://<your-vercel-app>.vercel.app`
    - `PORT` is provided by Render automatically
 6. After deploy, copy the public backend URL and set the frontend `NEXT_PUBLIC_API_URL` to it in Vercel.
+
+If you use a custom Vercel domain or preview URL, add it to `CORS_ORIGIN` as a comma-separated list. The backend must answer with an exact origin match when `credentials: include` is used on the frontend.
 
 ### OpenClaw on Render Background Worker
 1. Create a new **Background Worker** from the same repo.
