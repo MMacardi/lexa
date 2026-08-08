@@ -26,11 +26,21 @@ export interface Word {
   collocations: string[];
   synonyms: string[];
   antonyms: string[];
+  notes: string | null;
   reviewCount: number;
   nextReviewAt: string | null;
   createdAt: string;
   examples: Example[];
   collections?: { id: string; name: string }[];
+  // FSRS scheduler state (used to preview intervals on the grade buttons)
+  stability?: number | null;
+  difficulty?: number | null;
+  due?: string | null;
+  reps?: number;
+  lapses?: number;
+  state?: number;
+  learningSteps?: number;
+  lastReview?: string | null;
 }
 
 export interface Collection {
@@ -57,6 +67,14 @@ export interface Stats {
   streak: number;
   days: { date: string; added: number; reviews: number }[];
   heat: { date: string; count: number }[];
+}
+
+// Learner's FSRS desired retention, stored locally (see lib/learnPrefs). Read
+// here so every review call (from any page) carries it without prop-drilling.
+function readRetention(): number {
+  if (typeof window === "undefined") return 0.9;
+  const v = Number(localStorage.getItem("lexa.retention"));
+  return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : 0.9;
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
@@ -159,8 +177,13 @@ export const api = {
     }),
   getImportJob: (id: string, telegramId: string) =>
     http<ImportJob>(`/api/words/import/${id}?telegramId=${encodeURIComponent(telegramId)}`),
-  reviewWord: (id: string, known = true) =>
-    http<Word>(`/api/words/${id}/review`, { method: "POST", body: JSON.stringify({ known }) }),
+  // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Default Good. Sends the learner's
+  // desired retention (FSRS) so the server schedules with their chosen setting.
+  reviewWord: (id: string, grade = 3) =>
+    http<Word>(`/api/words/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify({ grade, retention: readRetention() }),
+    }),
   deleteWord: (id: string) =>
     http<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
   updateWord: (
@@ -173,6 +196,7 @@ export const api = {
       collocations?: string[];
       synonyms?: string[];
       antonyms?: string[];
+      notes?: string | null;
       sourceLang?: string;
       targetLang?: string;
       examples?: { id?: string; sentenceEn: string; sentenceZh?: string; sourceName?: string }[];
@@ -184,6 +208,31 @@ export const api = {
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
+  askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>
+    http<{ answer: string }>(`/api/words/${id}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+    }),
+  translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
+    http<{ translation: string }>(`/api/translate`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  // Add many bare words at once; AI enrichment runs in the background worker.
+  batchAddWords: (payload: {
+    telegramId: string;
+    sourceLang: string;
+    targetLang: string;
+    words: string[];
+    level?: string;
+    exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+    collectionIds?: string[];
+    enrich?: boolean;
+  }) =>
+    http<{ created: number; skipped: number; job: Pick<ImportJob, "id" | "status" | "total" | "processed"> | null }>(
+      `/api/words/batch`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
   stats: (telegramId: string) =>
     http<Stats>(`/api/stats?telegramId=${encodeURIComponent(telegramId)}`),
 

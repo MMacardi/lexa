@@ -15,12 +15,16 @@ import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
+import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
+
+type QKind = "choice" | "type" | "cloze";
+type QuizMode = "choice" | "type" | "cloze" | "mixed";
 
 interface Question {
   word: Word;
@@ -29,38 +33,20 @@ interface Question {
   correct: string;
   promptTarget: boolean;
   optionsTarget: boolean;
-  cloze?: boolean; // fill-the-blank in an example sentence
+  kind: QKind;
   clozeTranslation?: string;
 }
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Words whose example sentence literally contains the target word — usable for
-// fill-in-the-blank (cloze) practice.
-function clozeEligible(pool: Word[]): Word[] {
-  return pool.filter((w) => {
-    const ex = w.examples[0];
-    return Boolean(ex?.sentenceEn && ex.sentenceEn.toLowerCase().includes(w.word.toLowerCase()));
-  });
+// Is this word usable for fill-in-the-blank (its example contains the word)?
+function isClozeEligible(w: Word): boolean {
+  const ex = w.examples[0];
+  return Boolean(ex?.sentenceEn && ex.sentenceEn.toLowerCase().includes(w.word.toLowerCase()));
 }
 
-function buildCloze(pool: Word[]): Question[] {
-  return shuffle(clozeEligible(pool))
-    .slice(0, 8)
-    .map((w) => {
-      const ex = w.examples[0];
-      const blanked = ex.sentenceEn.replace(new RegExp(escapeRegExp(w.word), "i"), "＿＿＿");
-      return {
-        word: w,
-        prompt: blanked,
-        options: [],
-        correct: w.word,
-        promptTarget: true,
-        optionsTarget: false,
-        cloze: true,
-        clozeTranslation: ex.sentenceZh,
-      };
-    });
+function clozeEligible(pool: Word[]): Word[] {
+  return pool.filter(isClozeEligible);
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -72,30 +58,67 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildQuiz(pool: Word[], flip: boolean): Question[] {
+// Build a single question of a given kind for a word.
+function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Question {
+  if (kind === "cloze") {
+    const ex = w.examples[0];
+    const blanked = ex.sentenceEn.replace(new RegExp(escapeRegExp(w.word), "i"), "＿＿＿");
+    return {
+      word: w,
+      prompt: blanked,
+      options: [],
+      correct: w.word,
+      promptTarget: true,
+      optionsTarget: false,
+      kind: "cloze",
+      clozeTranslation: ex.sentenceZh,
+    };
+  }
+  const others = shuffle(eligible.filter((x) => x.id !== w.id)).slice(0, 3);
+  if (flip) {
+    return {
+      word: w,
+      prompt: w.meaningZh as string,
+      options: kind === "choice" ? shuffle([w.word, ...others.map((x) => x.word)]) : [],
+      correct: w.word,
+      promptTarget: true,
+      optionsTarget: false,
+      kind,
+    };
+  }
+  return {
+    word: w,
+    prompt: w.word,
+    options: kind === "choice" ? shuffle([w.meaningZh as string, ...others.map((x) => x.meaningZh as string)]) : [],
+    correct: w.meaningZh as string,
+    promptTarget: false,
+    optionsTarget: true,
+    kind,
+  };
+}
+
+// Pick a random format for a word in a mixed session (only formats it supports).
+function pickKind(w: Word, eligible: Word[]): QKind {
+  const opts: QKind[] = ["type"];
+  if (eligible.length >= 4) opts.push("choice");
+  if (isClozeEligible(w)) opts.push("cloze");
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+
+function buildSession(pool: Word[], flip: boolean, mode: QuizMode): Question[] {
   const eligible = pool.filter((w) => w.meaningZh);
+  if (mode === "cloze") {
+    return shuffle(clozeEligible(pool))
+      .slice(0, 8)
+      .map((w) => makeQuestion(w, eligible, flip, "cloze"));
+  }
   return shuffle(eligible)
     .slice(0, 8)
     .map((w) => {
-      const others = shuffle(eligible.filter((x) => x.id !== w.id)).slice(0, 3);
-      if (flip) {
-        return {
-          word: w,
-          prompt: w.meaningZh as string,
-          options: shuffle([w.word, ...others.map((x) => x.word)]),
-          correct: w.word,
-          promptTarget: true,
-          optionsTarget: false,
-        };
-      }
-      return {
-        word: w,
-        prompt: w.word,
-        options: shuffle([w.meaningZh as string, ...others.map((x) => x.meaningZh as string)]),
-        correct: w.meaningZh as string,
-        promptTarget: false,
-        optionsTarget: true,
-      };
+      let kind: QKind = mode === "mixed" ? pickKind(w, eligible) : mode;
+      if (kind === "choice" && eligible.length < 4) kind = "type"; // not enough distractors
+      if (kind === "cloze" && !isClozeEligible(w)) kind = "type";
+      return makeQuestion(w, eligible, flip, kind);
     });
 }
 
@@ -117,7 +140,7 @@ export default function QuizPage() {
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
   const [selColl, setSelColl] = useState<string>("all");
-  const [mode, setMode] = useState<"choice" | "type" | "cloze">("choice");
+  const [mode, setMode] = useState<QuizMode>("choice");
   const [quiz, setQuiz] = useState<Question[]>([]);
   const [editing, setEditing] = useState<Word | null>(null);
   const [index, setIndex] = useState(0);
@@ -134,12 +157,41 @@ export default function QuizPage() {
   }, [allWords, selPairs, allPairs]);
 
   const review = useMutation({
-    mutationFn: (id: string) => api.reviewWord(id),
+    mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     },
   });
+
+  // Keyboard shortcuts: 1–4 pick an answer (choice mode), Enter/Space continues
+  // once answered. Registered before early returns so hook order stays stable.
+  useEffect(() => {
+    if (!started) return;
+    const q = quiz[index];
+    if (!q) return;
+    const answered = selected !== null;
+    const onKey = (e: KeyboardEvent) => {
+      if (answered && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        setSelected(null);
+        setTyped("");
+        setIndex((i) => i + 1);
+        return;
+      }
+      if (!answered && q.kind === "choice" && /^[1-4]$/.test(e.key)) {
+        const opt = q.options[Number(e.key) - 1];
+        if (opt === undefined) return;
+        e.preventDefault();
+        setSelected(opt);
+        const ok = opt === q.correct;
+        if (ok) setScore((s) => s + 1);
+        review.mutate({ id: q.word.id, grade: ok ? 3 : 1 });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [started, quiz, index, selected, mode, review]);
 
   const inColl = (w: Word) =>
     selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
@@ -152,10 +204,11 @@ export default function QuizPage() {
   }, []);
 
   const clozePool = clozeEligible(pool);
-  const canStart = mode === "cloze" ? clozePool.length >= 1 : pool.length >= 4;
+  const canStart =
+    mode === "cloze" ? clozePool.length >= 1 : mode === "mixed" ? pool.length >= 1 : pool.length >= 4;
 
   function start() {
-    setQuiz(mode === "cloze" ? buildCloze(pool) : buildQuiz(pool, flip));
+    setQuiz(buildSession(pool, flip, mode));
     setIndex(0);
     setSelected(null);
     setTyped("");
@@ -212,7 +265,7 @@ export default function QuizPage() {
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
             <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
-              {(["choice", "type", "cloze"] as const).map((m) => (
+              {(["choice", "type", "cloze", "mixed"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -221,13 +274,18 @@ export default function QuizPage() {
                     mode === m ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {m === "choice" ? t("quiz.choice") : m === "type" ? t("quiz.type") : t("quiz.cloze")}
+                  {m === "choice"
+                    ? t("quiz.choice")
+                    : m === "type"
+                      ? t("quiz.type")
+                      : m === "cloze"
+                        ? t("quiz.cloze")
+                        : t("quiz.mixed")}
                 </button>
               ))}
             </div>
-            {mode === "cloze" && (
-              <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.clozeHint")}</p>
-            )}
+            {mode === "cloze" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.clozeHint")}</p>}
+            {mode === "mixed" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.mixedHint")}</p>}
           </div>
 
           {collections && collections.length > 0 && (
@@ -282,19 +340,16 @@ export default function QuizPage() {
   function choose(opt: string) {
     if (selected !== null) return;
     setSelected(opt);
-    if (opt === q.correct) {
-      setScore((s) => s + 1);
-      review.mutate(q.word.id);
-    }
+    const ok = opt === q.correct;
+    if (ok) setScore((s) => s + 1);
+    review.mutate({ id: q.word.id, grade: ok ? 3 : 1 }); // Good on right, Again on wrong
   }
   function submitTyped() {
     if (selected !== null || !typed.trim()) return;
     const ok = norm(typed) === norm(q.correct);
     setSelected(ok ? q.correct : typed.trim());
-    if (ok) {
-      setScore((s) => s + 1);
-      review.mutate(q.word.id);
-    }
+    if (ok) setScore((s) => s + 1);
+    review.mutate({ id: q.word.id, grade: ok ? 3 : 1 });
   }
   function next() {
     setSelected(null);
@@ -302,22 +357,23 @@ export default function QuizPage() {
     setIndex((i) => i + 1);
   }
 
-  const promptHint = q.cloze
-    ? t("quiz.fillBlank")
-    : flip
-      ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
-      : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
+  const promptHint =
+    q.kind === "cloze"
+      ? t("quiz.fillBlank")
+      : flip
+        ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
+        : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
 
   return (
     <div className="mx-auto max-w-[620px]">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("quiz.title")}</h2>
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setEditing(q.word)}
             className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            ✎ {t("edit.editCard")}
+            ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
           </button>
           <button
             onClick={() => setStarted(false)}
@@ -354,7 +410,7 @@ export default function QuizPage() {
         className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-9 text-center"
       >
         <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
-        {q.cloze ? (
+        {q.kind === "cloze" ? (
           <>
             <div className={cn("mt-3 font-serif text-[24px] leading-relaxed text-ink", tFont)}>{q.prompt}</div>
             {q.clozeTranslation && (
@@ -373,9 +429,9 @@ export default function QuizPage() {
         )}
       </div>
 
-      {mode === "choice" ? (
+      {q.kind === "choice" ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {q.options.map((opt) => {
+          {q.options.map((opt, i) => {
             const isCorrect = opt === q.correct;
             const isChosen = opt === selected;
             let style = "border-black/[0.08] bg-surface text-ink";
@@ -397,17 +453,29 @@ export default function QuizPage() {
                 onClick={() => choose(opt)}
                 disabled={answered}
                 className={cn(
-                  "flex items-center justify-between rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
+                  "flex items-center justify-between gap-3 rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
                   style,
                   q.optionsTarget && tFont,
                   !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
                 )}
               >
-                <span>{opt}</span>
+                <span className="flex min-w-0 items-center gap-3">
+                  {!answered && (
+                    <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-black/[0.08] bg-black/[0.03] text-[12px] font-bold text-ink-faint sm:flex">
+                      {i + 1}
+                    </span>
+                  )}
+                  <span className="truncate">{opt}</span>
+                </span>
                 <span className="text-xl font-bold">{mark}</span>
               </button>
             );
           })}
+          {!answered && (
+            <p className="col-span-full hidden text-center text-[12px] text-ink-faint sm:block">
+              {t("quiz.hotkeysPick")}
+            </p>
+          )}
         </div>
       ) : (
         <form
@@ -444,10 +512,10 @@ export default function QuizPage() {
               {correct ? t("quiz.right") : t("quiz.wrong", { answer: q.correct })}
             </p>
             {q.word.examples[0] && (
-              <p className="mt-2.5 font-serif text-[17px] leading-relaxed text-quote">
-                “{q.word.examples[0].sentenceEn}”
+              <p className="mt-2.5 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
+                “<HighlightWord text={q.word.examples[0].sentenceEn} word={q.word.word} />”
                 {q.word.examples[0].sentenceZh && (
-                  <span className={cn("mt-1 block text-sm not-italic text-ink-soft", tFont)}>
+                  <span className={cn("mt-1 block whitespace-pre-line text-sm not-italic text-ink-soft", tFont)}>
                     {q.word.examples[0].sentenceZh}
                   </span>
                 )}
@@ -457,6 +525,9 @@ export default function QuizPage() {
           <Button variant="dark" className="mt-4 w-full" onClick={next}>
             {index + 1 >= total ? t("quiz.seeResults") : t("quiz.next")}
           </Button>
+          <p className="mt-2 hidden text-center text-[12px] text-ink-faint sm:block">
+            {t("quiz.hotkeysNext")}
+          </p>
         </div>
       )}
     </div>

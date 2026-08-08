@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Collection } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
 
 // Pretty dropdown multi-select for collections (same look as LangSelect, but you
@@ -129,14 +130,7 @@ export function CollectionMultiSelect({
                         on ? "text-sage-deep" : "text-ink hover:bg-black/[0.03]",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] border text-[11px] font-bold",
-                          on ? "border-sage bg-sage text-white" : "border-black/15 bg-surface",
-                        )}
-                      >
-                        {on ? "✓" : ""}
-                      </span>
+                      <Checkbox presentational checked={on} />
                       <span className="flex-1 truncate font-medium">{o.name}</span>
                       <span className="text-xs text-ink-faint">{o.count}</span>
                     </button>
