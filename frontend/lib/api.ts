@@ -221,12 +221,18 @@ export const api = {
   // OCR: extract text from a photo (base64 data URL) for the Reader.
   ocr: (payload: { image: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/ocr`, { method: "POST", body: JSON.stringify(payload) }),
+  // Contextual meaning of one word within its sentence (Reader press-and-hold).
+  gloss: (payload: { word: string; sentence: string; sourceLang?: string; targetLang?: string }) =>
+    http<{ gloss: string }>(`/api/gloss`, { method: "POST", body: JSON.stringify(payload) }),
   // Add many bare words at once; AI enrichment runs in the background worker.
   batchAddWords: (payload: {
     telegramId: string;
     sourceLang: string;
     targetLang: string;
-    words: string[];
+    words?: string[];
+    // Reader: each word plus the sentence it came from (kept as the card's example).
+    items?: { word: string; sentence?: string }[];
+    source?: string; // attribution for the provided example
     level?: string;
     exampleStyle?: "news" | "casual" | "dialogue" | "literary";
     collectionIds?: string[];

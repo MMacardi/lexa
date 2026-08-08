@@ -64,6 +64,8 @@ export async function importWordsForUser(params: {
   generateExamples?: boolean;
   level?: string;
   exampleStyle?: string;
+  // Attribution for a provided example (e.g. the Reader's text source).
+  exampleSourceName?: string;
 }) {
   if (params.items.length === 0) throw new Error("Select at least one card to import.");
   if (params.items.length > MAX_CARDS) throw new Error(`You can import up to ${MAX_CARDS} cards at once.`);
@@ -111,7 +113,7 @@ export async function importWordsForUser(params: {
                   create: {
                     sentenceEn: item.example,
                     sentenceZh: item.exampleTranslation,
-                    sourceName: "Imported list",
+                    sourceName: params.exampleSourceName?.trim() || "Imported list",
                     sourceUrl: "",
                   },
                 }

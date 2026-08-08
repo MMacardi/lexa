@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import type { Stats } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -12,8 +13,11 @@ function level(count: number) {
 }
 
 export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [hover, setHover] = useState<{ x: number; y: number; date: string; count: number } | null>(null);
   if (!heat || heat.length === 0) return null;
+
+  const dateLocale = locale === "ru" ? "ru-RU" : locale === "zh" ? "zh-CN" : "en-US";
 
   // Pad the front so the first real day sits on its correct weekday row.
   const firstWeekday = new Date(heat[0].date + "T00:00:00").getDay(); // 0=Sun
@@ -63,11 +67,16 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
                 {Array.from({ length: 7 }).map((_, di) => {
                   const cell = wk[di];
                   if (!cell) return <span key={di} className="h-[11px] w-[11px]" />;
+                  const c = cell;
                   return (
                     <span
                       key={di}
-                      title={`${new Date(cell.date + "T00:00:00").toLocaleDateString()} · ${cell.count}`}
-                      className={cn("h-[11px] w-[11px] rounded-[3px]", LEVEL_CLS[level(cell.count)])}
+                      onMouseEnter={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHover({ x: r.left + r.width / 2, y: r.top, date: c.date, count: c.count });
+                      }}
+                      onMouseLeave={() => setHover(null)}
+                      className={cn("h-[11px] w-[11px] rounded-[3px] transition-transform hover:scale-[1.35]", LEVEL_CLS[level(c.count)])}
                     />
                   );
                 })}
@@ -85,6 +94,21 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
         ))}
         <span>{t("stats.more")}</span>
       </div>
+
+      {/* custom tooltip (replaces the browser's plain title) */}
+      {hover && (
+        <div
+          className="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full rounded-[10px] bg-onyx px-2.5 py-1.5 text-center shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+          style={{ left: hover.x, top: hover.y - 8 }}
+        >
+          <div className="text-[12px] font-semibold text-white">
+            {hover.count > 0 ? t("stats.reviewsCount", { n: hover.count }) : t("stats.noReviews")}
+          </div>
+          <div className="text-[10px] font-medium text-white/60">
+            {new Date(hover.date + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

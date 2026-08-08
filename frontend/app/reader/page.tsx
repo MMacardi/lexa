@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -15,11 +14,14 @@ import {
   LEVEL_HINT,
   getExampleStyle,
   getLevel,
+  getReaderSource,
   pushRecentPair,
   setExampleStyle,
   setLevel,
+  setReaderSource,
   useExampleStyle,
   useLevel,
+  useReaderSource,
   useRecentPairs,
   type CefrLevel,
   type ExampleStyle,
@@ -28,6 +30,7 @@ import { segment, wordKey } from "@/lib/segment";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { Select } from "@/components/ui/Select";
+import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
@@ -77,9 +80,9 @@ export default function ReaderPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
-  const router = useRouter();
   const recentPairs = useRecentPairs();
   const style = useExampleStyle();
+  const readerSource = useReaderSource();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
@@ -104,6 +107,12 @@ export default function ReaderPage() {
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // known word: short tap → small popup (meaning + add example); long-press → card panel
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
+  const [cardPanel, setCardPanel] = useState<{ wordId: string; sentence: string } | null>(null);
+  const [addingExample, setAddingExample] = useState(false);
+  const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Restore the shared pair (Reader needs a concrete source language, not auto).
   useEffect(() => {
@@ -222,6 +231,116 @@ export default function ReaderPage() {
     };
   }, [gloss]);
 
+  // Escape closes the known-word popup / card panel.
+  useEffect(() => {
+    if (!knownPop && !cardPanel) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setKnownPop(null);
+        setCardPanel(null);
+      }
+    };
+    window.addEventListener("keydown", onEsc);
+    window.addEventListener("scroll", () => setKnownPop(null), true);
+    return () => {
+      window.removeEventListener("keydown", onEsc);
+      window.removeEventListener("scroll", () => setKnownPop(null), true);
+    };
+  }, [knownPop, cardPanel]);
+
+  // The sentence a token belongs to (for provided example / context).
+  function sentenceAround(index: number): string {
+    const isBoundary = (s: string) => /[.!?。！？\n]/.test(s);
+    let a = index;
+    let b = index;
+    while (a > 0 && !isBoundary(tokens[a - 1].text)) a--;
+    while (b < tokens.length - 1 && !isBoundary(tokens[b].text)) b++;
+    return tokens
+      .slice(a, b + 1)
+      .map((tk) => tk.text)
+      .join("")
+      .trim();
+  }
+
+  // The first sentence in the text that contains a given (normalized) word.
+  function sentenceForKey(key: string): string {
+    const i = tokens.findIndex((tk) => tk.wordLike && wordKey(tk.text) === key);
+    return i >= 0 ? sentenceAround(i) : "";
+  }
+
+  // Short tap on a saved word → small popup with its meaning + "add example".
+  function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
+    const w = (words ?? []).find((x) => x.id === wordId);
+    const rect = el.getBoundingClientRect();
+    const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+    setKnownPop({
+      wordId,
+      word: wordText,
+      meaning: w?.meaningZh ?? null,
+      sentence: sentenceAround(index),
+      x,
+      y: rect.bottom,
+    });
+  }
+
+  // Add the tapped sentence as a new example on an existing card (translate first).
+  async function addExampleFromSentence(wordId: string, sentence: string) {
+    if (addingExample || !sentence.trim()) return;
+    const w = (words ?? []).find((x) => x.id === wordId);
+    if (!w) return;
+    setAddingExample(true);
+    try {
+      let sentenceZh = "";
+      try {
+        sentenceZh = (await api.translate({ text: sentence, sourceLang, targetLang })).translation;
+      } catch {
+        /* keep the example even if translation fails */
+      }
+      const examples = [
+        ...w.examples.map((e) => ({ id: e.id, sentenceEn: e.sentenceEn, sentenceZh: e.sentenceZh, sourceName: e.sourceName })),
+        { sentenceEn: sentence, sentenceZh, sourceName: readerSource.trim() || t("reader.sourceDefault") },
+      ];
+      await api.updateWord(wordId, { examples });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["word", wordId] });
+      show({ icon: "📝", title: t("reader.exampleAdded", { word: w.word }) });
+    } catch (e) {
+      show({ icon: "⚠️", title: (e as Error).message });
+    } finally {
+      setAddingExample(false);
+      setKnownPop(null);
+    }
+  }
+
+  function startPress(e: React.PointerEvent, onHold: (() => void) | null) {
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    pressRef.current = { x: e.clientX, y: e.clientY, moved: false, fired: false };
+    clearTimeout(pressTimer.current);
+    if (!onHold) return;
+    pressTimer.current = setTimeout(() => {
+      if (pressRef.current && !pressRef.current.moved) {
+        pressRef.current.fired = true;
+        onHold();
+      }
+    }, 380);
+  }
+  function movePress(e: React.PointerEvent) {
+    const p = pressRef.current;
+    if (!p) return;
+    if (Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) > 10) {
+      p.moved = true;
+      clearTimeout(pressTimer.current);
+    }
+  }
+  // Runs the tap action only if it was a genuine short tap (not a hold or drag).
+  function endPress(onTap: () => void) {
+    clearTimeout(pressTimer.current);
+    const p = pressRef.current;
+    pressRef.current = null;
+    if (!p || p.fired || p.moved) return;
+    onTap();
+  }
+
   async function addSelected() {
     const keys = Array.from(selected);
     if (keys.length === 0 || busy) return;
@@ -234,7 +353,9 @@ export default function ReaderPage() {
         telegramId: accountId,
         sourceLang,
         targetLang,
-        words: keys,
+        // carry each word's sentence so the card's example/context comes from the Reader
+        items: keys.map((k) => ({ word: k, sentence: sentenceForKey(k) })),
+        source: getReaderSource().trim() || t("reader.sourceDefault"),
         level: getLevel(sourceLang) ?? undefined,
         exampleStyle: getExampleStyle(),
         enrich,
@@ -360,6 +481,18 @@ export default function ReaderPage() {
             </div>
           )}
 
+          {/* where this text is from — used to attribute the example/context of
+              words you add from here (defaults to your own text) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("reader.sourceLabel")}</span>
+            <input
+              value={readerSource}
+              onChange={(e) => setReaderSource(e.target.value)}
+              placeholder={t("reader.sourceDefault")}
+              className="h-9 min-w-[220px] flex-1 rounded-[12px] border border-black/[0.08] bg-surface px-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+            />
+          </div>
+
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -466,7 +599,9 @@ export default function ReaderPage() {
         )}
       </div>
 
-      <p className="mb-3 text-[13px] text-ink-faint">{t("reader.tapHint")}</p>
+      <p className="mb-3 text-[13px] text-ink-faint">
+        {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
+      </p>
 
       {/* tokenized text (+ optional translation side-by-side) */}
       <div className={cn("grid gap-4", showTr && trReady && "md:grid-cols-2")}>
@@ -490,11 +625,19 @@ export default function ReaderPage() {
               );
             }
             if (knownId) {
-              // Already saved → de-emphasized so new words stand out; taps open the card.
+              // Already saved → tap shows a small popup (meaning + add example);
+              // press-and-hold opens the card in a panel (no page switch).
               return (
                 <span
                   key={i}
-                  onClick={() => router.push(`/word/${knownId}`)}
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(e) => startPress(e, () => setCardPanel({ wordId: knownId, sentence: sentenceAround(i) }))}
+                  onPointerMove={movePress}
+                  onPointerUp={(e) => {
+                    const el = e.currentTarget;
+                    endPress(() => openKnownPop(knownId, tk.text, i, el));
+                  }}
                   className="cursor-pointer rounded-[4px] text-ink-faint underline decoration-ink-faint/30 underline-offset-4 hover:text-sage-deep"
                 >
                   {tk.text}
@@ -512,7 +655,12 @@ export default function ReaderPage() {
                 key={i}
                 role="button"
                 tabIndex={0}
-                onClick={(e) => onPick(e.currentTarget)}
+                onPointerDown={(e) => startPress(e, null)}
+                onPointerMove={movePress}
+                onPointerUp={(e) => {
+                  const el = e.currentTarget;
+                  endPress(() => onPick(el));
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -581,6 +729,110 @@ export default function ReaderPage() {
           </div>,
           document.body,
         )}
+
+      {/* known word — short tap popup: meaning + add example from this sentence */}
+      {knownPop &&
+        createPortal(
+          <div className="anim-fade-up fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
+            <div className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
+              <div className={cn("text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
+              {knownPop.meaning && (
+                <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
+              )}
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  disabled={addingExample || !knownPop.sentence}
+                  onClick={() => addExampleFromSentence(knownPop.wordId, knownPop.sentence)}
+                  className="rounded-[10px] bg-sage-tint px-2.5 py-1.5 text-left text-[13px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
+                >
+                  {addingExample ? t("reader.translating") : t("reader.addExample")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCardPanel({ wordId: knownPop.wordId, sentence: knownPop.sentence });
+                    setKnownPop(null);
+                  }}
+                  className="rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-semibold text-ink-muted hover:bg-black/[0.04]"
+                >
+                  {t("reader.openCard")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* known word — press-and-hold: the card in a panel (no page switch) */}
+      {cardPanel &&
+        (() => {
+          const w = (words ?? []).find((x) => x.id === cardPanel.wordId);
+          if (!w) return null;
+          return createPortal(
+            <div className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]">
+              <div className="max-h-[70vh] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface p-5 shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
+                    {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCardPanel(null)}
+                    aria-label={t("common.cancel")}
+                    className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {w.meaningZh && (
+                  <div className={cn("mt-1.5 text-[18px] font-semibold text-sage-deep", sourceFont(w.targetLang))}>{w.meaningZh}</div>
+                )}
+                {w.examples.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-black/[0.06] pt-3">
+                    {w.examples.map((ex) => (
+                      <div key={ex.id}>
+                        <p className={cn("whitespace-pre-line text-[15px] leading-relaxed text-quote", sourceFont(w.sourceLang))}>
+                          <HighlightWord text={ex.sentenceEn} word={w.word} />
+                        </p>
+                        {ex.sentenceZh && (
+                          <p className={cn("mt-0.5 whitespace-pre-line text-[13px] text-ink-soft", sourceFont(w.targetLang))}>
+                            {ex.sentenceZh}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {w.notes?.trim() && (
+                  <p className="mt-3 whitespace-pre-wrap border-t border-black/[0.06] pt-3 text-[14px] leading-relaxed text-ink-soft">
+                    {w.notes}
+                  </p>
+                )}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={addingExample || !cardPanel.sentence}
+                    onClick={() => addExampleFromSentence(w.id, cardPanel.sentence)}
+                    className="rounded-full bg-sage px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
+                  >
+                    {addingExample ? t("reader.translating") : t("reader.addExample")}
+                  </button>
+                  <a
+                    href={`/word/${w.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-black/[0.08] px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted hover:bg-black/[0.03]"
+                  >
+                    {t("review.openCard")} ↗
+                  </a>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          );
+        })()}
     </div>
   );
 }
