@@ -92,6 +92,7 @@ export default function FlashcardsPage() {
 
   const startX = useRef(0);
   const draggedRef = useRef(false);
+  const pointerActive = useRef(false); // synchronous "a drag is in progress" flag
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
@@ -389,36 +390,39 @@ export default function FlashcardsPage() {
   const frontFields = layout.front.filter((f) => fieldNode(f, true) !== null);
   const backFields = layout.back.filter((f) => fieldNode(f, false) !== null);
 
+  // Drag/flip via pointer capture on the card itself — no window listeners, so a
+  // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
+    // Let interactive children (speak button, links) work without flipping/dragging.
+    if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     startX.current = e.clientX;
     draggedRef.current = false;
+    pointerActive.current = true;
     setDragging(true);
-    const move = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX.current;
-      if (Math.abs(dx) > 6) draggedRef.current = true;
-      setDragX(dx);
-    };
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      const dx = ev.clientX - startX.current;
-      if (dx > 110) commit(3, word); // swipe right → Good
-      else if (dx < -110) commit(1, word); // swipe left → Again
-      else {
-        setDragX(0);
-        setDragging(false);
-      }
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
   };
-
-  const onFlip = () => {
-    if (draggedRef.current) {
-      draggedRef.current = false;
-      return;
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointerActive.current) return;
+    const dx = e.clientX - startX.current;
+    if (Math.abs(dx) > 6) draggedRef.current = true;
+    setDragX(dx);
+  };
+  const onPointerEnd = (e: React.PointerEvent) => {
+    if (!pointerActive.current) return;
+    pointerActive.current = false;
+    setDragging(false);
+    const dx = e.clientX - startX.current;
+    if (dx > 110) commit(3, word); // swipe right → Good
+    else if (dx < -110) commit(1, word); // swipe left → Again
+    else {
+      setDragX(0);
+      if (!draggedRef.current) setFlipped((f) => !f); // a tap → flip
     }
-    setFlipped((f) => !f);
+  };
+  const onPointerCancel = () => {
+    pointerActive.current = false;
+    setDragging(false);
+    setDragX(0);
   };
 
   return (
@@ -485,7 +489,9 @@ export default function FlashcardsPage() {
         <div
           className="w-full max-w-[560px] select-none"
           onPointerDown={onPointerDown}
-          onClick={onFlip}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerCancel}
           style={{
             transform: `translateX(${dragX}px) rotate(${dragX * 0.035}deg)`,
             transition: dragging ? "none" : "transform 0.34s cubic-bezier(.22,.8,.26,1)",

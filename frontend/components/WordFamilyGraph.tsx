@@ -439,8 +439,14 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                   ? n.kind === "syn"
                     ? "border-sage/50 bg-sage-tint text-sage-deep"
                     : "border-warn/40 bg-warn-bg text-warn-text"
-                  : "border-dashed border-black/25 bg-paper text-ink-muted hover:border-sage hover:text-sage-deep",
-                hovered === n.id && "scale-[1.06] shadow-[0_8px_22px_rgba(46,42,38,0.18)]",
+                  : n.kind === "syn"
+                    ? "border-dashed border-black/25 bg-paper text-ink-muted hover:border-sage hover:text-sage-deep"
+                    : "border-dashed border-black/25 bg-paper text-ink-muted hover:border-warn hover:text-warn-text",
+                hovered === n.id && "scale-[1.06]",
+                hovered === n.id &&
+                  (n.kind === "ant"
+                    ? "border-warn shadow-[0_8px_22px_rgba(192,80,60,0.38)]"
+                    : "border-sage shadow-[0_8px_22px_rgba(124,152,133,0.4)]"),
                 dim && "opacity-40",
                 busy && "opacity-60",
               )}

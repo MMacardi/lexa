@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
+import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
 
 const queuedCardsSchema = z.array(z.object({ id: z.string(), word: z.string() }));
@@ -105,6 +106,22 @@ async function processOneImportJob() {
               level: job.level ?? undefined,
               exampleStyle: job.exampleStyle ?? undefined,
             });
+          } else {
+            // A provided example (e.g. from the Reader) may have no translation yet —
+            // fill it in so the card's back shows both lines.
+            const ex = await prisma.example.findFirst({
+              where: { wordId: word.id },
+              orderBy: { createdAt: "desc" },
+              select: { id: true, sentenceEn: true, sentenceZh: true },
+            });
+            if (ex?.sentenceEn && !ex.sentenceZh.trim()) {
+              const { translation } = await translateText({
+                text: ex.sentenceEn,
+                sourceLang: word.sourceLang,
+                targetLang: word.targetLang,
+              });
+              await prisma.example.update({ where: { id: ex.id }, data: { sentenceZh: translation } });
+            }
           }
         } catch (error) {
           console.error(`Import enrichment failed for ${card.word}`, error);

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { suggestWord } from "../services/suggest.js";
-import { translateText } from "../services/translate.js";
+import { translateText, glossInContext } from "../services/translate.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { getImportJobForUser } from "../services/importWorker.js";
@@ -390,16 +390,27 @@ wordsRouter.post("/words/:id/ask", async (req, res) => {
 // POST /api/words/batch -> add many bare words at once (Reader). Cards are created
 // immediately; AI enrichment (meaning + example) runs in the background worker so
 // the client can navigate away. Reuses the import job + progress-toast plumbing.
-const batchBody = z.object({
-  telegramId: z.string().min(1).default("dev-user"),
-  sourceLang: z.string().min(1),
-  targetLang: z.string().min(1),
-  words: z.array(z.string().min(1).max(100)).min(1).max(100),
-  level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
-  collectionIds: z.array(z.string()).optional(),
-  enrich: z.boolean().default(true),
-});
+const batchBody = z
+  .object({
+    telegramId: z.string().min(1).default("dev-user"),
+    sourceLang: z.string().min(1),
+    targetLang: z.string().min(1),
+    // Either plain words (AI finds an example) …
+    words: z.array(z.string().min(1).max(100)).max(100).optional(),
+    // … or items carrying the sentence they came from (Reader — keep it as the example).
+    items: z
+      .array(z.object({ word: z.string().min(1).max(100), sentence: z.string().max(1000).optional() }))
+      .max(100)
+      .optional(),
+    source: z.string().max(120).optional(), // attribution for the provided example
+    level: z.string().max(4).optional(),
+    exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+    collectionIds: z.array(z.string()).optional(),
+    enrich: z.boolean().default(true),
+  })
+  .refine((b) => (b.words?.length ?? 0) > 0 || (b.items?.length ?? 0) > 0, {
+    message: "Provide words or items",
+  });
 wordsRouter.post("/words/batch", async (req, res) => {
   const parsed = batchBody.safeParse(req.body);
   if (!parsed.success) {
@@ -408,16 +419,23 @@ wordsRouter.post("/words/batch", async (req, res) => {
   }
   const b = parsed.data;
   const telegramId = readSession(req) ?? b.telegramId;
+  // Items with sentences → keep that sentence as the card's example (context from
+  // the Reader), only generate the dictionary details. Plain words → AI example.
+  const useContext = Boolean(b.items && b.items.some((i) => i.sentence?.trim()));
+  const items = b.items
+    ? b.items.map((i) => ({ word: i.word, meaning: "", example: i.sentence?.trim() ?? "", exampleTranslation: "", synonyms: [] }))
+    : (b.words ?? []).map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] }));
   try {
     const result = await importWordsForUser({
       telegramId,
       sourceLang: b.sourceLang,
       targetLang: b.targetLang,
-      items: b.words.map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] })),
+      items,
       collectionIds: b.collectionIds,
-      keepProvidedExtras: false,
+      keepProvidedExtras: useContext,
       generateDetails: b.enrich,
-      generateExamples: b.enrich,
+      generateExamples: b.enrich && !useContext,
+      exampleSourceName: b.source,
       level: b.level,
       exampleStyle: b.exampleStyle,
     });
@@ -425,6 +443,27 @@ wordsRouter.post("/words/batch", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/gloss -> contextual meaning of one word within its sentence (Reader hold).
+const glossBody = z.object({
+  word: z.string().min(1).max(100),
+  sentence: z.string().max(1000).default(""),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+});
+wordsRouter.post("/gloss", async (req, res) => {
+  const parsed = glossBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await glossInContext(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
   }
 });
 

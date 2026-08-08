@@ -75,6 +75,21 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [pairReady, setPairReady] = useState(false);
   const [modeReady, setModeReady] = useState(false);
   const [resolvedSourceLang, setResolvedSourceLang] = useState<string | null>(null);
+  const [swapSpin, setSwapSpin] = useState(false);
+
+  // Prefill the word from a ?word= deep link (e.g. "Create ‹word›" on a set page).
+  useEffect(() => {
+    const w = new URLSearchParams(window.location.search).get("word");
+    if (w) setWord(w);
+  }, []);
+
+  // Swap source ⇄ target (skipped when the source is auto-detect).
+  const swapLangs = () => {
+    if (sourceLang === "auto") return;
+    setSourceLang(targetLang);
+    setTargetLang(sourceLang);
+    setSwapSpin((v) => !v);
+  };
   // manual fields
   const [meaning, setMeaning] = useState("");
   const [exEn, setExEn] = useState("");
@@ -329,7 +344,16 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       {/* language pair */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
         <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
-        <span className="text-ink-faint">→</span>
+        <button
+          type="button"
+          onClick={swapLangs}
+          disabled={sourceLang === "auto"}
+          aria-label={t("add.swap")}
+          title={t("add.swap")}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
+        >
+          <span className={cn("text-[15px] transition-transform duration-300", swapSpin && "rotate-180")}>⇄</span>
+        </button>
         <LangSelect value={targetLang} onChange={setTargetLang} />
       </div>
 

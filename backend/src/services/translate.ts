@@ -2,6 +2,34 @@ import { chatJson } from "./llm.js";
 import { translationSchema } from "../lib/schemas.js";
 import { langName } from "../lib/langs.js";
 
+/**
+ * Contextual gloss: the short meaning of a single word AS USED IN a sentence
+ * (its sense in this context), for the Reader's press-and-hold lookup.
+ */
+export async function glossInContext(params: {
+  word: string;
+  sentence: string;
+  sourceLang?: string;
+  targetLang?: string;
+}): Promise<{ gloss: string }> {
+  const word = params.word.trim().slice(0, 100);
+  if (!word) return { gloss: "" };
+  const source = langName(params.sourceLang ?? "en");
+  const target = langName(params.targetLang ?? "zh");
+  const sentence = params.sentence.trim().slice(0, 600) || word;
+  const result = await chatJson({
+    system:
+      `You are a ${source}-to-${target} reading assistant. Given a ${source} SENTENCE and one ` +
+      `WORD taken from it, reply with the concise ${target} meaning of that word AS USED IN THIS ` +
+      `SENTENCE (its contextual sense) — a few words, no explanation. Respond as JSON: ` +
+      `{"translation": string}.`,
+    user: `SENTENCE: ${sentence}\nWORD: ${word}`,
+    schema: translationSchema,
+    timeoutMs: 30000,
+  });
+  return { gloss: result.translation.trim() };
+}
+
 // Cap the text we send to the model so a giant paste can't blow up latency/cost.
 const MAX_CHARS = 6000;
 
