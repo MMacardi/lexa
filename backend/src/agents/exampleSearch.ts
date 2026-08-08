@@ -61,9 +61,16 @@ function sourceNameFromUrl(url: string): string {
 const STYLE_HINTS: Record<string, { query: string; register: string }> = {
   news: { query: "", register: "news / journalistic" },
   casual: { query: "everyday conversation", register: "everyday, casual real-life" },
-  dialogue: { query: "dialogue conversation spoken", register: "spoken dialogue / conversational" },
+  dialogue: { query: "dialogue conversation spoken", register: "a short spoken dialogue (2-3 turns)" },
   literary: { query: "novel book literature", register: "literary (fiction or non-fiction prose)" },
 };
+
+// Applied to every example: forbids bare, context-free one-liners so the learner
+// can always infer meaning from the situation.
+const RICHNESS_RULE =
+  `The example must give enough context to make the word's meaning clear on its own: ` +
+  `a concrete, complete situation of at least about 8-14 words. ` +
+  `NEVER output a bare, context-free line such as "It's small." or "Is it big or small?". `;
 
 export async function runExampleSearch(params: {
   userId: string;
@@ -111,6 +118,7 @@ export async function runExampleSearch(params: {
       `name, URL, menu/navigation label, or a bare fragment. The sentence MUST be written in ` +
       `${sourceName} and actually contain the target word. ` +
       `Prefer a ${styleInfo.register} tone. ` +
+      RICHNESS_RULE +
       levelLine +
       `If none of the excerpts contain a suitable natural ${sourceName} sentence (for example the ` +
       `word is a brand or proper noun and the results are just names or links), WRITE one yourself: ` +
@@ -131,14 +139,28 @@ export async function runExampleSearch(params: {
   if (!composed && !matchesSourceScript(sentence, sourceLang)) {
     composed = true;
   }
+  // Dialogue can't be lifted from a news excerpt (those are single lines), so we
+  // always compose a real short exchange for that style.
+  if (style === "dialogue") composed = true;
+
   if (composed) {
+    const composedSystem =
+      style === "dialogue"
+        ? `Write a short, natural ${sourceName} DIALOGUE of 2-3 turns between two people that uses ` +
+          `the word "${word}" naturally. Put EACH turn on its own line, prefixed with "— ". ` +
+          `The exchange must make the meaning of "${word}" clear from the situation (not a bare ` +
+          `question-and-answer). ` +
+          (levelLine || "") +
+          `It MUST be written in ${sourceName} and contain "${word}". ` +
+          'Respond as JSON: {"sentence": string} where sentence is the whole dialogue with line breaks (\\n).'
+        : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
+          `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
+          RICHNESS_RULE +
+          (levelLine || "") +
+          `The sentence MUST be written in ${sourceName} and contain "${word}". ` +
+          'Respond as JSON: {"sentence": string}.';
     const written = await chatJson({
-      system:
-        `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
-        `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
-        (levelLine || "") +
-        `The sentence MUST be written in ${sourceName} and contain "${word}". ` +
-        'Respond as JSON: {"sentence": string}.',
+      system: composedSystem,
       user: word,
       schema: exampleSentenceSchema,
     });
@@ -149,8 +171,8 @@ export async function runExampleSearch(params: {
   // 3. LLM step 2: translate the chosen sentence to the target language.
   const translation = await chatJson({
     system:
-      `Translate the ${sourceName} sentence into natural ${targetName}. ` +
-      'Respond as JSON: {"translation": string}.',
+      `Translate the ${sourceName} text into natural ${targetName}. Keep any line breaks ` +
+      `(dialogue turns stay on separate lines). Respond as JSON: {"translation": string}.`,
     user: sentence,
     schema: translationSchema,
   });

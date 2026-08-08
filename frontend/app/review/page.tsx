@@ -6,25 +6,57 @@ import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { useFlip } from "@/lib/prefs";
-import { langLabel } from "@/lib/langs";
+import {
+  useCardLayout,
+  setCardLayout,
+  CARD_PRESETS,
+  CARD_FIELDS,
+  type CardField,
+  type CardLayout,
+} from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
+import { HighlightWord } from "@/components/HighlightWord";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
+import { previewMinutes } from "@/lib/fsrsPreview";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const sourceFont = (lang: string) => (lang === "zh" || lang === "ja" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
+
+// Which preset (if any) matches a layout, for highlighting in the picker.
+function presetIdOf(layout: CardLayout): string {
+  const eq = (a: CardField[], b: CardField[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  return CARD_PRESETS.find((p) => eq(p.front, layout.front) && eq(p.back, layout.back))?.id ?? "custom";
+}
+
+// Compact "next due" label for a grade button, e.g. "10м" / "2д" / "3мес".
+function fmtInterval(m: number, t: (k: string) => string): string {
+  if (m < 60) return `${m}${t("unit.min")}`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}${t("unit.hour")}`;
+  const d = Math.round(m / 1440);
+  if (d < 30) return `${d}${t("unit.day")}`;
+  return `${Math.round(d / 30)}${t("unit.month")}`;
+}
 
 export default function FlashcardsPage() {
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
-  const [flip, setFlip] = useFlip("vocab.flip.review");
+  const layout = useCardLayout();
+  const activePreset = presetIdOf(layout);
+  const toggleField = (side: "front" | "back", field: CardField) => {
+    const cur = layout[side];
+    const next = cur.includes(field) ? cur.filter((f) => f !== field) : [...cur, field];
+    if (next.length === 0) return; // never leave a side empty
+    setCardLayout({ ...layout, [side]: next });
+  };
   const { data: allWords, isLoading } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -71,7 +103,7 @@ export default function FlashcardsPage() {
   }, [allWords, selPairs, allPairs]);
 
   const review = useMutation({
-    mutationFn: ({ id, known }: { id: string; known: boolean }) => api.reviewWord(id, known),
+    mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
@@ -94,18 +126,14 @@ export default function FlashcardsPage() {
     setStarted(true);
   }
 
-  function commit(dir: "known" | "learning", word: Word) {
-    setDragX(dir === "known" ? 640 : -640);
+  // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Again re-queues in-session.
+  function commit(grade: number, word: Word) {
+    setDragX(grade >= 3 ? 640 : -640);
     setDragging(false);
-    if (dir === "known") {
-      review.mutate({ id: word.id, known: true });
-      setKnown((k) => k + 1);
-    } else {
-      // "Still learning": reset its schedule and bring it back later this session.
-      review.mutate({ id: word.id, known: false });
-      setLearning((l) => l + 1);
-      setDeck((d) => [...d, word]);
-    }
+    review.mutate({ id: word.id, grade });
+    if (grade >= 3) setKnown((k) => k + 1);
+    else setLearning((l) => l + 1);
+    if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session
     setTimeout(() => {
       setDragX(0);
       setFlipped(false);
@@ -141,21 +169,53 @@ export default function FlashcardsPage() {
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
 
         <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
-          {/* direction */}
+          {/* card layout: presets + custom front/back fields */}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.direction")}</p>
-            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
-              {[false, true].map((v) => (
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.cardLayout")}</p>
+            <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+              {CARD_PRESETS.map((p) => (
                 <button
-                  key={String(v)}
-                  onClick={() => setFlip(v)}
+                  key={p.id}
+                  onClick={() => setCardLayout({ front: p.front, back: p.back })}
                   className={cn(
                     "rounded-full px-3 py-1 transition-colors",
-                    flip === v ? "bg-sage text-white" : "text-ink-muted",
+                    activePreset === p.id ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {v ? t("review.meaningToWord") : t("review.wordToMeaning")}
+                  {t(`layout.${p.id}`)}
                 </button>
+              ))}
+              {activePreset === "custom" && (
+                <span className="rounded-full bg-sage px-3 py-1 text-white">{t("layout.custom")}</span>
+              )}
+            </div>
+
+            {/* per-side field toggles */}
+            <div className="mt-3 space-y-2">
+              {(["front", "back"] as const).map((side) => (
+                <div key={side} className="flex flex-wrap items-center gap-1.5">
+                  <span className="w-12 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {t(`layout.${side}`)}
+                  </span>
+                  {CARD_FIELDS.map((f) => {
+                    const on = layout[side].includes(f);
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => toggleField(side, f)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                          on
+                            ? "border-sage bg-sage-tint text-sage-deep"
+                            : "border-black/[0.08] bg-surface text-ink-faint hover:border-sage/60",
+                        )}
+                      >
+                        {t(`field.${f}`)}
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
             </div>
           </div>
@@ -235,8 +295,92 @@ export default function FlashcardsPage() {
     );
 
   const word = deck[index];
-  const example = word.examples[0];
+  const iv = previewMinutes(word); // FSRS "next due" for each grade
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
+
+  // Render one card field. `primary` = the big hero field on the front.
+  const chips = (items: string[], tone: "syn" | "ant" | "muted") =>
+    items.length ? (
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {items.map((it) => (
+          <span
+            key={it}
+            className={cn(
+              "rounded-full border px-2.5 py-0.5 text-[15px]",
+              tone === "syn"
+                ? "border-sage/40 bg-sage-tint text-sage-deep"
+                : tone === "ant"
+                  ? "border-warn/40 bg-warn-bg text-warn-text"
+                  : "border-black/[0.08] bg-paper text-ink-muted",
+            )}
+          >
+            {it}
+          </span>
+        ))}
+      </div>
+    ) : null;
+
+  const fieldNode = (field: CardField, primary: boolean): React.ReactNode => {
+    switch (field) {
+      case "word":
+        return (
+          <div className="flex items-center justify-center gap-3">
+            <span className={cn(primary ? "font-serif text-[52px] font-medium leading-tight tracking-[-0.025em] text-ink" : "font-serif text-[26px] font-medium text-ink", sourceFont(word.sourceLang))}>
+              {word.word}
+            </span>
+            <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} />
+          </div>
+        );
+      case "phonetic":
+        return word.phonetic ? <div className="text-[18px] text-ink-faint">{word.phonetic}</div> : null;
+      case "pos":
+        return word.partOfSpeech ? (
+          <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{word.partOfSpeech}</div>
+        ) : null;
+      case "meaning":
+        return word.meaningZh ? (
+          <div className={cn(primary ? "font-serif text-[36px] font-bold leading-tight text-sage-deep" : "text-[22px] font-bold text-sage-deep", targetFont(word.targetLang))}>
+            {word.meaningZh}
+          </div>
+        ) : null;
+      case "example":
+        return word.examples.length ? (
+          <div className="space-y-3 text-left">
+            {word.examples.map((ex) => (
+              <div key={ex.id}>
+                <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
+                  <HighlightWord text={ex.sentenceEn} word={word.word} />
+                </p>
+                {ex.sentenceZh && (
+                  <p className={cn("mt-1 whitespace-pre-line text-[14px] text-ink-soft", targetFont(word.targetLang))}>
+                    {ex.sentenceZh}
+                  </p>
+                )}
+                {ex.sourceName && (
+                  <div className="mt-1 text-[12px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null;
+      case "synonyms":
+        return chips(word.synonyms, "syn");
+      case "antonyms":
+        return chips(word.antonyms, "ant");
+      case "collocations":
+        return chips(word.collocations, "muted");
+      case "notes":
+        return word.notes?.trim() ? (
+          <div className="whitespace-pre-wrap text-left text-[15px] leading-relaxed text-ink-soft">{word.notes}</div>
+        ) : null;
+      default:
+        return null;
+    }
+  };
+
+  // Non-empty fields, so a missing phonetic/example doesn't leave blank gaps.
+  const frontFields = layout.front.filter((f) => fieldNode(f, true) !== null);
+  const backFields = layout.back.filter((f) => fieldNode(f, false) !== null);
 
   const onPointerDown = (e: React.PointerEvent) => {
     startX.current = e.clientX;
@@ -251,8 +395,8 @@ export default function FlashcardsPage() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       const dx = ev.clientX - startX.current;
-      if (dx > 110) commit("known", word);
-      else if (dx < -110) commit("learning", word);
+      if (dx > 110) commit(3, word); // swipe right → Good
+      else if (dx < -110) commit(1, word); // swipe left → Again
       else {
         setDragX(0);
         setDragging(false);
@@ -273,14 +417,22 @@ export default function FlashcardsPage() {
   return (
     <div className="mx-auto flex max-w-[560px] flex-col items-center">
       <div className="w-full">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <a
+              href={`/word/${word.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            >
+              {t("review.openCard")} ↗
+            </a>
             <button
               onClick={() => setEditing(word)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
-              ✎ {t("edit.editCard")}
+              ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
             </button>
             <button
               onClick={() => setStarted(false)}
@@ -336,75 +488,69 @@ export default function FlashcardsPage() {
         >
           <div className="flip-scene">
             <div className={cn("flip-card", flipped && "is-flipped")}>
-              {/* FRONT */}
+              {/* FRONT — the layout's front fields, first one as the hero */}
               <div className="flip-face flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
-                <div className="flex flex-1 flex-col items-center justify-center text-center">
-                  {!flip ? (
-                    <>
-                      {word.partOfSpeech && (
-                        <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">
-                          {word.partOfSpeech}
-                        </span>
-                      )}
-                      <div className="mt-4 flex items-center gap-3">
-                        <div className="font-serif text-[52px] font-medium leading-tight tracking-[-0.025em] text-ink">
-                          {word.word}
-                        </div>
-                        <SpeakButton text={word.word} lang={word.sourceLang} />
-                      </div>
-                      {word.phonetic && <div className="mt-3 text-[20px] text-ink-faint">{word.phonetic}</div>}
-                    </>
-                  ) : (
-                    <div className={cn("font-serif text-[38px] font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}>
-                      {word.meaningZh}
-                    </div>
-                  )}
-                  <div className="mt-7 text-sm font-medium text-ink-faint">
-                    {t("review.clickReveal", { lang: langLabel(flip ? word.sourceLang : word.targetLang) })}
-                  </div>
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  {frontFields.map((f, i) => (
+                    <div key={f}>{fieldNode(f, i === 0)}</div>
+                  ))}
+                  <div className="mt-6 text-sm font-medium text-ink-faint">{t("review.reveal")}</div>
                 </div>
               </div>
 
-              {/* BACK */}
-              <div className="flip-face flip-back flex min-h-[320px] flex-col justify-center rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
-                <div className="flex items-center gap-3">
-                  <div className="font-serif text-[28px] font-medium text-ink">{word.word}</div>
-                  <SpeakButton text={word.word} lang={word.sourceLang} size="sm" />
-                </div>
-                {word.meaningZh && (
-                  <div className={cn("mt-2 text-[26px] font-bold text-sage-deep", targetFont(word.targetLang))}>
-                    {word.meaningZh}
-                  </div>
-                )}
-                {example && (
-                  <>
-                    <div className="my-4 h-px bg-black/[0.07]" />
-                    <p className="font-serif text-[18px] leading-relaxed text-quote">
-                      {example.sentenceEn}
-                    </p>
-                    {example.sentenceZh && (
-                      <p className={cn("mt-2 text-[14px] text-ink-soft", targetFont(word.targetLang))}>
-                        {example.sentenceZh}
+              {/* BACK — the layout's back fields; scrollable so long content fits */}
+              <div className="flip-face flip-back flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+                <div
+                  className="flex max-h-[300px] flex-col gap-3 overflow-y-auto px-2 py-1"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ touchAction: "pan-y" }}
+                >
+                  {backFields.map((f, i) => (
+                    <div key={f} className="text-center">
+                      {i > 0 && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+                        {t(`field.${f}`)}
                       </p>
-                    )}
-                    <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">
-                      — {example.sourceName}
+                      {fieldNode(f, false)}
                     </div>
-                  </>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <Button variant="warn" size="lg" onClick={() => commit("learning", word)}>
-          {t("review.stillLearning")}
-        </Button>
-        <Button size="lg" onClick={() => commit("known", word)}>
-          {t("review.iKnow")}
-        </Button>
+      <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
+        <button
+          onClick={() => commit(1, word)}
+          className="flex flex-col items-center rounded-2xl bg-warn-bg py-2.5 font-bold text-warn-text transition-transform active:scale-95"
+        >
+          <span className="text-sm">{t("review.again")}</span>
+          <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.again, t)}</span>
+        </button>
+        <button
+          onClick={() => commit(2, word)}
+          className="flex flex-col items-center rounded-2xl border border-black/[0.1] bg-surface py-2.5 font-bold text-ink-muted transition-transform active:scale-95"
+        >
+          <span className="text-sm">{t("review.hard")}</span>
+          <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.hard, t)}</span>
+        </button>
+        <button
+          onClick={() => commit(3, word)}
+          className="flex flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
+        >
+          <span className="text-sm">{t("review.good")}</span>
+          <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.good, t)}</span>
+        </button>
+        <button
+          onClick={() => commit(4, word)}
+          className="flex flex-col items-center rounded-2xl bg-sage-deep py-2.5 font-bold text-white transition-transform active:scale-95"
+        >
+          <span className="text-sm">{t("review.easy")}</span>
+          <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.easy, t)}</span>
+        </button>
       </div>
       <p className="mt-4 text-[13px] font-medium text-ink-faint">
         {t("review.dragHint")}

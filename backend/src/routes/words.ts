@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { suggestWord } from "../services/suggest.js";
+import { translateText } from "../services/translate.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { importedCardSchema } from "../lib/schemas.js";
@@ -15,6 +16,7 @@ import {
   updateWord,
   addExampleToWord,
   explainWord,
+  askAboutWord,
   getStats,
   listCollections,
   createCollection,
@@ -267,6 +269,7 @@ const editBody = z.object({
   collocations: z.array(z.string()).optional(),
   synonyms: z.array(z.string()).optional(),
   antonyms: z.array(z.string()).optional(),
+  notes: z.string().max(4000).nullable().optional(),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   examples: z
@@ -311,8 +314,14 @@ wordsRouter.delete("/words/:id", async (req, res) => {
 // POST /api/words/:id/review  -> advance the interval ladder ({known:true}) or
 // reset it so the word returns soon ({known:false}, i.e. "still learning").
 wordsRouter.post("/words/:id/review", async (req, res) => {
-  const known = req.body?.known !== false;
-  const word = await recordReview(req.params.id, known);
+  const body = req.body ?? {};
+  // Prefer an explicit FSRS grade (1=Again..4=Easy); fall back to the legacy
+  // {known} boolean (known:false → Again, otherwise → Good).
+  const raw = typeof body.grade === "number" ? body.grade : body.known === false ? 1 : 3;
+  const grade = (raw >= 1 && raw <= 4 ? raw : 3) as 1 | 2 | 3 | 4;
+  // Optional per-user desired retention (FSRS), clamped server-side too.
+  const retention = typeof body.retention === "number" ? body.retention : undefined;
+  const word = await recordReview(req.params.id, grade, retention);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;
@@ -347,5 +356,93 @@ wordsRouter.post("/words/:id/explain", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/:id/ask -> follow-up mini-chat about the word. Body carries the
+// visible conversation so far ({ role, content }[]); we reply with the next turn.
+const askBody = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(4000),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+wordsRouter.post("/words/:id/ask", async (req, res) => {
+  const parsed = askBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json({ answer: await askAboutWord(req.params.id, parsed.data.messages) });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/batch -> add many bare words at once (Reader). Cards are created
+// immediately; AI enrichment (meaning + example) runs in the background worker so
+// the client can navigate away. Reuses the import job + progress-toast plumbing.
+const batchBody = z.object({
+  telegramId: z.string().min(1).default("dev-user"),
+  sourceLang: z.string().min(1),
+  targetLang: z.string().min(1),
+  words: z.array(z.string().min(1).max(100)).min(1).max(100),
+  level: z.string().max(4).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  collectionIds: z.array(z.string()).optional(),
+  enrich: z.boolean().default(true),
+});
+wordsRouter.post("/words/batch", async (req, res) => {
+  const parsed = batchBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const b = parsed.data;
+  const telegramId = readSession(req) ?? b.telegramId;
+  try {
+    const result = await importWordsForUser({
+      telegramId,
+      sourceLang: b.sourceLang,
+      targetLang: b.targetLang,
+      items: b.words.map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] })),
+      collectionIds: b.collectionIds,
+      keepProvidedExtras: false,
+      generateDetails: b.enrich,
+      generateExamples: b.enrich,
+      level: b.level,
+      exampleStyle: b.exampleStyle,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/translate -> translate a whole block of text (Reader "Translate all").
+const translateBody = z.object({
+  text: z.string().min(1).max(6000),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+});
+wordsRouter.post("/translate", async (req, res) => {
+  const parsed = translateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await translateText(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
   }
 });

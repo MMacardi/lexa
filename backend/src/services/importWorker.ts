@@ -77,7 +77,7 @@ async function processOneImportJob() {
       const card = cards[index];
       const word = await prisma.word.findUnique({
         where: { id: card.id },
-        select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true },
+        select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true },
       });
 
       if (!word || word.userId !== job.userId) {
@@ -90,7 +90,9 @@ async function processOneImportJob() {
               word: word.word,
               sourceLang: word.sourceLang,
               targetLang: word.targetLang,
-              preserveMeaning: true,
+              // Keep a meaning the user reviewed (list import); generate one when
+              // the card has none yet (Reader adds a bare word with no meaning).
+              preserveMeaning: Boolean(word.meaningZh?.trim()),
             });
           }
           if (job.generateExamples) {

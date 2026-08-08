@@ -90,3 +90,26 @@ export async function chatJson<T>(opts: {
   }
   return opts.schema.parse(parsed);
 }
+
+export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+/**
+ * Free-form multi-turn chat that returns plain text (no JSON schema). Used by the
+ * word "ask a follow-up" mini-chat, where the answer is prose, not structured.
+ */
+export async function chatText(opts: { messages: ChatMessage[]; timeoutMs?: number }): Promise<string> {
+  let completion;
+  try {
+    completion = await getClient().chat.completions.create(
+      {
+        model: MODEL,
+        messages: opts.messages,
+        temperature: 0.4,
+      },
+      opts.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
+  } catch (err) {
+    throw friendlyLlmError(err);
+  }
+  return (completion.choices[0]?.message?.content ?? "").trim();
+}

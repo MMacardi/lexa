@@ -20,22 +20,30 @@ export function canSpeak(): boolean {
 // call after a page load and only fills once the engine fires "voiceschanged".
 // We prime it early and cache the result so the first click isn't silent.
 let cachedVoices: SpeechSynthesisVoice[] = [];
-function primeVoices() {
+function loadVoices() {
   if (!canSpeak()) return;
-  const synth = window.speechSynthesis;
-  const load = () => {
-    const v = synth.getVoices();
-    if (v.length) cachedVoices = v;
-  };
-  load();
-  synth.addEventListener?.("voiceschanged", load);
+  const v = window.speechSynthesis.getVoices();
+  if (v.length) cachedVoices = v;
 }
-if (typeof window !== "undefined") primeVoices();
+if (typeof window !== "undefined" && canSpeak()) {
+  loadVoices();
+  window.speechSynthesis.addEventListener?.("voiceschanged", loadVoices);
+  // Some Windows Chrome/Edge builds boot the engine in a globally "paused" state;
+  // an early resume() clears that so the first utterance actually plays.
+  try {
+    window.speechSynthesis.resume();
+  } catch {
+    /* ignore */
+  }
+}
 
 function pickVoice(lang: string, want: string): SpeechSynthesisVoice | undefined {
   const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
   if (voices.length && !cachedVoices.length) cachedVoices = voices;
-  return voices.find((v) => v.lang === want) ?? voices.find((v) => v.lang.startsWith(lang));
+  return (
+    voices.find((v) => v.lang === want) ??
+    voices.find((v) => v.lang.replace("_", "-").startsWith(lang))
+  );
 }
 
 // Keep a reference to the active utterance. Chromium garbage-collects the
@@ -48,12 +56,12 @@ export function speak(text: string, lang = "en") {
   const synth = window.speechSynthesis;
   const want = BCP47[lang] ?? lang;
 
-  const doSpeak = () => {
+  const fire = () => {
     const u = new SpeechSynthesisUtterance(text);
     keepAlive = u; // anti-GC
     u.lang = want;
     const match = pickVoice(lang, want);
-    if (match) u.voice = match;
+    if (match) u.voice = match; // otherwise let the engine use its default voice
     u.rate = 0.95;
     u.onend = () => {
       if (keepAlive === u) keepAlive = null;
@@ -61,22 +69,33 @@ export function speak(text: string, lang = "en") {
     u.onerror = () => {
       if (keepAlive === u) keepAlive = null;
     };
-    synth.speak(u);
-    // Some Chromium builds start "paused" and need a nudge to actually play.
-    setTimeout(() => {
-      if (synth.paused) synth.resume();
-    }, 60);
-  };
 
-  const start = () => {
-    // Only cancel when something is actually playing/queued, and let it settle
-    // before speaking — cancel()+speak() in the same tick is silently dropped
-    // on Chromium (the classic "first click does nothing" bug).
+    const speakNow = () => {
+      // Chromium clips the first ~200ms of a fresh utterance ("little" → "tle").
+      // Queue a near-instant silent primer first; it absorbs the clip so the real
+      // word plays from the start.
+      const warm = new SpeechSynthesisUtterance("​"); // zero-width space
+      warm.volume = 0;
+      warm.rate = 2;
+      try {
+        synth.speak(warm);
+      } catch {
+        /* ignore */
+      }
+      synth.speak(u);
+      // Some Chromium builds start paused — nudge it.
+      setTimeout(() => {
+        if (synth.paused) synth.resume();
+      }, 90);
+    };
+
+    // Only cancel when something is actually playing — an unconditional cancel()
+    // right before speak() is itself a cause of the clipped/garbled start.
     if (synth.speaking || synth.pending) {
       synth.cancel();
-      setTimeout(doSpeak, 120);
+      setTimeout(speakNow, 140);
     } else {
-      doSpeak();
+      speakNow();
     }
   };
 
@@ -84,16 +103,17 @@ export function speak(text: string, lang = "en") {
   // engine (which stays silent on the first interaction).
   if (!cachedVoices.length && synth.getVoices().length === 0) {
     let done = false;
-    const fire = () => {
+    const go = () => {
       if (done) return;
       done = true;
-      synth.removeEventListener?.("voiceschanged", fire);
-      start();
+      synth.removeEventListener?.("voiceschanged", go);
+      loadVoices();
+      fire();
     };
-    synth.addEventListener?.("voiceschanged", fire);
-    setTimeout(fire, 300); // fallback if the event never fires
+    synth.addEventListener?.("voiceschanged", go);
+    setTimeout(go, 300); // fallback if the event never fires
     return;
   }
 
-  start();
+  fire();
 }

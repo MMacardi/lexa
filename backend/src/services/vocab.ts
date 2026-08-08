@@ -1,14 +1,26 @@
 import { prisma } from "./db.js";
+import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
-import { chatJson } from "./llm.js";
+import { chatJson, chatText, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName } from "../lib/langs.js";
 import { explanationSchema } from "../lib/schemas.js";
 
-// Spaced-repetition intervals (days) indexed by how many times a word has been
-// reviewed. A simple Leitner-style ladder — plenty for this project.
-const REVIEW_INTERVALS_DAYS = [1, 3, 7, 14, 30, 60];
+// FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
+// dates so cards don't pile up on one day.
+const DEFAULT_RETENTION = 0.9;
+const scheduler = fsrs(generatorParameters({ request_retention: DEFAULT_RETENTION, enable_fuzz: true }));
+
+// A learner can tune their desired retention (higher = shorter intervals, more
+// reviews, fewer lapses). Reuse the default scheduler unless a custom value is
+// given, clamped to a sane range.
+function schedulerFor(retention?: number) {
+  if (retention == null || Math.abs(retention - DEFAULT_RETENTION) < 1e-6) return scheduler;
+  const r = Math.min(0.98, Math.max(0.7, retention));
+  return fsrs(generatorParameters({ request_retention: r, enable_fuzz: true }));
+}
+
 
 /** Find or create the user that owns this telegramId. */
 async function ensureUser(telegramId: string) {
@@ -199,6 +211,7 @@ export async function updateWord(
     collocations?: string[];
     synonyms?: string[];
     antonyms?: string[];
+    notes?: string | null;
     sourceLang?: string;
     targetLang?: string;
     // Full desired set of examples. Rows with an id are updated, rows without
@@ -220,6 +233,7 @@ export async function updateWord(
     "collocations",
     "synonyms",
     "antonyms",
+    "notes",
     "sourceLang",
     "targetLang",
   ] as const) {
@@ -272,31 +286,49 @@ export async function updateWord(
  * Record a review: bump reviewCount and schedule the next review date using the
  * interval ladder above.
  */
-export async function recordReview(id: string, known = true) {
+// grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS Rating).
+export async function recordReview(id: string, grade: number = 3, retention?: number) {
   const word = await prisma.word.findUnique({ where: { id } });
   if (!word) return null;
 
-  // Practicing counts toward activity/streak whether you knew it or not.
+  // Practicing counts toward activity/streak regardless of the grade.
   await prisma.reviewEvent.create({ data: { userId: word.userId } });
 
-  if (!known) {
-    // "Still learning" (Anki's Again): reset the ladder so the word comes back
-    // very soon instead of keeping a long interval.
-    return prisma.word.update({
-      where: { id },
-      data: { reviewCount: 0, nextReviewAt: new Date(Date.now() + 10 * 60 * 1000) },
-    });
-  }
+  const now = new Date();
+  // Reconstruct the FSRS card from stored state (or a fresh one if never reviewed).
+  const card: Card =
+    word.stability == null
+      ? createEmptyCard(now)
+      : {
+          due: word.due ?? now,
+          stability: word.stability,
+          difficulty: word.difficulty ?? 0,
+          elapsed_days: 0,
+          scheduled_days: 0,
+          learning_steps: word.learningSteps,
+          reps: word.reps,
+          lapses: word.lapses,
+          state: word.state as State,
+          last_review: word.lastReview ?? undefined,
+        };
 
-  // "I know it": advance one step up the interval ladder.
-  const nextCount = word.reviewCount + 1;
-  const idx = Math.min(word.reviewCount, REVIEW_INTERVALS_DAYS.length - 1);
-  const days = REVIEW_INTERVALS_DAYS[idx];
-  const nextReviewAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const { card: next } = schedulerFor(retention).next(card, now, grade as Grade);
 
   return prisma.word.update({
     where: { id },
-    data: { reviewCount: nextCount, nextReviewAt },
+    data: {
+      stability: next.stability,
+      difficulty: next.difficulty,
+      due: next.due,
+      reps: next.reps,
+      lapses: next.lapses,
+      state: next.state,
+      learningSteps: next.learning_steps ?? 0,
+      lastReview: now,
+      nextReviewAt: next.due, // keep the legacy due field in sync for isDue/stats
+      // "mastery" counter advances only on Good/Easy.
+      reviewCount: grade >= 3 ? word.reviewCount + 1 : word.reviewCount,
+    },
   });
 }
 
@@ -327,6 +359,55 @@ export async function explainWord(id: string): Promise<string> {
     schema: explanationSchema,
   });
   return explanation.trim();
+}
+
+/**
+ * Follow-up mini-chat about a word. The client sends the visible conversation
+ * (the first assistant turn is the AI explanation); we prepend a system prompt
+ * with the card's context so answers stay grounded and in the learner's language.
+ */
+export async function askAboutWord(
+  id: string,
+  history: { role: "user" | "assistant"; content: string }[],
+): Promise<string> {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: {
+      word: true,
+      sourceLang: true,
+      targetLang: true,
+      meaningZh: true,
+      partOfSpeech: true,
+      synonyms: true,
+      examples: { orderBy: { createdAt: "desc" }, take: 1, select: { sentenceEn: true } },
+    },
+  });
+  if (!word) throw new Error("Word not found");
+
+  const sourceName = langName(word.sourceLang);
+  const targetName = langName(word.targetLang);
+  const clipped = history.slice(-12).map((m) => ({
+    role: m.role,
+    content: m.content.slice(0, 2000),
+  })) as ChatMessage[];
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
+        `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
+        `Always answer ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
+        `Give ${sourceName} examples where helpful. Stay on the topic of this word and language learning.\n\n` +
+        `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
+        (word.synonyms.length ? `\nSynonyms: ${word.synonyms.join(", ")}` : "") +
+        (word.examples[0]?.sentenceEn ? `\nExample: ${word.examples[0].sentenceEn}` : ""),
+    },
+    ...clipped,
+  ];
+
+  const answer = await chatText({ messages, timeoutMs: 60000 });
+  return answer.trim();
 }
 
 /** Aggregated learning stats for the dashboard. */
