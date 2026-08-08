@@ -89,6 +89,35 @@ export function useLevel(lang: string): CefrLevel | null {
   return level;
 }
 
+// --- Reader: default "source" of pasted/scanned text (used to attribute the
+// example/context when adding words from the Reader). Defaults to the user's own. ---
+const READER_SOURCE_KEY = "lexa.readerSource";
+
+export function getReaderSource(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(READER_SOURCE_KEY) ?? "";
+}
+
+export function setReaderSource(src: string) {
+  localStorage.setItem(READER_SOURCE_KEY, src);
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useReaderSource(): string {
+  const [src, setState] = useState("");
+  useEffect(() => {
+    const sync = () => setState(getReaderSource());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return src;
+}
+
 // --- Recently used language pairs (for quick re-selection when adding) ---
 export interface LangPair {
   s: string;
