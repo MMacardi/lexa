@@ -13,11 +13,13 @@ export function CollectionMultiSelect({
   value,
   onChange,
   className,
+  menuClassName,
 }: {
   options: Collection[];
   value: string[];
   onChange: (ids: string[]) => void;
   className?: string;
+  menuClassName?: string;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -96,7 +98,10 @@ export function CollectionMultiSelect({
         createPortal(
           <div
             ref={menuRef}
-            className="anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            className={cn(
+              "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              menuClassName,
+            )}
             style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 220) }}
           >
             {options.length > 6 && (

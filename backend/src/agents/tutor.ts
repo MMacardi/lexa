@@ -13,6 +13,8 @@ export async function runTutor(params: {
   word: string;
   sourceLang?: string;
   targetLang?: string;
+  /** Keep a translation the user reviewed during import instead of replacing it. */
+  preserveMeaning?: boolean;
 }): Promise<void> {
   const sourceName = langName(params.sourceLang ?? "en");
   const targetName = langName(params.targetLang ?? "zh");
@@ -34,7 +36,7 @@ export async function runTutor(params: {
     data: {
       phonetic: result.phonetic,
       partOfSpeech: result.partOfSpeech,
-      meaningZh: result.meaningZh,
+      ...(params.preserveMeaning ? {} : { meaningZh: result.meaningZh }),
       collocations: result.collocations,
       synonyms: result.synonyms,
       antonyms: result.antonyms,

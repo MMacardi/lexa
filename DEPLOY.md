@@ -87,10 +87,21 @@ Render is a good fit for the backend + worker pair; Vercel can stay on the front
 
 ## Local development
 ```bash
-# backend
-cd backend && docker compose up -d && npm install && npm run dev   # :3000
-# frontend
-cd frontend && npm install && npm run dev -- -p 3001               # :3001
+# From repo root: start Postgres + backend + frontend
+docker compose up -d
+
+# Open app at http://localhost:3001
+# Backend health: http://localhost:3000/health
+
+# If 3001 is busy on your machine, choose another host port:
+# FRONTEND_PORT=3010 docker compose up -d
+
+# Optional: also start OpenClaw (Telegram gateway)
+docker compose --profile bot up -d
+
+# Stop everything
+docker compose down
 ```
-Secrets live in `backend/.env` and `frontend/.env.local` (git-ignored; see the
-`.env.example` files).
+Local secrets live in `backend/.env` (git-ignored). The root compose file reads
+that file for backend and OpenClaw and overrides `DATABASE_URL` internally to
+use the Docker Postgres service.

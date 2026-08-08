@@ -93,7 +93,7 @@ export default function TodayPage() {
     );
 
   const wotd: Word = list[new Date().getDate() % collected] ?? list[0];
-  const recent = list.slice(0, 6);
+  const dueList = list.filter(isDue).slice(0, 6);
 
   return (
     <div className="space-y-8">
@@ -192,40 +192,50 @@ export default function TodayPage() {
 
       <StatsPanel />
 
-      {/* this week */}
+      {/* due today */}
       <div>
         <div className="mb-4 flex items-center gap-3">
           <h3 className="font-serif text-[21px] font-medium italic text-ink-soft">
-            {t("today.recent")}
+            {t("today.dueToday")}
           </h3>
           <span className="h-px flex-1 bg-black/[0.08]" />
-          <Link href="/words" className="text-sm font-semibold text-sage hover:text-sage-deep">
-            {t("today.viewAll")}
-          </Link>
-        </div>
-        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {recent.map((w, i) => (
-            <Link
-              key={w.id}
-              href={`/word/${w.id}`}
-              className="anim-fade-up rounded-[18px] border border-black/[0.06] bg-surface p-[18px] transition-shadow hover:shadow-[0_10px_30px_rgba(46,42,38,0.08)]"
-              style={{ animationDelay: `${180 + i * 50}ms` }}
-            >
-              <div className="flex items-baseline gap-2.5">
-                <span className="font-serif text-[22px] font-semibold text-ink">{w.word}</span>
-                {w.meaningZh && (
-                  <span className={`text-sm text-sage ${w.targetLang === "zh" ? "font-zh" : ""}`}>
-                    {w.meaningZh}
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 text-xs font-medium text-ink-faint">
-                {w.examples[0]?.sourceName ?? "—"}
-                {w.partOfSpeech ? ` · ${w.partOfSpeech}` : ""}
-              </div>
+          {dueList.length > 0 && (
+            <Link href="/review" className="text-sm font-semibold text-sage hover:text-sage-deep">
+              {t("today.reviewAll")}
             </Link>
-          ))}
+          )}
         </div>
+        {dueList.length === 0 ? (
+          <div className="anim-fade-up rounded-[18px] border border-black/[0.06] bg-surface p-6 text-center">
+            <div className="text-[26px]">🎉</div>
+            <p className="mt-1 font-serif text-[18px] font-medium text-ink">{t("today.allCaughtUp")}</p>
+            <p className="mt-1 text-sm text-ink-soft">{t("today.allCaughtUpHint")}</p>
+          </div>
+        ) : (
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {dueList.map((w, i) => (
+              <Link
+                key={w.id}
+                href={`/word/${w.id}`}
+                className="anim-fade-up rounded-[18px] border border-black/[0.06] bg-surface p-[18px] transition-shadow hover:shadow-[0_10px_30px_rgba(46,42,38,0.08)]"
+                style={{ animationDelay: `${180 + i * 50}ms` }}
+              >
+                <div className="flex items-baseline gap-2.5">
+                  <span className="font-serif text-[22px] font-semibold text-ink">{w.word}</span>
+                  {w.meaningZh && (
+                    <span className={`text-sm text-sage ${w.targetLang === "zh" ? "font-zh" : ""}`}>
+                      {w.meaningZh}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs font-medium text-ink-faint">
+                  {w.reviewCount === 0 ? t("today.neverReviewed") : t("today.reviewsDone", { n: w.reviewCount })}
+                  {w.partOfSpeech ? ` · ${w.partOfSpeech}` : ""}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
