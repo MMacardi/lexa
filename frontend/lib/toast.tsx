@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, type ImportJob } from "@/lib/api";
+import Link from "next/link";
+import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 
@@ -37,6 +38,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { accountId } = useAccount();
   const [toasts, setToasts] = useState<(Toast & { leaving?: boolean })[]>([]);
   const [tracker, setTracker] = useState<ImportTracker | null>(null);
+  // Once enrichment finishes, resolve the enriched words → their card ids so the
+  // list in the toast is clickable (opens the freshly-made word page).
+  const [wordIds, setWordIds] = useState<Record<string, string>>({});
 
   const remove = useCallback((id: number) => {
     // play the exit animation, then unmount
@@ -54,6 +58,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
+    setWordIds({});
     setTracker({ ...payload, status: "queued", errors: [], errorMessage: null });
   }, []);
 
@@ -91,6 +96,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       if (timer) clearTimeout(timer);
     };
   }, [tracker, accountId]);
+
+  // When enrichment completes, map the enriched words to their new card ids.
+  useEffect(() => {
+    if (!tracker || tracker.status !== "completed") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list: Word[] = await api.listWords(tracker.telegramId || accountId);
+        if (cancelled) return;
+        const wanted = new Set(tracker.words.map((w) => w.trim().toLowerCase()));
+        const map: Record<string, string> = {};
+        for (const w of list) {
+          const k = w.word.trim().toLowerCase();
+          if (wanted.has(k) && !map[k]) map[k] = w.id; // first (most recent) match
+        }
+        setWordIds(map);
+      } catch {
+        /* ignore — links just won't be available */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tracker?.status, tracker?.jobId, tracker, accountId]);
 
   const currentWord = useMemo(() => {
     if (!tracker) return null;
@@ -133,20 +162,38 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   {currentWord ? `Current: ${currentWord}` : "Preparing cards…"}
                 </div>
 
-                <div className="mt-3 max-h-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-56 group-hover:opacity-100">
+                <div
+                  className={
+                    tracker.status === "completed"
+                      ? "mt-3 overflow-hidden"
+                      : "mt-3 max-h-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-56 group-hover:opacity-100"
+                  }
+                >
                   <div className="rounded-[14px] border border-black/[0.06] bg-paper/80 p-2">
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
-                      Hover details
+                      {tracker.status === "completed" ? "Tap a word to open it" : "Hover details"}
                     </div>
                     <div className="max-h-40 space-y-1.5 overflow-auto pr-1">
                       {tracker.words.map((word, index) => {
                         const done = index < tracker.processed;
                         const active = index === tracker.processed && tracker.status !== "completed";
+                        const id = wordIds[word.trim().toLowerCase()];
+                        const label = (
+                          <span className={done ? "text-sage-deep" : active ? "font-semibold text-ink" : "text-ink-soft"}>
+                            {word}
+                          </span>
+                        );
                         return (
                           <div key={word + index} className="flex items-center justify-between gap-2 text-sm">
-                            <span className={done ? "text-sage-deep" : active ? "font-semibold text-ink" : "text-ink-soft"}>{word}</span>
-                            <span className={done ? "text-sage" : active ? "text-ink-faint" : "text-ink-faint"}>
-                              {done ? "✓" : active ? "…" : "•"}
+                            {id ? (
+                              <Link href={`/word/${id}`} className="truncate hover:underline">
+                                {label}
+                              </Link>
+                            ) : (
+                              label
+                            )}
+                            <span className={done ? "text-sage" : "text-ink-faint"}>
+                              {done ? (id ? "↗" : "✓") : active ? "…" : "•"}
                             </span>
                           </div>
                         );

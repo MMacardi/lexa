@@ -7,6 +7,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
+import { useDialog } from "@/lib/dialog";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
@@ -36,8 +37,12 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const qc = useQueryClient();
   const router = useRouter();
   const { show, trackImport } = useToast();
+  const { prompt } = useDialog();
   const [pending, setPending] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  // Terms added from this graph → their new card id, so a tap right after adding
+  // opens the freshly-created word (and a second tap never adds a duplicate).
+  const [addedIds, setAddedIds] = useState<Map<string, string>>(new Map());
 
   const { data: allWords } = useQuery({
     queryKey: ["words", accountId],
@@ -83,14 +88,50 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       }),
     onMutate: (term) => setPending(term.trim().toLowerCase()),
     onSettled: () => setPending(null),
-    onSuccess: (r, term) => {
-      qc.invalidateQueries({ queryKey: ["words"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
+    onSuccess: async (r, term) => {
       if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: [term], total: r.job.total, processed: 0 });
       show({ icon: "🌱", title: t("word.addedRelated", { word: term }) });
+      // Refetch the list, then resolve the new card's id so the node is instantly
+      // clickable (navigates to the word) instead of re-adding it.
+      await qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      const key = term.trim().toLowerCase();
+      const list = qc.getQueryData<Word[]>(["words", accountId]);
+      const found = list?.find(
+        (w) => w.word.trim().toLowerCase() === key && w.sourceLang === word.sourceLang && w.targetLang === word.targetLang,
+      );
+      if (found) setAddedIds((m) => new Map(m).set(key, found.id));
     },
     onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
   });
+
+  // Add a synonym/antonym to the word itself (grows the graph), edited right here.
+  const addRelated = useMutation({
+    mutationFn: ({ term, kind }: { term: string; kind: "syn" | "ant" }) =>
+      api.updateWord(
+        word.id,
+        kind === "syn"
+          ? { synonyms: [...word.synonyms, term] }
+          : { antonyms: [...word.antonyms, term] },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["word", word.id] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+    },
+    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+  });
+
+  async function promptAdd(kind: "syn" | "ant") {
+    const existing = kind === "syn" ? word.synonyms : word.antonyms;
+    const term = await prompt({
+      title: kind === "syn" ? t("word.addSynonym") : t("word.addAntonym"),
+      placeholder: t("word.relatedPlaceholder"),
+    });
+    const v = term?.trim();
+    if (!v) return;
+    if (existing.some((x) => x.trim().toLowerCase() === v.toLowerCase())) return; // no dupes
+    addRelated.mutate({ term: v, kind });
+  }
 
   // --- simulation state ---
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -149,6 +190,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       const fy = (dy / d) * f;
       n.vx -= fx;
       n.vy -= fy;
+      // keep synonyms on the right, antonyms on the left: nudge only when a node
+      // is on the wrong side (so it still settles once separated).
+      const want = n.kind === "syn" ? 1 : -1;
+      const off = n.x - center.x;
+      if (Math.sign(off) !== want || Math.abs(off) < 24) n.vx += want * 0.9;
     }
     // integrate
     for (const n of nodes) {
@@ -211,48 +257,72 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     const { w, h } = dimsRef.current;
     const cx = w / 2;
     const cy = h / 2;
+    const r0 = Math.min(w, h) * 0.3; // start already spread, then physics refines
     const nodes: SimNode[] = [
       { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, x: cx, y: cy, vx: 0, vy: 0 },
     ];
-    related.forEach((r, i) => {
-      const angle = (-90 + (360 / related.length) * i) * (Math.PI / 180);
-      // start near the centre so they animate outward
+    // Group synonyms on the right, antonyms on the left; spread each group
+    // vertically. A separation force in tick() keeps the two sides apart.
+    const counts = { syn: 0, ant: 0 };
+    const totals = {
+      syn: related.filter((r) => r.kind === "syn").length,
+      ant: related.filter((r) => r.kind === "ant").length,
+    };
+    related.forEach((r) => {
+      const side = r.kind === "syn" ? 1 : -1;
+      const total = totals[r.kind];
+      const idx = counts[r.kind]++;
+      const frac = total <= 1 ? 0.5 : idx / (total - 1); // 0..1 down the column
+      const ang = (-52 + 104 * frac) * (Math.PI / 180); // fan of ±52° from horizontal
       nodes.push({
         id: r.term,
         label: r.term,
         kind: r.kind,
         saved: savedMap.has(r.term.trim().toLowerCase()),
         pinned: false,
-        x: cx + Math.cos(angle) * 30,
-        y: cy + Math.sin(angle) * 30,
-        vx: Math.cos(angle) * 2,
-        vy: Math.sin(angle) * 2,
+        x: cx + side * Math.cos(ang) * r0,
+        y: cy + Math.sin(ang) * r0,
+        vx: 0,
+        vy: 0,
       });
     });
     simRef.current = nodes;
+  }, [relatedKey, related, savedMap, word.word]);
+
+  // Run the animation loop on every mount (guard-free), so React StrictMode's
+  // mount→unmount→mount in dev — which cancels the first loop — can't leave the
+  // graph frozen. Cleanup resets the flag so the next mount restarts it.
+  useEffect(() => {
     ensureRunning();
-  }, [relatedKey, related, savedMap, word.word, ensureRunning]);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      runningRef.current = false;
+    };
+  }, [ensureRunning, relatedKey]);
 
   // Refresh "saved" flags when the vocabulary list updates (e.g. after adding).
   useEffect(() => {
     for (const n of simRef.current) {
-      if (n.kind !== "center") n.saved = savedMap.has(n.id.trim().toLowerCase());
+      if (n.kind !== "center") {
+        const k = n.id.trim().toLowerCase();
+        n.saved = savedMap.has(k) || addedIds.has(k);
+      }
     }
     setFrame((f) => (f + 1) % 1_000_000);
-  }, [savedMap]);
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
+  }, [savedMap, addedIds]);
 
   if (related.length === 0) return null;
 
   function activate(node: SimNode) {
-    const id = savedMap.get(node.id.trim().toLowerCase());
-    if (id) router.push(`/word/${id}`);
-    else if (!add.isPending) add.mutate(node.label);
+    const key = node.id.trim().toLowerCase();
+    const id = savedMap.get(key) ?? addedIds.get(key);
+    if (id) {
+      router.push(`/word/${id}`);
+      return;
+    }
+    // Not saved yet — add it (unless this term is already being/has been added).
+    if (add.isPending || addedIds.has(key)) return;
+    add.mutate(node.label);
   }
 
   function onDown(e: React.PointerEvent, node: SimNode) {
@@ -295,6 +365,24 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         ref={wrapRef}
         className="relative h-[300px] w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_45%,rgba(124,152,133,0.10),transparent_70%)] bg-surface sm:h-[360px]"
       >
+        {/* add-your-own controls, on the canvas */}
+        <div className="absolute right-3 top-3 z-20 flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => promptAdd("syn")}
+            className="rounded-full border border-dashed border-sage/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-sage-deep backdrop-blur transition-colors hover:bg-sage-tint"
+          >
+            + {t("word.synonyms")}
+          </button>
+          <button
+            type="button"
+            onClick={() => promptAdd("ant")}
+            className="rounded-full border border-dashed border-warn/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-warn-text backdrop-blur transition-colors hover:bg-warn-bg"
+          >
+            + {t("word.antonyms")}
+          </button>
+        </div>
+
         {/* links */}
         {center && (
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
@@ -332,7 +420,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
             );
           }
           const dim = hovered !== null && hovered !== n.id;
-          const busy = pending === n.id.trim().toLowerCase();
+          const nkey = n.id.trim().toLowerCase();
+          const busy = pending === nkey;
+          const saved = savedMap.has(nkey) || addedIds.has(nkey);
           return (
             <button
               key={n.id}
@@ -342,10 +432,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               onPointerUp={() => onUp(n)}
               onPointerEnter={() => setHovered(n.id)}
               onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
-              title={n.saved ? n.label : `+ ${n.label}`}
+              title={saved ? n.label : `+ ${n.label}`}
               className={cn(
                 "absolute z-10 max-w-[45%] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none truncate rounded-full border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-[transform,opacity,box-shadow] active:cursor-grabbing",
-                n.saved
+                saved
                   ? n.kind === "syn"
                     ? "border-sage/50 bg-sage-tint text-sage-deep"
                     : "border-warn/40 bg-warn-bg text-warn-text"
@@ -356,7 +446,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               )}
               style={{ left: n.x, top: n.y }}
             >
-              {!n.saved && "+ "}
+              {!saved && "+ "}
               {n.label}
             </button>
           );

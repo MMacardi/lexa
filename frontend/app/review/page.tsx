@@ -351,16 +351,23 @@ export default function FlashcardsPage() {
                 <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
                   <HighlightWord text={ex.sentenceEn} word={word.word} />
                 </p>
-                {ex.sentenceZh && (
-                  <p className={cn("mt-1 whitespace-pre-line text-[14px] text-ink-soft", targetFont(word.targetLang))}>
-                    {ex.sentenceZh}
-                  </p>
-                )}
                 {ex.sourceName && (
                   <div className="mt-1 text-[12px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
                 )}
               </div>
             ))}
+          </div>
+        ) : null;
+      case "exampleTr":
+        return word.examples.some((ex) => ex.sentenceZh?.trim()) ? (
+          <div className="space-y-2 text-left">
+            {word.examples
+              .filter((ex) => ex.sentenceZh?.trim())
+              .map((ex) => (
+                <p key={ex.id} className={cn("whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
+                  {ex.sentenceZh}
+                </p>
+              ))}
           </div>
         ) : null;
       case "synonyms":

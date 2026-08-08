@@ -189,6 +189,8 @@ export default function WordDetailPage() {
               >
                 🔗 {ex.sourceName}
               </a>
+            ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
+              <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
             ) : null}
           </div>
         ))}
