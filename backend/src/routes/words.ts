@@ -2,6 +2,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { suggestWord } from "../services/suggest.js";
+import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
+import { getImportJobForUser } from "../services/importWorker.js";
+import { importedCardSchema } from "../lib/schemas.js";
 import {
   addWordForUser,
   addWordManual,
@@ -10,6 +13,8 @@ import {
   recordReview,
   deleteWord,
   updateWord,
+  addExampleToWord,
+  explainWord,
   getStats,
   listCollections,
   createCollection,
@@ -129,6 +134,9 @@ const addBody = z.object({
   sourceLang: z.string().min(2).default("en"),
   targetLang: z.string().min(2).default("zh"),
   mode: z.enum(["auto", "manual"]).default("auto"),
+  // auto-mode example tuning (ignored in manual mode)
+  level: z.string().max(4).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),
@@ -151,6 +159,25 @@ const suggestBody = z.object({
   sourceLang: z.string().min(2).default("en"),
 });
 
+const importPreviewBody = z.object({
+  text: z.string().min(1).max(20_000),
+  sourceLang: z.string().min(2).default("en"),
+  targetLang: z.string().min(2).default("zh"),
+});
+
+const importCommitBody = z.object({
+  telegramId: z.string().min(1).default("dev-user"),
+  sourceLang: z.string().min(2).default("en"),
+  targetLang: z.string().min(2).default("zh"),
+  items: z.array(importedCardSchema).min(1).max(100),
+  collectionIds: z.array(z.string().min(1)).max(20).default([]),
+  keepProvidedExtras: z.boolean().default(true),
+  generateDetails: z.boolean().default(false),
+  generateExamples: z.boolean().default(false),
+  level: z.string().max(4).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+});
+
 // POST /api/words/suggest  -> "did you mean" spell-check for the AI add flow
 wordsRouter.post("/words/suggest", async (req, res) => {
   const parsed = suggestBody.safeParse(req.body);
@@ -165,6 +192,49 @@ wordsRouter.post("/words/suggest", async (req, res) => {
     // On any LLM hiccup, fall back to the original word so adding still works.
     res.json({ corrected: parsed.data.word.trim().toLowerCase(), suggestions: [] });
   }
+});
+
+// POST /api/words/import/preview -> AI parses pasted notes / .txt into cards.
+// No database write happens in this step; the client shows a review checklist.
+wordsRouter.post("/words/import/preview", async (req, res) => {
+  const parsed = importPreviewBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json({ items: await previewImportedWords(parsed.data) });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/import -> create the checked cards in one batch.
+wordsRouter.post("/words/import", async (req, res) => {
+  const parsed = importCommitBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  try {
+    res.status(201).json(await importWordsForUser({ ...parsed.data, telegramId }));
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// GET /api/words/import/:jobId -> progress for the optional background enrichment.
+wordsRouter.get("/words/import/:jobId", async (req, res) => {
+  const telegramId = readSession(req) ?? String(req.query.telegramId ?? "dev-user");
+  const job = await getImportJobForUser(req.params.jobId, telegramId);
+  if (!job) {
+    res.status(404).json({ error: "Import job not found" });
+    return;
+  }
+  res.json(job);
 });
 
 // POST /api/words  -> auto (runs both agents) or manual (uses provided fields)
@@ -199,13 +269,16 @@ const editBody = z.object({
   antonyms: z.array(z.string()).optional(),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
-  example: z
-    .object({
-      sentenceEn: z.string().optional(),
-      sentenceZh: z.string().optional(),
-      sourceName: z.string().optional(),
-      sourceUrl: z.string().optional(),
-    })
+  examples: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        sentenceEn: z.string(),
+        sentenceZh: z.string().optional(),
+        sourceName: z.string().optional(),
+      }),
+    )
+    .max(20)
     .optional(),
 });
 
@@ -235,12 +308,44 @@ wordsRouter.delete("/words/:id", async (req, res) => {
   }
 });
 
-// POST /api/words/:id/review  -> bump review count + schedule next review
+// POST /api/words/:id/review  -> advance the interval ladder ({known:true}) or
+// reset it so the word returns soon ({known:false}, i.e. "still learning").
 wordsRouter.post("/words/:id/review", async (req, res) => {
-  const word = await recordReview(req.params.id);
+  const known = req.body?.known !== false;
+  const word = await recordReview(req.params.id, known);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;
   }
   res.json(word);
+});
+
+// POST /api/words/:id/example -> fetch a fresh AI example (add or regenerate).
+const exampleBody = z.object({
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  level: z.string().max(4).optional(),
+  replace: z.boolean().default(false),
+});
+wordsRouter.post("/words/:id/example", async (req, res) => {
+  const parsed = exampleBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await addExampleToWord(req.params.id, parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/:id/explain -> on-demand AI explanation (nuance, usage, etc.)
+wordsRouter.post("/words/:id/explain", async (req, res) => {
+  try {
+    res.json({ explanation: await explainWord(req.params.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
 });

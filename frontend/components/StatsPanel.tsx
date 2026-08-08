@@ -8,6 +8,7 @@ import { useDailyGoal } from "@/lib/goal";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Achievements } from "@/components/Achievements";
+import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { cn } from "@/lib/utils";
 
 const RANGES = [
@@ -147,19 +148,28 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
         </div>
       </div>
 
-      {/* x-axis date labels */}
+      {/* x-axis date labels — reserve the last slot for "today" and drop any
+          regular label too close to it so they don't overlap. */}
       <div className="relative ml-8 mt-1.5 h-4">
-        {pts.map((p, i) =>
-          i % labelEvery === 0 || i === n - 1 ? (
+        {pts.map((p, i) => {
+          const isEnd = i === n - 1;
+          const near = Math.max(1, Math.floor(labelEvery / 2));
+          const show = isEnd || (i % labelEvery === 0 && i < n - 1 - near);
+          if (!show) return null;
+          return (
             <span
               key={p.date}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-ink-faint"
+              className={cn(
+                "absolute whitespace-nowrap text-[10px] font-medium text-ink-faint",
+                isEnd ? "-translate-x-full text-right" : "-translate-x-1/2",
+                i === 0 && "translate-x-0",
+              )}
               style={{ left: `${xPct(i)}%` }}
             >
-              {i === n - 1 ? t("stats.today") : dayLabel(p.date, monthOnly)}
+              {isEnd ? t("stats.today") : dayLabel(p.date, monthOnly)}
             </span>
-          ) : null,
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -305,6 +315,8 @@ export function StatsPanel() {
         </div>
         <LearningCurve words={curveWords} days={effDays} />
       </div>
+
+      {data.heat && data.heat.length > 0 && <ActivityHeatmap heat={data.heat} />}
 
       {words && words.length > 0 && <Distributions words={words} />}
 

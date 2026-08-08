@@ -7,12 +7,14 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
-import { langLabel, pairLabel } from "@/lib/langs";
+import { langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
+import { EditWordModal } from "@/components/EditWordModal";
+import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { cn } from "@/lib/utils";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -27,6 +29,38 @@ interface Question {
   correct: string;
   promptTarget: boolean;
   optionsTarget: boolean;
+  cloze?: boolean; // fill-the-blank in an example sentence
+  clozeTranslation?: string;
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Words whose example sentence literally contains the target word — usable for
+// fill-in-the-blank (cloze) practice.
+function clozeEligible(pool: Word[]): Word[] {
+  return pool.filter((w) => {
+    const ex = w.examples[0];
+    return Boolean(ex?.sentenceEn && ex.sentenceEn.toLowerCase().includes(w.word.toLowerCase()));
+  });
+}
+
+function buildCloze(pool: Word[]): Question[] {
+  return shuffle(clozeEligible(pool))
+    .slice(0, 8)
+    .map((w) => {
+      const ex = w.examples[0];
+      const blanked = ex.sentenceEn.replace(new RegExp(escapeRegExp(w.word), "i"), "＿＿＿");
+      return {
+        word: w,
+        prompt: blanked,
+        options: [],
+        correct: w.word,
+        promptTarget: true,
+        optionsTarget: false,
+        cloze: true,
+        clozeTranslation: ex.sentenceZh,
+      };
+    });
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -83,8 +117,9 @@ export default function QuizPage() {
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
   const [selColl, setSelColl] = useState<string>("all");
-  const [mode, setMode] = useState<"choice" | "type">("choice");
+  const [mode, setMode] = useState<"choice" | "type" | "cloze">("choice");
   const [quiz, setQuiz] = useState<Question[]>([]);
+  const [editing, setEditing] = useState<Word | null>(null);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
@@ -116,16 +151,16 @@ export default function QuizPage() {
     if (c) setSelColl(c);
   }, []);
 
+  const clozePool = clozeEligible(pool);
+  const canStart = mode === "cloze" ? clozePool.length >= 1 : pool.length >= 4;
+
   function start() {
-    setQuiz(buildQuiz(pool, flip));
+    setQuiz(mode === "cloze" ? buildCloze(pool) : buildQuiz(pool, flip));
     setIndex(0);
     setSelected(null);
     setTyped("");
     setScore(0);
     setStarted(true);
-  }
-  function togglePair(p: string) {
-    setSelPairs(sel.includes(p) ? sel.filter((x) => x !== p) : [...sel, p]);
   }
 
   if (isLoading)
@@ -176,8 +211,8 @@ export default function QuizPage() {
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
-            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
-              {(["choice", "type"] as const).map((m) => (
+            <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+              {(["choice", "type", "cloze"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -186,10 +221,13 @@ export default function QuizPage() {
                     mode === m ? "bg-sage text-white" : "text-ink-muted",
                   )}
                 >
-                  {m === "choice" ? t("quiz.choice") : t("quiz.type")}
+                  {m === "choice" ? t("quiz.choice") : m === "type" ? t("quiz.type") : t("quiz.cloze")}
                 </button>
               ))}
             </div>
+            {mode === "cloze" && (
+              <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.clozeHint")}</p>
+            )}
           </div>
 
           {collections && collections.length > 0 && (
@@ -206,34 +244,16 @@ export default function QuizPage() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {allPairs.map((p) => {
-                  const [s, t] = p.split(">");
-                  const on = sel.includes(p);
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => togglePair(p)}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        on
-                          ? "bg-sage text-white"
-                          : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                      )}
-                    >
-                      {on ? "✓ " : ""}
-                      {pairLabel(s, t)}
-                    </button>
-                  );
-                })}
-              </div>
+              <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
             </div>
           )}
         </div>
-        <Button className="w-full" disabled={pool.length < 4} onClick={start}>
-          {pool.length < 4
-            ? t("quiz.needFour")
-            : t("quiz.start", { n: Math.min(pool.length, 8) })}
+        <Button className="w-full" disabled={!canStart} onClick={start}>
+          {!canStart
+            ? mode === "cloze"
+              ? t("quiz.needExamples")
+              : t("quiz.needFour")
+            : t("quiz.start", { n: Math.min(mode === "cloze" ? clozePool.length : pool.length, 8) })}
         </Button>
       </div>
     );
@@ -282,15 +302,23 @@ export default function QuizPage() {
     setIndex((i) => i + 1);
   }
 
-  const promptHint = flip
-    ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
-    : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
+  const promptHint = q.cloze
+    ? t("quiz.fillBlank")
+    : flip
+      ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
+      : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
 
   return (
     <div className="mx-auto max-w-[620px]">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditing(q.word)}
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            ✎ {t("edit.editCard")}
+          </button>
           <button
             onClick={() => setStarted(false)}
             className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
@@ -302,6 +330,17 @@ export default function QuizPage() {
           </span>
         </div>
       </div>
+
+      {editing && (
+        <EditWordModal
+          word={editing}
+          onClose={() => setEditing(null)}
+          onUpdated={(u) => {
+            setQuiz((qs) => qs.map((item) => (item.word.id === u.id ? { ...item, word: u } : item)));
+            setEditing(u);
+          }}
+        />
+      )}
 
       <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
         <div
@@ -315,14 +354,23 @@ export default function QuizPage() {
         className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-9 text-center"
       >
         <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
-        <div
-          className={cn(
-            "mt-2.5 font-bold leading-tight text-sage-deep",
-            q.promptTarget ? cn("text-[44px]", tFont) : "font-serif text-[40px] text-ink",
-          )}
-        >
-          {q.prompt}
-        </div>
+        {q.cloze ? (
+          <>
+            <div className={cn("mt-3 font-serif text-[24px] leading-relaxed text-ink", tFont)}>{q.prompt}</div>
+            {q.clozeTranslation && (
+              <div className="mt-2 text-[14px] text-ink-faint">{q.clozeTranslation}</div>
+            )}
+          </>
+        ) : (
+          <div
+            className={cn(
+              "mt-2.5 font-bold leading-tight text-sage-deep",
+              q.promptTarget ? cn("text-[44px]", tFont) : "font-serif text-[40px] text-ink",
+            )}
+          >
+            {q.prompt}
+          </div>
+        )}
       </div>
 
       {mode === "choice" ? (

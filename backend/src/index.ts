@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./lib/env.js";
 import { wordsRouter } from "./routes/words.js";
 import { authRouter } from "./routes/auth.js";
+import { startImportWorker } from "./services/importWorker.js";
 
 const app = express();
 // Reflect the request origin and allow credentials so the browser can send the
@@ -23,6 +24,7 @@ app.use("/api", wordsRouter);
 
 app.listen(env.PORT, () => {
   console.log(`Backend listening on http://localhost:${env.PORT}`);
+  startImportWorker();
 });
 
 // NOTE: The Telegram entry point is now OpenClaw (a self-hosted assistant

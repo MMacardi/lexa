@@ -4,9 +4,71 @@ import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n, LOCALES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/Select";
+import { langLabel } from "@/lib/langs";
+import { CEFR_LEVELS, LEVEL_HINT, clearHanLang, removeLevel, setLevel, useAllLevels, useHanLang, type CefrLevel } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "llmlangcardlearnerbot";
+
+function LevelsSection() {
+  const { t } = useI18n();
+  const levels = useAllLevels();
+  const hanLang = useHanLang();
+  const langs = Object.keys(levels).sort();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("level.sectionTitle")}</h2>
+      <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("level.sectionHint")}</p>
+      {langs.length === 0 ? (
+        <p className="mt-4 rounded-[14px] border border-dashed border-black/[0.12] bg-paper/60 p-4 text-center text-[13px] text-ink-faint">
+          {t("level.empty")}
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {langs.map((lang) => (
+            <li key={lang} className="flex items-center justify-between gap-3">
+              <span className="text-[15px] font-medium text-ink">{langLabel(lang)}</span>
+              <div className="flex items-center gap-1.5">
+                <Select
+                  value={levels[lang]}
+                  onChange={(v) => setLevel(lang, v as CefrLevel)}
+                  ariaLabel={t("level.title")}
+                  className="w-[150px]"
+                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLevel(lang)}
+                  aria-label="Remove"
+                  className="rounded-lg px-2 py-1 text-sm text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {hanLang && (
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+          <span className="text-[13px] text-ink-soft">
+            {t("han.remembered")}{" "}
+            <span className="font-semibold text-ink">{hanLang === "zh" ? "中文" : hanLang === "ja" ? "日本語" : "한국어"}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => clearHanLang()}
+            className="rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
+          >
+            {t("han.reset")}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -122,6 +184,9 @@ export default function AccountPage() {
           </div>
         </div>
       </Section>
+
+      {/* language levels */}
+      <LevelsSection />
     </div>
   );
 }
