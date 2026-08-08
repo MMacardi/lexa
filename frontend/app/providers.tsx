@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AccountProvider } from "@/lib/account";
 import { ThemeProvider } from "@/lib/theme";
 import { ToastProvider } from "@/lib/toast";
+import { DialogProvider } from "@/lib/dialog";
 import { I18nProvider } from "@/lib/i18n";
 
 // TanStack Query needs a client created on the React tree. useState keeps a
@@ -20,9 +21,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={client}>
       <ThemeProvider>
         <I18nProvider>
-          <ToastProvider>
-            <AccountProvider>{children}</AccountProvider>
-          </ToastProvider>
+          <AccountProvider>
+            <ToastProvider>
+              <DialogProvider>{children}</DialogProvider>
+            </ToastProvider>
+          </AccountProvider>
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>

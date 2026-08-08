@@ -5,14 +5,60 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { langLabel } from "@/lib/langs";
+import { useDialog } from "@/lib/dialog";
+import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
+import {
+  CEFR_LEVELS,
+  EXAMPLE_STYLES,
+  LEVEL_HINT,
+  getHanLang,
+  getLevel,
+  pushRecentPair,
+  setHanLang,
+  setLevel,
+  useExampleStyle,
+  setExampleStyle,
+  useLevel,
+  useRecentPairs,
+  type CefrLevel,
+  type ExampleStyle,
+} from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/Select";
 import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 
 type Mode = "auto" | "manual";
+
+const MODE_KEY = "lexa.wordAddMode";
+const PAIR_KEY = "lexa.wordPair";
+
+// Session-scoped "don't warn me about duplicates again" — resets on full reload,
+// which is what you want when bulk-adding many known duplicates in one sitting.
+let skipDupWarn = false;
+
+function readStoredPair() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PAIR_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { sourceLang?: string; targetLang?: string };
+    if (!parsed.sourceLang || !parsed.targetLang) return null;
+    return { sourceLang: parsed.sourceLang, targetLang: parsed.targetLang };
+  } catch {
+    return null;
+  }
+}
+
+type AddVars = {
+  chosen: string;
+  manual: boolean;
+  sourceLangOverride?: string;
+  level?: string;
+  exampleStyle?: ExampleStyle;
+};
 
 // `defaultCollectionId` is the active "Set" filter from My words ("all" or an
 // id). When it's a real collection, the new word is pre-assigned to it.
@@ -20,11 +66,15 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
+  const { confirm, choose } = useDialog();
 
   const [mode, setMode] = useState<Mode>("auto");
   const [word, setWord] = useState("");
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
+  const [pairReady, setPairReady] = useState(false);
+  const [modeReady, setModeReady] = useState(false);
+  const [resolvedSourceLang, setResolvedSourceLang] = useState<string | null>(null);
   // manual fields
   const [meaning, setMeaning] = useState("");
   const [exEn, setExEn] = useState("");
@@ -36,15 +86,69 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [checking, setChecking] = useState(false);
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
 
+  // learner prefs (example difficulty + register)
+  const style = useExampleStyle();
+  const currentLevel = useLevel(sourceLang);
+  const recentPairs = useRecentPairs();
+  // Remembered choice for kanji-only input (Chinese vs Japanese vs Korean).
+  const [hanChoice, setHanChoice] = useState<"zh" | "ja" | "ko">("zh");
+  useEffect(() => {
+    const h = getHanLang();
+    if (h) setHanChoice(h);
+  }, []);
+  const showHanPicker = sourceLang === "auto" && isAmbiguousHan(word);
+
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
     queryFn: () => api.collections(accountId),
   });
+  // Words are already cached (Sidebar/My words use the same key) — used to spot
+  // duplicates before adding another card for the same spelling.
+  const { data: words } = useQuery({
+    queryKey: ["words", accountId],
+    queryFn: () => api.listWords(accountId),
+  });
+
+  useEffect(() => {
+    const stored = readStoredPair();
+    if (stored) {
+      setSourceLang(stored.sourceLang);
+      setTargetLang(stored.targetLang);
+    }
+    setPairReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem(MODE_KEY) as Mode | null;
+    if (stored === "auto" || stored === "manual") {
+      setMode(stored);
+    }
+    setModeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!pairReady) return;
+    localStorage.setItem(PAIR_KEY, JSON.stringify({ sourceLang, targetLang }));
+  }, [pairReady, sourceLang, targetLang]);
+
+  useEffect(() => {
+    if (!modeReady) return;
+    localStorage.setItem(MODE_KEY, mode);
+  }, [modeReady, mode]);
 
   // Follow the active "Set" filter as the default selection.
   useEffect(() => {
     setCollIds(defaultCollectionId && defaultCollectionId !== "all" ? [defaultCollectionId] : []);
   }, [defaultCollectionId]);
+
+  // The AI only knows the built-in languages; a custom source language forces
+  // manual cards (the model can't reliably define a word in a language it may
+  // not know).
+  const aiSupported = isAiSupported(sourceLang);
+  useEffect(() => {
+    if (!aiSupported && mode === "auto") setMode("manual");
+  }, [aiSupported, mode]);
 
   const reset = () => {
     setWord("");
@@ -52,14 +156,20 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     setExEn("");
     setExZh("");
     setSrc("");
+    setResolvedSourceLang(null);
   };
 
   // Adds a word. `manual:true` skips the AI agents and creates a bare/manual
   // card — used in Manual mode and for "Add as typed" (a word the AI doesn't
   // know, so we must not let it fabricate a definition).
   const mutation = useMutation({
-    mutationFn: async ({ chosen, manual }: { chosen: string; manual: boolean }) => {
-      const base = { word: chosen.trim(), telegramId: accountId, sourceLang, targetLang };
+    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle }: AddVars) => {
+      const base = {
+        word: chosen.trim(),
+        telegramId: accountId,
+        sourceLang: sourceLangOverride ?? sourceLang,
+        targetLang,
+      };
       let created;
       if (manual) {
         const fromForm = mode === "manual";
@@ -72,18 +182,76 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               : undefined,
         });
       } else {
-        created = await api.addWord(base);
+        created = await api.addWord({ ...base, level, exampleStyle });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
       return created;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
+      pushRecentPair(created.sourceLang, created.targetLang);
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       setSuggestions(null);
       reset(); // keep collIds so several words can go into the same set(s)
     },
   });
+
+  // Ask (once) for the learner's level in a concrete language; store it.
+  async function ensureLevel(lang: string): Promise<string | undefined> {
+    const stored = getLevel(lang);
+    if (stored) return stored;
+    const picked = await choose({
+      title: t("level.title"),
+      message: t("level.question", { lang: langLabel(lang) }),
+      options: CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+    });
+    if (!picked) return undefined;
+    setLevel(lang, picked as CefrLevel);
+    return picked;
+  }
+
+  // Run pre-add checks (level prompt + duplicate warning), then add.
+  async function addWithChecks(vars: AddVars) {
+    if (mutation.isPending) return;
+    const effLang = vars.sourceLangOverride ?? sourceLang;
+
+    // Level applies to AI example search in a concrete source language.
+    let level: string | undefined;
+    if (!vars.manual && effLang !== "auto") {
+      const had = getLevel(effLang);
+      level = await ensureLevel(effLang);
+      // First-time picker dismissed without a choice → don't proceed.
+      if (!had && !level) return;
+    }
+
+    // Duplicate warning. Manual-from-form: only when the same translation
+    // already exists; otherwise: any card with the same spelling.
+    if (!skipDupWarn) {
+      const w = vars.chosen.trim().toLowerCase();
+      const matches = (words ?? []).filter((x) => x.word.toLowerCase() === w);
+      const fromForm = vars.manual && mode === "manual";
+      const isDup = fromForm
+        ? matches.some((x) => (x.meaningZh ?? "").trim().toLowerCase() === meaning.trim().toLowerCase())
+        : matches.length > 0;
+      if (isDup) {
+        const existingMeaning = matches.map((x) => x.meaningZh).find(Boolean);
+        let dontAsk = false;
+        const ok = await confirm({
+          title: t("dup.title"),
+          message: existingMeaning
+            ? t("dup.withMeaning", { word: vars.chosen.trim(), meaning: existingMeaning })
+            : t("dup.plain", { word: vars.chosen.trim() }),
+          confirmLabel: t("dup.addAnyway"),
+          checkboxLabel: t("dup.dontAsk"),
+          onResult: (c) => (dontAsk = c),
+        });
+        if (dontAsk) skipDupWarn = true;
+        if (!ok) return;
+      }
+    }
+
+    mutation.mutate({ ...vars, level, exampleStyle: style });
+  }
 
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
@@ -94,24 +262,29 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     const typed = word.trim();
     if (!canSubmit || busy) return;
     if (mode === "manual") {
-      mutation.mutate({ chosen: typed, manual: true });
+      addWithChecks({ chosen: typed, manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang });
       return;
     }
     setChecking(true);
     setSuggestions(null);
     try {
       const r = await api.suggestWord(typed, sourceLang);
+      // Kanji-only input is ambiguous — use the inline picker's remembered choice
+      // instead of interrupting with a modal.
+      const detectedSourceLang =
+        sourceLang === "auto" && r.ambiguousHan ? hanChoice : r.detectedLang ?? sourceLang;
+      setResolvedSourceLang(detectedSourceLang);
       const typedLc = typed.toLowerCase();
       const alts = r.suggestions.filter(Boolean);
       const others = alts.filter((a) => a !== typedLc);
       // Input is a real word and nothing else to offer → add it with AI.
       if (r.corrected === typedLc && others.length === 0) {
-        mutation.mutate({ chosen: typedLc, manual: false });
+        addWithChecks({ chosen: typedLc, manual: false, sourceLangOverride: detectedSourceLang });
       } else {
         setSuggestions(alts.length ? alts : [r.corrected]);
       }
     } catch {
-      mutation.mutate({ chosen: typed, manual: false }); // on any hiccup, add with AI
+      addWithChecks({ chosen: typed, manual: false, sourceLangOverride: sourceLang }); // on any hiccup, add with AI
     } finally {
       setChecking(false);
     }
@@ -126,28 +299,95 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       className="space-y-2.5 rounded-[18px] border border-black/[0.06] bg-surface/70 p-4"
     >
       {/* mode toggle */}
-      <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
-        {(["auto", "manual"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              "rounded-full px-3 py-1 transition-colors",
-              mode === m ? "bg-sage text-white" : "text-ink-muted",
-            )}
-          >
-            {m === "auto" ? t("add.auto") : t("add.manual")}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+          {(["auto", "manual"] as Mode[]).map((m) => {
+            const disabled = m === "auto" && !aiSupported;
+            return (
+              <button
+                key={m}
+                type="button"
+                disabled={disabled}
+                title={disabled ? t("add.aiUnsupported", { lang: langLabel(sourceLang) }) : undefined}
+                onClick={() => !disabled && setMode(m)}
+                className={cn(
+                  "rounded-full px-3 py-1 transition-colors",
+                  mode === m ? "bg-sage text-white" : "text-ink-muted",
+                  disabled && "cursor-not-allowed opacity-40",
+                )}
+              >
+                {m === "auto" ? t("add.auto") : t("add.manual")}
+              </button>
+            );
+          })}
+        </div>
+        {!aiSupported && (
+          <span className="text-[12px] font-medium text-ink-faint">{t("add.aiUnsupported", { lang: langLabel(sourceLang) })}</span>
+        )}
       </div>
 
       {/* language pair */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-        <LangSelect value={sourceLang} onChange={setSourceLang} />
+        <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
         <span className="text-ink-faint">→</span>
         <LangSelect value={targetLang} onChange={setTargetLang} />
       </div>
+
+      {/* recently used pairs — quick re-select */}
+      {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.recent")}</span>
+          {recentPairs
+            .filter((p) => !(p.s === sourceLang && p.t === targetLang))
+            .map((p) => (
+              <button
+                key={`${p.s}>${p.t}`}
+                type="button"
+                onClick={() => {
+                  setSourceLang(p.s);
+                  setTargetLang(p.t);
+                }}
+                className="rounded-full border border-black/[0.08] bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
+              >
+                {langLabel(p.s)} → {langLabel(p.t)}
+              </button>
+            ))}
+        </div>
+      )}
+
+      {/* AI example tuning: source register + learner level (auto mode only) */}
+      {mode === "auto" && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
+            <Select
+              value={style}
+              onChange={(v) => setExampleStyle(v as ExampleStyle)}
+              ariaLabel={t("style.label")}
+              className="w-[150px]"
+              options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+            />
+            {sourceLang !== "auto" && (
+              <>
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                <Select
+                  value={currentLevel ?? ""}
+                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                  ariaLabel={t("level.title")}
+                  placeholder={t("level.pick")}
+                  className="w-[136px]"
+                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+              </>
+            )}
+          </div>
+          {/* plain-language hint so it's obvious what the selectors do */}
+          <p className="text-[12px] leading-snug text-ink-faint">
+            {t(`style.desc.${style}`)}
+            {sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Input
@@ -156,7 +396,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             setWord(e.target.value);
             if (suggestions) setSuggestions(null);
           }}
-          placeholder={t("add.wordPlaceholder", { lang: langLabel(sourceLang) })}
+          placeholder={t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(sourceLang) })}
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
@@ -170,7 +410,32 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </Button>
       </div>
 
-      {/* AI "did you mean" suggestions */}
+      {/* Ideograph language picker — appears only for kanji-only input in
+          auto-detect; disappears the moment kana/hangul is typed. */}
+      {showHanPicker && (
+        <div className="anim-fade-up flex flex-wrap items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 p-2.5">
+          <span className="text-[12px] font-semibold text-sage-deep">{t("han.inlinePrompt")}</span>
+          <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+            {(["zh", "ja", "ko"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => {
+                  setHanChoice(l);
+                  setHanLang(l); // remember for the rest of the session
+                }}
+                className={cn(
+                  "rounded-full px-3 py-1 transition-colors",
+                  hanChoice === l ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {l === "zh" ? "中文" : l === "ja" ? "日本語" : "한국어"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {suggestions && (
         <div className="anim-fade-up space-y-2 rounded-[14px] border border-sage/30 bg-sage-tint/50 p-3">
           <p className="text-sm font-semibold text-sage-deep">{t("add.didYouMean")}</p>
@@ -180,7 +445,13 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 key={s}
                 type="button"
                 disabled={mutation.isPending}
-                onClick={() => mutation.mutate({ chosen: s, manual: false })}
+                onClick={() =>
+                  addWithChecks({
+                    chosen: s,
+                    manual: false,
+                    sourceLangOverride: resolvedSourceLang ?? sourceLang,
+                  })
+                }
                 className="rounded-full bg-sage px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
               >
                 {s}
@@ -189,7 +460,9 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             <button
               type="button"
               disabled={mutation.isPending}
-              onClick={() => mutation.mutate({ chosen: word.trim(), manual: true })}
+              onClick={() =>
+                addWithChecks({ chosen: word.trim(), manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang })
+              }
               title="The AI may not know this word — it's added as a blank card you can edit."
               className="rounded-full border border-black/[0.1] bg-surface px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
             >

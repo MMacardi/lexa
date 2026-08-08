@@ -14,7 +14,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // The theme boot script sets html.class before hydration, so the server
+    // markup intentionally differs from the client — silence that warning.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Set the theme class before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />

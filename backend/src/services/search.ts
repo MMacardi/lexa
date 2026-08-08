@@ -24,15 +24,18 @@ export interface SearchResult {
  */
 export async function searchNews(
   word: string,
-  opts: { restrictNews?: boolean } = {},
+  opts: { restrictNews?: boolean; queryHint?: string } = {},
 ): Promise<SearchResult[]> {
   if (!env.TAVILY_API_KEY) {
     throw new Error("TAVILY_API_KEY is not set — add it to backend/.env");
   }
 
+  // The quoted word must appear; a style hint (e.g. "everyday conversation")
+  // nudges Tavily toward the requested register without dropping the word.
+  const query = opts.queryHint ? `"${word}" ${opts.queryHint}` : `"${word}"`;
   const body: Record<string, unknown> = {
     api_key: env.TAVILY_API_KEY,
-    query: `"${word}"`,
+    query,
     search_depth: "advanced",
     max_results: 8,
   };

@@ -18,6 +18,7 @@ model User {
   createdAt   DateTime     @default(now())
   words       Word[]
   collections Collection[]
+  importJobs  ImportJob[]
 }
 
 model Collection {
@@ -51,7 +52,10 @@ model Word {
   examples     Example[]
   collections  Collection[] @relation("CollectionWords")
 
-  @@unique([userId, word])
+  // Duplicates are allowed on purpose: a user may keep several cards for the
+  // same spelling (different senses, contexts, or a fresh repetition). So there
+  // is no (userId, word) unique constraint — just an index for fast lookups.
+  @@index([userId])
 }
 
 model ReviewEvent {
@@ -71,4 +75,29 @@ model Example {
   sourceName String
   sourceUrl  String
   createdAt  DateTime @default(now())
+}
+
+// Durable Postgres-backed work queue for optional AI enrichment after a bulk
+// import. Unlike an in-memory Promise, a job survives a Railway restart.
+model ImportJob {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status           String   @default("queued") // queued | processing | completed | failed
+  total            Int
+  processed        Int      @default(0)
+  generateDetails  Boolean  @default(false)
+  generateExamples Boolean  @default(false)
+  level            String? // learner CEFR level for example difficulty
+  exampleStyle     String? // news | casual | dialogue | literary
+  cards            Json
+  errors           String[]
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  startedAt        DateTime?
+  leaseUntil       DateTime?
+  completedAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }

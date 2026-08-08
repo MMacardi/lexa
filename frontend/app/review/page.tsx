@@ -7,12 +7,14 @@ import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
-import { langLabel, pairLabel } from "@/lib/langs";
+import { langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
+import { EditWordModal } from "@/components/EditWordModal";
+import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
@@ -54,6 +56,7 @@ export default function FlashcardsPage() {
   const [dragging, setDragging] = useState(false);
   const [known, setKnown] = useState(0);
   const [learning, setLearning] = useState(0);
+  const [editing, setEditing] = useState<Word | null>(null);
 
   const startX = useRef(0);
   const draggedRef = useRef(false);
@@ -68,7 +71,7 @@ export default function FlashcardsPage() {
   }, [allWords, selPairs, allPairs]);
 
   const review = useMutation({
-    mutationFn: (id: string) => api.reviewWord(id),
+    mutationFn: ({ id, known }: { id: string; known: boolean }) => api.reviewWord(id, known),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
@@ -91,19 +94,17 @@ export default function FlashcardsPage() {
     setStarted(true);
   }
 
-  function togglePair(p: string) {
-    const next = sel.includes(p) ? sel.filter((x) => x !== p) : [...sel, p];
-    setSelPairs(next);
-  }
-
   function commit(dir: "known" | "learning", word: Word) {
     setDragX(dir === "known" ? 640 : -640);
     setDragging(false);
     if (dir === "known") {
-      review.mutate(word.id);
+      review.mutate({ id: word.id, known: true });
       setKnown((k) => k + 1);
     } else {
+      // "Still learning": reset its schedule and bring it back later this session.
+      review.mutate({ id: word.id, known: false });
       setLearning((l) => l + 1);
+      setDeck((d) => [...d, word]);
     }
     setTimeout(() => {
       setDragX(0);
@@ -175,27 +176,7 @@ export default function FlashcardsPage() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {allPairs.map((p) => {
-                  const [s, t] = p.split(">");
-                  const on = sel.includes(p);
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => togglePair(p)}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        on
-                          ? "bg-sage text-white"
-                          : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                      )}
-                    >
-                      {on ? "✓ " : ""}
-                      {pairLabel(s, t)}
-                    </button>
-                  );
-                })}
-              </div>
+              <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
             </div>
           )}
 
@@ -295,6 +276,12 @@ export default function FlashcardsPage() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setEditing(word)}
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            >
+              ✎ {t("edit.editCard")}
+            </button>
             <button
               onClick={() => setStarted(false)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
@@ -422,6 +409,17 @@ export default function FlashcardsPage() {
       <p className="mt-4 text-[13px] font-medium text-ink-faint">
         {t("review.dragHint")}
       </p>
+
+      {editing && (
+        <EditWordModal
+          word={editing}
+          onClose={() => setEditing(null)}
+          onUpdated={(u) => {
+            setDeck((d) => d.map((w) => (w.id === u.id ? u : w)));
+            setEditing(u);
+          }}
+        />
+      )}
     </div>
   );
 }
