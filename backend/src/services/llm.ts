@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { ZodSchema } from "zod";
 import { env } from "../lib/env.js";
+import { langName } from "../lib/langs.js";
 
 // Qwen on Alibaba Bailian speaks the OpenAI Chat Completions protocol via its
 // "compatible-mode" endpoint, so we reuse the official OpenAI SDK and just point
@@ -89,6 +90,45 @@ export async function chatJson<T>(opts: {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
   return opts.schema.parse(parsed);
+}
+
+// Qwen-VL (vision) model for OCR. Configurable per deployment/region.
+const VISION_MODEL = process.env.BAILIAN_VISION_MODEL || "qwen-vl-plus";
+
+/**
+ * Extract readable text from an image (OCR) using a Qwen vision model. Used by
+ * the Reader's "scan a photo" flow. `dataUrl` is a base64 data: URI.
+ */
+export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): Promise<string> {
+  const langHint = opts.sourceLang && opts.sourceLang !== "auto" ? ` The text is mostly in ${langName(opts.sourceLang)}.` : "";
+  let completion;
+  try {
+    completion = await getClient().chat.completions.create(
+      {
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `Read ALL the text in this image and return it verbatim, preserving reading order ` +
+                  `and line breaks. Do not translate, summarize, or add any commentary — output only ` +
+                  `the text found in the image.${langHint}`,
+              },
+              { type: "image_url", image_url: { url: opts.dataUrl } },
+            ],
+          },
+        ],
+        temperature: 0,
+      },
+      { timeout: 60_000 },
+    );
+  } catch (err) {
+    throw friendlyLlmError(err);
+  }
+  return (completion.choices[0]?.message?.content ?? "").trim();
 }
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };

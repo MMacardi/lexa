@@ -188,7 +188,8 @@ export async function runExampleSearch(params: {
       wordId,
       sentenceEn: sentence,
       sentenceZh: translation.translation,
-      sourceName: source ? sourceNameFromUrl(source.url) : "",
+      // A composed sentence has no web source — attribute it to the AI instead.
+      sourceName: source ? sourceNameFromUrl(source.url) : "Lexa AI",
       sourceUrl: source ? source.url : "",
     },
   });

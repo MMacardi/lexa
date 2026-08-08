@@ -51,6 +51,9 @@ export default function WordsPage() {
   // bulk selection (add many words to a collection at once)
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkColl, setBulkColl] = useState<string>("");
+  // how many rows are rendered (grow on demand instead of dumping the whole list)
+  const PAGE = 60;
+  const [visible, setVisible] = useState(PAGE);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
@@ -123,6 +126,13 @@ export default function WordsPage() {
       (w.meaningZh ?? "").toLowerCase().includes(q)
     );
   });
+
+  // Reset the visible window whenever the filter/search narrows the list.
+  useEffect(() => {
+    setVisible(PAGE);
+  }, [q, filter, pair, coll]);
+
+  const shown = filtered.slice(0, visible);
 
   const pills: { key: Filter; label: string }[] = [
     { key: "all", label: t("words.pill.all", { n: words.length }) },
@@ -230,55 +240,6 @@ export default function WordsPage() {
             ))}
           </div>
 
-          {/* bulk actions — add many words to a set at once */}
-          {selected.size > 0 && (
-            <div className="anim-fade-up flex flex-wrap items-center gap-3 rounded-[16px] border border-sage/30 bg-sage-tint/40 p-3">
-              <span className="text-sm font-semibold text-sage-deep">{t("words.nSelected", { n: selected.size })}</span>
-              {collections && collections.length > 0 ? (
-                <>
-                  <Select
-                    value={bulkColl}
-                    onChange={setBulkColl}
-                    placeholder={t("words.chooseSet")}
-                    ariaLabel={t("words.chooseSet")}
-                    className="w-[200px]"
-                    options={collections.map((c) => ({ value: c.id, label: c.name }))}
-                  />
-                  <Button size="sm" disabled={!bulkColl || bulkAdd.isPending} onClick={() => bulkColl && bulkAdd.mutate(bulkColl)}>
-                    {bulkAdd.isPending ? t("add.saving") : t("words.addToSet")}
-                  </Button>
-                </>
-              ) : (
-                <span className="text-sm text-ink-soft">{t("words.noSetsYet")}</span>
-              )}
-              <button
-                type="button"
-                disabled={bulkDelete.isPending}
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: t("words.deleteSelectedTitle"),
-                      message: t("words.deleteSelectedConfirm", { n: selected.size }),
-                      confirmLabel: t("common.delete"),
-                      tone: "danger",
-                    })
-                  )
-                    bulkDelete.mutate();
-                }}
-                className="rounded-full border border-warn-text/30 px-3 py-1.5 text-sm font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
-              >
-                🗑 {t("words.deleteSelected")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="ml-auto text-sm font-semibold text-ink-faint hover:text-ink-muted"
-              >
-                {t("words.clearSel")}
-              </button>
-            </div>
-          )}
-
           <div className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-surface">
             <div className="flex items-center gap-3 border-b border-black/[0.07] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
               <Checkbox
@@ -296,7 +257,7 @@ export default function WordsPage() {
             {filtered.length === 0 ? (
               <p className="px-6 py-8 text-center text-sm text-ink-soft">{t("common.noMatches")}</p>
             ) : (
-              filtered.map((w: Word) => (
+              shown.map((w: Word) => (
                 <div
                   key={w.id}
                   className={cn(
@@ -348,8 +309,71 @@ export default function WordsPage() {
                 </div>
               ))
             )}
+            {filtered.length > visible && (
+              <button
+                type="button"
+                onClick={() => setVisible((v) => v + PAGE)}
+                className="w-full border-t border-black/[0.06] px-6 py-3.5 text-sm font-semibold text-sage transition-colors hover:bg-black/[0.03]"
+              >
+                {t("words.showMore", { n: filtered.length - visible })}
+              </button>
+            )}
           </div>
+
+          {/* spacer so the floating selection bar never hides the last rows */}
+          {selected.size > 0 && <div className="h-24 md:h-16" />}
         </>
+      )}
+
+      {/* floating selection bubble — add/delete selected words from anywhere */}
+      {selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6">
+          <div className="anim-fade-up mx-auto flex max-w-[720px] flex-wrap items-center gap-2 rounded-[18px] border border-black/[0.08] bg-surface/95 px-3.5 py-2.5 shadow-[0_14px_40px_rgba(46,42,38,0.24)] backdrop-blur">
+            <span className="text-sm font-semibold text-sage-deep">{t("words.nSelected", { n: selected.size })}</span>
+            {collections && collections.length > 0 ? (
+              <>
+                <Select
+                  value={bulkColl}
+                  onChange={setBulkColl}
+                  placeholder={t("words.chooseSet")}
+                  ariaLabel={t("words.chooseSet")}
+                  className="w-[170px]"
+                  options={collections.map((c) => ({ value: c.id, label: c.name }))}
+                />
+                <Button size="sm" disabled={!bulkColl || bulkAdd.isPending} onClick={() => bulkColl && bulkAdd.mutate(bulkColl)}>
+                  {bulkAdd.isPending ? t("add.saving") : t("words.addToSet")}
+                </Button>
+              </>
+            ) : (
+              <span className="text-sm text-ink-soft">{t("words.noSetsYet")}</span>
+            )}
+            <button
+              type="button"
+              disabled={bulkDelete.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: t("words.deleteSelectedTitle"),
+                    message: t("words.deleteSelectedConfirm", { n: selected.size }),
+                    confirmLabel: t("common.delete"),
+                    tone: "danger",
+                  })
+                )
+                  bulkDelete.mutate();
+              }}
+              className="rounded-full border border-warn-text/30 px-3 py-1.5 text-sm font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
+            >
+              🗑 <span className="hidden sm:inline">{t("words.deleteSelected")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="ml-auto text-sm font-semibold text-ink-faint hover:text-ink-muted"
+            >
+              {t("words.clearSel")}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

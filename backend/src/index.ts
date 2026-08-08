@@ -37,7 +37,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "15mb" })); // room for base64 photo uploads (OCR)
 app.use(cookieParser());
 
 // Liveness probe. Railway and Docker can hit this to know the server is up.

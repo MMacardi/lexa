@@ -172,6 +172,7 @@ export type CardField =
   | "pos"
   | "meaning"
   | "example"
+  | "exampleTr"
   | "synonyms"
   | "antonyms"
   | "collocations"
@@ -183,6 +184,7 @@ export const CARD_FIELDS: CardField[] = [
   "pos",
   "meaning",
   "example",
+  "exampleTr",
   "synonyms",
   "antonyms",
   "collocations",
@@ -195,10 +197,12 @@ export interface CardLayout {
 }
 
 export const CARD_PRESETS: { id: string; front: CardField[]; back: CardField[] }[] = [
-  { id: "default", front: ["word", "phonetic", "pos"], back: ["meaning", "example"] },
-  { id: "reverse", front: ["meaning"], back: ["word", "phonetic", "example"] },
+  // Recognition: see the word, recall its meaning.
+  { id: "default", front: ["word", "phonetic", "pos"], back: ["meaning", "example", "exampleTr"] },
+  // Production (active recall): see the meaning, recall the word yourself.
+  { id: "reverse", front: ["meaning"], back: ["word", "phonetic", "example", "exampleTr"] },
+  // Train the word's synonym/antonym family.
   { id: "synonyms", front: ["word"], back: ["synonyms", "antonyms", "meaning"] },
-  { id: "production", front: ["meaning", "example"], back: ["word", "phonetic"] },
 ];
 
 export const DEFAULT_LAYOUT: CardLayout = { front: CARD_PRESETS[0].front, back: CARD_PRESETS[0].back };
