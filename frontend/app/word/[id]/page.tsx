@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -13,6 +13,9 @@ import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
 import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
+import { HighlightWord } from "@/components/HighlightWord";
+import { ExplainChat } from "@/components/ExplainChat";
+import { WordFamilyGraph } from "@/components/WordFamilyGraph";
 import { downloadShareCard } from "@/lib/shareCard";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
@@ -44,9 +47,6 @@ export default function WordDetailPage() {
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
   });
-  // On-demand AI explanation (costs one LLM call per click — kept opt-in).
-  const explain = useMutation({ mutationFn: () => api.explainWord(id) });
-
   if (isLoading)
     return (
       <div className="space-y-6">
@@ -144,42 +144,22 @@ export default function WordDetailPage() {
 
       <CollectionChips word={word} />
 
-      {/* AI explanation — on demand (opt-in, one LLM call) */}
-      {explain.data || explain.isPending || explain.isError ? (
-        <div className="rounded-[18px] border border-sage/25 bg-sage-tint/40 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-serif text-[15px] font-medium italic text-sage-deep">{t("word.explainTitle")}</h2>
-            {explain.data && (
-              <button
-                type="button"
-                onClick={() => explain.mutate()}
-                className="text-xs font-semibold text-sage hover:text-sage-deep"
-              >
-                ↻ {t("edit.regenerate")}
-              </button>
-            )}
-          </div>
-          {explain.isPending && <p className="mt-2 text-sm text-ink-soft">{t("word.explaining")}</p>}
-          {explain.data && (
-            <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{explain.data.explanation}</p>
-          )}
-          {explain.isError && <p className="mt-2 text-sm text-warn-text">{(explain.error as Error).message}</p>}
+      {word.notes && word.notes.trim() && (
+        <div className="rounded-[18px] border border-black/[0.06] bg-paper/60 p-4">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("edit.notes")}</p>
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{word.notes}</p>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => explain.mutate()}
-          className="inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
-        >
-          🤔 {t("word.explain")}
-        </button>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      {/* AI tutor — on-demand explanation + follow-up mini-chat (opt-in, LLM calls) */}
+      <ExplainChat wordId={id} />
+
+      {word.collocations.length > 0 && (
         <Pills label={t("word.collocations")} items={word.collocations} />
-        <Pills label={t("word.synonyms")} items={word.synonyms} />
-        <Pills label={t("word.antonyms")} items={word.antonyms} />
-      </div>
+      )}
+
+      {/* synonyms + antonyms as a tappable mini word-family graph */}
+      <WordFamilyGraph word={word} />
 
       <div className="space-y-3">
         {word.examples.length > 0 && (
@@ -192,9 +172,11 @@ export default function WordDetailPage() {
             key={ex.id}
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
-            <p className="font-serif text-[19px] leading-relaxed text-ink">{ex.sentenceEn}</p>
+            <p className="whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
+              <HighlightWord text={ex.sentenceEn} word={word.word} />
+            </p>
             {ex.sentenceZh && (
-              <p className={cn("mt-2 text-[15px] text-ink-soft", targetFont(word.targetLang))}>
+              <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>
                 {ex.sentenceZh}
               </p>
             )}

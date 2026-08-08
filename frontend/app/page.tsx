@@ -83,7 +83,7 @@ export default function TodayPage() {
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-faint">
             {dateStr}
           </div>
-          <h1 className="mt-3 font-serif text-[40px] font-medium leading-[1.08] tracking-[-0.01em] text-ink">
+          <h1 className="mt-3 font-serif text-[32px] font-medium leading-[1.08] tracking-[-0.01em] text-ink sm:text-[40px]">
             {t("today.emptyTitle")}
           </h1>
           <p className="mt-2 text-ink-soft">{t("today.emptyText")}</p>
@@ -103,18 +103,26 @@ export default function TodayPage() {
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-faint">
             {dateStr}
           </div>
-          <h1 className="mt-3 font-serif text-[40px] font-medium leading-[1.08] tracking-[-0.01em] text-ink">
+          <h1 className="mt-3 font-serif text-[32px] font-medium leading-[1.08] tracking-[-0.01em] text-ink sm:text-[40px]">
             {t("today.greeting")}
           </h1>
         </div>
-        {due > 0 && (
+        <div className="flex shrink-0 items-center gap-2">
           <Link
-            href="/review"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-sage px-6 py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
+            href="/reader"
+            className="inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-5 py-3.5 text-[15px] font-semibold text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
           >
-            {t("today.startReview")}
+            📖 {t("nav.reader")}
           </Link>
-        )}
+          {due > 0 && (
+            <Link
+              href="/review"
+              className="inline-flex items-center gap-2 rounded-full bg-sage px-6 py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
+            >
+              {t("today.startReview")}
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* stats */}

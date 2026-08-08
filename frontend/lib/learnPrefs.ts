@@ -164,6 +164,117 @@ export function useHanLang(): "zh" | "ja" | "ko" | null {
   return han;
 }
 
+// --- Flashcard layout: which fields show on the front vs the back ---
+// Lets the learner train e.g. word → synonyms instead of word → meaning.
+export type CardField =
+  | "word"
+  | "phonetic"
+  | "pos"
+  | "meaning"
+  | "example"
+  | "synonyms"
+  | "antonyms"
+  | "collocations"
+  | "notes";
+
+export const CARD_FIELDS: CardField[] = [
+  "word",
+  "phonetic",
+  "pos",
+  "meaning",
+  "example",
+  "synonyms",
+  "antonyms",
+  "collocations",
+  "notes",
+];
+
+export interface CardLayout {
+  front: CardField[];
+  back: CardField[];
+}
+
+export const CARD_PRESETS: { id: string; front: CardField[]; back: CardField[] }[] = [
+  { id: "default", front: ["word", "phonetic", "pos"], back: ["meaning", "example"] },
+  { id: "reverse", front: ["meaning"], back: ["word", "phonetic", "example"] },
+  { id: "synonyms", front: ["word"], back: ["synonyms", "antonyms", "meaning"] },
+  { id: "production", front: ["meaning", "example"], back: ["word", "phonetic"] },
+];
+
+export const DEFAULT_LAYOUT: CardLayout = { front: CARD_PRESETS[0].front, back: CARD_PRESETS[0].back };
+const CARD_KEY = "lexa.cardLayout";
+
+function isField(x: unknown): x is CardField {
+  return typeof x === "string" && (CARD_FIELDS as string[]).includes(x);
+}
+
+export function getCardLayout(): CardLayout {
+  if (typeof window === "undefined") return DEFAULT_LAYOUT;
+  try {
+    const raw = JSON.parse(localStorage.getItem(CARD_KEY) ?? "null") as CardLayout | null;
+    if (raw && Array.isArray(raw.front) && Array.isArray(raw.back)) {
+      const front = raw.front.filter(isField);
+      const back = raw.back.filter(isField);
+      if (front.length && back.length) return { front, back };
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_LAYOUT;
+}
+
+export function setCardLayout(layout: CardLayout) {
+  localStorage.setItem(CARD_KEY, JSON.stringify(layout));
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useCardLayout(): CardLayout {
+  const [layout, setState] = useState<CardLayout>(DEFAULT_LAYOUT);
+  useEffect(() => {
+    const sync = () => setState(getCardLayout());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return layout;
+}
+
+// --- FSRS desired retention (how well you want to remember at review time) ---
+// Higher = shorter intervals + more reviews; lower = longer intervals, less work.
+export const RETENTION_OPTIONS = [0.8, 0.85, 0.9, 0.95] as const;
+export const DEFAULT_RETENTION = 0.9;
+const RETENTION_KEY = "lexa.retention";
+
+export function getRetention(): number {
+  if (typeof window === "undefined") return DEFAULT_RETENTION;
+  const v = Number(localStorage.getItem(RETENTION_KEY));
+  return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : DEFAULT_RETENTION;
+}
+
+export function setRetention(r: number) {
+  localStorage.setItem(RETENTION_KEY, String(r));
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useRetention(): number {
+  const [r, setState] = useState<number>(DEFAULT_RETENTION);
+  useEffect(() => {
+    const sync = () => setState(getRetention());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return r;
+}
+
 // --- Example source style (register), a single global default ---
 export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];

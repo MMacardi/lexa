@@ -114,7 +114,7 @@ export function PairMultiSelect({
                     onClick={() => toggle(p)}
                     className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left text-sm text-ink transition-colors hover:bg-black/[0.03]"
                   >
-                    <Checkbox checked={selected.includes(p)} onChange={() => toggle(p)} />
+                    <Checkbox presentational checked={selected.includes(p)} />
                     <span className="font-medium">{label(p)}</span>
                   </button>
                 </li>

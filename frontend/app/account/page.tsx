@@ -6,7 +6,20 @@ import { useI18n, LOCALES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
 import { langLabel } from "@/lib/langs";
-import { CEFR_LEVELS, LEVEL_HINT, clearHanLang, removeLevel, setLevel, useAllLevels, useHanLang, type CefrLevel } from "@/lib/learnPrefs";
+import {
+  CEFR_LEVELS,
+  LEVEL_HINT,
+  RETENTION_OPTIONS,
+  DEFAULT_RETENTION,
+  clearHanLang,
+  removeLevel,
+  setLevel,
+  setRetention,
+  useAllLevels,
+  useHanLang,
+  useRetention,
+  type CefrLevel,
+} from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "llmlangcardlearnerbot";
@@ -66,6 +79,38 @@ function LevelsSection() {
           </button>
         </div>
       )}
+    </section>
+  );
+}
+
+function RetentionSection() {
+  const { t } = useI18n();
+  const retention = useRetention();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("account.srs")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("retention.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {RETENTION_OPTIONS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRetention(r)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 transition-colors",
+                Math.abs(retention - r) < 1e-6 ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {Math.round(r * 100)}%
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">
+        {t("retention.hint")}
+        {Math.abs(retention - DEFAULT_RETENTION) < 1e-6 ? ` · ${t("retention.balanced")}` : ""}
+      </p>
     </section>
   );
 }
@@ -184,6 +229,9 @@ export default function AccountPage() {
           </div>
         </div>
       </Section>
+
+      {/* review scheduling (FSRS desired retention) */}
+      <RetentionSection />
 
       {/* language levels */}
       <LevelsSection />

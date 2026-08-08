@@ -9,9 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { LangSelect } from "@/components/LangSelect";
+import { cn } from "@/lib/utils";
 
 const csv = (a: string[]) => a.join(", ");
 const parse = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+// Multi-line field styling (matches Input, but wraps so long examples/notes are
+// fully visible and editable instead of being clipped in a one-line box).
+const taClass =
+  "w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-2.5 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:text-[15px]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -48,6 +54,7 @@ export function EditWordForm({
   const [coll, setColl] = useState(csv(word.collocations));
   const [syn, setSyn] = useState(csv(word.synonyms));
   const [ant, setAnt] = useState(csv(word.antonyms));
+  const [notes, setNotes] = useState(word.notes ?? "");
   const [examples, setExamples] = useState<ExRow[]>(toRows(word));
   const [exStyle, setExStyle] = useState<ExampleStyle>(getExampleStyle());
 
@@ -81,6 +88,7 @@ export function EditWordForm({
         collocations: parse(coll),
         synonyms: parse(syn),
         antonyms: parse(ant),
+        notes: notes.trim() ? notes.trim() : null,
         examples: examples
           .filter((e) => e.sentenceEn.trim())
           .map((e) => ({ id: e.id, sentenceEn: e.sentenceEn.trim(), sentenceZh: e.sentenceZh.trim(), sourceName: e.sourceName.trim() })),
@@ -118,6 +126,15 @@ export function EditWordForm({
         <Field label={t("edit.pos")}><Input value={pos} onChange={(e) => setPos(e.target.value)} /></Field>
       </div>
       <Field label={t("edit.meaning")}><Input value={meaning} onChange={(e) => setMeaning(e.target.value)} /></Field>
+      <Field label={t("edit.notes")}>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder={t("edit.notesPlaceholder")}
+          rows={2}
+          className={taClass}
+        />
+      </Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label={t("edit.collocations")}><Input value={coll} onChange={(e) => setColl(e.target.value)} /></Field>
         <Field label={t("edit.synonyms")}><Input value={syn} onChange={(e) => setSyn(e.target.value)} /></Field>
@@ -141,11 +158,12 @@ export function EditWordForm({
         {examples.map((e, i) => (
           <div key={e.id ?? `new-${i}`} className="space-y-2 rounded-[14px] border border-black/[0.06] bg-paper/40 p-3">
             <div className="flex items-start gap-2">
-              <Input
+              <textarea
                 value={e.sentenceEn}
                 onChange={(ev) => setEx(i, { sentenceEn: ev.target.value })}
                 placeholder={t("edit.example")}
-                className="flex-1"
+                rows={2}
+                className={cn(taClass, "flex-1")}
               />
               <button
                 type="button"
@@ -157,7 +175,13 @@ export function EditWordForm({
               </button>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={e.sentenceZh} onChange={(ev) => setEx(i, { sentenceZh: ev.target.value })} placeholder={t("edit.exampleTr")} />
+              <textarea
+                value={e.sentenceZh}
+                onChange={(ev) => setEx(i, { sentenceZh: ev.target.value })}
+                placeholder={t("edit.exampleTr")}
+                rows={2}
+                className={taClass}
+              />
               <Input value={e.sourceName} onChange={(ev) => setEx(i, { sourceName: ev.target.value })} placeholder={t("edit.source")} />
             </div>
           </div>

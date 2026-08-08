@@ -12,6 +12,7 @@ const NAV = [
   { href: "/", key: "nav.today", icon: "🏠" },
   { href: "/review", key: "nav.flashcards", icon: "🃏" },
   { href: "/quiz", key: "nav.recall", icon: "🎯" },
+  { href: "/reader", key: "nav.reader", icon: "📖" },
   { href: "/words", key: "nav.words", icon: "📚" },
   { href: "/collections", key: "nav.collections", icon: "🗂" },
 ];

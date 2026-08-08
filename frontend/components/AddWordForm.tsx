@@ -415,7 +415,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       {showHanPicker && (
         <div className="anim-fade-up flex flex-wrap items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 p-2.5">
           <span className="text-[12px] font-semibold text-sage-deep">{t("han.inlinePrompt")}</span>
-          <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          <div className="flex gap-1 rounded-[16px] bg-black/[0.05] p-1 text-sm font-semibold">
             {(["zh", "ja", "ko"] as const).map((l) => (
               <button
                 key={l}
@@ -425,11 +425,19 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   setHanLang(l); // remember for the rest of the session
                 }}
                 className={cn(
-                  "rounded-full px-3 py-1 transition-colors",
+                  "flex flex-col items-center rounded-[12px] px-3 py-1 leading-tight transition-colors",
                   hanChoice === l ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
                 )}
               >
-                {l === "zh" ? "中文" : l === "ja" ? "日本語" : "한국어"}
+                <span>{l === "zh" ? "中文" : l === "ja" ? "日本語" : "한국어"}</span>
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    hanChoice === l ? "text-white/80" : "text-ink-faint",
+                  )}
+                >
+                  {l === "zh" ? t("han.chinese") : l === "ja" ? t("han.japanese") : t("han.korean")}
+                </span>
               </button>
             ))}
           </div>

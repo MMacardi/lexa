@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
@@ -8,6 +8,18 @@ export const metadata: Metadata = {
   title: "Lexa — learn English through the news",
   description:
     "Collect English words from real news, with Chinese translations, flashcards and recall checks.",
+};
+
+// Mobile-first viewport: cover the notch/safe-areas and match the browser chrome
+// to the app surface in both themes.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f1ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#17130e" },
+  ],
 };
 
 export default function RootLayout({
