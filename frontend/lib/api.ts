@@ -218,6 +218,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  // OCR: extract text from a photo (base64 data URL) for the Reader.
+  ocr: (payload: { image: string; sourceLang?: string }) =>
+    http<{ text: string }>(`/api/ocr`, { method: "POST", body: JSON.stringify(payload) }),
   // Add many bare words at once; AI enrichment runs in the background worker.
   batchAddWords: (payload: {
     telegramId: string;

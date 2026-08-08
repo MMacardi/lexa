@@ -9,13 +9,54 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isAiSupported, langLabel } from "@/lib/langs";
-import { getExampleStyle, getLevel, pushRecentPair, useRecentPairs } from "@/lib/learnPrefs";
+import {
+  CEFR_LEVELS,
+  EXAMPLE_STYLES,
+  LEVEL_HINT,
+  getExampleStyle,
+  getLevel,
+  pushRecentPair,
+  setExampleStyle,
+  setLevel,
+  useExampleStyle,
+  useLevel,
+  useRecentPairs,
+  type CefrLevel,
+  type ExampleStyle,
+} from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
+
+// Downscale + re-encode a photo before upload, so OCR payloads stay small/fast.
+function downscaleImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("no canvas"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("bad image"));
+    };
+    img.src = url;
+  });
+}
 
 // Chinese/Japanese read better in the CJK face.
 const sourceFont = (lang: string) => (lang === "zh" || lang === "ja" ? "font-zh" : "");
@@ -38,9 +79,11 @@ export default function ReaderPage() {
   const { show, trackImport } = useToast();
   const router = useRouter();
   const recentPairs = useRecentPairs();
+  const style = useExampleStyle();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
+  const currentLevel = useLevel(sourceLang);
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
   const [reading, setReading] = useState(false);
@@ -58,6 +101,9 @@ export default function ReaderPage() {
   const [glossLoading, setGlossLoading] = useState(false);
   const glossCache = useRef<Map<string, string>>(new Map());
   const glossKeyRef = useRef<string>("");
+  // OCR: scan a photo into the text box
+  const [scanning, setScanning] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Restore the shared pair (Reader needs a concrete source language, not auto).
   useEffect(() => {
@@ -179,8 +225,6 @@ export default function ReaderPage() {
   async function addSelected() {
     const keys = Array.from(selected);
     if (keys.length === 0 || busy) return;
-    const level = getLevel(sourceLang) ?? undefined;
-    const style = getExampleStyle();
     const enrich = isAiSupported(sourceLang);
     setQueueing(true);
     try {
@@ -191,8 +235,8 @@ export default function ReaderPage() {
         sourceLang,
         targetLang,
         words: keys,
-        level,
-        exampleStyle: style,
+        level: getLevel(sourceLang) ?? undefined,
+        exampleStyle: getExampleStyle(),
         enrich,
       });
       setAdded((prev) => new Set([...prev, ...keys]));
@@ -235,6 +279,22 @@ export default function ReaderPage() {
 
   const trReady = translation !== null && translatedFor.current === text;
 
+  async function scanPhoto(file: File) {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const dataUrl = await downscaleImage(file);
+      const r = await api.ocr({ image: dataUrl, sourceLang });
+      const found = r.text.trim();
+      if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
+    } catch (e) {
+      show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: (e as Error).message });
+    } finally {
+      setScanning(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   // ---------------- Input state ----------------
   if (!reading) {
     return (
@@ -271,6 +331,35 @@ export default function ReaderPage() {
             </div>
           )}
 
+          {/* how AI enriches the cards you add from here (register + your level) */}
+          {isAiSupported(sourceLang) && (
+            <div className="space-y-1.5 rounded-[14px] border border-black/[0.06] bg-paper/50 p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
+                <Select
+                  value={style}
+                  onChange={(v) => setExampleStyle(v as ExampleStyle)}
+                  ariaLabel={t("style.label")}
+                  className="w-[150px]"
+                  options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+                />
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                <Select
+                  value={currentLevel ?? ""}
+                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                  ariaLabel={t("level.title")}
+                  placeholder={t("level.pick")}
+                  className="w-[136px]"
+                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+              </div>
+              <p className="text-[12px] leading-snug text-ink-faint">
+                {t(`style.desc.${style}`)}
+                {currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+              </p>
+            </div>
+          )}
+
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -284,6 +373,25 @@ export default function ReaderPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={startReading} disabled={!text.trim()} className="flex-1 sm:flex-none">
               {t("reader.read")}
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) scanPhoto(f);
+              }}
+            />
+            <Button
+              variant="outline"
+              type="button"
+              disabled={scanning}
+              onClick={() => fileRef.current?.click()}
+            >
+              {scanning ? t("reader.scanning") : `📷 ${t("reader.scan")}`}
             </Button>
             <Button
               variant="outline"

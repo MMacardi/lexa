@@ -59,6 +59,41 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 // Build a single question of a given kind for a word.
+// Pick up to 3 distractor words that won't be confusable with the target:
+// different meaning, and not a synonym of it (nor it a synonym of them) — so a
+// word→meaning question never has two arguably-correct options.
+function distractors(w: Word, eligible: Word[]): Word[] {
+  const tgtMeaning = norm(w.meaningZh ?? "");
+  const tgtLc = w.word.trim().toLowerCase();
+  const synSet = new Set([tgtLc, ...(w.synonyms ?? []).map((s) => s.trim().toLowerCase())]);
+  const differentMeaning = eligible.filter((x) => x.id !== w.id && norm(x.meaningZh ?? "") !== tgtMeaning);
+  const strict = differentMeaning.filter(
+    (x) => !synSet.has(x.word.trim().toLowerCase()) && !(x.synonyms ?? []).some((s) => s.trim().toLowerCase() === tgtLc),
+  );
+  const picked = shuffle(strict).slice(0, 3);
+  // Top up (still different meaning) if the strict pool was too small.
+  if (picked.length < 3) {
+    for (const x of shuffle(differentMeaning)) {
+      if (picked.length >= 3) break;
+      if (!picked.includes(x)) picked.push(x);
+    }
+  }
+  return picked;
+}
+
+// Options with no duplicate labels (two words can share a meaning string).
+function uniqueOptions(correct: string, distract: string[]): string[] {
+  const seen = new Set([norm(correct)]);
+  const out = [correct];
+  for (const d of distract) {
+    if (!seen.has(norm(d))) {
+      seen.add(norm(d));
+      out.push(d);
+    }
+  }
+  return shuffle(out);
+}
+
 function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Question {
   if (kind === "cloze") {
     const ex = w.examples[0];
@@ -74,12 +109,12 @@ function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Qu
       clozeTranslation: ex.sentenceZh,
     };
   }
-  const others = shuffle(eligible.filter((x) => x.id !== w.id)).slice(0, 3);
+  const others = distractors(w, eligible);
   if (flip) {
     return {
       word: w,
       prompt: w.meaningZh as string,
-      options: kind === "choice" ? shuffle([w.word, ...others.map((x) => x.word)]) : [],
+      options: kind === "choice" ? uniqueOptions(w.word, others.map((x) => x.word)) : [],
       correct: w.word,
       promptTarget: true,
       optionsTarget: false,
@@ -89,7 +124,7 @@ function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Qu
   return {
     word: w,
     prompt: w.word,
-    options: kind === "choice" ? shuffle([w.meaningZh as string, ...others.map((x) => x.meaningZh as string)]) : [],
+    options: kind === "choice" ? uniqueOptions(w.meaningZh as string, others.map((x) => x.meaningZh as string)) : [],
     correct: w.meaningZh as string,
     promptTarget: false,
     optionsTarget: true,
@@ -453,21 +488,21 @@ export default function QuizPage() {
                 onClick={() => choose(opt)}
                 disabled={answered}
                 className={cn(
-                  "flex items-center justify-between gap-3 rounded-[18px] border px-6 py-5 text-[20px] font-semibold transition-all",
+                  "flex items-center justify-between gap-3 rounded-[18px] border px-5 py-4 text-left text-[19px] font-semibold transition-all",
                   style,
                   q.optionsTarget && tFont,
                   !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
                 )}
               >
-                <span className="flex min-w-0 items-center gap-3">
+                <span className="flex min-w-0 items-start gap-3">
                   {!answered && (
-                    <span className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-black/[0.08] bg-black/[0.03] text-[12px] font-bold text-ink-faint sm:flex">
+                    <span className="mt-0.5 hidden h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-black/[0.08] bg-black/[0.03] text-[12px] font-bold text-ink-faint sm:flex">
                       {i + 1}
                     </span>
                   )}
-                  <span className="truncate">{opt}</span>
+                  <span className="min-w-0 break-words leading-snug">{opt}</span>
                 </span>
-                <span className="text-xl font-bold">{mark}</span>
+                <span className="shrink-0 text-xl font-bold">{mark}</span>
               </button>
             );
           })}

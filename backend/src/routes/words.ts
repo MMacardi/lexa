@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText } from "../services/translate.js";
+import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { importedCardSchema } from "../lib/schemas.js";
@@ -424,6 +425,26 @@ wordsRouter.post("/words/batch", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/ocr -> extract text from an uploaded photo (Reader "scan a photo").
+const ocrBody = z.object({
+  image: z.string().min(1).max(15_000_000).regex(/^data:image\//, "Expected an image data URL"),
+  sourceLang: z.string().optional(),
+});
+wordsRouter.post("/ocr", async (req, res) => {
+  const parsed = ocrBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const text = await ocrImage({ dataUrl: parsed.data.image, sourceLang: parsed.data.sourceLang });
+    res.json({ text });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
   }
 });
 
