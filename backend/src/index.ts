@@ -7,9 +7,36 @@ import { authRouter } from "./routes/auth.js";
 import { startImportWorker } from "./services/importWorker.js";
 
 const app = express();
-// Reflect the request origin and allow credentials so the browser can send the
-// session cookie cross-site (Vercel frontend -> Railway backend).
-app.use(cors({ origin: true, credentials: true }));
+
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, "");
+  }
+}
+
+const allowedOrigins = new Set(
+  [env.CORS_ORIGIN, process.env.FRONTEND_URL, "http://localhost:3001"]
+    .flatMap((value) => (value ? value.split(",") : []))
+    .map(normalizeOrigin)
+    .filter(Boolean),
+);
+
+// Use an explicit allowlist so Render never emits `Access-Control-Allow-Origin: *`
+// together with credentials. That combination is rejected by browsers.
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.has(origin)) return callback(null, true);
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
