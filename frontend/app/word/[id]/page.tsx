@@ -16,7 +16,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
 import { WordFamilyGraph } from "@/components/WordFamilyGraph";
-import { downloadShareCard } from "@/lib/shareCard";
+import { PrintCardModal } from "@/components/PrintCardModal";
 
 const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
 
@@ -43,6 +43,7 @@ export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const { data: word, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
@@ -82,16 +83,7 @@ export default function WordDetailPage() {
         {!editing && (
           <div className="flex items-center gap-2">
             <button
-              onClick={() =>
-                downloadShareCard({
-                  word: word.word,
-                  phonetic: word.phonetic,
-                  partOfSpeech: word.partOfSpeech,
-                  meaning: word.meaningZh,
-                  example: word.examples[0]?.sentenceEn,
-                  source: word.examples[0]?.sourceName,
-                })
-              }
+              onClick={() => setPrinting(true)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
               {t("word.share")}
@@ -107,6 +99,7 @@ export default function WordDetailPage() {
       </div>
 
       {editing && <EditWordForm word={word} onDone={() => setEditing(false)} />}
+      {printing && <PrintCardModal word={word} onClose={() => setPrinting(false)} />}
 
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-baseline gap-3">

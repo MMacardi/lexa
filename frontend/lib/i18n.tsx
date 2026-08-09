@@ -512,6 +512,9 @@ const DICT: Record<string, Entry> = {
   "quiz.hotkeysNext": { en: "Space / Enter to continue", ru: "Space / Enter — дальше", zh: "空格 / 回车 继续" },
 
   // --- word detail ---
+  "print.title": { en: "Printable card", ru: "Печатная карточка", zh: "可打印卡片" },
+  "print.hint": { en: "Pick what goes on the front and back, then download.", ru: "Выбери, что на лице и обороте, затем скачай.", zh: "选择正反面内容，然后下载。" },
+  "print.download": { en: "Download PNG", ru: "Скачать PNG", zh: "下载 PNG" },
   "word.back": { en: "← My words", ru: "← Мои слова", zh: "← 我的单词" },
   "word.share": { en: "↗ Share", ru: "↗ Поделиться", zh: "↗ 分享" },
   "word.edit": { en: "✎ Edit", ru: "✎ Изменить", zh: "✎ 编辑" },
