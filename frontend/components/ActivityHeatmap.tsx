@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
 import type { Stats } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -15,9 +16,36 @@ function level(count: number) {
 export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
   const { t, locale } = useI18n();
   const [hover, setHover] = useState<{ x: number; y: number; date: string; count: number } | null>(null);
+
+  // Dismiss the tooltip on scroll / resize / Escape / a tap outside a cell
+  // (so it works on touch, where there's no mouse-leave).
+  useEffect(() => {
+    if (!hover) return;
+    const close = () => setHover(null);
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-heatcell]")) setHover(null);
+    };
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setHover(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("keydown", onEsc);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onEsc);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [hover]);
+
   if (!heat || heat.length === 0) return null;
 
   const dateLocale = locale === "ru" ? "ru-RU" : locale === "zh" ? "zh-CN" : "en-US";
+
+  const showAt = (el: HTMLElement, date: string, count: number) => {
+    const r = el.getBoundingClientRect();
+    setHover({ x: r.left + r.width / 2, y: r.top, date, count });
+  };
 
   // Pad the front so the first real day sits on its correct weekday row.
   const firstWeekday = new Date(heat[0].date + "T00:00:00").getDay(); // 0=Sun
@@ -71,11 +99,12 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
                   return (
                     <span
                       key={di}
-                      onMouseEnter={(e) => {
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setHover({ x: r.left + r.width / 2, y: r.top, date: c.date, count: c.count });
-                      }}
+                      data-heatcell
+                      onMouseEnter={(e) => showAt(e.currentTarget, c.date, c.count)}
                       onMouseLeave={() => setHover(null)}
+                      onPointerDown={(e) => {
+                        if (e.pointerType !== "mouse") showAt(e.currentTarget, c.date, c.count);
+                      }}
                       className={cn("h-[11px] w-[11px] rounded-[3px] transition-transform hover:scale-[1.35]", LEVEL_CLS[level(c.count)])}
                     />
                   );
@@ -95,20 +124,23 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
         <span>{t("stats.more")}</span>
       </div>
 
-      {/* custom tooltip (replaces the browser's plain title) */}
-      {hover && (
-        <div
-          className="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full rounded-[10px] bg-onyx px-2.5 py-1.5 text-center shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
-          style={{ left: hover.x, top: hover.y - 8 }}
-        >
-          <div className="text-[12px] font-semibold text-white">
-            {hover.count > 0 ? t("stats.reviewsCount", { n: hover.count }) : t("stats.noReviews")}
-          </div>
-          <div className="text-[10px] font-medium text-white/60">
-            {new Date(hover.date + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}
-          </div>
-        </div>
-      )}
+      {/* custom tooltip — portaled to <body> so it isn't offset by transformed
+          ancestors (the stats card animates with a transform). */}
+      {hover &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-full rounded-[10px] bg-onyx px-2.5 py-1.5 text-center shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{ left: hover.x, top: hover.y - 8 }}
+          >
+            <div className="text-[12px] font-semibold text-white">
+              {hover.count > 0 ? t("stats.reviewsCount", { n: hover.count }) : t("stats.noReviews")}
+            </div>
+            <div className="text-[10px] font-medium text-white/60">
+              {new Date(hover.date + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
