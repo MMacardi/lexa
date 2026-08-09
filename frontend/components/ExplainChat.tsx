@@ -9,6 +9,7 @@ import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
+import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
 
 type Msg = {
@@ -152,7 +153,7 @@ export function ExplainChat({ word }: { word: Word }) {
         {messages.map((m, i) =>
           m.role === "assistant" ? (
             <div key={i} className="space-y-2">
-              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{m.content}</p>
+              <RichText text={m.content} className="text-[15px] text-ink" />
               {/* actionable suggestions from the tutor */}
               {(m.addSynonyms?.length || m.addAntonyms?.length || m.addWords?.length) && (
                 <div className="flex flex-wrap gap-1.5">
