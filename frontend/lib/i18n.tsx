@@ -611,6 +611,7 @@ const DICT: Record<string, Entry> = {
   "col.searchWords": { en: "Search your words…", ru: "Поиск по вашим словам…", zh: "搜索你的单词…" },
   "col.noneToAdd": { en: "All your words are already in this set.", ru: "Все ваши слова уже в этом наборе.", zh: "你的单词都已在该合集中。" },
   "col.noWordFound": { en: "You don't have such a word.", ru: "У вас нет такого слова.", zh: "你没有这样的单词。" },
+  "col.newSetPlaceholder": { en: "New set…", ru: "Новый набор…", zh: "新建合集…" },
   "col.createWord": { en: "Create “{word}”", ru: "Создать «{word}»", zh: "创建“{word}”" },
   "col.emptySet": { en: "No words in this set yet — add some below.", ru: "В наборе пока нет слов — добавьте ниже.", zh: "该合集还没有单词——在下面添加。" },
   "col.deleteConfirm": { en: "Delete collection \"{name}\"? (words are kept)", ru: "Удалить набор «{name}»? Слова останутся.", zh: "删除合集“{name}”？（单词保留）" },
