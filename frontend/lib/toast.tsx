@@ -41,6 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Once enrichment finishes, resolve the enriched words → their card ids so the
   // list in the toast is clickable (opens the freshly-made word page).
   const [wordIds, setWordIds] = useState<Record<string, string>>({});
+  const [trackerMin, setTrackerMin] = useState(false); // collapsed to a small pill
 
   const remove = useCallback((id: number) => {
     // play the exit animation, then unmount
@@ -59,6 +60,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
     setWordIds({});
+    setTrackerMin(false);
     setTracker({ ...payload, status: "queued", errors: [], errorMessage: null });
   }, []);
 
@@ -134,9 +136,46 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <ToastCard key={t.id} toast={t} onClose={() => remove(t.id)} />
         ))}
       </div>
-      {tracker && (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-[75] w-[360px] max-w-[calc(100vw-2rem)]">
+      {/* AI-enrichment tracker — top on mobile, bottom-LEFT on desktop, so it never
+          overlaps the bottom-right tutor. Collapsible to a pill and dismissible. */}
+      {tracker && trackerMin && (
+        <div className="fixed left-4 top-4 z-[75] sm:bottom-4 sm:left-4 sm:top-auto">
+          <button
+            type="button"
+            onClick={() => setTrackerMin(false)}
+            className="flex items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_10px_28px_rgba(46,42,38,0.2)]"
+          >
+            <span className="text-[15px]">{tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : "…"}</span>
+            <span className="text-[13px] font-semibold text-ink">
+              {tracker.processed} / {tracker.total}
+            </span>
+          </button>
+        </div>
+      )}
+      {tracker && !trackerMin && (
+        <div className="pointer-events-none fixed inset-x-4 top-4 z-[75] max-w-[calc(100vw-2rem)] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[360px]">
           <div className="group pointer-events-auto overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
+            <div className="flex items-center justify-between gap-2 px-3 pt-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">Lexa</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setTrackerMin(true)}
+                  aria-label="Minimize"
+                  className="rounded-md px-1.5 py-0.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                >
+                  –
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTracker(null)}
+                  aria-label="Close"
+                  className="rounded-md px-1.5 py-0.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
             <div className="h-1 w-full bg-sage-tint">
               <div
                 className="h-full bg-sage transition-all duration-300"
