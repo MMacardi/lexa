@@ -33,7 +33,10 @@ interface Face {
   h: number;
 }
 
-// Draw one card face (a list of fields) centered in the given rect.
+type Block = { label?: string; text: string; size: number; color: string; italic?: boolean; upper?: boolean };
+
+// Draw one card face (its fields), scaled down if needed so everything fits and
+// nothing overlaps. Uses textBaseline="top" for predictable line stacking.
 function drawFace(
   ctx: CanvasRenderingContext2D,
   face: Face,
@@ -41,63 +44,82 @@ function drawFace(
   word: Word,
   labels: Record<string, string>,
 ) {
-  const pad = 54;
+  const padX = 54;
+  const padTop = 78;
+  const padBottom = 40;
   const cx = face.x + face.w / 2;
-  const maxW = face.w - pad * 2;
+  const maxW = face.w - padX * 2;
   const ex = word.examples[0];
 
-  // Build a list of drawing ops first so we can vertically center the block.
-  type Op = { lines: string[]; size: number; color: string; italic?: boolean; upper?: boolean; gap: number; label?: string };
-  const ops: Op[] = [];
-  const push = (text: string | null | undefined, size: number, color: string, opts: Partial<Op> = {}) => {
+  const blocks: Block[] = [];
+  const add = (text: string | null | undefined, size: number, color: string, opts: Partial<Block> = {}) => {
     if (!text || !text.trim()) return;
-    ctx.font = `${opts.italic ? "italic " : ""}600 ${size}px ${FONT}`;
-    const t = opts.upper ? text.toUpperCase() : text;
-    ops.push({ lines: wrap(ctx, t, maxW), size, color, gap: Math.round(size * 0.35), ...opts });
+    blocks.push({ text: opts.upper ? text.toUpperCase() : text, size, color, ...opts });
   };
-  const list = (items: string[], label: string, color: string) => {
-    if (!items.length) return;
-    ops.push({ lines: [], size: 22, color: "#a89f8f", gap: 6, label });
-    push(items.join(",  "), 30, color);
+  const addList = (items: string[], label: string, color: string) => {
+    if (items.length) blocks.push({ label, text: items.join(",  "), size: 28, color });
   };
 
   for (const f of fields) {
     switch (f) {
-      case "word": push(word.word, 84, "#2e2a26"); break;
-      case "phonetic": push(word.phonetic, 34, "#a89f8f"); break;
-      case "pos": push(word.partOfSpeech, 24, "#a89f8f", { upper: true }); break;
-      case "meaning": push(word.meaningZh, 46, "#3f5a4a"); break;
-      case "example": if (ex) push(`“${ex.sentenceEn}”`, 30, "#544e45", { italic: true }); break;
-      case "exampleTr": if (ex?.sentenceZh) push(ex.sentenceZh, 28, "#7a7266"); break;
-      case "synonyms": list(word.synonyms, labels.synonyms, "#3f5a4a"); break;
-      case "antonyms": list(word.antonyms, labels.antonyms, "#9c5f4e"); break;
-      case "collocations": list(word.collocations, labels.collocations, "#544e45"); break;
-      case "notes": push(word.notes, 28, "#544e45"); break;
+      case "word": add(word.word, 82, "#2e2a26"); break;
+      case "phonetic": add(word.phonetic, 34, "#a89f8f"); break;
+      case "pos": add(word.partOfSpeech, 24, "#a89f8f", { upper: true }); break;
+      case "meaning": add(word.meaningZh, 46, "#3f5a4a"); break;
+      case "example": if (ex) add(`“${ex.sentenceEn}”`, 30, "#544e45", { italic: true }); break;
+      case "exampleTr": if (ex?.sentenceZh) add(ex.sentenceZh, 28, "#7a7266"); break;
+      case "synonyms": addList(word.synonyms, labels.synonyms, "#3f5a4a"); break;
+      case "antonyms": addList(word.antonyms, labels.antonyms, "#9c5f4e"); break;
+      case "collocations": addList(word.collocations, labels.collocations, "#544e45"); break;
+      case "notes": add(word.notes, 28, "#544e45"); break;
     }
   }
 
-  // total height
-  let total = 0;
-  for (const op of ops) total += (op.label ? 30 : 0) + op.lines.length * (op.size + op.gap);
-  let cy = face.y + Math.max(80, (face.h - total) / 2) + 20;
+  const availH = face.h - padTop - padBottom;
+  const LABEL = 20; // label font px @ scale 1
+  const BLOCK_GAP = 18; // space between fields @ scale 1
 
-  for (const op of ops) {
-    if (op.label) {
-      ctx.font = `600 22px ${FONT}`;
+  // Measure the whole stack at a given scale.
+  const measure = (scale: number) => {
+    let h = 0;
+    const laid: { b: Block; lines: string[]; lineH: number; labelH: number }[] = [];
+    for (const b of blocks) {
+      ctx.font = `${b.italic ? "italic " : ""}600 ${Math.round(b.size * scale)}px ${FONT}`;
+      const lines = wrap(ctx, b.text, maxW);
+      const lineH = Math.round(b.size * scale * 1.26);
+      const labelH = b.label ? Math.round(LABEL * scale) + Math.round(8 * scale) : 0;
+      laid.push({ b, lines, lineH, labelH });
+      h += labelH + lines.length * lineH + Math.round(BLOCK_GAP * scale);
+    }
+    return { h, laid };
+  };
+
+  let scale = 1;
+  let { h, laid } = measure(1);
+  if (h > availH) {
+    scale = Math.max(0.5, availH / h);
+    ({ h, laid } = measure(scale));
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  let cy = face.y + padTop + Math.max(0, (availH - h) / 2);
+  for (const { b, lines, lineH } of laid) {
+    if (b.label) {
+      ctx.font = `600 ${Math.round(LABEL * scale)}px ${FONT}`;
       ctx.fillStyle = "#a89f8f";
-      ctx.textAlign = "center";
-      ctx.fillText(op.label.toUpperCase(), cx, cy);
-      cy += 30;
+      ctx.fillText(b.label.toUpperCase(), cx, cy);
+      cy += Math.round(LABEL * scale) + Math.round(8 * scale);
     }
-    ctx.font = `${op.italic ? "italic " : ""}600 ${op.size}px ${FONT}`;
-    ctx.fillStyle = op.color;
-    ctx.textAlign = "center";
-    for (const ln of op.lines) {
-      cy += op.size;
+    ctx.font = `${b.italic ? "italic " : ""}600 ${Math.round(b.size * scale)}px ${FONT}`;
+    ctx.fillStyle = b.color;
+    for (const ln of lines) {
       ctx.fillText(ln, cx, cy);
-      cy += op.gap;
+      cy += lineH;
     }
+    cy += Math.round(BLOCK_GAP * scale);
   }
+  ctx.textBaseline = "alphabetic"; // reset for other draws (tags, brand)
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

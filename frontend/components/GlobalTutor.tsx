@@ -6,10 +6,13 @@ import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { isAiSupported, langLabel } from "@/lib/langs";
+import { isAiSupported } from "@/lib/langs";
 import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
+import { LangSelect } from "@/components/LangSelect";
+import { RichText } from "@/components/RichText";
+import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -38,6 +41,7 @@ export function GlobalTutor() {
   const [input, setInput] = useState("");
   const [creating, setCreating] = useState(false);
   const [collIds, setCollIds] = useState<string[]>([]);
+  const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +83,25 @@ export function GlobalTutor() {
   function fillTemplate(template: string) {
     setInput(template);
     inputRef.current?.focus();
+  }
+
+  // Toggle a single suggested word's selection within a message.
+  function toggleWord(index: number, all: string[], w: string) {
+    setWordSel((s) => {
+      const cur = s[index] ?? all;
+      const next = cur.includes(w) ? cur.filter((x) => x !== w) : [...cur, w];
+      return { ...s, [index]: next };
+    });
+  }
+
+  // Change the tutor's language pair and persist it (shared with Add/Reader).
+  function changePair(next: { source: string; target: string }) {
+    setPair(next);
+    try {
+      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
+    } catch {
+      /* ignore */
+    }
   }
 
   async function createCards(index: number, terms: string[]) {
@@ -128,38 +151,40 @@ export function GlobalTutor() {
       {/* chat panel */}
       {open && (
         <div className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]">
-          {/* header */}
-          <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 py-3">
-            <div className="min-w-0">
+          {/* header — title, clickable language pair, actions */}
+          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
                 <span>✨</span>
                 {t("tutor.title")}
               </div>
-              <div className="text-[11px] font-medium text-ink-faint">
-                {langLabel(pair.source)} → {langLabel(pair.target)}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {messages.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                {messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMessages([]);
+                      ask.reset();
+                    }}
+                    className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    ↻
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setMessages([]);
-                    ask.reset();
-                  }}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                  onClick={() => setOpen(false)}
+                  aria-label={t("common.cancel")}
+                  className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
                 >
-                  ↻
+                  ✕
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label={t("common.cancel")}
-                className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
-              >
-                ✕
-              </button>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-soft">
+              <LangSelect value={pair.source} onChange={(v) => changePair({ source: v, target: pair.target })} className="h-8 min-w-0" />
+              <span className="text-ink-faint">→</span>
+              <LangSelect value={pair.target} onChange={(v) => changePair({ source: pair.source, target: v })} className="h-8 min-w-0" />
             </div>
           </div>
 
@@ -181,32 +206,62 @@ export function GlobalTutor() {
             {messages.map((m, i) =>
               m.role === "assistant" ? (
                 <div key={i} className="space-y-2">
-                  <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{m.content}</p>
-                  {m.addWords && m.addWords.length > 0 && (
-                    <div className="space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5">
-                      <div className="flex flex-wrap gap-1.5">
-                        {m.addWords.map((w) => (
-                          <span key={w} className="rounded-full bg-surface px-2 py-0.5 text-[12px] font-medium text-ink">
-                            {w}
-                          </span>
-                        ))}
-                      </div>
-                      {collections && collections.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
-                          <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
+                  <RichText text={m.content} className="text-[14px] text-ink" />
+                  {m.addWords &&
+                    m.addWords.length > 0 &&
+                    (() => {
+                      const all = m.addWords;
+                      const selected = wordSel[i] ?? all; // default: all selected
+                      return (
+                        <div className="space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                              {t("reader.selectedN", { n: selected.length })}
+                            </span>
+                            <div className="flex gap-2 text-[11px] font-semibold">
+                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [...all] }))} className="text-sage hover:text-sage-deep">
+                                {t("reader.selectAllNew")}
+                              </button>
+                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [] }))} className="text-ink-faint hover:text-ink-muted">
+                                {t("reader.deselectAll")}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {all.map((w) => {
+                              const on = selected.includes(w);
+                              return (
+                                <button
+                                  key={w}
+                                  type="button"
+                                  onClick={() => toggleWord(i, all, w)}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                                    on ? "border-sage bg-sage text-white" : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
+                                  )}
+                                >
+                                  {w}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {collections && collections.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
+                              <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            disabled={creating || selected.length === 0}
+                            onClick={() => createCards(i, selected)}
+                            className="w-full rounded-full bg-sage px-3 py-2 text-[13px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
+                          >
+                            ＋ {t("word.createCards")} ({selected.length})
+                          </button>
                         </div>
-                      )}
-                      <button
-                        type="button"
-                        disabled={creating}
-                        onClick={() => createCards(i, m.addWords!)}
-                        className="w-full rounded-full bg-sage px-3 py-2 text-[13px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
-                      >
-                        ＋ {t("word.createCards")} ({m.addWords.length})
-                      </button>
-                    </div>
-                  )}
+                      );
+                    })()}
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
