@@ -338,11 +338,11 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                         />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                            <strong className="font-serif text-[20px] text-ink">{card.word}</strong>
-                            <span className={cn("text-[16px] text-sage-deep", targetLang === "zh" && "font-zh")}>{card.meaning}</span>
+                            <strong className="font-serif text-[24px] font-semibold text-ink">{card.word}</strong>
+                            <span className={cn("text-[18px] font-medium text-sage-deep", targetLang === "zh" && "font-zh")}>{card.meaning}</span>
                           </span>
                           {(card.example || card.synonyms.length > 0) && (
-                            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+                            <span className="mt-1 block text-[13px] leading-relaxed text-ink-soft">
                               {card.example ? `“${card.example}”` : ""}
                               {card.example && card.synonyms.length ? " · " : ""}
                               {card.synonyms.length ? `${card.synonyms.join(", ")}` : ""}

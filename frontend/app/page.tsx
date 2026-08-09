@@ -225,7 +225,7 @@ export default function TodayPage() {
               <Link
                 key={w.id}
                 href={`/word/${w.id}`}
-                className="anim-fade-up rounded-[18px] border border-black/[0.06] bg-surface p-[18px] transition-shadow hover:shadow-[0_10px_30px_rgba(46,42,38,0.08)]"
+                className="anim-fade-up flex min-h-[110px] flex-col rounded-[18px] border border-black/[0.06] bg-surface p-[18px] transition-shadow hover:shadow-[0_10px_30px_rgba(46,42,38,0.08)]"
                 style={{ animationDelay: `${180 + i * 50}ms` }}
               >
                 <div className="flex items-baseline gap-2.5">
@@ -236,7 +236,8 @@ export default function TodayPage() {
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-xs font-medium text-ink-faint">
+                {/* status pinned to the card bottom, independent of the meaning length */}
+                <div className="mt-auto pt-2 text-xs font-medium text-ink-faint">
                   {w.reviewCount === 0 ? t("today.neverReviewed") : t("today.reviewsDone", { n: w.reviewCount })}
                   {w.partOfSpeech ? ` · ${w.partOfSpeech}` : ""}
                 </div>

@@ -414,15 +414,21 @@ export default function FlashcardsPage() {
     const dx = e.clientX - startX.current;
     if (dx > 110) commit(3, word); // swipe right → Good
     else if (dx < -110) commit(1, word); // swipe left → Again
-    else {
-      setDragX(0);
-      if (!draggedRef.current) setFlipped((f) => !f); // a tap → flip
-    }
+    else setDragX(0); // a tap → let onClick handle the flip (reliable on double-taps)
   };
   const onPointerCancel = () => {
     pointerActive.current = false;
     setDragging(false);
     setDragX(0);
+  };
+  // Flip on a genuine tap/click (skipped right after a drag). Using onClick keeps
+  // rapid/double taps reliable where a manual pointerup toggle could get stuck.
+  const onFlip = () => {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    setFlipped((f) => !f);
   };
 
   return (
@@ -430,31 +436,31 @@ export default function FlashcardsPage() {
       <div className="w-full">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <a
-              href={`/word/${word.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-            >
-              {t("review.openCard")} ↗
-            </a>
-            <button
-              onClick={() => setEditing(word)}
-              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-            >
-              ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
-            </button>
-            <button
-              onClick={() => setStarted(false)}
-              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-            >
-              {t("review.setup")}
-            </button>
-            <span className="text-[15px] font-semibold text-ink-soft">
-              {Math.min(index + 1, total)} / {total}
-            </span>
-          </div>
+          <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink-soft">
+            {Math.min(index + 1, total)} / {total}
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <a
+            href={`/word/${word.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            {t("review.openCard")} ↗
+          </a>
+          <button
+            onClick={() => setEditing(word)}
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
+          </button>
+          <button
+            onClick={() => setStarted(false)}
+            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            {t("review.setup")}
+          </button>
         </div>
         <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
           <div
@@ -492,6 +498,7 @@ export default function FlashcardsPage() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
           onPointerCancel={onPointerCancel}
+          onClick={onFlip}
           style={{
             transform: `translateX(${dragX}px) rotate(${dragX * 0.035}deg)`,
             transition: dragging ? "none" : "transform 0.34s cubic-bezier(.22,.8,.26,1)",

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { isAiSupported, langLabel } from "@/lib/langs";
+import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
   getReaderSource,
   pushRecentPair,
@@ -208,7 +208,8 @@ export default function ReaderPage() {
       });
   }
 
-  // Dismiss the gloss on scroll / Escape while it's open.
+  // Dismiss the gloss on scroll / resize / Escape / a tap anywhere. Tapping a
+  // word re-opens it (that happens on pointer-up, after this pointer-down clears).
   useEffect(() => {
     if (!gloss) return;
     const close = () => setGloss(null);
@@ -216,10 +217,12 @@ export default function ReaderPage() {
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     window.addEventListener("keydown", onEsc);
+    document.addEventListener("pointerdown", close);
     return () => {
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", onEsc);
+      document.removeEventListener("pointerdown", close);
     };
   }, [gloss]);
 
@@ -514,6 +517,11 @@ export default function ReaderPage() {
   }
 
   // ---------------- Reading state ----------------
+  // Spot an obvious paste/source mismatch (e.g. Russian text while source = English).
+  const detectedLang = detectDominantLang(text);
+  const langMismatch = detectedLang !== null && scriptFamily(detectedLang) !== scriptFamily(sourceLang);
+  const mismatchIsSwap = detectedLang === targetLang; // pair is just backwards
+
   return (
     <div className="mx-auto max-w-[720px] pb-28 md:pb-6">
       {/* sticky toolbar */}
@@ -567,6 +575,29 @@ export default function ReaderPage() {
           </button>
         )}
       </div>
+
+      {langMismatch && (
+        <div className="anim-fade-up mb-3 flex flex-wrap items-center gap-2 rounded-[14px] border border-warn/40 bg-warn-bg px-3.5 py-2.5 text-[13px] text-warn-text">
+          <span>{t("reader.langMismatch", { detected: langLabel(detectedLang!), source: langLabel(sourceLang) })}</span>
+          {mismatchIsSwap ? (
+            <button
+              type="button"
+              onClick={swapLangs}
+              className="rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
+            >
+              ⇄ {t("add.swap")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSourceLang(detectedLang!)}
+              className="rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
+            >
+              {t("reader.useAsSource", { lang: langLabel(detectedLang!) })}
+            </button>
+          )}
+        </div>
+      )}
 
       <p className="mb-3 text-[13px] text-ink-faint">
         {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
@@ -740,20 +771,19 @@ export default function ReaderPage() {
           if (!w) return null;
           return createPortal(
             <div className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]">
+              {/* close button pinned to the panel corner — always reachable while scrolling */}
+              <button
+                type="button"
+                onClick={() => setCardPanel(null)}
+                aria-label={t("common.cancel")}
+                className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
+              >
+                ✕
+              </button>
               <div className="max-h-[70vh] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface p-5 shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
-                    {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCardPanel(null)}
-                    aria-label={t("common.cancel")}
-                    className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
-                  >
-                    ✕
-                  </button>
+                <div className="min-w-0 pr-9">
+                  <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
+                  {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
                 {w.partOfSpeech && (
                   <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{w.partOfSpeech}</div>
