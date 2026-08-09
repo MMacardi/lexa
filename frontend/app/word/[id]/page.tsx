@@ -151,8 +151,9 @@ export default function WordDetailPage() {
         </div>
       )}
 
-      {/* AI tutor — on-demand explanation + follow-up mini-chat (opt-in, LLM calls) */}
-      <ExplainChat wordId={id} />
+      {/* AI tutor — on-demand explanation + follow-up mini-chat that can also add
+          synonyms/antonyms to the card (opt-in, LLM calls) */}
+      <ExplainChat word={word} />
 
       {word.collocations.length > 0 && (
         <Pills label={t("word.collocations")} items={word.collocations} />

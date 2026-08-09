@@ -21,6 +21,15 @@ export const exampleSentenceSchema = z.object({
   sentence: z.string().min(1),
 });
 
+// Actionable tutor chat: a prose reply plus optional suggested edits to the card
+// (synonyms/antonyms to add), which the UI offers as one-tap actions.
+export const wordChatSchema = z.object({
+  answer: z.string().min(1),
+  addSynonyms: z.array(z.string()).default([]),
+  addAntonyms: z.array(z.string()).default([]),
+});
+export type WordChatResult = z.infer<typeof wordChatSchema>;
+
 // On-demand "explain this word" for the word page: written in the learner's own
 // language, covering nuance, usage, synonym differences and common mistakes.
 export const explanationSchema = z.object({

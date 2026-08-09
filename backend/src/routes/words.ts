@@ -380,7 +380,7 @@ wordsRouter.post("/words/:id/ask", async (req, res) => {
     return;
   }
   try {
-    res.json({ answer: await askAboutWord(req.params.id, parsed.data.messages) });
+    res.json(await askAboutWord(req.params.id, parsed.data.messages));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
