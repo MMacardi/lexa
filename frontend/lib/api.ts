@@ -209,7 +209,7 @@ export const api = {
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
   askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>
-    http<{ answer: string }>(`/api/words/${id}/ask`, {
+    http<{ answer: string; addSynonyms: string[]; addAntonyms: string[] }>(`/api/words/${id}/ask`, {
       method: "POST",
       body: JSON.stringify({ messages }),
     }),

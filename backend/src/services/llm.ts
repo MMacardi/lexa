@@ -133,6 +133,36 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
+/** Multi-turn chat that returns validated JSON (used by the actionable tutor). */
+export async function chatJsonConversation<T>(opts: {
+  messages: ChatMessage[];
+  schema: ZodSchema<T>;
+  timeoutMs?: number;
+}): Promise<T> {
+  let completion;
+  try {
+    completion = await getClient().chat.completions.create(
+      {
+        model: MODEL,
+        messages: opts.messages,
+        response_format: { type: "json_object" },
+        temperature: 0.4,
+      },
+      opts.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
+  } catch (err) {
+    throw friendlyLlmError(err);
+  }
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
+  }
+  return opts.schema.parse(parsed);
+}
+
 /**
  * Free-form multi-turn chat that returns plain text (no JSON schema). Used by the
  * word "ask a follow-up" mini-chat, where the answer is prose, not structured.

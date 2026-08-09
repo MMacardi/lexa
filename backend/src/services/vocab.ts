@@ -2,10 +2,10 @@ import { prisma } from "./db.js";
 import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
-import { chatJson, chatText, type ChatMessage } from "./llm.js";
+import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName } from "../lib/langs.js";
-import { explanationSchema } from "../lib/schemas.js";
+import { explanationSchema, wordChatSchema, type WordChatResult } from "../lib/schemas.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -378,7 +378,7 @@ export async function explainWord(id: string): Promise<string> {
 export async function askAboutWord(
   id: string,
   history: { role: "user" | "assistant"; content: string }[],
-): Promise<string> {
+): Promise<WordChatResult> {
   const word = await prisma.word.findUnique({
     where: { id },
     select: {
@@ -388,6 +388,7 @@ export async function askAboutWord(
       meaningZh: true,
       partOfSpeech: true,
       synonyms: true,
+      antonyms: true,
       examples: { orderBy: { createdAt: "desc" }, take: 1, select: { sentenceEn: true } },
     },
   });
@@ -406,21 +407,32 @@ export async function askAboutWord(
       content:
         `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
         `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
-        `Always answer ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
+        `Answer in the "answer" field ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
         `Give ${sourceName} examples where helpful. ` +
         `STAY STRICTLY ON TOPIC: only discuss this word/phrase and ${sourceName} language learning ` +
         `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
         `asks about anything unrelated (general knowledge, tech, people, etc.), politely decline in ` +
-        `${targetName} and steer back to the word — do not answer the off-topic question.\n\n` +
+        `${targetName} and steer back to the word.\n\n` +
+        `ACTIONS: if the learner asks you to add synonyms or antonyms (or you clearly recommend some), ` +
+        `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
+        `not already listed). Otherwise leave those arrays empty. ` +
+        'Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[]}.\n\n' +
         `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
-        (word.synonyms.length ? `\nSynonyms: ${word.synonyms.join(", ")}` : "") +
+        (word.synonyms.length ? `\nExisting synonyms: ${word.synonyms.join(", ")}` : "") +
+        (word.antonyms.length ? `\nExisting antonyms: ${word.antonyms.join(", ")}` : "") +
         (word.examples[0]?.sentenceEn ? `\nExample: ${word.examples[0].sentenceEn}` : ""),
     },
     ...clipped,
   ];
 
-  const answer = await chatText({ messages, timeoutMs: 60000 });
-  return answer.trim();
+  const result = await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
+  // Don't re-suggest words the card already has.
+  const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
+  return {
+    answer: result.answer.trim(),
+    addSynonyms: (result.addSynonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
+    addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
+  };
 }
 
 /** Aggregated learning stats for the dashboard. */
