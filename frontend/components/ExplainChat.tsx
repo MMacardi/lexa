@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
+import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
+import { isAiSupported } from "@/lib/langs";
+import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { cn } from "@/lib/utils";
 
 type Msg = {
@@ -12,6 +16,7 @@ type Msg = {
   content: string;
   addSynonyms?: string[];
   addAntonyms?: string[];
+  addWords?: string[];
 };
 
 // AI tutor for a word: the first answer is the full explanation, then the learner
@@ -19,10 +24,13 @@ type Msg = {
 // antonyms, they appear as one-tap "add to card" actions.
 export function ExplainChat({ word }: { word: Word }) {
   const { t } = useI18n();
+  const { accountId } = useAccount();
   const qc = useQueryClient();
-  const { show } = useToast();
+  const { show, trackImport } = useToast();
+  const ensureLevel = useEnsureLevel();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [creating, setCreating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const explain = useMutation({
@@ -35,7 +43,7 @@ export function ExplainChat({ word }: { word: Word }) {
     onSuccess: (r) =>
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: r.answer, addSynonyms: r.addSynonyms, addAntonyms: r.addAntonyms },
+        { role: "assistant", content: r.answer, addSynonyms: r.addSynonyms, addAntonyms: r.addAntonyms, addWords: r.addWords },
       ]),
   });
 
@@ -58,6 +66,36 @@ export function ExplainChat({ word }: { word: Word }) {
     apply.mutate({ kind, terms });
     // Clear the buttons for this turn once applied.
     setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, [kind === "syn" ? "addSynonyms" : "addAntonyms"]: [] } : msg)));
+  }
+
+  // Create brand-new cards for words the tutor suggested (background enrichment).
+  async function createCards(index: number, terms: string[]) {
+    if (creating) return;
+    if (isAiSupported(word.sourceLang)) {
+      const { ok } = await ensureLevel(word.sourceLang);
+      if (!ok) return;
+    }
+    setCreating(true);
+    try {
+      const r = await api.batchAddWords({
+        telegramId: accountId,
+        sourceLang: word.sourceLang,
+        targetLang: word.targetLang,
+        words: terms,
+        level: getLevel(word.sourceLang) ?? undefined,
+        exampleStyle: getExampleStyle(),
+        enrich: isAiSupported(word.sourceLang),
+      });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: terms, total: r.job.total, processed: 0 });
+      show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
+      setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addWords: [] } : msg)));
+    } catch (e) {
+      show({ icon: "⚠️", title: (e as Error).message });
+    } finally {
+      setCreating(false);
+    }
   }
 
   const started = messages.length > 0 || explain.isPending || explain.isError;
@@ -116,8 +154,18 @@ export function ExplainChat({ word }: { word: Word }) {
             <div key={i} className="space-y-2">
               <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{m.content}</p>
               {/* actionable suggestions from the tutor */}
-              {(m.addSynonyms?.length || m.addAntonyms?.length) && (
+              {(m.addSynonyms?.length || m.addAntonyms?.length || m.addWords?.length) && (
                 <div className="flex flex-wrap gap-1.5">
+                  {m.addWords && m.addWords.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={creating}
+                      onClick={() => createCards(i, m.addWords!)}
+                      className="rounded-full bg-sage px-3 py-1 text-[12px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
+                    >
+                      ＋ {t("word.createCards")}: {m.addWords.join(", ")}
+                    </button>
+                  )}
                   {m.addSynonyms && m.addSynonyms.length > 0 && (
                     <button
                       type="button"
