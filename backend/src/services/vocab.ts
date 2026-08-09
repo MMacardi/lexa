@@ -174,7 +174,14 @@ export async function addExampleToWord(
 ) {
   const word = await prisma.word.findUnique({
     where: { id },
-    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true },
+    select: {
+      id: true,
+      word: true,
+      userId: true,
+      sourceLang: true,
+      targetLang: true,
+      examples: { select: { sentenceEn: true } },
+    },
   });
   if (!word) throw new Error("Word not found");
 
@@ -189,6 +196,8 @@ export async function addExampleToWord(
     targetLang: word.targetLang,
     exampleStyle: opts.exampleStyle,
     level: opts.level,
+    // Adding another (not replacing) → avoid duplicating the current example(s).
+    avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),
   });
 
   return prisma.word.findUniqueOrThrow({
@@ -398,7 +407,11 @@ export async function askAboutWord(
         `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
         `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
         `Always answer ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
-        `Give ${sourceName} examples where helpful. Stay on the topic of this word and language learning.\n\n` +
+        `Give ${sourceName} examples where helpful. ` +
+        `STAY STRICTLY ON TOPIC: only discuss this word/phrase and ${sourceName} language learning ` +
+        `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
+        `asks about anything unrelated (general knowledge, tech, people, etc.), politely decline in ` +
+        `${targetName} and steer back to the word — do not answer the off-topic question.\n\n` +
         `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
         (word.synonyms.length ? `\nSynonyms: ${word.synonyms.join(", ")}` : "") +
         (word.examples[0]?.sentenceEn ? `\nExample: ${word.examples[0].sentenceEn}` : ""),

@@ -7,6 +7,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
+import { useToast } from "@/lib/toast";
 import { pairLabel } from "@/lib/langs";
 import { AddWordForm } from "@/components/AddWordForm";
 import { ImportWordsDialog, exportWords } from "@/components/ImportWordsDialog";
@@ -43,6 +44,7 @@ export default function WordsPage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { confirm } = useDialog();
+  const { show } = useToast();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -78,12 +80,15 @@ export default function WordsPage() {
   // Add every selected word to the chosen collection in one go.
   const bulkAdd = useMutation({
     mutationFn: async (collectionId: string) => {
+      const n = selected.size;
       await Promise.all([...selected].map((id) => api.addWordToCollection(collectionId, id)));
+      return { n, name: collections?.find((c) => c.id === collectionId)?.name ?? "" };
     },
-    onSuccess: () => {
+    onSuccess: ({ n, name }) => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       setSelected(new Set());
+      show({ icon: "🗂", title: t("words.addedToSet", { n, set: name }) });
     },
   });
 

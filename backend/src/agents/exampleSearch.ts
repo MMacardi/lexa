@@ -79,6 +79,8 @@ export async function runExampleSearch(params: {
   targetLang?: string;
   level?: string; // learner CEFR level, e.g. "B1"
   exampleStyle?: string; // news | casual | dialogue | literary
+  // Existing example sentences to avoid duplicating (when adding another example).
+  avoid?: string[];
   // When set, attach the example to this existing card (import enrichment).
   // When absent, create a new card (single-word add — duplicates allowed).
   wordId?: string;
@@ -91,57 +93,64 @@ export async function runExampleSearch(params: {
   const style = STYLE_HINTS[params.exampleStyle ?? "news"] ? (params.exampleStyle ?? "news") : "news";
   const styleInfo = STYLE_HINTS[style];
 
-  // 1. External tool call — the part that makes this a real agent, not a chat loop.
-  // News style + English: restrict to news domains. Otherwise search the open
-  // web (with a register hint) so we find authentic sentences in that style.
-  const articles = await searchNews(word, {
-    restrictNews: style === "news" && sourceLang === "en",
-    // The register hint is English, so only use it for English searches —
-    // otherwise it drags a non-English query toward English results.
-    queryHint: sourceLang === "en" ? styleInfo.query || undefined : undefined,
-  });
-  if (articles.length === 0) {
-    throw new Error(`No sources found containing "${word}"`);
-  }
-
-  // 2. LLM step 1: choose one natural sentence and which excerpt it came from.
-  const numbered = articles.map((a, i) => `[${i}] ${a.content}`).join("\n\n");
   const levelLine = params.level
     ? `The learner's CEFR level is ${params.level}. Choose a sentence a ${params.level} learner can actually understand: prefer common, high-frequency vocabulary and avoid rare, technical, archaic, or foreign loan-words beyond their level. If every candidate is too hard, pick the simplest and clearest one. `
     : "";
-  const selection = await chatJson({
-    system:
-      `You are a ${sourceName} language teacher creating one example sentence for a learner. ` +
-      `Pick the best COMPLETE, natural sentence written in ${sourceName} from the numbered ` +
-      `excerpts that uses the target word in meaningful context — a real sentence with a subject ` +
-      `and a verb that shows what the word means. NEVER pick a title, headline, company or brand ` +
-      `name, URL, menu/navigation label, or a bare fragment. The sentence MUST be written in ` +
-      `${sourceName} and actually contain the target word. ` +
-      `Prefer a ${styleInfo.register} tone. ` +
-      RICHNESS_RULE +
-      levelLine +
-      `If none of the excerpts contain a suitable natural ${sourceName} sentence (for example the ` +
-      `word is a brand or proper noun and the results are just names or links), WRITE one yourself: ` +
-      `a correct, natural, interesting ${sourceName} sentence that clearly shows the word in use. ` +
-      `In that case set "composed" to true and "sourceIndex" to -1. ` +
-      'Respond as JSON: {"sentence": string, "sourceIndex": number, "composed": boolean}, where ' +
-      "sourceIndex is the [n] of the excerpt the sentence came from (or -1 if you wrote it).",
-    user: `Target word: ${word}\n\nExcerpts:\n${numbered}`,
-    schema: sentenceSelectionSchema,
-  });
+  // When the card already has examples, compose a fresh, DIFFERENT one instead of
+  // searching (the web search returns the same top article/sentence every time).
+  const avoidList = (params.avoid ?? []).map((s) => s.trim()).filter(Boolean);
+  const avoidLine = avoidList.length
+    ? `Write a DIFFERENT example from the ones the learner already has — a new situation and wording, not similar to any of these: ${avoidList
+        .map((s) => `"${s}"`)
+        .join("; ")}. `
+    : "";
 
-  // A composed sentence (or an out-of-range index) has no real source to link to.
-  let sentence = selection.sentence.trim();
-  let composed = selection.composed || selection.sourceIndex < 0 || selection.sourceIndex >= articles.length;
+  let sentence = "";
+  let composed = avoidList.length > 0; // "add another" → always compose a fresh one
+  let source: { url: string } | null = null;
 
-  // Safety net: if the picked sentence isn't even in the source language's
-  // script (e.g. an English blurb for a Chinese word), compose a proper one.
-  if (!composed && !matchesSourceScript(sentence, sourceLang)) {
-    composed = true;
+  if (avoidList.length === 0) {
+    // 1. External tool call — the part that makes this a real agent, not a chat loop.
+    const articles = await searchNews(word, {
+      restrictNews: style === "news" && sourceLang === "en",
+      queryHint: sourceLang === "en" ? styleInfo.query || undefined : undefined,
+    });
+    if (articles.length === 0) {
+      throw new Error(`No sources found containing "${word}"`);
+    }
+
+    // 2. LLM step 1: choose one natural sentence and which excerpt it came from.
+    const numbered = articles.map((a, i) => `[${i}] ${a.content}`).join("\n\n");
+    const selection = await chatJson({
+      system:
+        `You are a ${sourceName} language teacher creating one example sentence for a learner. ` +
+        `Pick the best COMPLETE, natural sentence written in ${sourceName} from the numbered ` +
+        `excerpts that uses the target word in meaningful context — a real sentence with a subject ` +
+        `and a verb that shows what the word means. NEVER pick a title, headline, company or brand ` +
+        `name, URL, menu/navigation label, or a bare fragment. The sentence MUST be written in ` +
+        `${sourceName} and actually contain the target word. ` +
+        `Prefer a ${styleInfo.register} tone. ` +
+        RICHNESS_RULE +
+        levelLine +
+        `If none of the excerpts contain a suitable natural ${sourceName} sentence (for example the ` +
+        `word is a brand or proper noun and the results are just names or links), WRITE one yourself: ` +
+        `a correct, natural, interesting ${sourceName} sentence that clearly shows the word in use. ` +
+        `In that case set "composed" to true and "sourceIndex" to -1. ` +
+        'Respond as JSON: {"sentence": string, "sourceIndex": number, "composed": boolean}, where ' +
+        "sourceIndex is the [n] of the excerpt the sentence came from (or -1 if you wrote it).",
+      user: `Target word: ${word}\n\nExcerpts:\n${numbered}`,
+      schema: sentenceSelectionSchema,
+    });
+
+    sentence = selection.sentence.trim();
+    composed = selection.composed || selection.sourceIndex < 0 || selection.sourceIndex >= articles.length;
+    // Safety net: if the picked sentence isn't even in the source language's script
+    // (e.g. an English blurb for a Chinese word), compose a proper one.
+    if (!composed && !matchesSourceScript(sentence, sourceLang)) composed = true;
+    // Dialogue can't be lifted from a news excerpt — always compose an exchange.
+    if (style === "dialogue") composed = true;
+    source = composed ? null : articles[selection.sourceIndex];
   }
-  // Dialogue can't be lifted from a news excerpt (those are single lines), so we
-  // always compose a real short exchange for that style.
-  if (style === "dialogue") composed = true;
 
   if (composed) {
     const composedSystem =
@@ -150,12 +159,14 @@ export async function runExampleSearch(params: {
           `the word "${word}" naturally. Put EACH turn on its own line, prefixed with "— ". ` +
           `The exchange must make the meaning of "${word}" clear from the situation (not a bare ` +
           `question-and-answer). ` +
+          avoidLine +
           (levelLine || "") +
           `It MUST be written in ${sourceName} and contain "${word}". ` +
           'Respond as JSON: {"sentence": string} where sentence is the whole dialogue with line breaks (\\n).'
         : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
           `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
           RICHNESS_RULE +
+          avoidLine +
           (levelLine || "") +
           `The sentence MUST be written in ${sourceName} and contain "${word}". ` +
           'Respond as JSON: {"sentence": string}.';
@@ -165,8 +176,8 @@ export async function runExampleSearch(params: {
       schema: exampleSentenceSchema,
     });
     sentence = written.sentence.trim();
+    source = null;
   }
-  const source = composed ? null : articles[selection.sourceIndex];
 
   // 3. LLM step 2: translate the chosen sentence to the target language.
   const translation = await chatJson({

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { EXAMPLE_STYLES, getExampleStyle, getLevel, type ExampleStyle } from "@/lib/learnPrefs";
+import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -16,8 +17,10 @@ const parse = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 // Multi-line field styling (matches Input, but wraps so long examples/notes are
 // fully visible and editable instead of being clipped in a one-line box).
+// `field-sizing:content` auto-grows the box to fit the text, so the whole example
+// is visible by default (no manual dragging); resize-y still allows manual tweak.
 const taClass =
-  "w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-2.5 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:text-[15px]";
+  "w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-2.5 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:text-[15px] [field-sizing:content] min-h-[46px]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -44,6 +47,7 @@ export function EditWordForm({
 }) {
   const qc = useQueryClient();
   const { t } = useI18n();
+  const ensureLevel = useEnsureLevel();
 
   const [w, setW] = useState(word.word);
   const [sourceLang, setSourceLang] = useState(word.sourceLang);
@@ -198,10 +202,28 @@ export function EditWordForm({
           className="w-[150px]"
           options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
         />
-        <Button type="button" variant="outline" size="sm" disabled={regen.isPending} onClick={() => regen.mutate(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={regen.isPending}
+          onClick={async () => {
+            const { ok } = await ensureLevel(sourceLang);
+            if (ok) regen.mutate(true);
+          }}
+        >
           {regen.isPending ? t("edit.fetching") : `🔄 ${t("edit.regenerate")}`}
         </Button>
-        <Button type="button" variant="ghost" size="sm" disabled={regen.isPending} onClick={() => regen.mutate(false)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={regen.isPending}
+          onClick={async () => {
+            const { ok } = await ensureLevel(sourceLang);
+            if (ok) regen.mutate(false);
+          }}
+        >
           + {t("edit.addExample")}
         </Button>
         {regen.isError && <span className="text-sm text-warn-text">{(regen.error as Error).message}</span>}
