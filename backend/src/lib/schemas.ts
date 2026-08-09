@@ -59,17 +59,34 @@ export type SuggestResult = z.infer<typeof suggestSchema>;
 
 // The import assistant turns loose text (or a .txt file) into reviewable card
 // rows. The user sees every row before anything is written to the database.
+// Tolerate the model returning null (not just missing) for optional fields.
+const nullableStr = z
+  .string()
+  .max(1200)
+  .nullish()
+  .transform((v) => v ?? "");
+
 export const importedCardSchema = z.object({
   word: z.string().min(1).max(100),
-  meaning: z.string().min(1).max(500),
-  example: z.string().max(1200).default(""),
-  exampleTranslation: z.string().max(1200).default(""),
-  synonyms: z.array(z.string().max(100)).max(8).default([]),
+  meaning: z
+    .string()
+    .max(500)
+    .nullish()
+    .transform((v) => v ?? ""),
+  example: nullableStr,
+  exampleTranslation: nullableStr,
+  synonyms: z
+    .array(z.string().max(100))
+    .max(8)
+    .nullish()
+    .transform((v) => v ?? []),
 });
 export type ImportedCard = z.infer<typeof importedCardSchema>;
 
 export const importPreviewSchema = z.object({
-  items: z.array(importedCardSchema).min(1).max(100),
+  // May be empty (e.g. blank input) — the service turns that into a friendly error
+  // instead of a raw validation crash.
+  items: z.array(importedCardSchema).max(100).default([]),
 });
 export type ImportPreview = z.infer<typeof importPreviewSchema>;
 

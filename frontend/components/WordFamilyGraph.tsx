@@ -185,6 +185,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const dragRef = useRef<{ id: string; moved: boolean } | null>(null);
   const draggingId = useRef<string | null>(null);
   const initedKey = useRef<string>("");
+  const addingRef = useRef(false); // serialize adds so rapid taps don't race
 
   const relatedKey = related.map((r) => r.term).join("|");
 
@@ -357,33 +358,41 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
   async function activate(node: SimNode) {
     const key = node.id.trim().toLowerCase();
+    if (!key) return;
     const id = savedMap.get(key) ?? addedIds.get(key);
     if (id) {
       router.push(`/word/${id}`);
       return;
     }
-    // Not saved yet — let the user pick how to create the card.
-    if (add.isPending || addManual.isPending || addedIds.has(key)) return;
-    const ai = isAiSupported(word.sourceLang);
-    // If the AI can't handle this language, only manual makes sense.
-    const how = ai
-      ? await choose({
-          title: t("graph.addTitle", { word: node.label }),
-          options: [
-            { value: "ai", label: t("add.auto"), hint: t("graph.aiHint") },
-            { value: "manual", label: t("add.manual"), hint: t("graph.manualHint") },
-          ],
-        })
-      : "manual";
-    if (!how) return;
-    if (how === "manual") {
-      addManual.mutate(node.label);
-      return;
+    // One add at a time — rapid taps on several nodes must not spawn concurrent
+    // jobs (which raced, overwrote each other's progress, and left blank cards).
+    if (addingRef.current || addedIds.has(key)) return;
+    addingRef.current = true;
+    try {
+      const ai = isAiSupported(word.sourceLang);
+      const how = ai
+        ? await choose({
+            title: t("graph.addTitle", { word: node.label }),
+            options: [
+              { value: "ai", label: t("add.auto"), hint: t("graph.aiHint") },
+              { value: "manual", label: t("add.manual"), hint: t("graph.manualHint") },
+            ],
+          })
+        : "manual";
+      if (!how) return;
+      if (how === "manual") {
+        await addManual.mutateAsync(node.label);
+        return;
+      }
+      // AI path generates an example → make sure we know the level first.
+      const { ok } = await ensureLevel(word.sourceLang);
+      if (!ok) return;
+      await add.mutateAsync(node.label);
+    } catch {
+      /* the mutation's onError already surfaced a toast */
+    } finally {
+      addingRef.current = false;
     }
-    // AI path generates an example → make sure we know the level first.
-    const { ok } = await ensureLevel(word.sourceLang);
-    if (!ok) return;
-    add.mutate(node.label);
   }
 
   function onDown(e: React.PointerEvent, node: SimNode) {

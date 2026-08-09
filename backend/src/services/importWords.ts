@@ -27,11 +27,17 @@ export async function previewImportedWords(params: {
   const targetName = langName(params.targetLang);
   const parsed = await chatJson({
     system:
-      `You turn informal ${sourceName} vocabulary notes into flashcards for a learner of ${targetName}. ` +
-      "Extract only actual words or short phrases, ignoring headings, numbering and comments. " +
-      `Normalize obvious spelling mistakes in the ${sourceName} side. Give each item a concise, natural ${targetName} meaning; correct a supplied translation only when it is clearly wrong. ` +
-      "Preserve a supplied example and its translation when present. Preserve supplied synonyms when present. " +
-      `Return at most ${MAX_CARDS} items and no commentary. ` +
+      `You turn ${sourceName} input into flashcards for a learner of ${targetName}. The input can be in ` +
+      `ANY of these forms — handle all:\n` +
+      `1) "word — meaning" / "word: meaning" / "word, meaning" lines → keep the given ${targetName} meaning ` +
+      `(fix it only if clearly wrong), preserve any example/translation/synonyms.\n` +
+      `2) a plain list of ${sourceName} words/phrases (no translations) → make one card per item and ` +
+      `generate a concise, natural ${targetName} meaning yourself.\n` +
+      `3) free-form ${sourceName} text / a sentence with no translations → split it into its distinct ` +
+      `words (and obvious phrases) and make one card per word, generating each ${targetName} meaning. ` +
+      `Keep the words the user actually wrote; only skip pure punctuation/numbers.\n` +
+      `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
+      `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
       'JSON shape: {"items":[{"word":string,"meaning":string,"example":string,"exampleTranslation":string,"synonyms":string[]}]}.',
     user: text,
     schema: importPreviewSchema,
@@ -40,12 +46,16 @@ export async function previewImportedWords(params: {
 
   // A repeated word is not useful as two cards in the same import preview.
   const seen = new Set<string>();
-  return parsed.items.filter((item) => {
+  const items = (parsed.items ?? []).filter((item) => {
     const key = item.word.trim().toLocaleLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  if (items.length === 0) {
+    throw new Error("Couldn't find any words here. Paste words (one per line) or 'word — meaning' pairs.");
+  }
+  return items;
 }
 
 /**
