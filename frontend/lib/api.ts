@@ -213,6 +213,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ messages }),
     }),
+  // Global AI tutor chat (not tied to a card).
+  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string }) =>
+    http<{ answer: string; addWords: string[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
   translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
     http<{ translation: string }>(`/api/translate`, {
       method: "POST",
