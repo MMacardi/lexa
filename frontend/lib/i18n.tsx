@@ -523,6 +523,8 @@ const DICT: Record<string, Entry> = {
   "word.thinking": { en: "Thinking…", ru: "Думаю…", zh: "思考中…" },
   "word.restart": { en: "Start over", ru: "Заново", zh: "重新开始" },
   "word.askError": { en: "Couldn't get an answer", ru: "Не удалось получить ответ", zh: "未能获取回答" },
+  "word.createCards": { en: "Create cards", ru: "Создать карточки", zh: "创建卡片" },
+  "word.cardsCreated": { en: "Creating {n} card(s)…", ru: "Создаю карточек: {n}…", zh: "正在创建 {n} 张卡片…" },
   "word.synAdded": { en: "Added {n} synonym(s)", ru: "Добавлено синонимов: {n}", zh: "已加入 {n} 个同义词" },
   "word.antAdded": { en: "Added {n} antonym(s)", ru: "Добавлено антонимов: {n}", zh: "已加入 {n} 个反义词" },
   "word.notFound": { en: "Word not found.", ru: "Слово не найдено.", zh: "未找到该词。" },

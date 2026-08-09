@@ -415,8 +415,10 @@ export async function askAboutWord(
         `${targetName} and steer back to the word.\n\n` +
         `ACTIONS: if the learner asks you to add synonyms or antonyms (or you clearly recommend some), ` +
         `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
-        `not already listed). Otherwise leave those arrays empty. ` +
-        'Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[]}.\n\n' +
+        `not already listed). If the learner explicitly asks to SAVE/ADD new vocabulary as its own ` +
+        `card(s) — even words unrelated to this one — ALWAYS honor it (this is a valid learning action, ` +
+        `not off-topic): put those ${sourceName} words in "addWords". Otherwise leave the arrays empty. ` +
+        'Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[]}.\n\n' +
         `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
         (word.synonyms.length ? `\nExisting synonyms: ${word.synonyms.join(", ")}` : "") +
         (word.antonyms.length ? `\nExisting antonyms: ${word.antonyms.join(", ")}` : "") +
@@ -428,10 +430,12 @@ export async function askAboutWord(
   const result = await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
   // Don't re-suggest words the card already has.
   const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
+  const self = word.word.trim().toLowerCase();
   return {
     answer: result.answer.trim(),
     addSynonyms: (result.addSynonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
+    addWords: (result.addWords ?? []).filter((s) => s.trim() && s.trim().toLowerCase() !== self),
   };
 }
 

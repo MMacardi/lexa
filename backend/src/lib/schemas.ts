@@ -27,6 +27,8 @@ export const wordChatSchema = z.object({
   answer: z.string().min(1),
   addSynonyms: z.array(z.string()).default([]),
   addAntonyms: z.array(z.string()).default([]),
+  // Brand-new vocabulary the learner asked to save as its own card(s).
+  addWords: z.array(z.string()).default([]),
 });
 export type WordChatResult = z.infer<typeof wordChatSchema>;
 
