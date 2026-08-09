@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext } from "../services/translate.js";
+import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { getImportJobForUser } from "../services/importWorker.js";
@@ -481,6 +482,29 @@ wordsRouter.post("/ocr", async (req, res) => {
   try {
     const text = await ocrImage({ dataUrl: parsed.data.image, sourceLang: parsed.data.sourceLang });
     res.json({ text });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/tutor/ask -> global AI tutor chat (not tied to a card).
+const tutorBody = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .min(1)
+    .max(20),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+});
+wordsRouter.post("/tutor/ask", async (req, res) => {
+  const parsed = tutorBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await tutorChat(parsed.data));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

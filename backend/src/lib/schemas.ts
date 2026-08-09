@@ -21,6 +21,14 @@ export const exampleSentenceSchema = z.object({
   sentence: z.string().min(1),
 });
 
+// Global tutor chat (not tied to a card): a reply plus optional vocabulary the
+// learner wants saved / that the tutor suggests to study.
+export const tutorChatSchema = z.object({
+  answer: z.string().min(1),
+  addWords: z.array(z.string()).default([]),
+});
+export type TutorChatResult = z.infer<typeof tutorChatSchema>;
+
 // Actionable tutor chat: a prose reply plus optional suggested edits to the card
 // (synonyms/antonyms to add), which the UI offers as one-tap actions.
 export const wordChatSchema = z.object({

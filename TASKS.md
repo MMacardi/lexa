@@ -18,10 +18,12 @@
   prefilled (`?word=&mode=auto`), auto-joining the set.
 - ✅ Quiz counts toward "mastered" — verified: correct answers grade Good → reviewCount++.
 - ✅ Unit economics — see `UNIT_ECONOMICS.md` (≈$0.2–2 / user / month; compute is free).
-- 🔨 AI tutor that can DO things (tool-use):
+- ✅ AI tutor that can DO things (tool-use):
   - ✅ add synonyms/antonyms to the current card from chat (one-tap).
   - ✅ create new cards from chat ("add the word X") → background batch-add.
-  - ⏳ add to a collection from chat; make the chat global/always-with-you.
+  - ✅ **Global tutor**: floating ✨ button on every page → chat panel with visible
+    quick-actions (words by topic/level, explain), can create cards into a chosen
+    collection, uses the current language pair.
 - ⏳ BIG — prettier PNG share cards + choose front/back contents + user image on the
   card front (printable). Needs a `Word.imageUrl` field + upload + redesigned
   `shareCard`. Deferred (large).

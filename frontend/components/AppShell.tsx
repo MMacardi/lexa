@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { LoginScreen } from "@/components/LoginScreen";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
+import { GlobalTutor } from "@/components/GlobalTutor";
 
 // Gates the app behind login. Until the session check finishes we show a light
 // loading state; signed-out users get the login screen; signed-in users get the
@@ -33,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       <CommandPalette />
       <AchievementWatcher />
+      <GlobalTutor />
     </div>
   );
 }

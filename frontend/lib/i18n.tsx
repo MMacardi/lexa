@@ -21,6 +21,28 @@ const DICT: Record<string, Entry> = {
   "nav.reader": { en: "Reader", ru: "Читалка", zh: "阅读" },
   "nav.collections": { en: "Collections", ru: "Коллекции", zh: "合集" },
 
+  // --- global AI tutor ---
+  "tutor.title": { en: "AI tutor", ru: "ИИ-репетитор", zh: "AI 老师" },
+  "tutor.open": { en: "Open AI tutor", ru: "Открыть ИИ-репетитора", zh: "打开 AI 老师" },
+  "tutor.welcome": {
+    en: "Ask me anything about the language — or ask me to pick and add words to your deck.",
+    ru: "Спроси что угодно про язык — или попроси подобрать и добавить слова в словарь.",
+    zh: "问我任何语言问题——或让我挑选并把单词加入你的卡组。",
+  },
+  "tutor.placeholder": { en: "Ask, or ask to add words…", ru: "Спроси или попроси добавить слова…", zh: "提问，或让我添加单词…" },
+  "tutor.suggestTopic": { en: "📚 Words by topic", ru: "📚 Слова по теме", zh: "📚 按主题选词" },
+  "tutor.suggestLevel": { en: "🎯 Words by level", ru: "🎯 Слова по уровню", zh: "🎯 按等级选词" },
+  "tutor.suggestExplain": { en: "💡 Explain a word", ru: "💡 Объяснить слово", zh: "💡 讲解单词" },
+  "tutor.topicTemplate": { en: "Pick 8 useful words about: ", ru: "Подбери 8 полезных слов по теме: ", zh: "挑选 8 个关于以下主题的常用词：" },
+  "tutor.levelTemplate": { en: "Give me 8 B1-level words to practice", ru: "Дай 8 слов уровня B1 для практики", zh: "给我 8 个 B1 级别的练习词" },
+  "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
+  "tutor.toSet": { en: "Add to set", ru: "В набор", zh: "加入合集" },
+  "tutor.capabilities": {
+    en: "I can explain words, give examples, and add words to your deck.",
+    ru: "Я умею объяснять слова, давать примеры и добавлять слова в словарь.",
+    zh: "我能讲解单词、给例句，并把单词加入你的卡组。",
+  },
+
   // --- reader ---
   "reader.title": { en: "Reader", ru: "Читалка", zh: "阅读器" },
   "reader.subtitle": {
