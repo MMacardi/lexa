@@ -24,9 +24,10 @@
   - ✅ **Global tutor**: floating ✨ button on every page → chat panel with visible
     quick-actions (words by topic/level, explain), can create cards into a chosen
     collection, uses the current language pair.
-- ⏳ BIG — prettier PNG share cards + choose front/back contents + user image on the
-  card front (printable). Needs a `Word.imageUrl` field + upload + redesigned
-  `shareCard`. Deferred (large).
+- 🔨 Printable PNG cards:
+  - ✅ prettier two-face (front + back) PNG, choose what's on each side (reuses the
+    card layout), live preview + download — `PrintCardModal` + `renderPrintableCard`.
+  - ⏳ user image on the card front (needs `Word.imageUrl` + upload/storage). Deferred.
 
 ## Wrap-up
 - ✅ Commit to `new_lexa` (PR to main deferred per user).
