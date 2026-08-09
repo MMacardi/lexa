@@ -181,7 +181,7 @@ export default function CollectionDetailPage() {
             </p>
             {q && (
               <Link
-                href={`/words?coll=${id}&word=${encodeURIComponent(query.trim())}`}
+                href={`/words?coll=${id}&word=${encodeURIComponent(query.trim())}&mode=auto`}
                 className="inline-flex items-center gap-2 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
               >
                 ＋ {t("col.createWord", { word: query.trim() })}

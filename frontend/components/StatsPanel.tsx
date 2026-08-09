@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -42,6 +43,31 @@ function dayLabel(iso: string, monthOnly: boolean) {
 // word's createdAt — so any range works without extra API calls.
 function LearningCurve({ words, days }: { words: Word[]; days: number }) {
   const { t } = useI18n();
+  const [tip, setTip] = useState<{ x: number; y: number; date: string; value: number } | null>(null);
+
+  useEffect(() => {
+    if (!tip) return;
+    const close = () => setTip(null);
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-curvedot]")) setTip(null);
+    };
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setTip(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("keydown", onEsc);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onEsc);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [tip]);
+
+  const showTip = (el: HTMLElement, date: string, value: number) => {
+    const r = el.getBoundingClientRect();
+    setTip({ x: r.left + r.width / 2, y: r.top, date, value });
+  };
   const times = words.map((w) => new Date(w.createdAt).getTime()).sort((a, b) => a - b);
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -137,8 +163,13 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
             showDots || i === n - 1 ? (
               <span
                 key={p.date}
-                title={`${dayLabel(p.date, false)} · ${p.value} words`}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-sage-deep ${
+                data-curvedot
+                onMouseEnter={(e) => showTip(e.currentTarget, p.date, p.value)}
+                onMouseLeave={() => setTip(null)}
+                onPointerDown={(e) => {
+                  if (e.pointerType !== "mouse") showTip(e.currentTarget, p.date, p.value);
+                }}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 border-surface bg-sage-deep transition-transform hover:scale-125 ${
                   i === n - 1 ? "h-3 w-3" : "h-2 w-2"
                 }`}
                 style={{ left: `${xPct(i)}%`, top: `${yPct(p.value)}%` }}
@@ -147,6 +178,19 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
           )}
         </div>
       </div>
+
+      {/* portaled tooltip (correct under transformed ancestors + touch tap) */}
+      {tip &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-full rounded-[10px] bg-onyx px-2.5 py-1.5 text-center shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{ left: tip.x, top: tip.y - 8 }}
+          >
+            <div className="text-[12px] font-semibold text-white">{t("stats.wordsCount", { n: tip.value })}</div>
+            <div className="text-[10px] font-medium text-white/60">{dayLabel(tip.date, false)}</div>
+          </div>,
+          document.body,
+        )}
 
       {/* x-axis date labels — reserve the last slot for "today" and drop any
           regular label too close to it so they don't overlap. */}

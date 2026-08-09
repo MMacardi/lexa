@@ -78,6 +78,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [swapSpin, setSwapSpin] = useState(false);
 
   // Prefill the word from a ?word= deep link (e.g. "Create ‹word›" on a set page).
+  // (?mode= is handled by the mode-init effect below, so it wins over last-used.)
   useEffect(() => {
     const w = new URLSearchParams(window.location.search).get("word");
     if (w) setWord(w);
@@ -105,11 +106,11 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const style = useExampleStyle();
   const currentLevel = useLevel(sourceLang);
   const recentPairs = useRecentPairs();
-  // Remembered choice for kanji-only input (Chinese vs Japanese vs Korean).
-  const [hanChoice, setHanChoice] = useState<"zh" | "ja" | "ko">("zh");
+  // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
+  const [hanChoice, setHanChoice] = useState<"zh" | "ja">("zh");
   useEffect(() => {
     const h = getHanLang();
-    if (h) setHanChoice(h);
+    if (h === "zh" || h === "ja") setHanChoice(h);
   }, []);
   const showHanPicker = sourceLang === "auto" && isAmbiguousHan(word);
 
@@ -135,10 +136,11 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // A ?mode= deep link wins over the last-used mode.
+    const urlMode = new URLSearchParams(window.location.search).get("mode");
     const stored = localStorage.getItem(MODE_KEY) as Mode | null;
-    if (stored === "auto" || stored === "manual") {
-      setMode(stored);
-    }
+    const initial = urlMode === "auto" || urlMode === "manual" ? urlMode : stored;
+    if (initial === "auto" || initial === "manual") setMode(initial);
     setModeReady(true);
   }, []);
 
@@ -440,7 +442,9 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         <div className="anim-fade-up flex flex-wrap items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 p-2.5">
           <span className="text-[12px] font-semibold text-sage-deep">{t("han.inlinePrompt")}</span>
           <div className="flex gap-1 rounded-[16px] bg-black/[0.05] p-1 text-sm font-semibold">
-            {(["zh", "ja", "ko"] as const).map((l) => (
+            {/* Only Chinese vs Japanese — pure Han input is never Korean (Korean uses
+                hangul), and offering it caused mis-detections like 月 → 월. */}
+            {(["zh", "ja"] as const).map((l) => (
               <button
                 key={l}
                 type="button"
@@ -453,14 +457,14 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   hanChoice === l ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
                 )}
               >
-                <span>{l === "zh" ? "中文" : l === "ja" ? "日本語" : "한국어"}</span>
+                <span>{l === "zh" ? "中文" : "日本語"}</span>
                 <span
                   className={cn(
                     "text-[10px] font-medium",
                     hanChoice === l ? "text-white/80" : "text-ink-faint",
                   )}
                 >
-                  {l === "zh" ? t("han.chinese") : l === "ja" ? t("han.japanese") : t("han.korean")}
+                  {l === "zh" ? t("han.chinese") : t("han.japanese")}
                 </span>
               </button>
             ))}

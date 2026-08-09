@@ -60,6 +60,12 @@ const DICT: Record<string, Entry> = {
   "reader.addExample": { en: "＋ Example from this sentence", ru: "＋ Пример из этого предложения", zh: "＋ 用这句作例句" },
   "reader.exampleAdded": { en: "Example added to “{word}”", ru: "Пример добавлен к «{word}»", zh: "已把例句加到“{word}”" },
   "reader.openCard": { en: "Open card", ru: "Открыть карточку", zh: "打开卡片" },
+  "reader.langMismatch": {
+    en: "This text looks like {detected}, but the source is {source}.",
+    ru: "Текст похоже на {detected}, а источник — {source}.",
+    zh: "这段文字看起来是{detected}，但源语言是{source}。",
+  },
+  "reader.useAsSource": { en: "Use {lang} as source", ru: "Источник — {lang}", zh: "以{lang}为源语言" },
   "reader.holdHint": {
     en: "Press and hold a word to see its meaning in this sentence.",
     ru: "Зажми слово, чтобы увидеть его значение в этом предложении.",
@@ -249,6 +255,7 @@ const DICT: Record<string, Entry> = {
   "stats.activity": { en: "Activity", ru: "Активность", zh: "活跃度" },
   "stats.activeDays": { en: "{n} active days", ru: "Активных дней: {n}", zh: "{n} 个活跃日" },
   "stats.reviewsCount": { en: "{n} reviews", ru: "повторов: {n}", zh: "{n} 次复习" },
+  "stats.wordsCount": { en: "{n} words", ru: "слов: {n}", zh: "{n} 个词" },
   "stats.noReviews": { en: "No reviews", ru: "Нет повторов", zh: "无复习" },
   "stats.less": { en: "Less", ru: "Меньше", zh: "少" },
   "stats.more": { en: "More", ru: "Больше", zh: "多" },
