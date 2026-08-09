@@ -9,27 +9,15 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import {
-  CEFR_LEVELS,
-  EXAMPLE_STYLES,
-  LEVEL_HINT,
-  getExampleStyle,
-  getLevel,
   getReaderSource,
   pushRecentPair,
-  setExampleStyle,
-  setLevel,
   setReaderSource,
-  useExampleStyle,
-  useLevel,
   useReaderSource,
   useRecentPairs,
-  type CefrLevel,
-  type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
-import { Select } from "@/components/ui/Select";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 
@@ -81,12 +69,16 @@ export default function ReaderPage() {
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
   const recentPairs = useRecentPairs();
-  const style = useExampleStyle();
   const readerSource = useReaderSource();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
-  const currentLevel = useLevel(sourceLang);
+  const [swapSpin, setSwapSpin] = useState(false);
+  const swapLangs = () => {
+    setSourceLang(targetLang);
+    setTargetLang(sourceLang);
+    setSwapSpin((v) => !v);
+  };
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
   const [reading, setReading] = useState(false);
@@ -356,8 +348,6 @@ export default function ReaderPage() {
         // carry each word's sentence so the card's example/context comes from the Reader
         items: keys.map((k) => ({ word: k, sentence: sentenceForKey(k) })),
         source: getReaderSource().trim() || t("reader.sourceDefault"),
-        level: getLevel(sourceLang) ?? undefined,
-        exampleStyle: getExampleStyle(),
         enrich,
       });
       setAdded((prev) => new Set([...prev, ...keys]));
@@ -428,7 +418,15 @@ export default function ReaderPage() {
         <div className="space-y-3 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
             <LangSelect value={sourceLang} onChange={setSourceLang} />
-            <span className="text-ink-faint">→</span>
+            <button
+              type="button"
+              onClick={swapLangs}
+              aria-label={t("add.swap")}
+              title={t("add.swap")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
+            >
+              <span className={cn("text-[15px] transition-transform duration-300", swapSpin && "rotate-180")}>⇄</span>
+            </button>
             <LangSelect value={targetLang} onChange={setTargetLang} />
           </div>
 
@@ -449,35 +447,6 @@ export default function ReaderPage() {
                     {langLabel(p.s)} → {langLabel(p.t)}
                   </button>
                 ))}
-            </div>
-          )}
-
-          {/* how AI enriches the cards you add from here (register + your level) */}
-          {isAiSupported(sourceLang) && (
-            <div className="space-y-1.5 rounded-[14px] border border-black/[0.06] bg-paper/50 p-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
-                <Select
-                  value={style}
-                  onChange={(v) => setExampleStyle(v as ExampleStyle)}
-                  ariaLabel={t("style.label")}
-                  className="w-[150px]"
-                  options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
-                />
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
-                <Select
-                  value={currentLevel ?? ""}
-                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
-                  ariaLabel={t("level.title")}
-                  placeholder={t("level.pick")}
-                  className="w-[136px]"
-                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
-                />
-              </div>
-              <p className="text-[12px] leading-snug text-ink-faint">
-                {t(`style.desc.${style}`)}
-                {currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
-              </p>
             </div>
           )}
 
@@ -786,8 +755,43 @@ export default function ReaderPage() {
                     ✕
                   </button>
                 </div>
+                {w.partOfSpeech && (
+                  <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{w.partOfSpeech}</div>
+                )}
                 {w.meaningZh && (
                   <div className={cn("mt-1.5 text-[18px] font-semibold text-sage-deep", sourceFont(w.targetLang))}>{w.meaningZh}</div>
+                )}
+                {(w.synonyms.length > 0 || w.antonyms.length > 0 || w.collocations.length > 0) && (
+                  <div className="mt-3 space-y-2 border-t border-black/[0.06] pt-3">
+                    {([
+                      ["synonyms", w.synonyms, "syn"],
+                      ["antonyms", w.antonyms, "ant"],
+                      ["collocations", w.collocations, "muted"],
+                    ] as const).map(([key, items, tone]) =>
+                      items.length ? (
+                        <div key={key}>
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${key}`)}</span>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {items.map((it) => (
+                              <span
+                                key={it}
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[12px]",
+                                  tone === "syn"
+                                    ? "border-sage/40 bg-sage-tint text-sage-deep"
+                                    : tone === "ant"
+                                      ? "border-warn/40 bg-warn-bg text-warn-text"
+                                      : "border-black/[0.08] bg-paper text-ink-muted",
+                                )}
+                              >
+                                {it}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
                 )}
                 {w.examples.length > 0 && (
                   <div className="mt-3 space-y-2 border-t border-black/[0.06] pt-3">

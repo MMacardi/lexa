@@ -25,10 +25,11 @@ export async function runTutor(params: {
       "IPA in slashes), partOfSpeech, meaningZh (the definition written in " +
       `${targetName}), collocations (2-3 common ${sourceName} phrases), synonyms ` +
       `(up to 3 genuine ${sourceName} synonyms), antonyms (up to 3 genuine ` +
-      `${sourceName} antonyms). IMPORTANT: only include TRUE synonyms/antonyms. ` +
-      `Many words (especially nouns and abstract concepts) have no real antonyms — ` +
-      `in that case return an empty array rather than inventing a loose or ` +
-      `merely-contrasting word. Quality over quantity; an empty list is fine. ` +
+      `${sourceName} antonyms). CRITICAL: synonyms and antonyms MUST be written in ` +
+      `${sourceName} — the SAME language as the word — never in ${targetName}. ` +
+      `Only include TRUE synonyms/antonyms. Many words (especially nouns and abstract ` +
+      `concepts) have no real antonyms — in that case return an empty array rather ` +
+      `than inventing a loose or merely-contrasting word. Quality over quantity; an empty list is fine. ` +
       'Shape: {"phonetic": string, "partOfSpeech": string, "meaningZh": string, ' +
       '"collocations": string[], "synonyms": string[], "antonyms": string[]}.',
     user: params.word,

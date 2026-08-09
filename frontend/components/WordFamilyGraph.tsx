@@ -8,6 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { useDialog } from "@/lib/dialog";
+import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const qc = useQueryClient();
   const router = useRouter();
   const { show, trackImport } = useToast();
-  const { prompt } = useDialog();
+  const { prompt, choose, confirm } = useDialog();
+  const ensureLevel = useEnsureLevel();
   const [pending, setPending] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   // Terms added from this graph → their new card id, so a tap right after adding
@@ -120,6 +122,46 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     },
     onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
   });
+
+  // Create a bare manual card (no AI) — safe for unusual/unknown terms.
+  const addManual = useMutation({
+    mutationFn: (term: string) =>
+      api.addWordManual({ word: term, telegramId: accountId, sourceLang: word.sourceLang, targetLang: word.targetLang }),
+    onMutate: (term) => setPending(term.trim().toLowerCase()),
+    onSettled: () => setPending(null),
+    onSuccess: (created, term) => {
+      qc.invalidateQueries({ queryKey: ["words"] });
+      setAddedIds((m) => new Map(m).set(term.trim().toLowerCase(), created.id));
+      show({ icon: "🌱", title: t("word.addedRelated", { word: term }) });
+    },
+    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+  });
+
+  // Remove a synonym/antonym from the word (edited from the graph, with confirm).
+  const removeRelated = useMutation({
+    mutationFn: ({ term, kind }: { term: string; kind: "syn" | "ant" }) =>
+      api.updateWord(
+        word.id,
+        kind === "syn"
+          ? { synonyms: word.synonyms.filter((s) => s.trim().toLowerCase() !== term.trim().toLowerCase()) }
+          : { antonyms: word.antonyms.filter((s) => s.trim().toLowerCase() !== term.trim().toLowerCase()) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["word", word.id] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+    },
+    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+  });
+
+  async function confirmRemove(node: SimNode) {
+    const ok = await confirm({
+      title: t("graph.removeTitle"),
+      message: t("graph.removeConfirm", { word: node.label }),
+      confirmLabel: t("common.delete"),
+      tone: "danger",
+    });
+    if (ok) removeRelated.mutate({ term: node.label, kind: node.kind === "ant" ? "ant" : "syn" });
+  }
 
   async function promptAdd(kind: "syn" | "ant") {
     const existing = kind === "syn" ? word.synonyms : word.antonyms;
@@ -313,15 +355,34 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
   if (related.length === 0) return null;
 
-  function activate(node: SimNode) {
+  async function activate(node: SimNode) {
     const key = node.id.trim().toLowerCase();
     const id = savedMap.get(key) ?? addedIds.get(key);
     if (id) {
       router.push(`/word/${id}`);
       return;
     }
-    // Not saved yet — add it (unless this term is already being/has been added).
-    if (add.isPending || addedIds.has(key)) return;
+    // Not saved yet — let the user pick how to create the card.
+    if (add.isPending || addManual.isPending || addedIds.has(key)) return;
+    const ai = isAiSupported(word.sourceLang);
+    // If the AI can't handle this language, only manual makes sense.
+    const how = ai
+      ? await choose({
+          title: t("graph.addTitle", { word: node.label }),
+          options: [
+            { value: "ai", label: t("add.auto"), hint: t("graph.aiHint") },
+            { value: "manual", label: t("add.manual"), hint: t("graph.manualHint") },
+          ],
+        })
+      : "manual";
+    if (!how) return;
+    if (how === "manual") {
+      addManual.mutate(node.label);
+      return;
+    }
+    // AI path generates an example → make sure we know the level first.
+    const { ok } = await ensureLevel(word.sourceLang);
+    if (!ok) return;
     add.mutate(node.label);
   }
 
@@ -424,37 +485,57 @@ export function WordFamilyGraph({ word }: { word: Word }) {
           const busy = pending === nkey;
           const saved = savedMap.has(nkey) || addedIds.has(nkey);
           return (
-            <button
+            <div
               key={n.id}
-              type="button"
-              onPointerDown={(e) => onDown(e, n)}
-              onPointerMove={(e) => onMove(e, n)}
-              onPointerUp={() => onUp(n)}
-              onPointerEnter={() => setHovered(n.id)}
-              onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
-              title={saved ? n.label : `+ ${n.label}`}
               className={cn(
-                "absolute z-10 max-w-[45%] -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none truncate rounded-full border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-[transform,opacity,box-shadow] active:cursor-grabbing",
-                saved
-                  ? n.kind === "syn"
-                    ? "border-sage/50 bg-sage-tint text-sage-deep"
-                    : "border-warn/40 bg-warn-bg text-warn-text"
-                  : n.kind === "syn"
-                    ? "border-dashed border-black/25 bg-paper text-ink-muted hover:border-sage hover:text-sage-deep"
-                    : "border-dashed border-black/25 bg-paper text-ink-muted hover:border-warn hover:text-warn-text",
-                hovered === n.id && "scale-[1.06]",
-                hovered === n.id &&
-                  (n.kind === "ant"
-                    ? "border-warn shadow-[0_8px_22px_rgba(192,80,60,0.38)]"
-                    : "border-sage shadow-[0_8px_22px_rgba(124,152,133,0.4)]"),
+                "group absolute z-10 -translate-x-1/2 -translate-y-1/2 p-2 transition-opacity",
                 dim && "opacity-40",
                 busy && "opacity-60",
               )}
               style={{ left: n.x, top: n.y }}
+              onPointerEnter={() => setHovered(n.id)}
+              onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
             >
-              {!saved && "+ "}
-              {n.label}
-            </button>
+              <button
+                type="button"
+                onPointerDown={(e) => onDown(e, n)}
+                onPointerMove={(e) => onMove(e, n)}
+                onPointerUp={() => onUp(n)}
+                title={saved ? n.label : `+ ${n.label}`}
+                className={cn(
+                  "block max-w-[160px] cursor-grab touch-none truncate rounded-full border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-[transform,box-shadow] active:cursor-grabbing",
+                  saved
+                    ? n.kind === "syn"
+                      ? "border-sage/50 bg-sage-tint text-sage-deep"
+                      : "border-warn/40 bg-warn-bg text-warn-text"
+                    : n.kind === "syn"
+                      ? "border-dashed border-black/25 bg-paper text-ink-muted hover:border-sage hover:text-sage-deep"
+                      : "border-dashed border-black/25 bg-paper text-ink-muted hover:border-warn hover:text-warn-text",
+                  hovered === n.id && "scale-[1.06]",
+                  hovered === n.id &&
+                    (n.kind === "ant"
+                      ? "border-warn shadow-[0_8px_22px_rgba(192,80,60,0.38)]"
+                      : "border-sage shadow-[0_8px_22px_rgba(124,152,133,0.4)]"),
+                )}
+              >
+                {!saved && "+ "}
+                {n.label}
+              </button>
+              {/* delete this synonym/antonym from the word (with confirm) */}
+              <span
+                role="button"
+                aria-label={t("common.delete")}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  confirmRemove(n);
+                }}
+                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-[9px] font-bold text-white shadow group-hover:flex"
+              >
+                ✕
+              </span>
+            </div>
           );
         })}
       </div>
