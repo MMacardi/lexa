@@ -34,7 +34,7 @@ const DICT: Record<string, Entry> = {
   "tutor.suggestLevel": { en: "🎯 Words by level", ru: "🎯 Слова по уровню", zh: "🎯 按等级选词" },
   "tutor.suggestExplain": { en: "💡 Explain a word", ru: "💡 Объяснить слово", zh: "💡 讲解单词" },
   "tutor.topicTemplate": { en: "Pick 8 useful words about: ", ru: "Подбери 8 полезных слов по теме: ", zh: "挑选 8 个关于以下主题的常用词：" },
-  "tutor.levelTemplate": { en: "Give me 8 B1-level words to practice", ru: "Дай 8 слов уровня B1 для практики", zh: "给我 8 个 B1 级别的练习词" },
+  "tutor.levelTemplate": { en: "Give me 8 {level}-level words to practice", ru: "Дай 8 слов уровня {level} для практики", zh: "给我 8 个 {level} 级别的练习词" },
   "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
   "tutor.toSet": { en: "Add to set", ru: "В набор", zh: "加入合集" },
   "tutor.capabilities": {

@@ -326,23 +326,23 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                       <label
                         key={`${card.word}-${index}`}
                         className={cn(
-                          "flex cursor-pointer items-start gap-3 rounded-[16px] border p-3.5 transition-colors",
-                          card.selected ? "border-sage/30 bg-sage-tint/45" : "border-black/[0.07] bg-surface opacity-60",
+                          "flex cursor-pointer items-start gap-3 rounded-[16px] border p-4 transition-colors",
+                          card.selected ? "border-sage/40 bg-sage-tint/45" : "border-black/[0.08] bg-surface opacity-75",
                         )}
                       >
                         <input
                           type="checkbox"
                           checked={card.selected}
                           onChange={() => setCards((current) => current.map((item, i) => i === index ? { ...item, selected: !item.selected } : item))}
-                          className="mt-1 h-4 w-4 accent-[#7c9885]"
+                          className="mt-1.5 h-5 w-5 shrink-0 accent-[#7c9885]"
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                            <strong className="font-serif text-[24px] font-semibold text-ink">{card.word}</strong>
-                            <span className={cn("text-[18px] font-medium text-sage-deep", targetLang === "zh" && "font-zh")}>{card.meaning}</span>
+                          <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                            <strong className="font-serif text-[26px] font-semibold leading-tight text-ink">{card.word}</strong>
+                            <span className={cn("text-[19px] font-semibold text-sage-deep", targetLang === "zh" && "font-zh")}>{card.meaning || "—"}</span>
                           </span>
                           {(card.example || card.synonyms.length > 0) && (
-                            <span className="mt-1 block text-[13px] leading-relaxed text-ink-soft">
+                            <span className="mt-1.5 block text-[14px] leading-relaxed text-ink-soft">
                               {card.example ? `“${card.example}”` : ""}
                               {card.example && card.synonyms.length ? " · " : ""}
                               {card.synonyms.length ? `${card.synonyms.join(", ")}` : ""}

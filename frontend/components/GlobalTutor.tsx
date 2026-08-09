@@ -164,13 +164,15 @@ export function GlobalTutor() {
           </div>
 
           {/* conversation / welcome */}
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div ref={scrollRef} className="min-h-[160px] flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-[14px] leading-relaxed text-ink-soft">{t("tutor.welcome")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   <Chip onClick={() => fillTemplate(t("tutor.topicTemplate"))}>{t("tutor.suggestTopic")}</Chip>
-                  <Chip onClick={() => send(t("tutor.levelTemplate"))}>{t("tutor.suggestLevel")}</Chip>
+                  <Chip onClick={() => send(t("tutor.levelTemplate", { level: getLevel(pair.source) ?? "B1" }))}>
+                    {t("tutor.suggestLevel")}
+                  </Chip>
                   <Chip onClick={() => fillTemplate(t("tutor.explainTemplate"))}>{t("tutor.suggestExplain")}</Chip>
                 </div>
               </div>
@@ -181,14 +183,29 @@ export function GlobalTutor() {
                 <div key={i} className="space-y-2">
                   <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{m.content}</p>
                   {m.addWords && m.addWords.length > 0 && (
-                    <button
-                      type="button"
-                      disabled={creating}
-                      onClick={() => createCards(i, m.addWords!)}
-                      className="rounded-full bg-sage px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
-                    >
-                      ＋ {t("word.createCards")}: {m.addWords.join(", ")}
-                    </button>
+                    <div className="space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {m.addWords.map((w) => (
+                          <span key={w} className="rounded-full bg-surface px-2 py-0.5 text-[12px] font-medium text-ink">
+                            {w}
+                          </span>
+                        ))}
+                      </div>
+                      {collections && collections.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
+                          <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        disabled={creating}
+                        onClick={() => createCards(i, m.addWords!)}
+                        className="w-full rounded-full bg-sage px-3 py-2 text-[13px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
+                      >
+                        ＋ {t("word.createCards")} ({m.addWords.length})
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -203,14 +220,8 @@ export function GlobalTutor() {
             {ask.isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
           </div>
 
-          {/* footer: optional target set + input */}
+          {/* footer: input (collection choice appears with the "create cards" action) */}
           <div className="border-t border-black/[0.06] px-3 py-2.5">
-            {collections && collections.length > 0 && (
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
-                <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-52" />
-              </div>
-            )}
             <form
               className="flex items-center gap-2"
               onSubmit={(e) => {
