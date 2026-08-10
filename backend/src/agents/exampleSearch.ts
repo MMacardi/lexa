@@ -2,7 +2,7 @@ import { prisma } from "../services/db.js";
 import { searchNews } from "../services/search.js";
 import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, exampleSentenceSchema } from "../lib/schemas.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -16,6 +16,7 @@ function matchesSourceScript(sentence: string, sourceLang: string): boolean {
   };
   switch (sourceLang) {
     case "zh":
+    case "zh-Hant":
       return has(0x4e00, 0x9fff) || has(0x3400, 0x4dbf);
     case "ja":
       return has(0x3040, 0x30ff) || has(0x4e00, 0x9fff);
@@ -161,14 +162,16 @@ export async function runExampleSearch(params: {
           `question-and-answer). ` +
           avoidLine +
           (levelLine || "") +
-          `It MUST be written in ${sourceName} and contain "${word}". ` +
+          `It MUST be written in ${sourceName} and contain "${word}".` +
+          scriptNote(sourceLang) +
           'Respond as JSON: {"sentence": string} where sentence is the whole dialogue with line breaks (\\n).'
         : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
           `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
           RICHNESS_RULE +
           avoidLine +
           (levelLine || "") +
-          `The sentence MUST be written in ${sourceName} and contain "${word}". ` +
+          `The sentence MUST be written in ${sourceName} and contain "${word}".` +
+          scriptNote(sourceLang) +
           'Respond as JSON: {"sentence": string}.';
     const written = await chatJson({
       system: composedSystem,
@@ -183,7 +186,9 @@ export async function runExampleSearch(params: {
   const translation = await chatJson({
     system:
       `Translate the ${sourceName} text into natural ${targetName}. Keep any line breaks ` +
-      `(dialogue turns stay on separate lines). Respond as JSON: {"translation": string}.`,
+      `(dialogue turns stay on separate lines).` +
+      scriptNote(targetLang) +
+      ` Respond as JSON: {"translation": string}.`,
     user: sentence,
     schema: translationSchema,
   });

@@ -18,7 +18,7 @@ import { ExplainChat } from "@/components/ExplainChat";
 import { WordFamilyGraph } from "@/components/WordFamilyGraph";
 import { PrintCardModal } from "@/components/PrintCardModal";
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
 function Pills({ label, items }: { label: string; items: string[] }) {
   if (!items.length) return null;

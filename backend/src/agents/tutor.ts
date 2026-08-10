@@ -1,7 +1,7 @@
 import { prisma } from "../services/db.js";
 import { chatJson } from "../services/llm.js";
 import { tutorSchema } from "../lib/schemas.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 
 /**
  * Vocabulary Tutor Agent.
@@ -22,11 +22,16 @@ export async function runTutor(params: {
     system:
       `You are a ${sourceName}-to-${targetName} dictionary. For the given ` +
       `${sourceName} word, respond as JSON with: phonetic (pronunciation, e.g. ` +
-      "IPA in slashes), partOfSpeech, meaningZh (the definition written in " +
-      `${targetName}), collocations (2-3 common ${sourceName} phrases), synonyms ` +
+      "IPA in slashes), partOfSpeech, meaningZh, " +
+      `collocations (2-3 common ${sourceName} phrases), synonyms ` +
       `(up to 3 genuine ${sourceName} synonyms), antonyms (up to 3 genuine ` +
-      `${sourceName} antonyms). CRITICAL: synonyms and antonyms MUST be written in ` +
+      `${sourceName} antonyms). CRITICAL: "meaningZh" is only a field NAME — its value ` +
+      `is the definition and MUST be written in ${targetName}, NOT in ${sourceName} ` +
+      `(even when the word itself is ${sourceName}). ` +
+      `synonyms and antonyms MUST be written in ` +
       `${sourceName} — the SAME language as the word — never in ${targetName}. ` +
+      scriptNote(params.sourceLang ?? "en") +
+      scriptNote(params.targetLang ?? "zh") +
       `Only include TRUE synonyms/antonyms. Many words (especially nouns and abstract ` +
       `concepts) have no real antonyms — in that case return an empty array rather ` +
       `than inventing a loose or merely-contrasting word. Quality over quantity; an empty list is fine. ` +
