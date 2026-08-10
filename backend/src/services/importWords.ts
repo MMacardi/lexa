@@ -1,7 +1,7 @@
 import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 
 const MAX_CARDS = 100;
 
@@ -37,7 +37,10 @@ export async function previewImportedWords(params: {
       `words (and obvious phrases) and make one card per word, generating each ${targetName} meaning. ` +
       `Keep the words the user actually wrote; only skip pure punctuation/numbers.\n` +
       `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
-      `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
+      `no commentary. If the input is empty or has no usable words, return an empty items array.` +
+      scriptNote(params.sourceLang) +
+      scriptNote(params.targetLang) +
+      " " +
       'JSON shape: {"items":[{"word":string,"meaning":string,"example":string,"exampleTranslation":string,"synonyms":string[]}]}.',
     user: text,
     schema: importPreviewSchema,

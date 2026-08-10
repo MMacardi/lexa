@@ -50,7 +50,7 @@ function downscaleImage(file: File, maxDim = 1600, quality = 0.8): Promise<strin
 }
 
 // Chinese/Japanese read better in the CJK face.
-const sourceFont = (lang: string) => (lang === "zh" || lang === "ja" ? "font-zh" : "");
+const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
 
 const SAMPLE: Record<string, string> = {
   en: "The small harbour town wakes slowly. Fishermen mend their nets while gulls wheel overhead, and the smell of salt lingers in the narrow, cobbled streets long after the boats have gone.",
