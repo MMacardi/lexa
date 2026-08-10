@@ -37,7 +37,7 @@ function MasteryDots({ count }: { count: number }) {
 
 // Use a CJK-capable font only when the target text is Chinese.
 function targetFont(lang: string) {
-  return lang === "zh" ? "font-zh" : "";
+  return lang === "zh" || lang === "zh-Hant" ? "font-zh" : "";
 }
 
 export default function WordsPage() {

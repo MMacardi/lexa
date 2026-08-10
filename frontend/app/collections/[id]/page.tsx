@@ -11,7 +11,7 @@ import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
 export default function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();

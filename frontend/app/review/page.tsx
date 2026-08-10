@@ -25,8 +25,8 @@ import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { previewMinutes } from "@/lib/fsrsPreview";
 import { cn } from "@/lib/utils";
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
-const sourceFont = (lang: string) => (lang === "zh" || lang === "ja" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
+const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 
 // Which preset (if any) matches a layout, for highlighting in the picker.

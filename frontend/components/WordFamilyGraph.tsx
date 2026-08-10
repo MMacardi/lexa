@@ -26,7 +26,7 @@ interface SimNode {
   vy: number;
 }
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
 // A live, Obsidian-style force-directed "word family": the current word sits in
 // the middle, its synonyms/antonyms orbit it. Nodes repel each other, links pull

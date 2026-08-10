@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 
 type QKind = "choice" | "type" | "cloze";

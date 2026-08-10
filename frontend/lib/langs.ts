@@ -3,7 +3,8 @@
 // is kept for reference.
 export const LANGS = [
   { code: "en", name: "English", native: "English" },
-  { code: "zh", name: "Chinese", native: "中文" },
+  { code: "zh", name: "Chinese (Simplified)", native: "简体中文" },
+  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文" },
   { code: "ru", name: "Russian", native: "Русский" },
   { code: "es", name: "Spanish", native: "Español" },
   { code: "de", name: "German", native: "Deutsch" },
@@ -49,7 +50,7 @@ export function isAiSupported(code: string): boolean {
 // Coarse "script family" of a language, for spotting a paste/source mismatch.
 export function scriptFamily(lang: string): "latin" | "cyrillic" | "han" | "jpn" | "kor" {
   if (lang === "ru") return "cyrillic";
-  if (lang === "zh") return "han";
+  if (lang === "zh" || lang === "zh-Hant") return "han";
   if (lang === "ja") return "jpn";
   if (lang === "ko") return "kor";
   return "latin";

@@ -1,6 +1,6 @@
 import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 
 /**
  * Global AI tutor chat — not tied to a specific card. Helps the learner with the
@@ -30,7 +30,9 @@ export async function tutorChat(params: {
         `ACTIONS — you can add words to the learner's deck: whenever they ask to save/add words, OR ask ` +
         `you to suggest words on a topic/level to study, put those ${source} words (single words or short ` +
         `phrases, real ${source}, deduplicated) in "addWords" so they can be added with one tap. If no ` +
-        `words are being added, use an empty array. ` +
+        `words are being added, use an empty array.` +
+        scriptNote(params.sourceLang ?? "en") +
+        ` (This applies to example sentences, vocabulary, and every ${source} word you write.) ` +
         'Respond as JSON: {"answer": string, "addWords": string[]}.',
     },
     ...clipped,

@@ -4,7 +4,7 @@ import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
 import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 import { explanationSchema, wordChatSchema, type WordChatResult } from "../lib/schemas.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -361,7 +361,10 @@ export async function explainWord(id: string): Promise<string> {
       `whose language is ${targetName}. Write ENTIRELY in ${targetName}, concise and practical (about 4-7 short sentences). ` +
       `Cover: what it really means and its nuance; when and how it's used; how it differs from close synonyms; ` +
       `register (formal/casual/slang); and one common mistake learners make. ` +
-      `Do not just repeat the dictionary gloss. Respond as JSON: {"explanation": string}.`,
+      `Do not just repeat the dictionary gloss.` +
+      scriptNote(word.sourceLang) +
+      scriptNote(word.targetLang) +
+      ` Respond as JSON: {"explanation": string}.`,
     user:
       `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
       (word.synonyms.length ? `\nListed synonyms: ${word.synonyms.join(", ")}` : ""),
@@ -417,8 +420,10 @@ export async function askAboutWord(
         `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
         `not already listed). If the learner explicitly asks to SAVE/ADD new vocabulary as its own ` +
         `card(s) — even words unrelated to this one — ALWAYS honor it (this is a valid learning action, ` +
-        `not off-topic): put those ${sourceName} words in "addWords". Otherwise leave the arrays empty. ` +
-        'Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[]}.\n\n' +
+        `not off-topic): put those ${sourceName} words in "addWords". Otherwise leave the arrays empty.` +
+        scriptNote(word.sourceLang) +
+        scriptNote(word.targetLang) +
+        ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[]}.\n\n' +
         `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
         (word.synonyms.length ? `\nExisting synonyms: ${word.synonyms.join(", ")}` : "") +
         (word.antonyms.length ? `\nExisting antonyms: ${word.antonyms.join(", ")}` : "") +

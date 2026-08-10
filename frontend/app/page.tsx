@@ -184,7 +184,7 @@ export default function TodayPage() {
             {wotd.phonetic && <span className="text-[15px] text-ink-faint">{wotd.phonetic}</span>}
           </div>
           {wotd.meaningZh && (
-            <div className={`mt-1.5 text-[18px] font-medium text-sage ${wotd.targetLang === "zh" ? "font-zh" : ""}`}>
+            <div className={`mt-1.5 text-[18px] font-medium text-sage ${wotd.targetLang === "zh" || wotd.targetLang === "zh-Hant" ? "font-zh" : ""}`}>
               {wotd.meaningZh}
             </div>
           )}
@@ -231,7 +231,7 @@ export default function TodayPage() {
                 <div className="flex items-baseline gap-2.5">
                   <span className="font-serif text-[22px] font-semibold text-ink">{w.word}</span>
                   {w.meaningZh && (
-                    <span className={`text-sm text-sage ${w.targetLang === "zh" ? "font-zh" : ""}`}>
+                    <span className={`text-sm text-sage ${w.targetLang === "zh" || w.targetLang === "zh-Hant" ? "font-zh" : ""}`}>
                       {w.meaningZh}
                     </span>
                   )}

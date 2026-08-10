@@ -1,6 +1,6 @@
 import { chatJson } from "./llm.js";
 import { translationSchema } from "../lib/schemas.js";
-import { langName } from "../lib/langs.js";
+import { langName, scriptNote } from "../lib/langs.js";
 
 /**
  * Contextual gloss: the short meaning of a single word AS USED IN a sentence
@@ -21,8 +21,9 @@ export async function glossInContext(params: {
     system:
       `You are a ${source}-to-${target} reading assistant. Given a ${source} SENTENCE and one ` +
       `WORD taken from it, reply with the concise ${target} meaning of that word AS USED IN THIS ` +
-      `SENTENCE (its contextual sense) — a few words, no explanation. Respond as JSON: ` +
-      `{"translation": string}.`,
+      `SENTENCE (its contextual sense) — a few words, no explanation.` +
+      scriptNote(params.targetLang ?? "zh") +
+      ` Respond as JSON: {"translation": string}.`,
     user: `SENTENCE: ${sentence}\nWORD: ${word}`,
     schema: translationSchema,
     timeoutMs: 30000,
@@ -50,7 +51,9 @@ export async function translateText(params: {
     system:
       `You are a professional ${source}-to-${target} translator. Translate the ` +
       `user's ${source} text into natural, fluent ${target}. Keep paragraph breaks ` +
-      `and do not add commentary. Respond as JSON: {"translation": string} where ` +
+      `and do not add commentary.` +
+      scriptNote(params.targetLang ?? "zh") +
+      ` Respond as JSON: {"translation": string} where ` +
       `translation is only the ${target} rendering of the text.`,
     user: text,
     schema: translationSchema,
