@@ -42,6 +42,7 @@ export async function addWordForUser(params: {
   targetLang?: string;
   level?: string;
   exampleStyle?: string;
+  exampleSource?: string;
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
@@ -52,6 +53,7 @@ export async function addWordForUser(params: {
     targetLang: params.targetLang,
     level: params.level,
     exampleStyle: params.exampleStyle,
+    exampleSource: params.exampleSource,
   });
   await runTutor({
     wordId: example.wordId,
@@ -170,7 +172,7 @@ export async function deleteWord(id: string) {
  */
 export async function addExampleToWord(
   id: string,
-  opts: { exampleStyle?: string; level?: string; replace?: boolean } = {},
+  opts: { exampleStyle?: string; exampleSource?: string; level?: string; replace?: boolean } = {},
 ) {
   const word = await prisma.word.findUnique({
     where: { id },
@@ -195,6 +197,7 @@ export async function addExampleToWord(
     sourceLang: word.sourceLang,
     targetLang: word.targetLang,
     exampleStyle: opts.exampleStyle,
+    exampleSource: opts.exampleSource,
     level: opts.level,
     // Adding another (not replacing) → avoid duplicating the current example(s).
     avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),

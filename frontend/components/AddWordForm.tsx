@@ -11,6 +11,7 @@ import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
   LEVEL_HINT,
+  getExampleSource,
   getHanLang,
   getLevel,
   pushRecentPair,
@@ -199,7 +200,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               : undefined,
         });
       } else {
-        created = await api.addWord({ ...base, level, exampleStyle });
+        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource() });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
       return created;

@@ -10,7 +10,7 @@ import { useToast } from "@/lib/toast";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
-import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 
 type Kind = "center" | "syn" | "ant";
@@ -86,6 +86,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         words: [term],
         level: getLevel(word.sourceLang) ?? undefined,
         exampleStyle: getExampleStyle(),
+        exampleSource: getExampleSource(),
         enrich: isAiSupported(word.sourceLang),
       }),
     onMutate: (term) => setPending(term.trim().toLowerCase()),

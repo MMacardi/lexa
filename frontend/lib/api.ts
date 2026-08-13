@@ -97,6 +97,7 @@ export interface AddAuto {
   targetLang: string;
   level?: string; // learner CEFR level for example difficulty
   exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleSource?: "ai" | "web";
 }
 
 export interface AddManual extends AddAuto {
@@ -133,6 +134,7 @@ export interface ImportOptions {
   generateExamples: boolean;
   level?: string;
   exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleSource?: "ai" | "web";
 }
 
 export interface ImportJob {
@@ -204,7 +206,7 @@ export const api = {
   ) => http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   addExample: (
     id: string,
-    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary"; level?: string; replace?: boolean } = {},
+    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
@@ -238,6 +240,7 @@ export const api = {
     source?: string; // attribution for the provided example
     level?: string;
     exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+    exampleSource?: "ai" | "web";
     collectionIds?: string[];
     enrich?: boolean;
   }) =>
