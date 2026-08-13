@@ -343,6 +343,15 @@ export function launchBot(): void {
     return;
   }
   const bot = createBot();
+  void bot.telegram
+    .setMyCommands([
+      { command: "review", description: "Повторить карточки" },
+      { command: "due", description: "Сколько ждёт повторения" },
+      { command: "list", description: "Мои слова" },
+      { command: "lang", description: "Сменить языковую пару" },
+      { command: "help", description: "Что я умею" },
+    ])
+    .catch((err) => console.error("setMyCommands failed:", (err as Error).message));
   void bot.launch(() => console.log("Telegram tutor bot started (long polling)."));
   if (env.ENABLE_BOT_REMINDERS === "true") {
     startReminderLoop(bot);
