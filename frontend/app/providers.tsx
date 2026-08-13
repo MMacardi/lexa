@@ -14,7 +14,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            gcTime: 5 * 60_000,
+            retry: 1,
+            // Data rarely changes out from under the user mid-session, and a
+            // refetch storm on every tab focus makes the UI flicker and feel
+            // slow. Rely on explicit invalidation after mutations instead.
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+          },
+        },
       }),
   );
   return (
