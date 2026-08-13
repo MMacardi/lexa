@@ -1,12 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 import { LoginScreen } from "@/components/LoginScreen";
-import { CommandPalette } from "@/components/CommandPalette";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
-import { GlobalTutor } from "@/components/GlobalTutor";
+
+// These are always-mounted overlays but never on the critical path — defer their
+// chunks so the first page paints without their JS.
+const CommandPalette = dynamic(() => import("@/components/CommandPalette").then((m) => m.CommandPalette), { ssr: false });
+const GlobalTutor = dynamic(() => import("@/components/GlobalTutor").then((m) => m.GlobalTutor), { ssr: false });
 
 // Gates the app behind login. Until the session check finishes we show a light
 // loading state; signed-out users get the login screen; signed-in users get the
