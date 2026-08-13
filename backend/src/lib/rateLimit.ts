@@ -11,6 +11,19 @@ import { readSession } from "./auth.js";
 type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
+// Low-level fixed-window check reusable outside Express (e.g. the Telegram bot).
+// Returns true if the call is allowed, false if the key is over its limit.
+export function take(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  let b = buckets.get(key);
+  if (!b || b.resetAt <= now) {
+    b = { count: 0, resetAt: now + windowMs };
+    buckets.set(key, b);
+  }
+  b.count++;
+  return b.count <= max;
+}
+
 // Drop expired buckets periodically so the map can't grow unbounded.
 const sweep = setInterval(() => {
   const now = Date.now();
