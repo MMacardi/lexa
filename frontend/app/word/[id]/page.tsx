@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -174,9 +174,9 @@ export default function WordDetailPage() {
                 {ex.sentenceZh}
               </p>
             )}
-            {ex.sourceUrl.trim() && ex.sourceName.trim() !== "Manual entry" ? (
+            {safeHttpUrl(ex.sourceUrl) && ex.sourceName.trim() !== "Manual entry" ? (
               <a
-                href={ex.sourceUrl}
+                href={safeHttpUrl(ex.sourceUrl)!}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-3 inline-block text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
