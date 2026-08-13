@@ -22,6 +22,7 @@ export const LEVEL_HINT: Record<CefrLevel, string> = {
 
 const LEVELS_KEY = "lexa.levels"; // { [lang]: CefrLevel }
 const STYLE_KEY = "lexa.exampleStyle";
+const SOURCE_KEY = "lexa.exampleSource";
 const EVT = "lexa-prefs-changed";
 
 function readLevels(): Record<string, CefrLevel> {
@@ -336,4 +337,36 @@ export function useExampleStyle(): ExampleStyle {
     };
   }, []);
   return style;
+}
+
+// --- Example SOURCE: where sentences come from ---
+// "ai" (default): the model composes a fresh sentence — always on the learner's
+// level, cheaper, and free of any third-party copyright question.
+// "web": mine a real, attributed sentence from news/articles for authenticity.
+export type ExampleSource = "ai" | "web";
+export const DEFAULT_EXAMPLE_SOURCE: ExampleSource = "ai";
+
+export function getExampleSource(): ExampleSource {
+  if (typeof window === "undefined") return DEFAULT_EXAMPLE_SOURCE;
+  return localStorage.getItem(SOURCE_KEY) === "web" ? "web" : "ai";
+}
+
+export function setExampleSource(source: ExampleSource) {
+  localStorage.setItem(SOURCE_KEY, source);
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useExampleSource(): ExampleSource {
+  const [source, setState] = useState<ExampleSource>(DEFAULT_EXAMPLE_SOURCE);
+  useEffect(() => {
+    const sync = () => setState(getExampleSource());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return source;
 }

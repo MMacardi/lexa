@@ -77,6 +77,7 @@ export async function importWordsForUser(params: {
   generateExamples?: boolean;
   level?: string;
   exampleStyle?: string;
+  exampleSource?: string; // ai | web
   // Attribution for a provided example (e.g. the Reader's text source).
   exampleSourceName?: string;
 }) {
@@ -150,6 +151,7 @@ export async function importWordsForUser(params: {
             generateExamples: Boolean(params.generateExamples),
             level: params.level ?? null,
             exampleStyle: params.exampleStyle ?? null,
+            exampleSource: params.exampleSource ?? null,
             cards: created,
             errors: [],
           },

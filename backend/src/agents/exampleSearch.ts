@@ -80,6 +80,10 @@ export async function runExampleSearch(params: {
   targetLang?: string;
   level?: string; // learner CEFR level, e.g. "B1"
   exampleStyle?: string; // news | casual | dialogue | literary
+  // Where examples come from: "ai" (default) composes a fresh sentence with the
+  // model — cheaper, always on-level, no third-party text; "web" mines a real
+  // sentence from news/articles (attributed) for authenticity.
+  exampleSource?: string; // ai | web
   // Existing example sentences to avoid duplicating (when adding another example).
   avoid?: string[];
   // When set, attach the example to this existing card (import enrichment).
@@ -106,11 +110,15 @@ export async function runExampleSearch(params: {
         .join("; ")}. `
     : "";
 
+  // Default to AI-composed examples: cheaper, always on the learner's level, and
+  // free of any third-party copyright question. Web mining is an explicit opt-in.
+  const preferAi = (params.exampleSource ?? "ai") !== "web";
+
   let sentence = "";
-  let composed = avoidList.length > 0; // "add another" → always compose a fresh one
+  let composed = avoidList.length > 0 || preferAi; // AI mode / "add another" → compose fresh
   let source: { url: string } | null = null;
 
-  if (avoidList.length === 0) {
+  if (avoidList.length === 0 && !preferAi) {
     // 1. External tool call — the part that makes this a real agent, not a chat loop.
     const articles = await searchNews(word, {
       restrictNews: style === "news" && sourceLang === "en",

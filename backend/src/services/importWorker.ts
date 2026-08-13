@@ -105,6 +105,7 @@ async function processOneImportJob() {
               targetLang: word.targetLang,
               level: job.level ?? undefined,
               exampleStyle: job.exampleStyle ?? undefined,
+              exampleSource: job.exampleSource ?? undefined,
             });
           } else {
             // A provided example (e.g. from the Reader) may have no translation yet —

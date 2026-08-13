@@ -100,6 +100,7 @@ model ImportJob {
   generateExamples Boolean  @default(false)
   level            String? // learner CEFR level for example difficulty
   exampleStyle     String? // news | casual | dialogue | literary
+  exampleSource    String? // ai | web (default ai)
   cards            Json
   errors           String[]
   errorMessage     String?

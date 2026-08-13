@@ -11,6 +11,7 @@ import { langLabel } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
+  getExampleSource,
   LEVEL_HINT,
   setExampleStyle,
   setLevel,
@@ -123,6 +124,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
         generateExamples,
         // only relevant when we actually search for examples
         exampleStyle: generateExamples ? exampleStyle : undefined,
+        exampleSource: generateExamples ? getExampleSource() : undefined,
         level: generateExamples ? (level ?? undefined) : undefined,
       });
     },

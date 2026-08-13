@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
-import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
@@ -119,6 +119,7 @@ export function GlobalTutor() {
         words: terms,
         level: getLevel(pair.source) ?? undefined,
         exampleStyle: getExampleStyle(),
+        exampleSource: getExampleSource(),
         enrich: isAiSupported(pair.source),
         collectionIds: collIds.length ? collIds : undefined,
       });
