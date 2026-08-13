@@ -31,6 +31,27 @@ async function ensureUser(telegramId: string) {
   });
 }
 
+// --- Ownership guards (authorization) ---
+// Every :id route must confirm the caller actually owns the row before reading or
+// mutating it; otherwise anyone with a valid session could touch another user's
+// cards/collections by id (IDOR). These resolve the caller's user by telegramId
+// (from the verified session) and check the resource's userId.
+export async function userOwnsWord(wordId: string, telegramId: string | null | undefined): Promise<boolean> {
+  if (!telegramId) return false;
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return false;
+  const word = await prisma.word.findFirst({ where: { id: wordId, userId: user.id }, select: { id: true } });
+  return Boolean(word);
+}
+
+export async function userOwnsCollection(collectionId: string, telegramId: string | null | undefined): Promise<boolean> {
+  if (!telegramId) return false;
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return false;
+  const col = await prisma.collection.findFirst({ where: { id: collectionId, userId: user.id }, select: { id: true } });
+  return Boolean(col);
+}
+
 /**
  * Add a word for a user: run the Example Search Agent, then the Tutor Agent,
  * and return the fully populated word. Shared by the bot and the REST API.

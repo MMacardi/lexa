@@ -29,7 +29,11 @@ export function verifyTelegramAuth(data: TelegramAuthData, botToken: string): bo
     .join("\n");
   const secret = crypto.createHash("sha256").update(botToken).digest();
   const hmac = crypto.createHmac("sha256", secret).update(checkString).digest("hex");
-  if (hmac !== hash) return false;
+  // Constant-time comparison so a forged payload can't be guessed byte-by-byte
+  // from response timing. Lengths must match for timingSafeEqual.
+  const a = Buffer.from(hmac, "hex");
+  const b = Buffer.from(typeof hash === "string" ? hash : "", "hex");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
   const authDate = Number(data.auth_date);
   // reject logins older than 1 day
   if (!authDate || Date.now() / 1000 - authDate > 86400) return false;
