@@ -15,8 +15,18 @@ import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
-import { WordFamilyGraph } from "@/components/WordFamilyGraph";
-import { PrintCardModal } from "@/components/PrintCardModal";
+import dynamic from "next/dynamic";
+
+// Heavy, on-demand widgets: the physics word-family graph and the canvas-based
+// print modal. Code-splitting them keeps the initial word-page bundle lean; they
+// load only when this page mounts the graph / opens the modal.
+const WordFamilyGraph = dynamic(() => import("@/components/WordFamilyGraph").then((m) => m.WordFamilyGraph), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[320px] w-full rounded-[20px]" />,
+});
+const PrintCardModal = dynamic(() => import("@/components/PrintCardModal").then((m) => m.PrintCardModal), {
+  ssr: false,
+});
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
