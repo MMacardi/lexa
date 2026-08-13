@@ -25,10 +25,47 @@ import {
   renameCollection,
   deleteCollection,
   setWordInCollection,
+  userOwnsWord,
+  userOwnsCollection,
 } from "../services/vocab.js";
+import type { Request, Response, NextFunction } from "express";
+import { rateLimit } from "../lib/rateLimit.js";
 
 // REST API consumed by the Next.js frontend. All word endpoints live here.
 export const wordsRouter = Router();
+
+// Cost guard: throttle only the expensive LLM-backed POSTs (per caller). A human
+// never makes 40 AI calls a minute, so this is invisible in normal use but stops
+// scripted abuse of the paid model. Reads/list/stats and the fast import poll are
+// untouched.
+const AI_POST_PATH =
+  /^\/(gloss|ocr|translate|tutor\/ask|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
+wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
+  next();
+});
+
+// Authorization guards for :id routes. The frontend always carries a verified
+// session cookie (the app is gated behind login), so the session is the identity.
+// On a mismatch we answer 404 (not 403) so we don't reveal that the id exists.
+async function guardWord(req: Request, res: Response): Promise<boolean> {
+  const telegramId = readSession(req);
+  if (!(await userOwnsWord(String(req.params.id), telegramId))) {
+    res.status(404).json({ error: "Word not found" });
+    return false;
+  }
+  return true;
+}
+
+async function guardCollection(req: Request, res: Response): Promise<boolean> {
+  const telegramId = readSession(req);
+  if (!(await userOwnsCollection(String(req.params.id), telegramId))) {
+    res.status(404).json({ error: "Collection not found" });
+    return false;
+  }
+  return true;
+}
 
 const listQuery = z.object({
   telegramId: z.string().min(1).default("dev-user"),
@@ -84,6 +121,7 @@ wordsRouter.post("/collections", async (req, res) => {
 
 // PATCH /api/collections/:id  -> rename
 wordsRouter.patch("/collections/:id", async (req, res) => {
+  if (!(await guardCollection(req, res))) return;
   const name = z.string().min(1).max(60).safeParse(req.body?.name);
   if (!name.success) {
     res.status(400).json({ error: "Invalid name" });
@@ -98,6 +136,7 @@ wordsRouter.patch("/collections/:id", async (req, res) => {
 
 // DELETE /api/collections/:id  -> remove the collection (words kept)
 wordsRouter.delete("/collections/:id", async (req, res) => {
+  if (!(await guardCollection(req, res))) return;
   try {
     await deleteCollection(req.params.id);
     res.json({ ok: true });
@@ -106,8 +145,22 @@ wordsRouter.delete("/collections/:id", async (req, res) => {
   }
 });
 
-// PUT/DELETE /api/collections/:id/words/:wordId  -> add / remove a word
+// PUT/DELETE /api/collections/:id/words/:wordId  -> add / remove a word.
+// The caller must own BOTH the collection and the word.
+async function guardCollectionWord(req: Request, res: Response): Promise<boolean> {
+  const telegramId = readSession(req);
+  const [ownsCol, ownsWord] = await Promise.all([
+    userOwnsCollection(String(req.params.id), telegramId),
+    userOwnsWord(String(req.params.wordId), telegramId),
+  ]);
+  if (!ownsCol || !ownsWord) {
+    res.status(404).json({ error: "Not found" });
+    return false;
+  }
+  return true;
+}
 wordsRouter.put("/collections/:id/words/:wordId", async (req, res) => {
+  if (!(await guardCollectionWord(req, res))) return;
   try {
     res.json(await setWordInCollection(req.params.id, req.params.wordId, true));
   } catch (err) {
@@ -115,6 +168,7 @@ wordsRouter.put("/collections/:id/words/:wordId", async (req, res) => {
   }
 });
 wordsRouter.delete("/collections/:id/words/:wordId", async (req, res) => {
+  if (!(await guardCollectionWord(req, res))) return;
   try {
     res.json(await setWordInCollection(req.params.id, req.params.wordId, false));
   } catch (err) {
@@ -124,6 +178,7 @@ wordsRouter.delete("/collections/:id/words/:wordId", async (req, res) => {
 
 // GET /api/words/:id  -> one word with examples
 wordsRouter.get("/words/:id", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   const word = await getWord(req.params.id);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
@@ -291,6 +346,7 @@ const editBody = z.object({
 
 // PATCH /api/words/:id  -> edit a word's fields (and its first example)
 wordsRouter.patch("/words/:id", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   const parsed = editBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -307,6 +363,7 @@ wordsRouter.patch("/words/:id", async (req, res) => {
 
 // DELETE /api/words/:id  -> remove a word (examples cascade)
 wordsRouter.delete("/words/:id", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   try {
     await deleteWord(req.params.id);
     res.json({ ok: true });
@@ -318,6 +375,7 @@ wordsRouter.delete("/words/:id", async (req, res) => {
 // POST /api/words/:id/review  -> advance the interval ladder ({known:true}) or
 // reset it so the word returns soon ({known:false}, i.e. "still learning").
 wordsRouter.post("/words/:id/review", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   const body = req.body ?? {};
   // Prefer an explicit FSRS grade (1=Again..4=Easy); fall back to the legacy
   // {known} boolean (known:false → Again, otherwise → Good).
@@ -341,6 +399,7 @@ const exampleBody = z.object({
   replace: z.boolean().default(false),
 });
 wordsRouter.post("/words/:id/example", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   const parsed = exampleBody.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -356,6 +415,7 @@ wordsRouter.post("/words/:id/example", async (req, res) => {
 
 // POST /api/words/:id/explain -> on-demand AI explanation (nuance, usage, etc.)
 wordsRouter.post("/words/:id/explain", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   try {
     res.json({ explanation: await explainWord(req.params.id) });
   } catch (err) {
@@ -378,6 +438,7 @@ const askBody = z.object({
     .max(20),
 });
 wordsRouter.post("/words/:id/ask", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
   const parsed = askBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
