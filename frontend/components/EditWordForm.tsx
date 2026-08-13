@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { EXAMPLE_STYLES, getExampleStyle, getLevel, type ExampleStyle } from "@/lib/learnPrefs";
+import { EXAMPLE_STYLES, getExampleSource, getExampleStyle, getLevel, type ExampleStyle } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,7 @@ export function EditWordForm({
   // otherwise it adds another. Runs immediately (independent of Save).
   const regen = useMutation({
     mutationFn: (replace: boolean) =>
-      api.addExample(word.id, { exampleStyle: exStyle, level: getLevel(sourceLang) ?? undefined, replace }),
+      api.addExample(word.id, { exampleStyle: exStyle, exampleSource: getExampleSource(), level: getLevel(sourceLang) ?? undefined, replace }),
     onSuccess: (updated) => {
       setExamples(toRows(updated));
       qc.invalidateQueries({ queryKey: ["word", word.id] });

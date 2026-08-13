@@ -141,6 +141,7 @@ const addBody = z.object({
   // auto-mode example tuning (ignored in manual mode)
   level: z.string().max(4).optional(),
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleSource: z.enum(["ai", "web"]).optional(),
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),
@@ -180,6 +181,7 @@ const importCommitBody = z.object({
   generateExamples: z.boolean().default(false),
   level: z.string().max(4).optional(),
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleSource: z.enum(["ai", "web"]).optional(),
 });
 
 // POST /api/words/suggest  -> "did you mean" spell-check for the AI add flow
@@ -334,6 +336,7 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
 // POST /api/words/:id/example -> fetch a fresh AI example (add or regenerate).
 const exampleBody = z.object({
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleSource: z.enum(["ai", "web"]).optional(),
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
 });
@@ -406,6 +409,7 @@ const batchBody = z
     source: z.string().max(120).optional(), // attribution for the provided example
     level: z.string().max(4).optional(),
     exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+    exampleSource: z.enum(["ai", "web"]).optional(),
     collectionIds: z.array(z.string()).optional(),
     enrich: z.boolean().default(true),
   })
@@ -439,6 +443,7 @@ wordsRouter.post("/words/batch", async (req, res) => {
       exampleSourceName: b.source,
       level: b.level,
       exampleStyle: b.exampleStyle,
+      exampleSource: b.exampleSource,
     });
     res.status(201).json(result);
   } catch (err) {

@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
-import { getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
@@ -85,6 +85,7 @@ export function ExplainChat({ word }: { word: Word }) {
         words: terms,
         level: getLevel(word.sourceLang) ?? undefined,
         exampleStyle: getExampleStyle(),
+        exampleSource: getExampleSource(),
         enrich: isAiSupported(word.sourceLang),
       });
       qc.invalidateQueries({ queryKey: ["words"] });

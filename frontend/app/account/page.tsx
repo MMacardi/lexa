@@ -13,12 +13,15 @@ import {
   DEFAULT_RETENTION,
   clearHanLang,
   removeLevel,
+  setExampleSource,
   setLevel,
   setRetention,
   useAllLevels,
+  useExampleSource,
   useHanLang,
   useRetention,
   type CefrLevel,
+  type ExampleSource,
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +114,40 @@ function RetentionSection() {
         {t("retention.hint")}
         {Math.abs(retention - DEFAULT_RETENTION) < 1e-6 ? ` · ${t("retention.balanced")}` : ""}
       </p>
+    </section>
+  );
+}
+
+function ExampleSourceSection() {
+  const { t } = useI18n();
+  const source = useExampleSource();
+  const options: { value: ExampleSource; label: string }[] = [
+    { value: "ai", label: t("exsrc.ai") },
+    { value: "web", label: t("exsrc.web") },
+  ];
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("exsrc.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("exsrc.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setExampleSource(o.value)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 transition-colors",
+                source === o.value ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {o.label}
+              {o.value === "ai" ? <span className="ml-1 opacity-70">· {t("exsrc.recommended")}</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
     </section>
   );
 }
@@ -232,6 +269,9 @@ export default function AccountPage() {
 
       {/* review scheduling (FSRS desired retention) */}
       <RetentionSection />
+
+      {/* where example sentences come from (AI vs web) */}
+      <ExampleSourceSection />
 
       {/* language levels */}
       <LevelsSection />
