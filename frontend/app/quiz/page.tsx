@@ -7,7 +7,8 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
-import { langLabel } from "@/lib/langs";
+import { langLabel, pairLabel } from "@/lib/langs";
+import { getRecentPairs } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,7 @@ import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
+import { QuickChip } from "@/components/ui/QuickChip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 
@@ -185,11 +187,20 @@ export default function QuizPage() {
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
-  const sel = selPairs ?? allPairs;
+  // Nothing selected by default — pick via the dropdown or the quick chips below.
+  const sel = selPairs ?? [];
 
-  useEffect(() => {
-    if (selPairs === null && allWords) setSelPairs(allPairs);
-  }, [allWords, selPairs, allPairs]);
+  const quickPairs = (() => {
+    const recent = getRecentPairs().map((p) => `${p.s}>${p.t}`);
+    const ordered = [...allPairs].sort((a, b) => {
+      const ia = recent.indexOf(a);
+      const ib = recent.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    return ordered.slice(0, 5);
+  })();
+  const togglePair = (pk: string) =>
+    setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
 
   const review = useMutation({
     mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
@@ -329,15 +340,37 @@ export default function QuizPage() {
                 {t("review.collection")}
               </p>
               <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
+                  {t("common.allWords")}
+                </QuickChip>
+                {collections.slice(0, 5).map((c) => (
+                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
+                    {c.name}
+                  </QuickChip>
+                ))}
+              </div>
             </div>
           )}
 
-          {allPairs.length > 1 && (
+          {allPairs.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
               </p>
-              <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+              {allPairs.length > 1 && (
+                <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {quickPairs.map((pk) => {
+                  const [s, tg] = pk.split(">");
+                  return (
+                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
+                      {pairLabel(s, tg)}
+                    </QuickChip>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
