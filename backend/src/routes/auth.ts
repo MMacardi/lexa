@@ -13,35 +13,28 @@ import { createLoginToken, consumeLoginToken } from "../services/loginLink.js";
 import { verifyGoogleIdToken } from "../services/googleAuth.js";
 import { createEmailToken, consumeEmailToken } from "../services/emailLink.js";
 import { sendEmail, emailConfigured } from "../services/mailer.js";
+import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/authIdentity.js";
 
 export const authRouter = Router();
 
-async function ensureUser(telegramId: string) {
-  return prisma.user.upsert({
+// Load the resolved account and reply with its profile + linked methods, setting
+// the session cookie. Shared by every login route.
+async function finishLogin(res: import("express").Response, telegramId: string) {
+  const user = await prisma.user.findUnique({
     where: { telegramId },
-    create: { telegramId },
-    update: {},
+    select: {
+      telegramId: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+      photoUrl: true,
+      email: true,
+      authVia: true,
+      identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
+    },
   });
-}
-
-function publicProfile(u: {
-  telegramId: string;
-  firstName: string | null;
-  lastName: string | null;
-  username: string | null;
-  photoUrl: string | null;
-  email: string | null;
-  authVia: string;
-}) {
-  return {
-    telegramId: u.telegramId,
-    firstName: u.firstName,
-    lastName: u.lastName,
-    username: u.username,
-    photoUrl: u.photoUrl,
-    email: u.email,
-    authVia: u.authVia,
-  };
+  setSessionCookie(res, telegramId);
+  res.json(user ? user : { telegramId, identities: [] });
 }
 
 // POST /api/auth/telegram — verify the Telegram Login Widget payload, start a session.
@@ -55,21 +48,19 @@ authRouter.post("/auth/telegram", async (req, res) => {
     res.status(401).json({ error: "Telegram verification failed" });
     return;
   }
-  const telegramId = String(data.id);
-  const profile = {
-    firstName: data.first_name ?? null,
-    lastName: data.last_name ?? null,
-    username: data.username ?? null,
-    photoUrl: data.photo_url ?? null,
+  const { telegramId } = await resolveIdentity({
+    provider: "telegram",
+    subject: String(data.id),
+    profile: {
+      firstName: data.first_name ?? null,
+      lastName: data.last_name ?? null,
+      username: data.username ?? null,
+      photoUrl: data.photo_url ?? null,
+    },
     authVia: "telegram",
-  };
-  const user = await prisma.user.upsert({
-    where: { telegramId },
-    create: { telegramId, ...profile },
-    update: profile,
+    sessionTelegramId: readSession(req),
   });
-  setSessionCookie(res, telegramId);
-  res.json(publicProfile(user));
+  await finishLogin(res, telegramId);
 });
 
 // POST /api/auth/telegram/start — begin "login via the bot". Returns a one-time
@@ -87,41 +78,19 @@ authRouter.get("/auth/telegram/poll", async (req, res) => {
     res.status(204).end();
     return;
   }
-  const profile = {
-    firstName: bound.profile.firstName ?? null,
-    lastName: bound.profile.lastName ?? null,
-    username: bound.profile.username ?? null,
+  const { telegramId } = await resolveIdentity({
+    provider: "telegram",
+    subject: bound.telegramId,
+    profile: {
+      firstName: bound.profile.firstName ?? null,
+      lastName: bound.profile.lastName ?? null,
+      username: bound.profile.username ?? null,
+    },
     authVia: "telegram",
-  };
-  const user = await prisma.user.upsert({
-    where: { telegramId: bound.telegramId },
-    create: { telegramId: bound.telegramId, ...profile },
-    update: profile,
+    sessionTelegramId: readSession(req),
   });
-  setSessionCookie(res, bound.telegramId);
-  res.json(publicProfile(user));
+  await finishLogin(res, telegramId);
 });
-
-// Email-based identities (Google + magic-link) share one account per email: the
-// subject is `email:<addr>`, so signing in with Google or a link for the same
-// address lands on the same account.
-async function upsertEmailIdentity(
-  email: string,
-  data: { firstName?: string | null; photoUrl?: string | null; authVia: string },
-) {
-  const subject = `email:${email.toLowerCase()}`;
-  const profile = {
-    email: email.toLowerCase(),
-    firstName: data.firstName ?? null,
-    photoUrl: data.photoUrl ?? null,
-    authVia: data.authVia,
-  };
-  return prisma.user.upsert({
-    where: { telegramId: subject },
-    create: { telegramId: subject, ...profile },
-    update: profile,
-  });
-}
 
 // POST /api/auth/google — verify a Google Sign-In ID token, start a session.
 authRouter.post("/auth/google", async (req, res) => {
@@ -132,13 +101,15 @@ authRouter.post("/auth/google", async (req, res) => {
   }
   try {
     const g = await verifyGoogleIdToken(credential);
-    const user = await upsertEmailIdentity(g.email, {
-      firstName: g.name ?? null,
-      photoUrl: g.picture ?? null,
+    const { telegramId } = await resolveIdentity({
+      provider: "google",
+      subject: g.email,
+      email: g.email,
+      profile: { firstName: g.name ?? null, photoUrl: g.picture ?? null },
       authVia: "google",
+      sessionTelegramId: readSession(req),
     });
-    setSessionCookie(res, user.telegramId);
-    res.json(publicProfile(user));
+    await finishLogin(res, telegramId);
   } catch (err) {
     res.status(401).json({ error: (err as Error).message });
   }
@@ -179,9 +150,14 @@ authRouter.get("/auth/email/verify", async (req, res) => {
     res.status(400).json({ error: "This sign-in link is invalid or has expired." });
     return;
   }
-  const user = await upsertEmailIdentity(email, { authVia: "email" });
-  setSessionCookie(res, user.telegramId);
-  res.json(publicProfile(user));
+  const { telegramId } = await resolveIdentity({
+    provider: "email",
+    subject: email,
+    email,
+    authVia: "email",
+    sessionTelegramId: readSession(req),
+  });
+  await finishLogin(res, telegramId);
 });
 
 // POST /api/auth/dev — local-only shortcut to log in without the Telegram widget
@@ -197,21 +173,49 @@ authRouter.post("/auth/dev", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const telegramId = parsed.data.telegramId.trim();
-  await ensureUser(telegramId);
-  setSessionCookie(res, telegramId);
-  res.json({ telegramId, dev: true });
+  const subject = parsed.data.telegramId.trim();
+  // Route dev sign-in through the identity system so it converges with a real
+  // Telegram account of the same id and gets a listed identity.
+  const { telegramId } = await resolveIdentity({ provider: "dev", subject, authVia: "dev" });
+  await finishLogin(res, telegramId);
 });
 
-// GET /api/auth/me — current session profile, or 401.
+// GET /api/auth/me — current session profile (+ linked methods), or 401.
 authRouter.get("/auth/me", async (req, res) => {
   const telegramId = readSession(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  const user = await prisma.user.findUnique({ where: { telegramId } });
-  res.json(user ? publicProfile(user) : { telegramId });
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+    select: {
+      telegramId: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+      photoUrl: true,
+      email: true,
+      authVia: true,
+      identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
+    },
+  });
+  res.json(user ?? { telegramId, identities: [] });
+});
+
+// DELETE /api/auth/identity/:provider — unlink a sign-in method from the account.
+authRouter.delete("/auth/identity/:provider", async (req, res) => {
+  const telegramId = readSession(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  try {
+    await unlinkIdentity(telegramId, req.params.provider);
+    res.json({ identities: await listIdentities(telegramId) });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 // POST /api/auth/logout
