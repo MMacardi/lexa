@@ -84,11 +84,25 @@ export async function ownedWord(telegramId: string, wordId: string) {
   });
 }
 
-/** Users with due cards and a known chat id — for the daily reminder sweep. */
-export async function usersWithDueCards(): Promise<{ telegramId: string; botChatId: string }[]> {
+/** The learner's chosen reminder hour (0–23), or null if reminders are off. */
+export async function getReminderHour(telegramId: string): Promise<number | null> {
+  const u = await prisma.user.findUnique({ where: { telegramId }, select: { reminderHour: true } });
+  return u?.reminderHour ?? null;
+}
+
+export async function setReminderHour(telegramId: string, hour: number | null): Promise<void> {
+  await prisma.user.update({ where: { telegramId }, data: { reminderHour: hour } });
+}
+
+/**
+ * Users who asked to be reminded at this hour, have a chat id, and have cards
+ * due — for the per-user daily reminder sweep.
+ */
+export async function usersToRemindAt(hour: number): Promise<{ telegramId: string; botChatId: string }[]> {
   const now = new Date();
   const rows = await prisma.user.findMany({
     where: {
+      reminderHour: hour,
       botChatId: { not: null },
       words: { some: { OR: [{ nextReviewAt: null }, { nextReviewAt: { lte: now } }] } },
     },

@@ -21,6 +21,9 @@ model User {
   preferredTarget String?
   // Telegram chat id for proactive messages (review reminders). Set on /start.
   botChatId   String?
+  // Hour of day (0–23, server time) the learner wants their daily review nudge,
+  // or null for no reminders. Chosen in-chat via /remind.
+  reminderHour Int?
   createdAt   DateTime     @default(now())
   words       Word[]
   collections Collection[]

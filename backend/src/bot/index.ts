@@ -11,7 +11,9 @@ import {
   dueWordsForUser,
   dueCountForUser,
   ownedWord,
-  usersWithDueCards,
+  getReminderHour,
+  setReminderHour,
+  usersToRemindAt,
   type Pair,
 } from "../services/botTutor.js";
 
@@ -43,6 +45,7 @@ function welcome(pair: Pair): string {
     "• <b>/review</b> — повторить карточки, которым пришло время (с оценкой прямо в чате)",
     "• <code>add &lt;слово&gt;</code> — сохранить слово с примером и разбором",
     "• <b>/list</b> — твои слова · <b>/due</b> — сколько ждёт повторения",
+    "• <b>/remind 9</b> — напоминать о повторении каждый день в 9:00",
     "• просто напиши вопрос — объясню, приведу примеры, помогу с грамматикой",
     "",
     "Сменить язык: <code>/lang en ru</code>",
@@ -120,6 +123,35 @@ export function createBot(): Telegraf {
     await setUserPair(telegramId, parts[0].toLowerCase(), parts[1].toLowerCase());
     const p = await resolveUserPair(telegramId);
     await ctx.replyWithHTML(`✅ Пара: <b>${esc(langName(p.source))} → ${esc(langName(p.target))}</b>`);
+  });
+
+  // /remind — choose when the daily review nudge arrives (server time), or off.
+  bot.command("remind", async (ctx) => {
+    const telegramId = String(ctx.from.id);
+    await ensureBotUser(telegramId, String(ctx.chat.id));
+    const arg = ctx.message.text.trim().split(/\s+/)[1]?.toLowerCase();
+    if (!arg) {
+      const cur = await getReminderHour(telegramId);
+      await ctx.replyWithHTML(
+        (cur === null
+          ? "🔕 Напоминания выключены."
+          : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
+          "\n\nЗадать время: <code>/remind 9</code> (час 0–23)\nВыключить: <code>/remind off</code>",
+      );
+      return;
+    }
+    if (arg === "off" || arg === "выкл") {
+      await setReminderHour(telegramId, null);
+      await ctx.reply("🔕 Ок, больше не напоминаю.");
+      return;
+    }
+    const hour = Number(arg);
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+      await ctx.reply("Укажи час от 0 до 23, например: /remind 9");
+      return;
+    }
+    await setReminderHour(telegramId, hour);
+    await ctx.replyWithHTML(`🔔 Буду напоминать о повторении каждый день в <b>${String(hour).padStart(2, "0")}:00</b>.`);
   });
 
   // "add <word>" — save a word with example + dictionary entry.
@@ -294,24 +326,24 @@ async function sendNextCard(ctx: Context, telegramId: string): Promise<void> {
 }
 
 /**
- * Once-a-day nudge: at BOT_REMINDER_HOUR, message every user who has cards due
- * and has started the bot. Checks every 15 min and remembers the last day it
- * fired so a restart mid-hour doesn't double-send.
+ * Per-user daily nudge: each learner picks their own hour via /remind. Every 15
+ * min we look at the current hour and message anyone who chose it and has cards
+ * due. A per-user "last sent day" guard stops double-sends within the hour.
  */
 function startReminderLoop(bot: Telegraf): void {
-  let lastSentDay = "";
+  const lastSent = new Map<string, string>(); // telegramId -> YYYY-MM-DD
   const tick = async () => {
     const now = new Date();
-    if (now.getHours() !== env.BOT_REMINDER_HOUR) return;
+    const hour = now.getHours();
     const day = now.toISOString().slice(0, 10);
-    if (day === lastSentDay) return;
-    lastSentDay = day;
     try {
-      const users = await usersWithDueCards();
+      const users = await usersToRemindAt(hour);
       for (const u of users) {
+        if (lastSent.get(u.telegramId) === day) continue;
         const pair = await resolveUserPair(u.telegramId);
         const n = await dueCountForUser(u.telegramId, pair);
         if (n === 0) continue;
+        lastSent.set(u.telegramId, day);
         try {
           await bot.telegram.sendMessage(u.botChatId, `⏰ Пора повторить: <b>${n}</b> ${n === 1 ? "карточка" : "карточек"} ждёт.`, {
             parse_mode: "HTML",
@@ -347,16 +379,15 @@ export function launchBot(): void {
     .setMyCommands([
       { command: "review", description: "Повторить карточки" },
       { command: "due", description: "Сколько ждёт повторения" },
+      { command: "remind", description: "Напоминания о повторении" },
       { command: "list", description: "Мои слова" },
       { command: "lang", description: "Сменить языковую пару" },
       { command: "help", description: "Что я умею" },
     ])
     .catch((err) => console.error("setMyCommands failed:", (err as Error).message));
   void bot.launch(() => console.log("Telegram tutor bot started (long polling)."));
-  if (env.ENABLE_BOT_REMINDERS === "true") {
-    startReminderLoop(bot);
-    console.log(`Daily review reminders on (hour ${env.BOT_REMINDER_HOUR}).`);
-  }
+  // Reminders are per-user opt-in (via /remind), so the sweep always runs.
+  startReminderLoop(bot);
 
   process.once("SIGINT", () => bot.stop("SIGINT"));
   process.once("SIGTERM", () => bot.stop("SIGTERM"));
