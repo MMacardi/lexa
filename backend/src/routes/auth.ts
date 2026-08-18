@@ -14,8 +14,19 @@ import { verifyGoogleIdToken } from "../services/googleAuth.js";
 import { createEmailToken, consumeEmailToken } from "../services/emailLink.js";
 import { sendEmail, emailConfigured } from "../services/mailer.js";
 import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/authIdentity.js";
+import { rateLimit, take } from "../lib/rateLimit.js";
 
 export const authRouter = Router();
+
+// Throttle the abusable auth endpoints (token minting, email sending, credential
+// checks) per caller/IP. The /poll and /me lookups are cheap and polled, so they
+// stay unlimited.
+const authLimiter = rateLimit({ windowMs: 60_000, max: 30, name: "auth" });
+const LIMITED = new Set(["/auth/email/start", "/auth/telegram/start", "/auth/google", "/auth/dev"]);
+authRouter.use((req, res, next) => {
+  if (req.method === "POST" && LIMITED.has(req.path)) return authLimiter(req, res, next);
+  next();
+});
 
 // Load the resolved account and reply with its profile + linked methods, setting
 // the session cookie. Shared by every login route.
@@ -124,6 +135,11 @@ authRouter.post("/auth/email/start", async (req, res) => {
     return;
   }
   const email = parsed.data.email.toLowerCase();
+  // Cap links per address so nobody can be email-bombed via this endpoint.
+  if (!take(`emailstart:${email}`, 5, 10 * 60_000)) {
+    res.status(429).json({ error: "Too many attempts for this email. Try again later." });
+    return;
+  }
   const token = createEmailToken(email);
   const link = `${env.FRONTEND_URL.replace(/\/+$/, "")}/login/verify?token=${token}`;
   const text = `Sign in to Lexa:\n${link}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`;

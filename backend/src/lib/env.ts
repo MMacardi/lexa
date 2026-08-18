@@ -18,7 +18,9 @@ const schema = z.object({
   ENABLE_TELEGRAM_BOT: z.string().default("false"),
   // Auth / sessions
   JWT_SECRET: z.string().default("dev-insecure-secret-change-me"),
-  ALLOW_DEV_LOGIN: z.string().default("true"), // "true" enables /api/auth/dev
+  // Secure by default: dev sign-in (and the email dev-link leak) are OFF unless a
+  // trusted environment (local docker-compose) explicitly opts in. Never "true" in prod.
+  ALLOW_DEV_LOGIN: z.string().default("false"), // "true" enables /api/auth/dev
   COOKIE_SECURE: z.string().default("false"), // "true" in production (cross-site cookies)
   // Public URL of the frontend, used to build email magic-links.
   FRONTEND_URL: z.string().default("http://localhost:3001"),
