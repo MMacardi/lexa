@@ -10,6 +10,9 @@ import {
   type TelegramAuthData,
 } from "../lib/auth.js";
 import { createLoginToken, consumeLoginToken } from "../services/loginLink.js";
+import { verifyGoogleIdToken } from "../services/googleAuth.js";
+import { createEmailToken, consumeEmailToken } from "../services/emailLink.js";
+import { sendEmail, emailConfigured } from "../services/mailer.js";
 
 export const authRouter = Router();
 
@@ -27,6 +30,7 @@ function publicProfile(u: {
   lastName: string | null;
   username: string | null;
   photoUrl: string | null;
+  email: string | null;
   authVia: string;
 }) {
   return {
@@ -35,6 +39,7 @@ function publicProfile(u: {
     lastName: u.lastName,
     username: u.username,
     photoUrl: u.photoUrl,
+    email: u.email,
     authVia: u.authVia,
   };
 }
@@ -94,6 +99,88 @@ authRouter.get("/auth/telegram/poll", async (req, res) => {
     update: profile,
   });
   setSessionCookie(res, bound.telegramId);
+  res.json(publicProfile(user));
+});
+
+// Email-based identities (Google + magic-link) share one account per email: the
+// subject is `email:<addr>`, so signing in with Google or a link for the same
+// address lands on the same account.
+async function upsertEmailIdentity(
+  email: string,
+  data: { firstName?: string | null; photoUrl?: string | null; authVia: string },
+) {
+  const subject = `email:${email.toLowerCase()}`;
+  const profile = {
+    email: email.toLowerCase(),
+    firstName: data.firstName ?? null,
+    photoUrl: data.photoUrl ?? null,
+    authVia: data.authVia,
+  };
+  return prisma.user.upsert({
+    where: { telegramId: subject },
+    create: { telegramId: subject, ...profile },
+    update: profile,
+  });
+}
+
+// POST /api/auth/google — verify a Google Sign-In ID token, start a session.
+authRouter.post("/auth/google", async (req, res) => {
+  const credential = String((req.body as { credential?: unknown })?.credential ?? "");
+  if (!credential) {
+    res.status(400).json({ error: "Missing credential" });
+    return;
+  }
+  try {
+    const g = await verifyGoogleIdToken(credential);
+    const user = await upsertEmailIdentity(g.email, {
+      firstName: g.name ?? null,
+      photoUrl: g.picture ?? null,
+      authVia: "google",
+    });
+    setSessionCookie(res, user.telegramId);
+    res.json(publicProfile(user));
+  } catch (err) {
+    res.status(401).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/auth/email/start — email a magic sign-in link.
+const emailBody = z.object({ email: z.string().email().max(200) });
+authRouter.post("/auth/email/start", async (req, res) => {
+  const parsed = emailBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email" });
+    return;
+  }
+  const email = parsed.data.email.toLowerCase();
+  const token = createEmailToken(email);
+  const link = `${env.FRONTEND_URL.replace(/\/+$/, "")}/login/verify?token=${token}`;
+  const text = `Sign in to Lexa:\n${link}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`;
+  const html =
+    `<p>Tap to sign in to <b>Lexa</b>:</p>` +
+    `<p><a href="${link}" style="display:inline-block;background:#7c9885;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Sign in to Lexa</a></p>` +
+    `<p style="color:#8a8273;font-size:13px">This link expires in 15 minutes. If you didn't request it, ignore this email.</p>`;
+  try {
+    await sendEmail(email, "Your Lexa sign-in link", html, text);
+  } catch (err) {
+    console.error("sendEmail failed:", err);
+    res.status(502).json({ error: "Couldn't send the email. Try again." });
+    return;
+  }
+  // In dev (no SMTP), surface the link so the flow is testable without a mailbox.
+  const devLink = !emailConfigured() && env.ALLOW_DEV_LOGIN === "true" ? link : undefined;
+  res.json({ sent: true, devLink });
+});
+
+// GET /api/auth/email/verify?token=… — consume a magic-link token, start session.
+authRouter.get("/auth/email/verify", async (req, res) => {
+  const email = consumeEmailToken(String(req.query.token ?? ""));
+  if (!email) {
+    res.status(400).json({ error: "This sign-in link is invalid or has expired." });
+    return;
+  }
+  const user = await upsertEmailIdentity(email, { authVia: "email" });
+  setSessionCookie(res, user.telegramId);
   res.json(publicProfile(user));
 });
 

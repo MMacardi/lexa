@@ -55,7 +55,8 @@ export interface Profile {
   lastName?: string | null;
   username?: string | null;
   photoUrl?: string | null;
-  authVia?: string; // "telegram" | "dev"
+  email?: string | null;
+  authVia?: string; // "telegram" | "google" | "email" | "dev"
 }
 
 export interface Stats {
@@ -294,6 +295,17 @@ export const api = {
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     return (await res.json()) as Profile;
   },
+  // Google Sign-In: exchange the Google ID token (credential) for a session.
+  loginGoogle: (credential: string) =>
+    http<Profile>(`/api/auth/google`, { method: "POST", body: JSON.stringify({ credential }) }),
+  // Email magic-link: request a link, then the /login/verify page consumes it.
+  startEmailLogin: (email: string) =>
+    http<{ sent: boolean; devLink?: string }>(`/api/auth/email/start`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  verifyEmailLogin: (token: string) =>
+    http<Profile>(`/api/auth/email/verify?token=${encodeURIComponent(token)}`),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

@@ -155,6 +155,15 @@ const DICT: Record<string, Entry> = {
   "login.openTelegram": { en: "Open Telegram", ru: "Открыть Telegram", zh: "打开 Telegram" },
   "login.telegramError": { en: "Couldn't start the login. Try again.", ru: "Не удалось начать вход. Попробуйте ещё раз.", zh: "无法开始登录，请重试。" },
   "login.devToggle": { en: "Developer sign-in", ru: "Вход для разработки", zh: "开发登录" },
+  "login.or": { en: "or", ru: "или", zh: "或" },
+  "login.emailPlaceholder": { en: "you@email.com", ru: "you@email.com", zh: "you@email.com" },
+  "login.emailSend": { en: "Email me a link", ru: "Прислать ссылку", zh: "发送登录链接" },
+  "login.emailSent": { en: "Check your inbox — we sent a sign-in link.", ru: "Проверьте почту — мы отправили ссылку для входа.", zh: "请查收邮件——我们已发送登录链接。" },
+  "login.emailInvalid": { en: "Enter a valid email.", ru: "Введите корректный email.", zh: "请输入有效邮箱。" },
+  "login.devLinkOpen": { en: "Dev: open the link", ru: "Dev: открыть ссылку", zh: "Dev：打开链接" },
+  "login.verifying": { en: "Signing you in…", ru: "Выполняем вход…", zh: "正在登录…" },
+  "login.verifyFailed": { en: "This sign-in link is invalid or has expired.", ru: "Ссылка для входа недействительна или истекла.", zh: "登录链接无效或已过期。" },
+  "login.backToLogin": { en: "Back to sign in", ru: "Вернуться ко входу", zh: "返回登录" },
 
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },

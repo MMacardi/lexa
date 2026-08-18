@@ -6,6 +6,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "";
 
@@ -20,6 +21,37 @@ export function LoginScreen() {
   const [waiting, setWaiting] = useState(false);
   const [tgUrl, setTgUrl] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Email magic-link state.
+  const [email, setEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [devLink, setDevLink] = useState<string | null>(null);
+
+  async function googleLogin(credential: string) {
+    setErr(null);
+    try {
+      await api.loginGoogle(credential);
+      await refresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  async function emailLogin() {
+    const addr = email.trim();
+    if (!addr || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await api.startEmailLogin(addr);
+      setEmailSent(true);
+      setDevLink(r.devLink ?? null);
+    } catch (e) {
+      setErr((e as Error).message || t("login.emailInvalid"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const stopPolling = () => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -131,6 +163,43 @@ export function LoginScreen() {
             )}
           </div>
         )}
+
+        {/* Google */}
+        <div className="mt-4 flex justify-center">
+          <GoogleLoginButton onCredential={googleLogin} />
+        </div>
+
+        {/* Email magic-link */}
+        <div className="mt-5">
+          {emailSent ? (
+            <div className="rounded-[16px] border border-black/[0.06] bg-paper/60 p-4 text-sm">
+              <p className="font-medium text-ink">📬 {t("login.emailSent")}</p>
+              {devLink && (
+                <a href={devLink} className="mt-2 inline-block font-semibold text-sage hover:underline">
+                  {t("login.devLinkOpen")} ↗
+                </a>
+              )}
+            </div>
+          ) : (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                emailLogin();
+              }}
+            >
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("login.emailPlaceholder")}
+              />
+              <Button type="submit" disabled={busy || !email.trim()} variant="outline" className="shrink-0">
+                {busy ? "…" : t("login.emailSend")}
+              </Button>
+            </form>
+          )}
+        </div>
 
         {/* Developer sign-in — tucked away; only useful locally (ALLOW_DEV_LOGIN). */}
         <details className="mt-6 text-left">
