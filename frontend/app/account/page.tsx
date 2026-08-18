@@ -24,6 +24,7 @@ import {
   type ExampleSource,
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
+import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "llmlangcardlearnerbot";
 
@@ -210,6 +211,9 @@ export default function AccountPage() {
           </Button>
         </div>
       </Section>
+
+      {/* sign-in methods (link Telegram / Google / email to one account) */}
+      <ConnectedAccounts />
 
       {/* telegram */}
       <Section title={t("account.telegram")}>

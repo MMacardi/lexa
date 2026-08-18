@@ -164,6 +164,16 @@ const DICT: Record<string, Entry> = {
   "login.verifying": { en: "Signing you in…", ru: "Выполняем вход…", zh: "正在登录…" },
   "login.verifyFailed": { en: "This sign-in link is invalid or has expired.", ru: "Ссылка для входа недействительна или истекла.", zh: "登录链接无效或已过期。" },
   "login.backToLogin": { en: "Back to sign in", ru: "Вернуться ко входу", zh: "返回登录" },
+  "acct.connected": { en: "Sign-in methods", ru: "Способы входа", zh: "登录方式" },
+  "acct.connectedHint": { en: "Link several methods so you can sign in with any of them.", ru: "Привяжите несколько способов — входить можно любым из них.", zh: "关联多种方式，任选其一登录。" },
+  "acct.connect": { en: "Connect", ru: "Привязать", zh: "关联" },
+  "acct.disconnect": { en: "Disconnect", ru: "Отвязать", zh: "解除" },
+  "acct.onlyMethod": { en: "Your only sign-in method", ru: "Единственный способ входа", zh: "唯一登录方式" },
+  "acct.provTelegram": { en: "Telegram", ru: "Telegram", zh: "Telegram" },
+  "acct.provGoogle": { en: "Google", ru: "Google", zh: "Google" },
+  "acct.provEmail": { en: "Email", ru: "Почта", zh: "邮箱" },
+  "acct.emailWaiting": { en: "Check your inbox to confirm.", ru: "Проверьте почту для подтверждения.", zh: "请查收邮件确认。" },
+  "acct.tgWaiting": { en: "Confirm in Telegram…", ru: "Подтвердите в Telegram…", zh: "在 Telegram 中确认…" },
 
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },

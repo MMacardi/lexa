@@ -15,7 +15,7 @@ export async function ensureBotUser(
   chatId: string,
   profile?: { firstName?: string | null; username?: string | null },
 ): Promise<void> {
-  await prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { telegramId },
     create: {
       telegramId,
@@ -25,6 +25,13 @@ export async function ensureBotUser(
       username: profile?.username ?? null,
     },
     update: { botChatId: chatId },
+    select: { id: true },
+  });
+  // Keep a matching identity so this Telegram account is linkable/listed.
+  await prisma.authIdentity.upsert({
+    where: { provider_subject: { provider: "telegram", subject: telegramId } },
+    create: { userId: user.id, provider: "telegram", subject: telegramId },
+    update: {},
   });
 }
 
