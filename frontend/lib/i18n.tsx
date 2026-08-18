@@ -149,6 +149,12 @@ const DICT: Record<string, Entry> = {
   "login.idPlaceholder": { en: "Telegram ID (e.g. 865277762)", ru: "Telegram ID (напр. 865277762)", zh: "Telegram ID（如 865277762）" },
   "login.enter": { en: "Enter", ru: "Войти", zh: "进入" },
   "login.devNote": { en: "The dev sign-in is for local testing; production uses Telegram login.", ru: "Этот вход нужен для локального теста; в продакшене — вход через Telegram.", zh: "开发登录用于本地测试；生产环境使用 Telegram 登录。" },
+  "login.telegram": { en: "Continue with Telegram", ru: "Войти через Telegram", zh: "使用 Telegram 登录" },
+  "login.telegramHint": { en: "One tap — no password. First sign-in creates your account.", ru: "В один тап — без пароля. Первый вход создаёт аккаунт.", zh: "一键登录，无需密码。首次登录即注册。" },
+  "login.waiting": { en: "Confirm the login in Telegram…", ru: "Подтвердите вход в Telegram…", zh: "请在 Telegram 中确认登录…" },
+  "login.openTelegram": { en: "Open Telegram", ru: "Открыть Telegram", zh: "打开 Telegram" },
+  "login.telegramError": { en: "Couldn't start the login. Try again.", ru: "Не удалось начать вход. Попробуйте ещё раз.", zh: "无法开始登录，请重试。" },
+  "login.devToggle": { en: "Developer sign-in", ru: "Вход для разработки", zh: "开发登录" },
 
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },

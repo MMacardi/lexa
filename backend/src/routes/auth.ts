@@ -9,6 +9,7 @@ import {
   readSession,
   type TelegramAuthData,
 } from "../lib/auth.js";
+import { createLoginToken, consumeLoginToken } from "../services/loginLink.js";
 
 export const authRouter = Router();
 
@@ -63,6 +64,36 @@ authRouter.post("/auth/telegram", async (req, res) => {
     update: profile,
   });
   setSessionCookie(res, telegramId);
+  res.json(publicProfile(user));
+});
+
+// POST /api/auth/telegram/start — begin "login via the bot". Returns a one-time
+// token; the web opens t.me/<bot>?start=login_<token> and then polls /poll.
+authRouter.post("/auth/telegram/start", (_req, res) => {
+  res.json({ token: createLoginToken() });
+});
+
+// GET /api/auth/telegram/poll?token=… — has the bot confirmed this token yet?
+// 200 + profile (and a session cookie) once confirmed; 204 while still pending.
+authRouter.get("/auth/telegram/poll", async (req, res) => {
+  const token = String(req.query.token ?? "");
+  const bound = token ? consumeLoginToken(token) : null;
+  if (!bound) {
+    res.status(204).end();
+    return;
+  }
+  const profile = {
+    firstName: bound.profile.firstName ?? null,
+    lastName: bound.profile.lastName ?? null,
+    username: bound.profile.username ?? null,
+    authVia: "telegram",
+  };
+  const user = await prisma.user.upsert({
+    where: { telegramId: bound.telegramId },
+    create: { telegramId: bound.telegramId, ...profile },
+    update: profile,
+  });
+  setSessionCookie(res, bound.telegramId);
   res.json(publicProfile(user));
 });
 
