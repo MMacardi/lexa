@@ -104,21 +104,34 @@ export function createBot(): Telegraf {
       firstName: ctx.from.first_name,
       username: ctx.from.username,
     });
-    // Deep-link login: /start login_<token> confirms a web sign-in for this user.
+    // Deep-link login: /start login_<token>. We DON'T bind silently — the user
+    // must tap confirm, so a link someone else sent can't log them in unaware.
     const payload = ctx.startPayload;
     if (payload && payload.startsWith("login_")) {
-      const ok = bindLoginToken(payload.slice("login_".length), telegramId, {
-        firstName: ctx.from.first_name ?? null,
-        lastName: ctx.from.last_name ?? null,
-        username: ctx.from.username ?? null,
-      });
-      await ctx.reply(ok ? "✅ Вход подтверждён — вернись на сайт, он уже открывается." : "Ссылка для входа устарела. Попробуй войти на сайте ещё раз.");
+      const token = payload.slice("login_".length);
+      await ctx.replyWithHTML(
+        "🔐 <b>Вход на сайт Lexa</b>\nПодтверждайте, только если вы <b>сами</b> сейчас входите на сайте.",
+        Markup.inlineKeyboard([[Markup.button.callback("✅ Это я — войти", `login:ok:${token}`)]]),
+      );
       return;
     }
     const pair = await resolveUserPair(telegramId);
     await ctx.replyWithHTML(welcome(pair));
   });
   bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(String(ctx.from.id)))));
+
+  // Confirm a web sign-in (from the /start login_<token> deep link).
+  bot.action(/^login:ok:(.+)$/, async (ctx) => {
+    const ok = bindLoginToken(ctx.match[1], String(ctx.from.id), {
+      firstName: ctx.from.first_name ?? null,
+      lastName: ctx.from.last_name ?? null,
+      username: ctx.from.username ?? null,
+    });
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      ok ? "✅ Вход подтверждён — вернись на сайт, он уже открывается." : "Ссылка для входа устарела. Войди на сайте ещё раз.",
+    );
+  });
 
   // /lang <src> <tgt> — set the pair used for chat + review.
   bot.command("lang", async (ctx) => {
