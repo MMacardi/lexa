@@ -167,10 +167,26 @@ export default function AccountPage() {
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
 
-  const viaTelegram = profile?.authVia === "telegram";
+  const via = profile?.authVia ?? "";
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
-  const displayName = fullName || (profile?.username ? `@${profile.username}` : accountId);
-  const initial = (fullName || accountId || "?").charAt(0).toUpperCase();
+  const emailLocal = profile?.email ? profile.email.split("@")[0] : "";
+  // A friendly name that never falls back to the raw "email:…" account key.
+  const displayName =
+    fullName ||
+    (profile?.username ? `@${profile.username}` : "") ||
+    profile?.email ||
+    (accountId.startsWith("email:") ? accountId.slice(6) : accountId);
+  const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();
+
+  // Sign-in method → label + status-dot colour.
+  const method =
+    via === "telegram"
+      ? { label: t("account.viaTelegram"), dot: "bg-sage" }
+      : via === "google"
+        ? { label: t("account.viaGoogle"), dot: "bg-[#4285F4]" }
+        : via === "email"
+          ? { label: t("account.viaEmail"), dot: "bg-sage" }
+          : { label: t("account.devSession"), dot: "bg-taupe" };
 
   return (
     <div className="anim-fade-up mx-auto max-w-[640px] space-y-6">
@@ -195,15 +211,18 @@ export default function AccountPage() {
                 {initial}
               </div>
             )}
-            <div>
-              <div className="font-serif text-[20px] font-semibold text-ink">{displayName}</div>
+            <div className="min-w-0">
+              <div className="truncate font-serif text-[20px] font-semibold text-ink">{displayName}</div>
+              {profile?.email && (
+                <div className="mt-0.5 truncate text-[13px] text-ink-soft">{profile.email}</div>
+              )}
               <div className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium">
-                <span className={cn("h-2 w-2 rounded-full", viaTelegram ? "bg-sage" : "bg-taupe")} />
-                <span className="text-ink-soft">
-                  {viaTelegram ? t("account.viaTelegram") : t("account.devSession")}
-                </span>
+                <span className={cn("h-2 w-2 rounded-full", method.dot)} />
+                <span className="text-ink-soft">{method.label}</span>
               </div>
-              <div className="mt-0.5 text-[11px] text-ink-faint">ID: {accountId}</div>
+              {!accountId.startsWith("email:") && (
+                <div className="mt-0.5 text-[11px] text-ink-faint">ID: {accountId}</div>
+              )}
             </div>
           </div>
           <Button variant="outline" onClick={() => logout()}>

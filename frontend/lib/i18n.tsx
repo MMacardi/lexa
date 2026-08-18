@@ -141,6 +141,8 @@ const DICT: Record<string, Entry> = {
   "account.telegramHint": { en: "Message @llmlangcardlearnerbot on Telegram to add words straight from your phone — they sync here automatically.", ru: "Напишите боту @llmlangcardlearnerbot в Telegram, чтобы добавлять слова прямо с телефона — они появятся здесь автоматически.", zh: "在 Telegram 给 @llmlangcardlearnerbot 发消息，即可用手机添加单词——会自动同步到这里。" },
   "account.openBot": { en: "Open the bot →", ru: "Открыть бота →", zh: "打开机器人 →" },
   "account.viaTelegram": { en: "Connected via Telegram", ru: "Вход через Telegram", zh: "已通过 Telegram 登录" },
+  "account.viaGoogle": { en: "Connected via Google", ru: "Вход через Google", zh: "已通过 Google 登录" },
+  "account.viaEmail": { en: "Connected via email", ru: "Вход по email", zh: "已通过邮箱登录" },
   "account.devSession": { en: "Local dev session", ru: "Локальная сессия (dev)", zh: "本地会话" },
 
   // --- login ---
