@@ -153,7 +153,7 @@ export function GlobalTutor() {
       {open && (
         <div className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]">
           {/* header — title, clickable language pair, actions */}
-          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 py-3">
+          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
                 <span>✨</span>
@@ -182,7 +182,7 @@ export function GlobalTutor() {
                 </button>
               </div>
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-soft">
+            <div className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-soft">
               <LangSelect value={pair.source} onChange={(v) => changePair({ source: v, target: pair.target })} className="h-8 min-w-0" />
               <span className="text-ink-faint">→</span>
               <LangSelect value={pair.target} onChange={(v) => changePair({ source: pair.source, target: v })} className="h-8 min-w-0" />

@@ -9,11 +9,13 @@ import { useI18n } from "@/lib/i18n";
 import {
   useCardLayout,
   setCardLayout,
+  getRecentPairs,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
   type CardLayout,
 } from "@/lib/learnPrefs";
+import { pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
@@ -22,6 +24,7 @@ import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
+import { QuickChip } from "@/components/ui/QuickChip";
 import { previewMinutes } from "@/lib/fsrsPreview";
 import { cn } from "@/lib/utils";
 
@@ -96,12 +99,23 @@ export default function FlashcardsPage() {
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
-  const sel = selPairs ?? allPairs;
+  // Nothing selected by default — the learner picks a pair (quick chips below the
+  // dropdown make the common ones one tap away).
+  const sel = selPairs ?? [];
 
-  // Default selection = all pairs once the list loads.
-  useEffect(() => {
-    if (selPairs === null && allWords) setSelPairs(allPairs);
-  }, [allWords, selPairs, allPairs]);
+  // The 5 most recently used pairs (from add history), shown as quick-pick chips.
+  const quickPairs = (() => {
+    const recent = getRecentPairs().map((p) => `${p.s}>${p.t}`);
+    const ordered = [...allPairs].sort((a, b) => {
+      const ia = recent.indexOf(a);
+      const ib = recent.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    return ordered.slice(0, 5);
+  })();
+
+  const togglePair = (pk: string) =>
+    setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
 
   const review = useMutation({
     mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
@@ -228,16 +242,38 @@ export default function FlashcardsPage() {
                 {t("review.collection")}
               </p>
               <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
+                  {t("common.allWords")}
+                </QuickChip>
+                {collections.slice(0, 5).map((c) => (
+                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
+                    {c.name}
+                  </QuickChip>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* pairs */}
-          {allPairs.length > 1 && (
+          {/* pairs — nothing selected by default; quick-pick chips for recent pairs */}
+          {allPairs.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
               </p>
-              <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+              {allPairs.length > 1 && (
+                <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {quickPairs.map((pk) => {
+                  const [s, tg] = pk.split(">");
+                  return (
+                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
+                      {pairLabel(s, tg)}
+                    </QuickChip>
+                  );
+                })}
+              </div>
             </div>
           )}
 
