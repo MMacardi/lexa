@@ -49,6 +49,11 @@ export interface Collection {
   count: number;
 }
 
+export interface AuthIdentity {
+  provider: string; // "telegram" | "google" | "email" | "dev"
+  subject: string;
+}
+
 export interface Profile {
   telegramId: string;
   firstName?: string | null;
@@ -57,6 +62,7 @@ export interface Profile {
   photoUrl?: string | null;
   email?: string | null;
   authVia?: string; // "telegram" | "google" | "email" | "dev"
+  identities?: AuthIdentity[];
 }
 
 export interface Stats {
@@ -306,6 +312,8 @@ export const api = {
     }),
   verifyEmailLogin: (token: string) =>
     http<Profile>(`/api/auth/email/verify?token=${encodeURIComponent(token)}`),
+  unlinkIdentity: (provider: string) =>
+    http<{ identities: AuthIdentity[] }>(`/api/auth/identity/${encodeURIComponent(provider)}`, { method: "DELETE" }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

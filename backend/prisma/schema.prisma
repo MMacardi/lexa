@@ -29,6 +29,22 @@ model User {
   words       Word[]
   collections Collection[]
   importJobs  ImportJob[]
+  identities  AuthIdentity[]
+}
+
+// A sign-in method linked to an account. One user can have several (telegram +
+// google + email), so any of them logs into the same account. `subject` is the
+// provider-specific id: telegram numeric id, or the verified email address.
+model AuthIdentity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  String   // "telegram" | "google" | "email" | "dev"
+  subject   String
+  createdAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
 }
 
 model Collection {
