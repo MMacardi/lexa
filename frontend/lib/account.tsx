@@ -13,6 +13,7 @@ type AccountCtx = {
   ready: boolean; // initial /me check finished
   loginDev: (id: string) => Promise<void>;
   loginTelegram: (data: Record<string, unknown>) => Promise<void>;
+  refresh: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -23,6 +24,7 @@ const Ctx = createContext<AccountCtx>({
   ready: false,
   loginDev: async () => {},
   loginTelegram: async () => {},
+  refresh: async () => {},
   logout: async () => {},
 });
 
@@ -66,7 +68,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ accountId, profile, authed: !!accountId, ready, loginDev, loginTelegram, logout }}
+      value={{ accountId, profile, authed: !!accountId, ready, loginDev, loginTelegram, refresh, logout }}
     >
       {children}
     </Ctx.Provider>

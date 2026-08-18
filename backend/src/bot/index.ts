@@ -2,6 +2,7 @@ import { Telegraf, Markup, type Context } from "telegraf";
 import { env } from "../lib/env.js";
 import { addWordForUser, listWordsForUser, recordReview } from "../services/vocab.js";
 import { tutorChat } from "../services/tutorChat.js";
+import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
 import { take } from "../lib/rateLimit.js";
 import {
@@ -103,6 +104,17 @@ export function createBot(): Telegraf {
       firstName: ctx.from.first_name,
       username: ctx.from.username,
     });
+    // Deep-link login: /start login_<token> confirms a web sign-in for this user.
+    const payload = ctx.startPayload;
+    if (payload && payload.startsWith("login_")) {
+      const ok = bindLoginToken(payload.slice("login_".length), telegramId, {
+        firstName: ctx.from.first_name ?? null,
+        lastName: ctx.from.last_name ?? null,
+        username: ctx.from.username ?? null,
+      });
+      await ctx.reply(ok ? "✅ Вход подтверждён — вернись на сайт, он уже открывается." : "Ссылка для входа устарела. Попробуй войти на сайте ещё раз.");
+      return;
+    }
     const pair = await resolveUserPair(telegramId);
     await ctx.replyWithHTML(welcome(pair));
   });

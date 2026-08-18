@@ -283,6 +283,17 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ telegramId }),
     }),
+  // Deep-link login via the bot: get a one-time token, then poll until the user
+  // confirms in Telegram (poll returns null while still pending).
+  startTelegramLogin: () => http<{ token: string }>(`/api/auth/telegram/start`, { method: "POST" }),
+  pollTelegramLogin: async (token: string): Promise<Profile | null> => {
+    const res = await fetch(`${BASE}/api/auth/telegram/poll?token=${encodeURIComponent(token)}`, {
+      credentials: "include",
+    });
+    if (res.status === 204) return null; // still waiting
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    return (await res.json()) as Profile;
+  },
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 
