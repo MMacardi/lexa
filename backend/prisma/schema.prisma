@@ -14,7 +14,8 @@ model User {
   lastName    String?
   username    String?
   photoUrl    String?
-  authVia     String       @default("dev") // "telegram" | "dev"
+  email       String?      // set for Google / email-magic-link accounts
+  authVia     String       @default("dev") // "telegram" | "google" | "email" | "dev"
   // Default language pair for server-side surfaces that have no localStorage —
   // notably the Telegram tutor bot (chat + review). Null until first resolved.
   preferredSource String?

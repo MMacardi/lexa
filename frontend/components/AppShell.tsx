@@ -1,11 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 import { LoginScreen } from "@/components/LoginScreen";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
+
+// Routes that render without the auth gate (they establish a session themselves).
+const PUBLIC_ROUTES = ["/login/verify"];
 
 // These are always-mounted overlays but never on the critical path — defer their
 // chunks so the first page paints without their JS.
@@ -18,6 +22,10 @@ const GlobalTutor = dynamic(() => import("@/components/GlobalTutor").then((m) =>
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { ready, authed } = useAccount();
   const { t } = useI18n();
+  const pathname = usePathname();
+
+  // Public routes (e.g. the email-verify landing) render without the gate.
+  if (PUBLIC_ROUTES.some((r) => pathname?.startsWith(r))) return <>{children}</>;
 
   if (!ready)
     return (
