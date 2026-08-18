@@ -20,6 +20,16 @@ const schema = z.object({
   JWT_SECRET: z.string().default("dev-insecure-secret-change-me"),
   ALLOW_DEV_LOGIN: z.string().default("true"), // "true" enables /api/auth/dev
   COOKIE_SECURE: z.string().default("false"), // "true" in production (cross-site cookies)
+  // Public URL of the frontend, used to build email magic-links.
+  FRONTEND_URL: z.string().default("http://localhost:3001"),
+  // Google Sign-In: the OAuth client id the frontend uses; verified as the ID
+  // token's audience server-side.
+  GOOGLE_CLIENT_ID: z.string().default(""),
+  // Email magic-link delivery: a nodemailer SMTP URL (smtp://user:pass@host:port)
+  // and the From address. When SMTP_URL is empty we log the link instead of
+  // sending (dev), and expose it in the API response only if ALLOW_DEV_LOGIN.
+  SMTP_URL: z.string().default(""),
+  EMAIL_FROM: z.string().default("Lexa <no-reply@lexa.app>"),
 });
 
 export const env = schema.parse(process.env);
