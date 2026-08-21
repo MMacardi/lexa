@@ -282,6 +282,11 @@ export async function updateWord(
   ] as const) {
     if (fields[k] !== undefined) data[k] = fields[k];
   }
+  // The cached AI explanation describes the word's meaning/usage, so any change to
+  // those fields makes it stale — drop it and let the next open regenerate.
+  if (["word", "meaningZh", "partOfSpeech", "synonyms", "antonyms"].some((k) => k in data)) {
+    data.explainCache = null;
+  }
   // Duplicate spellings are allowed, so a rename can never collide.
   await prisma.word.update({ where: { id }, data });
 
@@ -378,14 +383,16 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
 /**
  * On-demand AI explanation of a word: nuance, when to use it, how it differs
  * from close synonyms, register, and a common mistake — written in the learner's
- * own language (the card's target language). Not stored (on-demand, one call).
+ * own language (the card's target language). Cached on the card: the first call
+ * generates + stores it, later opens return it for free (cleared on edits).
  */
 export async function explainWord(id: string): Promise<string> {
   const word = await prisma.word.findUnique({
     where: { id },
-    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true },
+    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, explainCache: true },
   });
   if (!word) throw new Error("Word not found");
+  if (word.explainCache?.trim()) return word.explainCache.trim();
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
@@ -404,7 +411,10 @@ export async function explainWord(id: string): Promise<string> {
       (word.synonyms.length ? `\nListed synonyms: ${word.synonyms.join(", ")}` : ""),
     schema: explanationSchema,
   });
-  return explanation.trim();
+  const text = explanation.trim();
+  // Cache it on the card so re-opening the word is free.
+  await prisma.word.update({ where: { id }, data: { explainCache: text } }).catch(() => {});
+  return text;
 }
 
 /**
@@ -450,6 +460,10 @@ export async function askAboutWord(
         `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
         `asks about anything unrelated (general knowledge, tech, people, etc.), politely decline in ` +
         `${targetName} and steer back to the word.\n\n` +
+        `SELF-TEST: if the learner asks you to test/quiz them (or says they'll try to recall it), ask ONE ` +
+        `short question about this word — e.g. use it in a sentence, give its meaning, or when to use it — ` +
+        `and wait. When they answer, GRADE it warmly: say what was right, gently correct mistakes, and ` +
+        `show one correct ${sourceName} example. Keep it short and encouraging.\n\n` +
         `ACTIONS: if the learner asks you to add synonyms or antonyms (or you clearly recommend some), ` +
         `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
         `not already listed). If the learner explicitly asks to SAVE/ADD new vocabulary as its own ` +

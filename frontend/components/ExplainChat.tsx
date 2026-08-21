@@ -133,6 +133,15 @@ export function ExplainChat({ word }: { word: Word }) {
     ask.mutate(next);
   }
 
+  // Free-recall practice, right in the chat: seed a turn asking the tutor to quiz
+  // the learner on this word and grade their answer.
+  function testMe() {
+    if (busy) return;
+    const next = [...messages, { role: "user" as const, content: t("word.testMeSeed") }];
+    setMessages(next);
+    ask.mutate(next);
+  }
+
   if (!started) {
     return (
       <button
@@ -230,6 +239,17 @@ export function ExplainChat({ word }: { word: Word }) {
         {busy && <p className="text-sm text-ink-soft">{t("word.thinking")}</p>}
         {ask.isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
       </div>
+
+      {/* quick self-test: write your recall, the tutor grades it */}
+      {messages.length > 0 && !busy && (
+        <button
+          type="button"
+          onClick={testMe}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-surface px-3 py-1.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint/60"
+        >
+          ✍️ {t("word.testMe")}
+        </button>
+      )}
 
       {/* follow-up input */}
       {messages.length > 0 && (

@@ -74,6 +74,7 @@ model Word {
   synonyms     String[]
   antonyms     String[]
   notes        String?   // free-form personal notes (P.S.), user-authored
+  explainCache String?   // cached AI "explain / when to use" text; cleared on meaningful edits
   reviewCount  Int       @default(0)
   nextReviewAt DateTime? // kept in sync with FSRS `due` so existing due-logic works
   // FSRS scheduler state (ts-fsrs). null stability = never reviewed (new card).
