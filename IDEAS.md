@@ -65,9 +65,23 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 
 ## AI-enhanced review (opt-in — costs tokens, toggle it)
 - 💡 **Fresh example each review** — new sentence per repetition (no rote memorizing one line).
-- 💡 **AI-graded free recall** — learner writes a free answer, AI judges it (not just self-grade).
+- ✅ **AI-graded free recall** — the word-page tutor has a "Test me" chip: it quizzes
+  you and grades your written answer. Right in chat, no separate page.
 - 💡 **Difficulty adaptation** — tune example difficulty to performance.
-  → All three behind a per-user toggle (default off) to control token spend.
+  → The two open ones behind a per-user toggle (default off) to control token spend.
+
+## Done (big recent batches)
+- ✅ **Reader upgrades** — saved texts + collections, AI-generated texts at a chosen
+  CEFR level, tap-transcription (pinyin/romaji), background generation.
+- ✅ **AI explanation cache** on the card (free re-opens; cleared on edits).
+- ✅ **Billing groundwork** — free/pro plans, daily AI cap, BETA_ALL_PRO, owner allowlist.
+- ✅ **Telegram bot** — reply-keyboard buttons for popular actions.
+- ✅ **PWA + offline review** — installable app icon, service worker, offline card
+  review with an IndexedDB outbox that syncs on reconnect. (Needs a real browser to
+  exercise the offline path.)
+- ✅ **Pro-looking icons** — replaced emoji UI icons with a lucide set.
+- ✅ **Achievements** — 16 milestones with plain-language descriptions.
+- ✅ **Friends + referral** — invite code, see friends' languages/streak/achievements.
 
 ## Done (cards + practice polish)
 - ✅ **Custom card layout** — Flashcards setup has presets (Default / Reverse /
@@ -84,5 +98,5 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 - ✅ **Audio start-clip fix** — silent primer + no pre-cancel so "little" isn't "tle".
 
 ## Smaller wins
-- 💡 **Cache AI explanation** on the card (avoid re-spending tokens on re-open).
+- ✅ **Cache AI explanation** on the card (avoid re-spending tokens on re-open).
 - ✅ **Quiz hotkeys** — 1–4 pick answers, Enter/Space to continue; number badges on options.
