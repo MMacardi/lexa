@@ -8,6 +8,7 @@ import { useToast } from "@/lib/toast";
 import { getLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Save, Library, Sparkles, Clock, TriangleAlert, X } from "lucide-react";
 
 // Small pill button — the compact toolbar style shared with the reading view.
 function Chip({
@@ -18,7 +19,7 @@ function Chip({
     <button
       type="button"
       {...rest}
-      className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
     >
       {children}
     </button>
@@ -46,10 +47,14 @@ export function ReaderTextTools({
   return (
     <>
       <Chip disabled={!text.trim()} onClick={() => setPanel("save")}>
-        💾 {t("reader.save")}
+        <Save className="h-3.5 w-3.5" /> {t("reader.save")}
       </Chip>
-      <Chip onClick={() => setPanel("library")}>📚 {t("reader.myTexts")}</Chip>
-      <Chip onClick={() => setPanel("generate")}>✨ {t("reader.generate")}</Chip>
+      <Chip onClick={() => setPanel("library")}>
+        <Library className="h-3.5 w-3.5" /> {t("reader.myTexts")}
+      </Chip>
+      <Chip onClick={() => setPanel("generate")}>
+        <Sparkles className="h-3.5 w-3.5" /> {t("reader.generate")}
+      </Chip>
 
       {panel === "save" && (
         <SaveModal text={text} sourceLang={sourceLang} targetLang={targetLang} onClose={() => setPanel(null)} onSaved={() => setPanel(null)} />
@@ -154,7 +159,9 @@ export function SaveModal({
           save();
         }}
       >
-        <h3 className="mb-3 font-serif text-[18px] font-semibold text-ink">💾 {t("reader.saveTitle")}</h3>
+        <h3 className="mb-3 flex items-center gap-2 font-serif text-[18px] font-semibold text-ink">
+          <Save className="h-[18px] w-[18px] text-sage-deep" /> {t("reader.saveTitle")}
+        </h3>
 
         <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
         <Input
@@ -283,10 +290,9 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
                 className="min-w-0 flex-1 text-left disabled:cursor-default"
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate text-[14px] font-semibold text-ink">
-                    {it.status === "generating" ? "⏳ " : it.status === "failed" ? "⚠️ " : ""}
-                    {it.title}
-                  </span>
+                  {it.status === "generating" && <Clock className="h-3.5 w-3.5 shrink-0 text-ink-faint" />}
+                  {it.status === "failed" && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warn-text" />}
+                  <span className="truncate text-[14px] font-semibold text-ink">{it.title}</span>
                   {it.collection && (
                     <span className="shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">{it.collection}</span>
                   )}
@@ -299,9 +305,9 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
                 type="button"
                 onClick={() => remove(it.id)}
                 aria-label="Delete"
-                className="shrink-0 rounded-md px-1.5 py-0.5 text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
+                className="shrink-0 rounded-md p-1 text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
               >
-                ✕
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           ))
@@ -367,7 +373,9 @@ function GenerateModal({
           go();
         }}
       >
-        <h3 className="mb-3 font-serif text-[18px] font-semibold text-ink">✨ {t("reader.generate")}</h3>
+        <h3 className="mb-3 flex items-center gap-2 font-serif text-[18px] font-semibold text-ink">
+          <Sparkles className="h-[18px] w-[18px] text-sage-deep" /> {t("reader.generate")}
+        </h3>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t("reader.genTopic")} autoFocus className="h-11" />
         <div className="mt-3">
           <div className="mb-1.5 text-[12px] font-medium text-ink-soft">{t("reader.genLevel")}</div>

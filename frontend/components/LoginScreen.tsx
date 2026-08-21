@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 
@@ -182,7 +183,7 @@ export function LoginScreen() {
         <div className="mt-5">
           {emailSent ? (
             <div className="rounded-[16px] border border-black/[0.06] bg-paper/60 p-4 text-sm">
-              <p className="font-medium text-ink">📬 {t("login.emailSent")}</p>
+              <p className="flex items-center gap-1.5 font-medium text-ink"><Mail className="h-4 w-4 text-sage-deep" /> {t("login.emailSent")}</p>
               {devLink && (
                 <a href={devLink} className="mt-2 inline-block font-semibold text-sage hover:underline">
                   {t("login.devLinkOpen")} ↗

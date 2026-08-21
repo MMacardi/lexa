@@ -16,6 +16,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
 import { TapGlossPills } from "@/components/TapGlossPills";
+import { Link as LinkIcon, BookOpen } from "lucide-react";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -188,9 +189,9 @@ export default function WordDetailPage() {
                 href={safeHttpUrl(ex.sourceUrl)!}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-block text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
               >
-                🔗 {ex.sourceName}
+                <LinkIcon className="h-3.5 w-3.5" /> {ex.sourceName}
               </a>
             ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
               <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
@@ -200,7 +201,7 @@ export default function WordDetailPage() {
               onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang)}
               className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
             >
-              📖 {t("word.openInReader")}
+              <BookOpen className="h-3.5 w-3.5" /> {t("word.openInReader")}
             </button>
           </div>
         ))}
