@@ -9,8 +9,24 @@ import { getLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Small pill button — the compact toolbar style shared with the reading view.
+function Chip({
+  children,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...rest}
+      className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
+}
+
 // Reader companion: save the current text, browse/search saved ones, or have the
-// AI write a fresh reading text on a topic.
+// AI write a fresh reading text on a topic. Rendered as a compact chip cluster.
 export function ReaderTextTools({
   text,
   sourceLang,
@@ -24,39 +40,20 @@ export function ReaderTextTools({
   onLoad: (content: string) => void;
   onStartGen: (id: string) => void;
 }) {
-  const { accountId } = useAccount();
   const { t } = useI18n();
-  const { show } = useToast();
-  const [busy, setBusy] = useState(false);
-  const [panel, setPanel] = useState<null | "library" | "generate">(null);
-
-  async function save() {
-    const body = text.trim();
-    if (!body || busy) return;
-    setBusy(true);
-    try {
-      const title = window.prompt(t("reader.titlePrompt"), body.slice(0, 40)) ?? body.slice(0, 40);
-      await api.saveReaderText({ telegramId: accountId, title, content: body, sourceLang, targetLang });
-      show({ icon: "💾", title: t("reader.saved") });
-    } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [panel, setPanel] = useState<null | "save" | "library" | "generate">(null);
 
   return (
     <>
-      <Button variant="outline" type="button" disabled={!text.trim() || busy} onClick={save}>
+      <Chip disabled={!text.trim()} onClick={() => setPanel("save")}>
         💾 {t("reader.save")}
-      </Button>
-      <Button variant="outline" type="button" onClick={() => setPanel("library")}>
-        📚 {t("reader.myTexts")}
-      </Button>
-      <Button variant="outline" type="button" onClick={() => setPanel("generate")}>
-        ✨ {t("reader.generate")}
-      </Button>
+      </Chip>
+      <Chip onClick={() => setPanel("library")}>📚 {t("reader.myTexts")}</Chip>
+      <Chip onClick={() => setPanel("generate")}>✨ {t("reader.generate")}</Chip>
 
+      {panel === "save" && (
+        <SaveModal text={text} sourceLang={sourceLang} targetLang={targetLang} onClose={() => setPanel(null)} onSaved={() => setPanel(null)} />
+      )}
       {panel === "library" && (
         <LibraryModal
           onClose={() => setPanel(null)}
@@ -97,23 +94,147 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
   );
 }
 
+// Save the current reader text: choose a title (or let AI name it) and, optionally,
+// drop it into a named collection ("read later"). Reused from input & reading views.
+export function SaveModal({
+  text,
+  sourceLang,
+  targetLang,
+  onClose,
+  onSaved,
+}: {
+  text: string;
+  sourceLang: string;
+  targetLang: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { accountId } = useAccount();
+  const { t } = useI18n();
+  const { show } = useToast();
+  const [title, setTitle] = useState(text.trim().slice(0, 50));
+  const [aiName, setAiName] = useState(false);
+  const [collection, setCollection] = useState("");
+  const [known, setKnown] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.readerCollections(accountId).then(setKnown).catch(() => {});
+  }, [accountId]);
+
+  async function save() {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    try {
+      await api.saveReaderText({
+        telegramId: accountId,
+        title: aiName ? "" : title.trim(),
+        content: body,
+        collection: collection.trim() || undefined,
+        autoName: aiName,
+        sourceLang,
+        targetLang,
+      });
+      show({ icon: "💾", title: t("reader.saved") });
+      onSaved();
+    } catch (e) {
+      show({ icon: "⚠️", title: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Overlay onClose={onClose}>
+      <form
+        className="p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <h3 className="mb-3 font-serif text-[18px] font-semibold text-ink">💾 {t("reader.saveTitle")}</h3>
+
+        <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
+        <Input
+          value={aiName ? "" : title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={aiName ? t("reader.aiName") : t("reader.titlePh")}
+          disabled={aiName}
+          autoFocus
+          className="h-11"
+        />
+        <label className="mt-2 flex cursor-pointer select-none items-center gap-2 text-[13px] text-ink-soft">
+          <input type="checkbox" checked={aiName} onChange={(e) => setAiName(e.target.checked)} className="h-4 w-4 accent-sage" />
+          {t("reader.aiName")}
+        </label>
+
+        <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.collectionLabel")}</label>
+        <Input
+          value={collection}
+          onChange={(e) => setCollection(e.target.value)}
+          placeholder={t("reader.collectionPh")}
+          list="reader-collections"
+          className="h-11"
+        />
+        <datalist id="reader-collections">
+          {known.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+        {known.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {known.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCollection((cur) => (cur === c ? "" : c))}
+                className={
+                  "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors " +
+                  (collection === c ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-muted hover:bg-black/[0.03]")
+                }
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Button type="submit" disabled={busy || !text.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
+          {busy ? "…" : t("reader.save")}
+        </Button>
+      </form>
+    </Overlay>
+  );
+}
+
 function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (content: string) => void }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const [q, setQ] = useState("");
+  const [collection, setCollection] = useState<string | null>(null); // null = all
+  const [collections, setCollections] = useState<string[]>([]);
   const [items, setItems] = useState<ReaderTextSummary[] | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
+    api.readerCollections(accountId).then(setCollections).catch(() => {});
+  }, [accountId]);
+
+  useEffect(() => {
     let cancel = false;
     const id = setTimeout(() => {
-      api.readerTexts(accountId, q.trim() || undefined).then((r) => !cancel && setItems(r)).catch(() => !cancel && setItems([]));
+      api
+        .readerTexts(accountId, q.trim() || undefined, collection ?? undefined)
+        .then((r) => !cancel && setItems(r))
+        .catch(() => !cancel && setItems([]));
     }, 200);
     return () => {
       cancel = true;
       clearTimeout(id);
     };
-  }, [q, accountId]);
+  }, [q, collection, accountId]);
 
   async function open(id: string) {
     setLoadingId(id);
@@ -134,6 +255,18 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
     <Overlay onClose={onClose}>
       <div className="border-b border-black/[0.06] p-3">
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("reader.searchTexts")} autoFocus className="h-10" />
+        {collections.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <FilterChip active={collection === null} onClick={() => setCollection(null)}>
+              {t("reader.allTexts")}
+            </FilterChip>
+            {collections.map((c) => (
+              <FilterChip key={c} active={collection === c} onClick={() => setCollection(c)}>
+                {c}
+              </FilterChip>
+            ))}
+          </div>
+        )}
       </div>
       <div className="max-h-[56vh] overflow-y-auto p-2">
         {items === null ? (
@@ -149,9 +282,14 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
                 disabled={loadingId === it.id || it.status !== "ready"}
                 className="min-w-0 flex-1 text-left disabled:cursor-default"
               >
-                <div className="truncate text-[14px] font-semibold text-ink">
-                  {it.status === "generating" ? "⏳ " : it.status === "failed" ? "⚠️ " : ""}
-                  {it.title}
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-[14px] font-semibold text-ink">
+                    {it.status === "generating" ? "⏳ " : it.status === "failed" ? "⚠️ " : ""}
+                    {it.title}
+                  </span>
+                  {it.collection && (
+                    <span className="shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">{it.collection}</span>
+                  )}
                 </div>
                 <div className="truncate text-[12px] text-ink-soft">
                   {it.status === "generating" ? t("reader.generating") : it.status === "failed" ? "—" : it.snippet}
@@ -170,6 +308,21 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
         )}
       </div>
     </Overlay>
+  );
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors " +
+        (active ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-muted hover:bg-black/[0.03]")
+      }
+    >
+      {children}
+    </button>
   );
 }
 
