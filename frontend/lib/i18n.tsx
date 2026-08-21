@@ -560,6 +560,8 @@ const DICT: Record<string, Entry> = {
   "word.collocations": { en: "Collocations", ru: "Сочетания", zh: "搭配" },
   "word.synonyms": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },
+  "word.addExample": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
+  "word.exampleAdded": { en: "Example added", ru: "Пример добавлен", zh: "已添加例句" },
   "word.family": { en: "Word family", ru: "Семья слов", zh: "词族" },
   "word.familyHint": {
     en: "Tap a saved word to open it, or a new one to add it as a card.",

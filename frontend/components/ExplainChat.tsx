@@ -18,6 +18,7 @@ type Msg = {
   addSynonyms?: string[];
   addAntonyms?: string[];
   addWords?: string[];
+  addExamples?: { sentence: string; translation: string }[];
 };
 
 // AI tutor for a word: the first answer is the full explanation, then the learner
@@ -44,9 +45,25 @@ export function ExplainChat({ word }: { word: Word }) {
     onSuccess: (r) =>
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: r.answer, addSynonyms: r.addSynonyms, addAntonyms: r.addAntonyms, addWords: r.addWords },
+        { role: "assistant", content: r.answer, addSynonyms: r.addSynonyms, addAntonyms: r.addAntonyms, addWords: r.addWords, addExamples: r.addExamples },
       ]),
   });
+
+  // Append a tutor-suggested example sentence to this card.
+  const addExample = useMutation({
+    mutationFn: (ex: { sentence: string; translation: string }) => api.addManualExample(word.id, ex.sentence, ex.translation),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["word", word.id] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      show({ icon: "🌱", title: t("word.exampleAdded") });
+    },
+  });
+
+  function applyExample(index: number, ex: { sentence: string; translation: string }) {
+    if (addExample.isPending) return;
+    addExample.mutate(ex);
+    setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addExamples: [] } : msg)));
+  }
 
   // Apply a suggested synonym/antonym edit to the card.
   const apply = useMutation({
@@ -156,8 +173,19 @@ export function ExplainChat({ word }: { word: Word }) {
             <div key={i} className="space-y-2">
               <RichText text={m.content} className="text-[15px] text-ink" />
               {/* actionable suggestions from the tutor */}
-              {(m.addSynonyms?.length || m.addAntonyms?.length || m.addWords?.length) && (
+              {(m.addSynonyms?.length || m.addAntonyms?.length || m.addWords?.length || m.addExamples?.length) && (
                 <div className="flex flex-wrap gap-1.5">
+                  {m.addExamples?.map((ex, k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      disabled={addExample.isPending}
+                      onClick={() => applyExample(i, ex)}
+                      className="max-w-full rounded-full border border-sage/50 bg-sage-tint px-3 py-1 text-left text-[12px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
+                    >
+                      ＋ {t("word.addExample")}: <span className="font-normal">{ex.sentence}</span>
+                    </button>
+                  ))}
                   {m.addWords && m.addWords.length > 0 && (
                     <button
                       type="button"

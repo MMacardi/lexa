@@ -78,6 +78,8 @@ function cardBack(word: {
   return lines.join("\n");
 }
 
+const siteButton = () => Markup.button.url("🌐 Открыть сайт Lexa", env.FRONTEND_URL);
+
 const showKeyboard = (id: string) =>
   Markup.inlineKeyboard([[Markup.button.callback("👁 Показать ответ", `rv:show:${id}`)]]);
 
@@ -116,7 +118,12 @@ export function createBot(): Telegraf {
       return;
     }
     const pair = await resolveUserPair(telegramId);
-    await ctx.replyWithHTML(welcome(pair));
+    await ctx.replyWithHTML(welcome(pair), Markup.inlineKeyboard([[siteButton()]]));
+  });
+
+  // /site — quick link to the web app.
+  bot.command("site", async (ctx) => {
+    await ctx.reply("Открой Lexa в браузере:", Markup.inlineKeyboard([[siteButton()]]));
   });
   bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(String(ctx.from.id)))));
 
@@ -406,6 +413,7 @@ export function launchBot(): void {
       { command: "due", description: "Сколько ждёт повторения" },
       { command: "remind", description: "Напоминания о повторении" },
       { command: "list", description: "Мои слова" },
+      { command: "site", description: "Открыть сайт" },
       { command: "lang", description: "Сменить языковую пару" },
       { command: "help", description: "Что я умею" },
     ])

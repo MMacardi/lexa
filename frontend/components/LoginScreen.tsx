@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +14,13 @@ const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "";
 export function LoginScreen() {
   const { loginDev, refresh } = useAccount();
   const { t } = useI18n();
+  const router = useRouter();
+
+  // After any successful sign-in, refresh the session and land on the home page.
+  const finishLogin = async () => {
+    await refresh();
+    router.replace("/");
+  };
   const [id, setId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -31,7 +39,7 @@ export function LoginScreen() {
     setErr(null);
     try {
       await api.loginGoogle(credential);
-      await refresh();
+      await finishLogin();
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -78,7 +86,7 @@ export function LoginScreen() {
           const profile = await api.pollTelegramLogin(token);
           if (profile) {
             stopPolling();
-            await refresh();
+            await finishLogin();
           }
         } catch {
           /* keep polling; token may still be pending */
@@ -104,6 +112,7 @@ export function LoginScreen() {
     setErr(null);
     try {
       await loginDev(id.trim());
+      router.replace("/");
     } catch (e) {
       setErr((e as Error).message);
     } finally {
