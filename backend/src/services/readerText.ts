@@ -22,13 +22,14 @@ export async function listTexts(telegramId: string, q?: string) {
     },
     orderBy: { updatedAt: "desc" },
     take: 100,
-    select: { id: true, title: true, content: true, sourceLang: true, targetLang: true, updatedAt: true },
+    select: { id: true, title: true, content: true, status: true, sourceLang: true, targetLang: true, updatedAt: true },
   });
   // Return a short snippet for the list, full content only when opening one.
   return rows.map((r) => ({
     id: r.id,
     title: r.title,
     snippet: r.content.slice(0, 140),
+    status: r.status,
     sourceLang: r.sourceLang,
     targetLang: r.targetLang,
     updatedAt: r.updatedAt,
@@ -81,13 +82,14 @@ export async function deleteText(telegramId: string, id: string): Promise<void> 
 
 const generatedSchema = z.object({ title: z.string().min(1).max(120), content: z.string().min(1) });
 
-/** Generate a fresh reading text on a topic, at the learner's level. */
-export async function generateText(params: {
+interface GenParams {
   topic: string;
   sourceLang?: string;
   targetLang?: string;
   level?: string;
-}): Promise<{ title: string; content: string }> {
+}
+
+async function generateOne(params: GenParams): Promise<{ title: string; content: string }> {
   const source = langName(params.sourceLang ?? "en");
   const levelLine = params.level
     ? `Write it for a CEFR ${params.level} learner — vocabulary and grammar they can mostly follow. `
@@ -105,4 +107,36 @@ export async function generateText(params: {
     timeoutMs: 60000,
   });
   return { title: result.title.trim(), content: result.content.trim() };
+}
+
+/**
+ * Start generating a reading text in the BACKGROUND (like word enrichment): a row
+ * is created immediately with status "generating", the model call runs after we
+ * respond, and the row is filled in when ready. The client polls the row.
+ */
+export async function startGeneration(telegramId: string, params: GenParams) {
+  const uid = await userId(telegramId);
+  if (!uid) throw new Error("Account not found");
+  const row = await prisma.readerText.create({
+    data: {
+      userId: uid,
+      title: params.topic.slice(0, 60),
+      content: "",
+      status: "generating",
+      sourceLang: params.sourceLang ?? null,
+      targetLang: params.targetLang ?? null,
+    },
+    select: { id: true, title: true, status: true },
+  });
+  // Fire-and-forget: fill the row once the model responds.
+  void (async () => {
+    try {
+      const { title, content } = await generateOne(params);
+      await prisma.readerText.update({ where: { id: row.id }, data: { title, content, status: "ready" } });
+    } catch (err) {
+      console.error("reader generation failed:", err);
+      await prisma.readerText.update({ where: { id: row.id }, data: { status: "failed" } }).catch(() => {});
+    }
+  })();
+  return row;
 }
