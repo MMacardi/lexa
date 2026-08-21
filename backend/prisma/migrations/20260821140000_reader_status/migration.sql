@@ -1,0 +1,1 @@
+ALTER TABLE "ReaderText" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'ready';

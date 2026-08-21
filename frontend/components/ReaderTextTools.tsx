@@ -16,11 +16,13 @@ export function ReaderTextTools({
   sourceLang,
   targetLang,
   onLoad,
+  onStartGen,
 }: {
   text: string;
   sourceLang: string;
   targetLang: string;
   onLoad: (content: string) => void;
+  onStartGen: (id: string) => void;
 }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
@@ -69,8 +71,8 @@ export function ReaderTextTools({
           sourceLang={sourceLang}
           targetLang={targetLang}
           onClose={() => setPanel(null)}
-          onDone={(content) => {
-            onLoad(content);
+          onStarted={(id) => {
+            onStartGen(id);
             setPanel(null);
           }}
         />
@@ -141,9 +143,19 @@ function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (conte
         ) : (
           items.map((it) => (
             <div key={it.id} className="group flex items-start gap-2 rounded-[12px] p-2 hover:bg-black/[0.03]">
-              <button type="button" onClick={() => open(it.id)} disabled={loadingId === it.id} className="min-w-0 flex-1 text-left">
-                <div className="truncate text-[14px] font-semibold text-ink">{it.title}</div>
-                <div className="truncate text-[12px] text-ink-soft">{it.snippet}</div>
+              <button
+                type="button"
+                onClick={() => it.status === "ready" && open(it.id)}
+                disabled={loadingId === it.id || it.status !== "ready"}
+                className="min-w-0 flex-1 text-left disabled:cursor-default"
+              >
+                <div className="truncate text-[14px] font-semibold text-ink">
+                  {it.status === "generating" ? "⏳ " : it.status === "failed" ? "⚠️ " : ""}
+                  {it.title}
+                </div>
+                <div className="truncate text-[12px] text-ink-soft">
+                  {it.status === "generating" ? t("reader.generating") : it.status === "failed" ? "—" : it.snippet}
+                </div>
               </button>
               <button
                 type="button"
@@ -165,12 +177,12 @@ function GenerateModal({
   sourceLang,
   targetLang,
   onClose,
-  onDone,
+  onStarted,
 }: {
   sourceLang: string;
   targetLang: string;
   onClose: () => void;
-  onDone: (content: string) => void;
+  onStarted: (id: string) => void;
 }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
@@ -190,7 +202,7 @@ function GenerateModal({
         targetLang,
         level: getLevel(sourceLang) ?? undefined,
       });
-      onDone(r.content);
+      onStarted(r.id);
     } catch (e) {
       show({ icon: "⚠️", title: (e as Error).message });
     } finally {

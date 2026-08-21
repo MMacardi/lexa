@@ -104,8 +104,42 @@ export default function ReaderPage() {
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
   const [cardPanel, setCardPanel] = useState<{ wordId: string; sentence: string } | null>(null);
   const [addingExample, setAddingExample] = useState(false);
+  // Background AI text generations we're waiting on (poll until ready).
+  const [pendingGen, setPendingGen] = useState<string[]>([]);
   const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Poll background text generations; toast when each is ready (or failed).
+  useEffect(() => {
+    if (pendingGen.length === 0) return;
+    let cancel = false;
+    const timer = setInterval(async () => {
+      for (const id of pendingGen) {
+        try {
+          const full = await api.readerText(id, accountId);
+          if (cancel) return;
+          if (full.status === "ready") {
+            setPendingGen((p) => p.filter((x) => x !== id));
+            show({ icon: "📄", title: t("reader.genReady"), subtitle: full.title });
+          } else if (full.status === "failed") {
+            setPendingGen((p) => p.filter((x) => x !== id));
+            show({ icon: "⚠️", title: t("reader.genFailed") });
+          }
+        } catch {
+          /* keep polling */
+        }
+      }
+    }, 2500);
+    return () => {
+      cancel = true;
+      clearInterval(timer);
+    };
+  }, [pendingGen, accountId, show, t]);
+
+  function startGen(id: string) {
+    setPendingGen((p) => [...p, id]);
+    show({ icon: "✨", title: t("reader.genStarted") });
+  }
 
   // Restore the shared pair (Reader needs a concrete source language, not auto).
   useEffect(() => {
@@ -506,7 +540,7 @@ export default function ReaderPage() {
             >
               {t("reader.pasteSample")}
             </Button>
-            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} />
+            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} onStartGen={startGen} />
             {text.trim() && (
               <Button variant="ghost" onClick={() => setText("")} type="button">
                 {t("reader.clear")}

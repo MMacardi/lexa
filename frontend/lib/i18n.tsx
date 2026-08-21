@@ -66,6 +66,9 @@ const DICT: Record<string, Entry> = {
   "reader.searchTexts": { en: "Search your texts…", ru: "Искать в текстах…", zh: "搜索文本…" },
   "reader.noTexts": { en: "No saved texts yet.", ru: "Пока нет сохранённых текстов.", zh: "还没有保存的文本。" },
   "reader.titlePrompt": { en: "Title", ru: "Название", zh: "标题" },
+  "reader.genStarted": { en: "Generating a text in the background…", ru: "Генерирую текст в фоне…", zh: "正在后台生成文本…" },
+  "reader.genReady": { en: "Text ready — in My texts", ru: "Текст готов — в «Мои тексты»", zh: "文本已就绪——在“我的文本”" },
+  "reader.genFailed": { en: "Couldn't generate the text", ru: "Не удалось сгенерировать текст", zh: "生成文本失败" },
   "reader.edit": { en: "Edit text", ru: "Изменить текст", zh: "编辑文本" },
   "reader.clear": { en: "Clear", ru: "Очистить", zh: "清空" },
   "reader.tapHint": {

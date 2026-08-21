@@ -58,6 +58,7 @@ export interface ReaderTextSummary {
   id: string;
   title: string;
   snippet: string;
+  status: string; // ready | generating | failed
   sourceLang?: string | null;
   targetLang?: string | null;
   updatedAt: string;
@@ -66,6 +67,7 @@ export interface ReaderTextFull {
   id: string;
   title: string;
   content: string;
+  status: string;
   sourceLang?: string | null;
   targetLang?: string | null;
 }
@@ -357,8 +359,9 @@ export const api = {
     http<{ id: string; title: string }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteReaderText: (id: string, telegramId: string) =>
     http<{ ok: true }>(`/api/reader/texts/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
+  // Kicks off background generation; returns the new row id (poll readerText for status).
   generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string }) =>
-    http<{ title: string; content: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
+    http<{ id: string; title: string; status: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

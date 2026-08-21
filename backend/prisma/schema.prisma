@@ -102,6 +102,7 @@ model ReaderText {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
   content    String
+  status     String   @default("ready") // ready | generating | failed
   sourceLang String?
   targetLang String?
   createdAt  DateTime @default(now())
