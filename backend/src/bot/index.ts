@@ -49,6 +49,7 @@ function welcome(pair: Pair): string {
     "• <b>/remind 9</b> — напоминать о повторении каждый день в 9:00",
     "• просто напиши вопрос — объясню, приведу примеры, помогу с грамматикой",
     "",
+    "👇 Популярные функции — на кнопках снизу.",
     "Сменить язык: <code>/lang en ru</code>",
   ].join("\n");
 }
@@ -80,6 +81,23 @@ function cardBack(word: {
 
 const siteButton = () => Markup.button.url("🌐 Открыть сайт Lexa", env.FRONTEND_URL);
 
+// Persistent reply keyboard: the popular functions as always-visible buttons
+// under the input. Tapping one sends its label, caught by bot.hears below.
+const BTN = {
+  review: "▶️ Повторить",
+  due: "⏰ Сколько ждёт",
+  list: "📚 Мои слова",
+  remind: "🔔 Напоминания",
+  add: "➕ Добавить слово",
+  site: "🌐 Сайт",
+} as const;
+const mainKeyboard = () =>
+  Markup.keyboard([
+    [BTN.review, BTN.due],
+    [BTN.list, BTN.remind],
+    [BTN.add, BTN.site],
+  ]).resize();
+
 const showKeyboard = (id: string) =>
   Markup.inlineKeyboard([[Markup.button.callback("👁 Показать ответ", `rv:show:${id}`)]]);
 
@@ -95,6 +113,71 @@ const gradeKeyboard = (id: string) =>
     ],
     [Markup.button.callback("⏹ Закончить", "rv:stop")],
   ]);
+
+// ---- Shared actions (used by both slash-commands and the reply-keyboard buttons) ----
+async function replyReview(ctx: Context): Promise<void> {
+  if (!ctx.from || !ctx.chat) return;
+  const telegramId = String(ctx.from.id);
+  await ensureBotUser(telegramId, String(ctx.chat.id));
+  await sendNextCard(ctx, telegramId);
+}
+
+async function replyDue(ctx: Context): Promise<void> {
+  if (!ctx.from) return;
+  const telegramId = String(ctx.from.id);
+  const pair = await resolveUserPair(telegramId);
+  const n = await dueCountForUser(telegramId, pair);
+  if (n === 0) {
+    await ctx.reply("🎉 Всё повторено — на сегодня ничего не ждёт.");
+    return;
+  }
+  await ctx.replyWithHTML(
+    `⏰ Ждёт повторения: <b>${n}</b>`,
+    Markup.inlineKeyboard([[Markup.button.callback("▶️ Повторить", "rv:next")]]),
+  );
+}
+
+async function replyList(ctx: Context): Promise<void> {
+  if (!ctx.from) return;
+  const words = await listWordsForUser(String(ctx.from.id));
+  if (words.length === 0) {
+    await ctx.reply("Пока пусто. Добавь слово: отправь «add sanction».");
+    return;
+  }
+  const body = words
+    .slice(0, 50)
+    .map((w) => `• <b>${esc(w.word)}</b>${w.meaningZh ? " — " + esc(w.meaningZh) : ""}`)
+    .join("\n");
+  await ctx.replyWithHTML(`📚 <b>Твои слова (${words.length})</b>\n${body}`);
+}
+
+async function replyRemindStatus(ctx: Context): Promise<void> {
+  if (!ctx.from || !ctx.chat) return;
+  const telegramId = String(ctx.from.id);
+  await ensureBotUser(telegramId, String(ctx.chat.id));
+  const cur = await getReminderHour(telegramId);
+  await ctx.replyWithHTML(
+    (cur === null
+      ? "🔕 Напоминания выключены."
+      : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
+      "\n\nЗадать время: <code>/remind 9</code> (час 0–23)\nВыключить: <code>/remind off</code>",
+  );
+}
+
+async function replySite(ctx: Context): Promise<void> {
+  // Telegram only allows https URL buttons; on a local http URL, send it as text.
+  if (env.FRONTEND_URL.startsWith("https://")) {
+    await ctx.reply("Открой Lexa в браузере:", Markup.inlineKeyboard([[siteButton()]]));
+  } else {
+    await ctx.reply(`Открой Lexa: ${env.FRONTEND_URL}`);
+  }
+}
+
+async function replyAddHelp(ctx: Context): Promise<void> {
+  await ctx.replyWithHTML(
+    "➕ Чтобы добавить слово, просто отправь: <code>add слово</code>\nНапример: <code>add resilient</code>",
+  );
+}
 
 /** Build the bot. Not launched here — see launchBot(). */
 export function createBot(): Telegraf {
@@ -118,14 +201,12 @@ export function createBot(): Telegraf {
       return;
     }
     const pair = await resolveUserPair(telegramId);
-    await ctx.replyWithHTML(welcome(pair), Markup.inlineKeyboard([[siteButton()]]));
+    await ctx.replyWithHTML(welcome(pair), mainKeyboard());
   });
 
   // /site — quick link to the web app.
-  bot.command("site", async (ctx) => {
-    await ctx.reply("Открой Lexa в браузере:", Markup.inlineKeyboard([[siteButton()]]));
-  });
-  bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(String(ctx.from.id)))));
+  bot.command("site", (ctx) => replySite(ctx));
+  bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(String(ctx.from.id))), mainKeyboard()));
 
   // Confirm a web sign-in (from the /start login_<token> deep link).
   bot.action(/^login:ok:(.+)$/, async (ctx) => {
@@ -163,13 +244,7 @@ export function createBot(): Telegraf {
     await ensureBotUser(telegramId, String(ctx.chat.id));
     const arg = ctx.message.text.trim().split(/\s+/)[1]?.toLowerCase();
     if (!arg) {
-      const cur = await getReminderHour(telegramId);
-      await ctx.replyWithHTML(
-        (cur === null
-          ? "🔕 Напоминания выключены."
-          : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
-          "\n\nЗадать время: <code>/remind 9</code> (час 0–23)\nВыключить: <code>/remind off</code>",
-      );
+      await replyRemindStatus(ctx);
       return;
     }
     if (arg === "off" || arg === "выкл") {
@@ -207,40 +282,21 @@ export function createBot(): Telegraf {
   });
 
   // /list — saved words.
-  bot.command("list", async (ctx) => {
-    const words = await listWordsForUser(String(ctx.from.id));
-    if (words.length === 0) {
-      await ctx.reply("Пока пусто. Попробуй: add sanction");
-      return;
-    }
-    const body = words
-      .slice(0, 50)
-      .map((w) => `• <b>${esc(w.word)}</b>${w.meaningZh ? " — " + esc(w.meaningZh) : ""}`)
-      .join("\n");
-    await ctx.replyWithHTML(`📚 <b>Твои слова (${words.length})</b>\n${body}`);
-  });
+  bot.command("list", (ctx) => replyList(ctx));
 
   // /due — how many cards are waiting.
-  bot.command("due", async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    const pair = await resolveUserPair(telegramId);
-    const n = await dueCountForUser(telegramId, pair);
-    if (n === 0) {
-      await ctx.reply("🎉 Всё повторено — на сегодня ничего не ждёт.");
-      return;
-    }
-    await ctx.replyWithHTML(
-      `⏰ Ждёт повторения: <b>${n}</b>`,
-      Markup.inlineKeyboard([[Markup.button.callback("▶️ Повторить", "rv:next")]]),
-    );
-  });
+  bot.command("due", (ctx) => replyDue(ctx));
 
   // /review — start an in-chat review session.
-  bot.command("review", async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat.id));
-    await sendNextCard(ctx, telegramId);
-  });
+  bot.command("review", (ctx) => replyReview(ctx));
+
+  // ---- reply-keyboard buttons: the popular functions, no typing needed ----
+  bot.hears(BTN.review, (ctx) => replyReview(ctx));
+  bot.hears(BTN.due, (ctx) => replyDue(ctx));
+  bot.hears(BTN.list, (ctx) => replyList(ctx));
+  bot.hears(BTN.remind, (ctx) => replyRemindStatus(ctx));
+  bot.hears(BTN.add, (ctx) => replyAddHelp(ctx));
+  bot.hears(BTN.site, (ctx) => replySite(ctx));
 
   // ---- review callbacks ----
   bot.action("rv:next", async (ctx) => {
