@@ -20,9 +20,9 @@ const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
   { href: "/friends", key: "nav.friends", Icon: Users },
 ];
 
-// Mobile bottom bar shows only the daily-use destinations; the rest live behind
-// a "More" sheet so the bar never gets cramped.
-const MOBILE_PRIMARY = ["/", "/review", "/reader", "/words"];
+// Mobile bottom bar shows only the daily study loop (home → flashcards → quiz →
+// reader); the rest (words, collections, friends, account) live behind "More".
+const MOBILE_PRIMARY = ["/", "/review", "/quiz", "/reader"];
 
 const isActive = (href: string, pathname: string) =>
   href === "/" ? pathname === "/" : pathname.startsWith(href);
