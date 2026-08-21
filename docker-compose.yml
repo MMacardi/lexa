@@ -29,6 +29,12 @@ services:
       PORT: 3000
       ALLOW_DEV_LOGIN: "true"
       COOKIE_SECURE: "false"
+      # Closed beta: everyone signed in is Pro (uncapped). Flip to "false" at
+      # public launch; free users then get FREE_DAILY_AI AI actions per day.
+      BETA_ALL_PRO: "${BETA_ALL_PRO:-true}"
+      FREE_DAILY_AI: "${FREE_DAILY_AI:-25}"
+      # Always-Pro accounts (owner / comped friends), even after beta ends.
+      PRO_ALLOWLIST: "${PRO_ALLOWLIST:-865277762}"
     depends_on:
       db:
         condition: service_healthy

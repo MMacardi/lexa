@@ -16,6 +16,10 @@ model User {
   photoUrl    String?
   email       String?      // set for Google / email-magic-link accounts
   authVia     String       @default("dev") // "telegram" | "google" | "email" | "dev"
+  // Billing plan. "free" = daily AI-action cap; "pro" = uncapped. planUntil null
+  // means no expiry (e.g. comped beta friends); a date = paid until then.
+  plan        String       @default("free")
+  planUntil   DateTime?
   // Default language pair for server-side surfaces that have no localStorage —
   // notably the Telegram tutor bot (chat + review). Null until first resolved.
   preferredSource String?
