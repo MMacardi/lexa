@@ -508,6 +508,8 @@ export async function getStats(telegramId: string) {
     due: 0,
     trainedToday: 0,
     streak: 0,
+    reviews: 0,
+    languages: [] as string[],
     days: [] as { date: string; added: number; reviews: number }[],
     heat: [] as { date: string; count: number }[],
   };
@@ -516,8 +518,12 @@ export async function getStats(telegramId: string) {
   const now = Date.now();
   const words = await prisma.word.findMany({
     where: { userId: user.id },
-    select: { reviewCount: true, nextReviewAt: true, createdAt: true },
+    select: { reviewCount: true, nextReviewAt: true, createdAt: true, sourceLang: true },
   });
+  // Lifetime review count (every graded review logs an event) + the distinct
+  // source languages the learner studies — both feed achievements & friend cards.
+  const reviews = await prisma.reviewEvent.count({ where: { userId: user.id } });
+  const languages = Array.from(new Set(words.map((w) => w.sourceLang))).sort();
   // Pull a wide window (for the heatmap); the 14-day chart is a subset of it.
   const HEAT_DAYS = 119; // 17 weeks
   const since = new Date(now - (HEAT_DAYS - 1) * 86400_000);
@@ -570,7 +576,7 @@ export async function getStats(telegramId: string) {
     else break;
   }
 
-  return { total, mastered, learning: total - mastered, due, trainedToday, streak, days, heat };
+  return { total, mastered, learning: total - mastered, due, trainedToday, streak, reviews, languages, days, heat };
 }
 
 // ---------------- Collections (word sets like "IELTS", "adjectives") ----------------
