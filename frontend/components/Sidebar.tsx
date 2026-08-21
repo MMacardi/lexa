@@ -7,14 +7,15 @@ import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { Home, Layers, Target, BookOpen, Library, Folders, Settings, type LucideIcon } from "lucide-react";
 
-const NAV = [
-  { href: "/", key: "nav.today", icon: "🏠" },
-  { href: "/review", key: "nav.flashcards", icon: "🃏" },
-  { href: "/quiz", key: "nav.recall", icon: "🎯" },
-  { href: "/reader", key: "nav.reader", icon: "📖" },
-  { href: "/words", key: "nav.words", icon: "📚" },
-  { href: "/collections", key: "nav.collections", icon: "🗂" },
+const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
+  { href: "/", key: "nav.today", Icon: Home },
+  { href: "/review", key: "nav.flashcards", Icon: Layers },
+  { href: "/quiz", key: "nav.recall", Icon: Target },
+  { href: "/reader", key: "nav.reader", Icon: BookOpen },
+  { href: "/words", key: "nav.words", Icon: Library },
+  { href: "/collections", key: "nav.collections", Icon: Folders },
 ];
 
 const isActive = (href: string, pathname: string) =>
@@ -56,7 +57,7 @@ export function Sidebar() {
                   active ? "bg-sage-tint text-sage-deep" : "text-ink-muted hover:bg-black/[0.03]",
                 )}
               >
-                <span className={cn("h-[7px] w-[7px] shrink-0 rounded-full", active ? "bg-sage" : "bg-[#cfc6b7]")} />
+                <n.Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-sage-deep" : "text-ink-faint")} strokeWidth={2} />
                 {t(n.key)}
               </Link>
             );
@@ -83,10 +84,9 @@ export function Sidebar() {
           )}
         >
           <span className="flex items-center gap-2 truncate">
-            <span>👤</span>
+            <Settings className="h-[18px] w-[18px] shrink-0" strokeWidth={2} />
             <span className="truncate">{t("side.account")}</span>
           </span>
-          <span className="text-ink-faint">⚙</span>
         </Link>
       </aside>
 
@@ -100,11 +100,11 @@ export function Sidebar() {
           href="/account"
           aria-label={t("account.title")}
           className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-full text-[17px] transition-colors",
-            accountActive ? "bg-sage-tint" : "hover:bg-black/[0.04]",
+            "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+            accountActive ? "bg-sage-tint text-sage-deep" : "text-ink-muted hover:bg-black/[0.04]",
           )}
         >
-          ⚙
+          <Settings className="h-[19px] w-[19px]" strokeWidth={2} />
         </Link>
       </header>
 
@@ -121,9 +121,7 @@ export function Sidebar() {
                 active ? "text-sage-deep" : "text-ink-faint",
               )}
             >
-              <span className={cn("text-[19px] leading-none transition-transform", active && "scale-110")}>
-                {n.icon}
-              </span>
+              <n.Icon className={cn("h-[21px] w-[21px] transition-transform", active && "scale-110")} strokeWidth={2} />
               <span className="max-w-full truncate px-0.5">{t(n.key)}</span>
             </Link>
           );

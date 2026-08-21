@@ -30,9 +30,9 @@ const DICT: Record<string, Entry> = {
     zh: "问我任何语言问题——或让我挑选并把单词加入你的卡组。",
   },
   "tutor.placeholder": { en: "Ask, or ask to add words…", ru: "Спроси или попроси добавить слова…", zh: "提问，或让我添加单词…" },
-  "tutor.suggestTopic": { en: "📚 Words by topic", ru: "📚 Слова по теме", zh: "📚 按主题选词" },
-  "tutor.suggestLevel": { en: "🎯 Words by level", ru: "🎯 Слова по уровню", zh: "🎯 按等级选词" },
-  "tutor.suggestExplain": { en: "💡 Explain a word", ru: "💡 Объяснить слово", zh: "💡 讲解单词" },
+  "tutor.suggestTopic": { en: "Words by topic", ru: "Слова по теме", zh: "按主题选词" },
+  "tutor.suggestLevel": { en: "Words by level", ru: "Слова по уровню", zh: "按等级选词" },
+  "tutor.suggestExplain": { en: "Explain a word", ru: "Объяснить слово", zh: "讲解单词" },
   "tutor.topicTemplate": { en: "Pick 8 useful words about: ", ru: "Подбери 8 полезных слов по теме: ", zh: "挑选 8 个关于以下主题的常用词：" },
   "tutor.levelTemplate": { en: "Give me 8 {level}-level words to practice", ru: "Дай 8 слов уровня {level} для практики", zh: "给我 8 个 {level} 级别的练习词" },
   "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
@@ -70,7 +70,7 @@ const DICT: Record<string, Entry> = {
   "reader.saveTitle": { en: "Save text", ru: "Сохранить текст", zh: "保存文本" },
   "reader.titleLabel": { en: "Title", ru: "Название", zh: "标题" },
   "reader.titlePh": { en: "Give it a name…", ru: "Дайте название…", zh: "起个名字…" },
-  "reader.aiName": { en: "✨ Let AI name it", ru: "✨ Пусть ИИ придумает", zh: "✨ 让 AI 命名" },
+  "reader.aiName": { en: "Let AI name it", ru: "Пусть ИИ придумает название", zh: "让 AI 命名" },
   "reader.collectionLabel": { en: "Collection", ru: "Коллекция", zh: "合集" },
   "reader.collectionPh": { en: "e.g. Read later (optional)", ru: "напр. Прочитать позже (необяз.)", zh: "如“稍后阅读”（可选）" },
   "reader.allTexts": { en: "All", ru: "Все", zh: "全部" },
@@ -231,7 +231,7 @@ const DICT: Record<string, Entry> = {
   "sync.syncing": { en: "syncing {n}…", ru: "синхронизирую {n}…", zh: "正在同步 {n}…" },
   "plan.title": { en: "Plan & usage", ru: "Тариф и лимиты", zh: "套餐与用量" },
   "plan.free": { en: "Free", ru: "Бесплатный", zh: "免费" },
-  "plan.proHint": { en: "Unlimited AI — thanks for testing 💚", ru: "Безлимитный ИИ — спасибо за тест 💚", zh: "无限 AI——感谢试用 💚" },
+  "plan.proHint": { en: "Unlimited AI — thanks for testing", ru: "Безлимитный ИИ — спасибо за тест", zh: "无限 AI——感谢试用" },
   "plan.usedToday": { en: "{used}/{limit} AI actions used today", ru: "{used}/{limit} ИИ-действий за сегодня", zh: "今日已用 {used}/{limit} 次 AI" },
   "plan.footnote": {
     en: "AI actions = word add, explain, chat, translate, gloss, reader generation, OCR. Reviews and manual cards are always free.",
@@ -371,7 +371,7 @@ const DICT: Record<string, Entry> = {
 
   // --- stats ---
   "stats.title": { en: "Your progress", ru: "Ваш прогресс", zh: "你的进度" },
-  "stats.streakSummary": { en: "🔥 {n}-day streak", ru: "🔥 {n} дн. подряд", zh: "🔥 连续 {n} 天" },
+  "stats.streakSummary": { en: "{n}-day streak", ru: "{n} дн. подряд", zh: "连续 {n} 天" },
   "stats.tile.collected": { en: "words collected", ru: "слов в коллекции", zh: "已收集" },
   "stats.tile.mastered": { en: "mastered", ru: "выучено", zh: "已掌握" },
   "stats.tile.trainedToday": { en: "trained today", ru: "повторено сегодня", zh: "今日练习" },
@@ -389,7 +389,7 @@ const DICT: Record<string, Entry> = {
   "stats.less": { en: "Less", ru: "Меньше", zh: "少" },
   "stats.more": { en: "More", ru: "Больше", zh: "多" },
   "stats.goal": { en: "Daily goal", ru: "Цель на день", zh: "每日目标" },
-  "stats.goalReached": { en: "🎉 Daily goal reached!", ru: "🎉 Цель на день выполнена!", zh: "🎉 完成每日目标！" },
+  "stats.goalReached": { en: "Daily goal reached!", ru: "Цель на день выполнена!", zh: "完成每日目标！" },
   "stats.goalGreat": { en: "Great work today.", ru: "Отличная работа!", zh: "今天做得很好。" },
   "stats.goalToGo": { en: "{n} cards to go", ru: "ещё {n} карточек", zh: "还差 {n} 张" },
   "stats.goalDone": { en: "done", ru: "готово", zh: "完成" },
@@ -415,7 +415,7 @@ const DICT: Record<string, Entry> = {
   "toast.achievement": { en: "Achievement unlocked", ru: "Новое достижение", zh: "解锁成就" },
   "toast.milestone": { en: "Milestone reached!", ru: "Цель достигнута!", zh: "达成里程碑！" },
   "toast.goalTitle": { en: "Daily goal reached — {n} cards!", ru: "Цель на день выполнена — {n} карточек!", zh: "完成每日目标——{n} 张！" },
-  "toast.goalSub": { en: "Keep the streak alive 🔥", ru: "Не прерывайте серию 🔥", zh: "保持连续 🔥" },
+  "toast.goalSub": { en: "Keep the streak alive", ru: "Не прерывайте серию", zh: "保持连续" },
   "toast.goalLabel": { en: "Daily goal", ru: "Цель на день", zh: "每日目标" },
 
   // --- my words ---
@@ -435,7 +435,7 @@ const DICT: Record<string, Entry> = {
   "words.deleteSelected": { en: "Delete", ru: "Удалить", zh: "删除" },
   "words.deleteSelectedTitle": { en: "Delete words", ru: "Удалить слова", zh: "删除单词" },
   "words.deleteSelectedConfirm": { en: "Delete {n} selected word(s)? This can't be undone.", ru: "Удалить выбранные слова ({n})? Отменить нельзя.", zh: "删除选中的 {n} 个单词？无法撤销。" },
-  "words.search": { en: "🔍  Search your words", ru: "🔍  Поиск по словам", zh: "🔍  搜索单词" },
+  "words.search": { en: "Search your words", ru: "Поиск по словам", zh: "搜索单词" },
   "words.pill.all": { en: "All {n}", ru: "Все {n}", zh: "全部 {n}" },
   "words.pill.learning": { en: "Learning {n}", ru: "В процессе {n}", zh: "学习 {n}" },
   "words.pill.mastered": { en: "Mastered {n}", ru: "Выучено {n}", zh: "掌握 {n}" },
@@ -491,7 +491,7 @@ const DICT: Record<string, Entry> = {
   "import.close": { en: "Done", ru: "Готово", zh: "完成" },
 
   // --- add word form ---
-  "add.auto": { en: "✨ Auto (AI)", ru: "✨ Авто (ИИ)", zh: "✨ 自动 (AI)" },
+  "add.auto": { en: "Auto (AI)", ru: "Авто (ИИ)", zh: "自动 (AI)" },
   "add.manual": { en: "✍️ Manual", ru: "✍️ Вручную", zh: "✍️ 手动" },
   "add.autoDetect": { en: "Auto-detect", ru: "Автоопределение", zh: "自动识别" },
   "add.swap": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },

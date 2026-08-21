@@ -13,6 +13,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
+import { Sparkles, RotateCcw, X } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -143,9 +144,9 @@ export function GlobalTutor() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={t("tutor.open")}
-          className="fixed bottom-[calc(64px_+_env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-[24px] text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:bottom-6"
+          className="fixed bottom-[calc(64px_+_env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:bottom-6"
         >
-          ✨
+          <Sparkles className="h-6 w-6" />
         </button>
       )}
 
@@ -156,7 +157,7 @@ export function GlobalTutor() {
           <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
-                <span>✨</span>
+                <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
                 {t("tutor.title")}
               </div>
               <div className="flex items-center gap-1.5">
@@ -167,18 +168,18 @@ export function GlobalTutor() {
                       setMessages([]);
                       ask.reset();
                     }}
-                    className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
                   >
-                    ↻
+                    <RotateCcw className="h-3.5 w-3.5" />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label={t("common.cancel")}
-                  className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>

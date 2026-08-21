@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ImportedCard, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { Check } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import { langLabel } from "@/lib/langs";
 import {
@@ -197,7 +198,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
 
             {commit.isSuccess ? (
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 text-center">
-                <div className="anim-pop flex h-16 w-16 items-center justify-center rounded-full bg-sage-tint text-3xl">✓</div>
+                <div className="anim-pop flex h-16 w-16 items-center justify-center rounded-full bg-sage-tint text-sage-deep"><Check className="h-8 w-8" /></div>
                 <h3 className="mt-5 font-serif text-2xl font-semibold text-ink">
                   {t("import.done", {
                     created: commit.data.created,
