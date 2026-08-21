@@ -32,6 +32,9 @@ export default function RootLayout({
       <head>
         {/* Set the theme class before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        {/* Telegram Mini App SDK — no-ops outside Telegram; enables auto-login inside. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* App Router root layout: these load globally for every page. */}
