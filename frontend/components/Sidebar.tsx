@@ -7,7 +7,7 @@ import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { Home, Layers, Target, BookOpen, Library, Folders, Settings, type LucideIcon } from "lucide-react";
+import { Home, Layers, Target, BookOpen, Library, Folders, Users, Settings, type LucideIcon } from "lucide-react";
 
 const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
   { href: "/", key: "nav.today", Icon: Home },
@@ -16,6 +16,7 @@ const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
   { href: "/reader", key: "nav.reader", Icon: BookOpen },
   { href: "/words", key: "nav.words", Icon: Library },
   { href: "/collections", key: "nav.collections", Icon: Folders },
+  { href: "/friends", key: "nav.friends", Icon: Users },
 ];
 
 const isActive = (href: string, pathname: string) =>
