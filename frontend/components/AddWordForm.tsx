@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { useToast } from "@/lib/toast";
+import { isOnline, queueAdd } from "@/lib/sync";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
 import {
@@ -67,6 +69,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
+  const { show } = useToast();
   const { confirm, choose } = useDialog();
 
   const [mode, setMode] = useState<Mode>("auto");
@@ -214,7 +217,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     },
   });
 
-  // Ask (once) for the learner's level in a concrete language; store it.
+  // Ask (once) for the l2earner's level in a concrete language; store it.
   async function ensureLevel(lang: string): Promise<string | undefined> {
     const stored = getLevel(lang);
     if (stored) return stored;
@@ -279,6 +282,14 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   async function handleSubmit() {
     const typed = word.trim();
     if (!canSubmit || busy) return;
+    // Offline: adding needs the server (spell-check + AI enrichment), so queue the
+    // raw word — it'll be added automatically when the connection is back.
+    if (!isOnline()) {
+      await queueAdd(typed, resolvedSourceLang ?? (sourceLang === "auto" ? "en" : sourceLang), targetLang);
+      show({ icon: "📴", title: t("add.queuedOffline") });
+      setWord("");
+      return;
+    }
     if (mode === "manual") {
       addWithChecks({ chosen: typed, manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang });
       return;
