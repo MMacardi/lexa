@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -25,7 +25,8 @@ import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
-import { previewMinutes } from "@/lib/fsrsPreview";
+import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
+import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -62,7 +63,7 @@ export default function FlashcardsPage() {
   };
   const { data: allWords, isLoading } = useQuery({
     queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
+    queryFn: () => fetchWordsCached(accountId),
   });
 
   const { data: collections } = useQuery({
@@ -117,13 +118,16 @@ export default function FlashcardsPage() {
   const togglePair = (pk: string) =>
     setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
 
-  const review = useMutation({
-    mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["words"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
-    },
-  });
+  // Record a grade offline-first: update the card locally (FSRS) so the due list
+  // reflects it instantly and survives with no network, then send it to the
+  // server or queue it for sync. The server recomputes authoritatively on sync.
+  async function recordGrade(word: Word, grade: number) {
+    const updated = applyGradeLocally(word, grade as 1 | 2 | 3 | 4);
+    qc.setQueryData<Word[]>(["words", accountId], (prev) => (prev ?? []).map((w) => (w.id === word.id ? updated : w)));
+    void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
+    const synced = await submitReview(word.id, grade);
+    if (synced) qc.invalidateQueries({ queryKey: ["stats"] });
+  }
 
   function buildDeck() {
     return words.filter(
@@ -145,7 +149,7 @@ export default function FlashcardsPage() {
   function commit(grade: number, word: Word) {
     setDragX(grade >= 3 ? 640 : -640);
     setDragging(false);
-    review.mutate({ id: word.id, grade });
+    void recordGrade(word, grade);
     if (grade >= 3) setKnown((k) => k + 1);
     else setLearning((l) => l + 1);
     if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session

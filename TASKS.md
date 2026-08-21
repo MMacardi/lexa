@@ -2,6 +2,22 @@
 
 Пишу сюда ДО выполнения, чтобы ничего не забыть. Ставлю [x] когда готово + коммит.
 
+## Офлайн-повторение + PWA (ветка pwa-offline)
+- [x] Иконка приложения (SVG-росток в sage-палитре → PNG 192/512/maskable/apple-touch/favicon).
+- [x] PWA: app/manifest.ts + service worker (public/sw.js, кэш shell/статики, /api не трогаем)
+      + PwaRegister в layout. Installable, shell открывается офлайн. Проверено: /manifest,
+      /sw.js, иконки, /review отдаются 200.
+- [x] IndexedDB-хелпер lib/idb.ts (kv + outbox, без новых зависимостей).
+- [x] Review офлайн: queryFn=fetchWordsCached (сеть→зеркало в IDB, офлайн→из IDB);
+      оценка → applyGradeLocally (ts-fsrs) оптимистично + submitReview (онлайн шлём,
+      офлайн в outbox). Индикатор SyncStatus («офлайн / N ждут синхронизации»).
+- [x] Outbox + флаш: lib/sync.ts, FIFO, стоп на первой ошибке; флаш на 'online' и при
+      старте; после успеха invalidate words/stats.
+- [x] Офлайн-добавление слова: AddWordForm офлайн → queueAdd (тост «добавлю, когда будет
+      сеть»); на реконнекте flush через api.addWord. Ридер/ИИ остаются онлайн.
+- [ ] Проверить руками в браузере: DevTools → Network → Offline (SW + IndexedDB нельзя
+      прогнать headless).
+
 ## Пейволл-проводка (доступ друзьям + задел под платный запуск)
 - [x] User.plan + planUntil (+ миграция). entitlements.ts: isPro, дневной счётчик
       в памяти, aiQuotaGuard, usageStatus. Навесил guard на AI_POST_PATH; GET

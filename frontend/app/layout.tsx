@@ -2,12 +2,19 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
+import { PwaRegister } from "@/components/PwaRegister";
 import { themeBootScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "Lexa — learn English through the news",
   description:
     "Collect English words from real news, with Chinese translations, flashcards and recall checks.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/favicon-32.png",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: { capable: true, title: "Lexa", statusBarStyle: "default" },
 };
 
 // Mobile-first viewport: cover the notch/safe-areas and match the browser chrome
@@ -48,6 +55,7 @@ export default function RootLayout({
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <PwaRegister />
       </body>
     </html>
   );
