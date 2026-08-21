@@ -32,6 +32,15 @@ const schema = z.object({
   // sending (dev), and expose it in the API response only if ALLOW_DEV_LOGIN.
   SMTP_URL: z.string().default(""),
   EMAIL_FROM: z.string().default("Lexa <no-reply@lexa.app>"),
+  // Billing / entitlements. During the closed beta every signed-in user is Pro
+  // (the invite link is the gate), so nobody hits the wall. Flip to "false" at
+  // public launch — new users default to "free" and get FREE_DAILY_AI AI actions
+  // a day; comp your beta friends by setting their User.plan = "pro".
+  BETA_ALL_PRO: z.string().default("true"),
+  FREE_DAILY_AI: z.coerce.number().default(25), // free-tier AI actions per day
+  // Comma-separated telegramIds that are always Pro (owner / comped friends),
+  // regardless of BETA_ALL_PRO or billing.
+  PRO_ALLOWLIST: z.string().default(""),
 });
 
 export const env = schema.parse(process.env);

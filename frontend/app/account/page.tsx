@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
+import { PlanUsage } from "@/components/PlanUsage";
 
 function LevelsSection() {
   const { t } = useI18n();
@@ -260,6 +261,9 @@ export default function AccountPage() {
           </Button>
         </div>
       </Section>
+
+      {/* plan + today's AI usage */}
+      <PlanUsage />
 
       {/* sign-in methods (link Telegram / Google / email to one account) */}
       <ConnectedAccounts />
