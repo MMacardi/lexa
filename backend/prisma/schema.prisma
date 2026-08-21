@@ -30,6 +30,7 @@ model User {
   collections Collection[]
   importJobs  ImportJob[]
   identities  AuthIdentity[]
+  readerTexts ReaderText[]
 }
 
 // A sign-in method linked to an account. One user can have several (telegram +
@@ -92,6 +93,21 @@ model Word {
   // same spelling (different senses, contexts, or a fresh repetition). So there
   // is no (userId, word) unique constraint — just an index for fast lookups.
   @@index([userId])
+}
+
+// A reading text the learner saved in the Reader, to return to later.
+model ReaderText {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  content    String
+  sourceLang String?
+  targetLang String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model ReviewEvent {

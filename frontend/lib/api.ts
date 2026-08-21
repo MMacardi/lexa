@@ -54,6 +54,22 @@ export interface AuthIdentity {
   subject: string;
 }
 
+export interface ReaderTextSummary {
+  id: string;
+  title: string;
+  snippet: string;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+  updatedAt: string;
+}
+export interface ReaderTextFull {
+  id: string;
+  title: string;
+  content: string;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+}
+
 export interface Profile {
   telegramId: string;
   firstName?: string | null;
@@ -326,6 +342,20 @@ export const api = {
     http<Profile>(`/api/auth/email/verify?token=${encodeURIComponent(token)}`),
   unlinkIdentity: (provider: string) =>
     http<{ identities: AuthIdentity[] }>(`/api/auth/identity/${encodeURIComponent(provider)}`, { method: "DELETE" }),
+
+  // Reader: saved texts + AI generation.
+  readerTexts: (telegramId: string, q?: string) =>
+    http<ReaderTextSummary[]>(`/api/reader/texts?telegramId=${encodeURIComponent(telegramId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
+  readerText: (id: string, telegramId: string) =>
+    http<ReaderTextFull>(`/api/reader/texts/${id}?telegramId=${encodeURIComponent(telegramId)}`),
+  saveReaderText: (payload: { telegramId: string; title: string; content: string; sourceLang?: string; targetLang?: string }) =>
+    http<{ id: string; title: string }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
+  updateReaderText: (id: string, payload: { telegramId: string; title?: string; content?: string }) =>
+    http<{ id: string; title: string }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteReaderText: (id: string, telegramId: string) =>
+    http<{ ok: true }>(`/api/reader/texts/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
+  generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string }) =>
+    http<{ title: string; content: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

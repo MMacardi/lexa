@@ -6,6 +6,7 @@ import { translateText, glossInContext } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
+import { listTexts, getText, createText, updateText, deleteText, generateText } from "../services/readerText.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import {
@@ -40,7 +41,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|tutor\/ask|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -612,6 +613,88 @@ wordsRouter.post("/translate", async (req, res) => {
   }
   try {
     res.json(await translateText(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// ---------------- Reader: saved texts ----------------
+const callerId = (req: Request) => readSession(req) ?? String((req.body?.telegramId ?? req.query.telegramId ?? "dev-user"));
+
+// GET /api/reader/texts?q=  -> the user's saved reading texts (search by q)
+wordsRouter.get("/reader/texts", async (req, res) => {
+  res.json(await listTexts(callerId(req), req.query.q ? String(req.query.q) : undefined));
+});
+
+// GET /api/reader/texts/:id -> full saved text (owner only)
+wordsRouter.get("/reader/texts/:id", async (req, res) => {
+  const text = await getText(callerId(req), String(req.params.id));
+  if (!text) {
+    res.status(404).json({ error: "Text not found" });
+    return;
+  }
+  res.json(text);
+});
+
+const readerCreateBody = z.object({
+  telegramId: z.string().optional(),
+  title: z.string().max(120).default(""),
+  content: z.string().min(1).max(20_000),
+  sourceLang: z.string().max(12).optional(),
+  targetLang: z.string().max(12).optional(),
+});
+wordsRouter.post("/reader/texts", async (req, res) => {
+  const parsed = readerCreateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.status(201).json(await createText(callerId(req), parsed.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+const readerUpdateBody = z.object({
+  telegramId: z.string().optional(),
+  title: z.string().max(120).optional(),
+  content: z.string().max(20_000).optional(),
+});
+wordsRouter.put("/reader/texts/:id", async (req, res) => {
+  const parsed = readerUpdateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await updateText(callerId(req), String(req.params.id), parsed.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+wordsRouter.delete("/reader/texts/:id", async (req, res) => {
+  await deleteText(callerId(req), String(req.params.id));
+  res.json({ ok: true });
+});
+
+// POST /api/reader/generate -> AI-write a reading text on a topic at the level
+const generateBody = z.object({
+  topic: z.string().min(1).max(300),
+  sourceLang: z.string().max(12).optional(),
+  targetLang: z.string().max(12).optional(),
+  level: z.string().max(4).optional(),
+});
+wordsRouter.post("/reader/generate", async (req, res) => {
+  const parsed = generateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await generateText(parsed.data));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
