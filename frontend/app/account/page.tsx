@@ -27,8 +27,7 @@ import {
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
-
-const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "llmlangcardlearnerbot";
+import { BotInfo } from "@/components/BotInfo";
 
 function LevelsSection() {
   const { t } = useI18n();
@@ -265,18 +264,8 @@ export default function AccountPage() {
       {/* sign-in methods (link Telegram / Google / email to one account) */}
       <ConnectedAccounts />
 
-      {/* telegram */}
-      <Section title={t("account.telegram")}>
-        <p className="text-[15px] leading-relaxed text-ink-soft">{t("account.telegramHint")}</p>
-        <a
-          href={`https://t.me/${BOT}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
-        >
-          {t("account.openBot")}
-        </a>
-      </Section>
+      {/* what the Telegram bot can do (+ open it) */}
+      <BotInfo />
 
       {/* appearance */}
       <Section title={t("account.appearance")}>
