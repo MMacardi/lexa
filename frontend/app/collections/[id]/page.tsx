@@ -11,7 +11,7 @@ import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
 export default function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -175,9 +175,19 @@ export default function CollectionDetailPage() {
         )}
 
         {candidates.length === 0 ? (
-          <p className="text-sm text-ink-faint">
-            {notInSet.length === 0 ? t("col.noneToAdd") : t("col.noWordFound")}
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-ink-faint">
+              {notInSet.length === 0 ? t("col.noneToAdd") : t("col.noWordFound")}
+            </p>
+            {q && (
+              <Link
+                href={`/words?coll=${id}&word=${encodeURIComponent(query.trim())}&mode=auto`}
+                className="inline-flex items-center gap-2 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
+              >
+                ＋ {t("col.createWord", { word: query.trim() })}
+              </Link>
+            )}
+          </div>
         ) : (
           <div className="divide-y divide-black/[0.05] overflow-hidden rounded-[16px] border border-black/[0.06] bg-surface">
             {candidates.slice(0, 40).map((w: Word) => (
@@ -187,16 +197,18 @@ export default function CollectionDetailPage() {
                 disabled={addW.isPending}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-sage-tint/40 disabled:opacity-50"
               >
-                <span className="min-w-0">
-                  <span className="font-serif text-[18px] font-semibold text-ink">{w.word}</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="truncate font-serif text-[18px] font-semibold text-ink">{w.word}</span>
+                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                      {pairLabel(w.sourceLang, w.targetLang)}
+                    </span>
+                  </span>
                   {w.meaningZh && (
-                    <span className={cn("ml-2 truncate text-sm text-sage-deep", targetFont(w.targetLang))}>
+                    <span className={cn("truncate text-sm text-sage-deep", targetFont(w.targetLang))}>
                       {w.meaningZh}
                     </span>
                   )}
-                  <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                    {pairLabel(w.sourceLang, w.targetLang)}
-                  </span>
                 </span>
                 <span className="shrink-0 text-lg font-bold text-sage">+</span>
               </button>

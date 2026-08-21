@@ -1,10 +1,26 @@
 import { prisma } from "./db.js";
+import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
+import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
+import { normalizeLang } from "../lib/detect.js";
+import { langName, scriptNote } from "../lib/langs.js";
+import { explanationSchema, wordChatSchema, type WordChatResult } from "../lib/schemas.js";
 
-// Spaced-repetition intervals (days) indexed by how many times a word has been
-// reviewed. A simple Leitner-style ladder — plenty for this project.
-const REVIEW_INTERVALS_DAYS = [1, 3, 7, 14, 30, 60];
+// FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
+// dates so cards don't pile up on one day.
+const DEFAULT_RETENTION = 0.9;
+const scheduler = fsrs(generatorParameters({ request_retention: DEFAULT_RETENTION, enable_fuzz: true }));
+
+// A learner can tune their desired retention (higher = shorter intervals, more
+// reviews, fewer lapses). Reuse the default scheduler unless a custom value is
+// given, clamped to a sane range.
+function schedulerFor(retention?: number) {
+  if (retention == null || Math.abs(retention - DEFAULT_RETENTION) < 1e-6) return scheduler;
+  const r = Math.min(0.98, Math.max(0.7, retention));
+  return fsrs(generatorParameters({ request_retention: r, enable_fuzz: true }));
+}
+
 
 /** Find or create the user that owns this telegramId. */
 async function ensureUser(telegramId: string) {
@@ -13,6 +29,27 @@ async function ensureUser(telegramId: string) {
     create: { telegramId },
     update: {},
   });
+}
+
+// --- Ownership guards (authorization) ---
+// Every :id route must confirm the caller actually owns the row before reading or
+// mutating it; otherwise anyone with a valid session could touch another user's
+// cards/collections by id (IDOR). These resolve the caller's user by telegramId
+// (from the verified session) and check the resource's userId.
+export async function userOwnsWord(wordId: string, telegramId: string | null | undefined): Promise<boolean> {
+  if (!telegramId) return false;
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return false;
+  const word = await prisma.word.findFirst({ where: { id: wordId, userId: user.id }, select: { id: true } });
+  return Boolean(word);
+}
+
+export async function userOwnsCollection(collectionId: string, telegramId: string | null | undefined): Promise<boolean> {
+  if (!telegramId) return false;
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return false;
+  const col = await prisma.collection.findFirst({ where: { id: collectionId, userId: user.id }, select: { id: true } });
+  return Boolean(col);
 }
 
 /**
@@ -24,13 +61,20 @@ export async function addWordForUser(params: {
   word: string;
   sourceLang?: string;
   targetLang?: string;
+  level?: string;
+  exampleStyle?: string;
+  exampleSource?: string;
 }) {
   const user = await ensureUser(params.telegramId);
+  const sourceLang = normalizeLang(params.word, params.sourceLang);
   const example = await runExampleSearch({
     userId: user.id,
     word: params.word,
-    sourceLang: params.sourceLang,
+    sourceLang,
     targetLang: params.targetLang,
+    level: params.level,
+    exampleStyle: params.exampleStyle,
+    exampleSource: params.exampleSource,
   });
   await runTutor({
     wordId: example.wordId,
@@ -75,7 +119,7 @@ export async function addWordManual(params: {
   const word = params.word.trim().toLowerCase();
 
   const data = {
-    sourceLang: params.sourceLang ?? "en",
+    sourceLang: normalizeLang(params.word, params.sourceLang),
     targetLang: params.targetLang ?? "zh",
     phonetic: params.phonetic ?? null,
     partOfSpeech: params.partOfSpeech ?? null,
@@ -85,10 +129,10 @@ export async function addWordManual(params: {
     antonyms: params.antonyms ?? [],
   };
 
-  const wordRecord = await prisma.word.upsert({
-    where: { userId_word: { userId: user.id, word } },
-    create: { userId: user.id, word, ...data },
-    update: data,
+  // Duplicates are allowed, so always create a new card rather than upserting
+  // onto an existing same-spelling row.
+  const wordRecord = await prisma.word.create({
+    data: { userId: user.id, word, ...data },
   });
 
   if (params.example?.sentenceEn?.trim()) {
@@ -137,9 +181,66 @@ export async function getWord(id: string) {
   });
 }
 
+/** Append a ready-made example (e.g. one the tutor produced in chat) to a card. */
+export async function addProvidedExample(id: string, sentenceEn: string, sentenceZh: string) {
+  const word = await prisma.word.findUnique({ where: { id }, select: { id: true } });
+  if (!word) throw new Error("Word not found");
+  await prisma.example.create({
+    data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Lexa AI", sourceUrl: "" },
+  });
+  return getWord(id);
+}
+
 /** Delete a word (its examples cascade via the schema's onDelete: Cascade). */
 export async function deleteWord(id: string) {
   return prisma.word.delete({ where: { id } });
+}
+
+/**
+ * Fetch a fresh example for an existing word via the Example Search Agent. When
+ * `replace` is true, the word's current examples are cleared first (regenerate);
+ * otherwise the new example is added alongside the existing ones.
+ */
+export async function addExampleToWord(
+  id: string,
+  opts: { exampleStyle?: string; exampleSource?: string; level?: string; replace?: boolean } = {},
+) {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      word: true,
+      userId: true,
+      sourceLang: true,
+      targetLang: true,
+      examples: { select: { sentenceEn: true } },
+    },
+  });
+  if (!word) throw new Error("Word not found");
+
+  if (opts.replace) {
+    await prisma.example.deleteMany({ where: { wordId: id } });
+  }
+  await runExampleSearch({
+    userId: word.userId,
+    word: word.word,
+    wordId: word.id,
+    sourceLang: word.sourceLang,
+    targetLang: word.targetLang,
+    exampleStyle: opts.exampleStyle,
+    exampleSource: opts.exampleSource,
+    level: opts.level,
+    // Adding another (not replacing) → avoid duplicating the current example(s).
+    avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),
+  });
+
+  return prisma.word.findUniqueOrThrow({
+    where: { id },
+    include: {
+      examples: { orderBy: { createdAt: "desc" } },
+      collections: { select: { id: true, name: true } },
+    },
+  });
 }
 
 /** Edit a word's fields (and optionally its first example). */
@@ -153,14 +254,17 @@ export async function updateWord(
     collocations?: string[];
     synonyms?: string[];
     antonyms?: string[];
+    notes?: string | null;
     sourceLang?: string;
     targetLang?: string;
-    example?: {
-      sentenceEn?: string;
+    // Full desired set of examples. Rows with an id are updated, rows without
+    // one are created, and any existing example missing from the list is deleted.
+    examples?: {
+      id?: string;
+      sentenceEn: string;
       sentenceZh?: string;
       sourceName?: string;
-      sourceUrl?: string;
-    };
+    }[];
   },
 ) {
   const data: Record<string, unknown> = {};
@@ -172,49 +276,48 @@ export async function updateWord(
     "collocations",
     "synonyms",
     "antonyms",
+    "notes",
     "sourceLang",
     "targetLang",
   ] as const) {
     if (fields[k] !== undefined) data[k] = fields[k];
   }
-  try {
-    await prisma.word.update({ where: { id }, data });
-  } catch (err) {
-    // Renaming to a word the user already has trips the (userId, word) unique index.
-    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
-      throw new Error(
-        `You already have “${data.word ?? fields.word}” in your collection — rename it differently.`,
-      );
-    }
-    throw err;
+  // The cached AI explanation describes the word's meaning/usage, so any change to
+  // those fields makes it stale — drop it and let the next open regenerate.
+  if (["word", "meaningZh", "partOfSpeech", "synonyms", "antonyms"].some((k) => k in data)) {
+    data.explainCache = null;
   }
+  // Duplicate spellings are allowed, so a rename can never collide.
+  await prisma.word.update({ where: { id }, data });
 
-  if (fields.example) {
-    const ex = fields.example;
-    const first = await prisma.example.findFirst({
-      where: { wordId: id },
-      orderBy: { createdAt: "asc" },
+  if (fields.examples !== undefined) {
+    const rows = fields.examples.filter((e) => e.sentenceEn.trim());
+    const keepIds = rows.map((e) => e.id).filter((x): x is string => Boolean(x));
+    // Remove examples the user deleted from the list.
+    await prisma.example.deleteMany({
+      where: { wordId: id, ...(keepIds.length ? { id: { notIn: keepIds } } : {}) },
     });
-    if (first) {
-      await prisma.example.update({
-        where: { id: first.id },
-        data: {
-          ...(ex.sentenceEn !== undefined ? { sentenceEn: ex.sentenceEn } : {}),
-          ...(ex.sentenceZh !== undefined ? { sentenceZh: ex.sentenceZh } : {}),
-          ...(ex.sourceName !== undefined ? { sourceName: ex.sourceName } : {}),
-          ...(ex.sourceUrl !== undefined ? { sourceUrl: ex.sourceUrl } : {}),
-        },
-      });
-    } else if (ex.sentenceEn?.trim()) {
-      await prisma.example.create({
-        data: {
-          wordId: id,
-          sentenceEn: ex.sentenceEn.trim(),
-          sentenceZh: ex.sentenceZh ?? "",
-          sourceName: ex.sourceName || "Manual entry",
-          sourceUrl: ex.sourceUrl ?? "",
-        },
-      });
+    for (const e of rows) {
+      if (e.id) {
+        await prisma.example.update({
+          where: { id: e.id },
+          data: {
+            sentenceEn: e.sentenceEn.trim(),
+            sentenceZh: e.sentenceZh ?? "",
+            sourceName: e.sourceName ?? "",
+          },
+        });
+      } else {
+        await prisma.example.create({
+          data: {
+            wordId: id,
+            sentenceEn: e.sentenceEn.trim(),
+            sentenceZh: e.sentenceZh ?? "",
+            sourceName: e.sourceName || "Manual entry",
+            sourceUrl: "",
+          },
+        });
+      }
     }
   }
 
@@ -231,22 +334,168 @@ export async function updateWord(
  * Record a review: bump reviewCount and schedule the next review date using the
  * interval ladder above.
  */
-export async function recordReview(id: string) {
+// grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS Rating).
+export async function recordReview(id: string, grade: number = 3, retention?: number) {
   const word = await prisma.word.findUnique({ where: { id } });
   if (!word) return null;
 
-  const nextCount = word.reviewCount + 1;
-  const idx = Math.min(word.reviewCount, REVIEW_INTERVALS_DAYS.length - 1);
-  const days = REVIEW_INTERVALS_DAYS[idx];
-  const nextReviewAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-
-  // Log the training event (powers the learning-progress stats).
+  // Practicing counts toward activity/streak regardless of the grade.
   await prisma.reviewEvent.create({ data: { userId: word.userId } });
+
+  const now = new Date();
+  // Reconstruct the FSRS card from stored state (or a fresh one if never reviewed).
+  const card: Card =
+    word.stability == null
+      ? createEmptyCard(now)
+      : {
+          due: word.due ?? now,
+          stability: word.stability,
+          difficulty: word.difficulty ?? 0,
+          elapsed_days: 0,
+          scheduled_days: 0,
+          learning_steps: word.learningSteps,
+          reps: word.reps,
+          lapses: word.lapses,
+          state: word.state as State,
+          last_review: word.lastReview ?? undefined,
+        };
+
+  const { card: next } = schedulerFor(retention).next(card, now, grade as Grade);
 
   return prisma.word.update({
     where: { id },
-    data: { reviewCount: nextCount, nextReviewAt },
+    data: {
+      stability: next.stability,
+      difficulty: next.difficulty,
+      due: next.due,
+      reps: next.reps,
+      lapses: next.lapses,
+      state: next.state,
+      learningSteps: next.learning_steps ?? 0,
+      lastReview: now,
+      nextReviewAt: next.due, // keep the legacy due field in sync for isDue/stats
+      // "mastery" counter advances only on Good/Easy.
+      reviewCount: grade >= 3 ? word.reviewCount + 1 : word.reviewCount,
+    },
   });
+}
+
+/**
+ * On-demand AI explanation of a word: nuance, when to use it, how it differs
+ * from close synonyms, register, and a common mistake — written in the learner's
+ * own language (the card's target language). Cached on the card: the first call
+ * generates + stores it, later opens return it for free (cleared on edits).
+ */
+export async function explainWord(id: string): Promise<string> {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, explainCache: true },
+  });
+  if (!word) throw new Error("Word not found");
+  if (word.explainCache?.trim()) return word.explainCache.trim();
+
+  const sourceName = langName(word.sourceLang);
+  const targetName = langName(word.targetLang);
+  const { explanation } = await chatJson({
+    system:
+      `You are a friendly ${sourceName} teacher. Explain the ${sourceName} word or phrase to a learner ` +
+      `whose language is ${targetName}. Write ENTIRELY in ${targetName}, concise and practical (about 4-7 short sentences). ` +
+      `Cover: what it really means and its nuance; when and how it's used; how it differs from close synonyms; ` +
+      `register (formal/casual/slang); and one common mistake learners make. ` +
+      `Do not just repeat the dictionary gloss.` +
+      scriptNote(word.sourceLang) +
+      scriptNote(word.targetLang) +
+      ` Respond as JSON: {"explanation": string}.`,
+    user:
+      `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
+      (word.synonyms.length ? `\nListed synonyms: ${word.synonyms.join(", ")}` : ""),
+    schema: explanationSchema,
+  });
+  const text = explanation.trim();
+  // Cache it on the card so re-opening the word is free.
+  await prisma.word.update({ where: { id }, data: { explainCache: text } }).catch(() => {});
+  return text;
+}
+
+/**
+ * Follow-up mini-chat about a word. The client sends the visible conversation
+ * (the first assistant turn is the AI explanation); we prepend a system prompt
+ * with the card's context so answers stay grounded and in the learner's language.
+ */
+export async function askAboutWord(
+  id: string,
+  history: { role: "user" | "assistant"; content: string }[],
+): Promise<WordChatResult> {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: {
+      word: true,
+      sourceLang: true,
+      targetLang: true,
+      meaningZh: true,
+      partOfSpeech: true,
+      synonyms: true,
+      antonyms: true,
+      examples: { orderBy: { createdAt: "desc" }, take: 1, select: { sentenceEn: true } },
+    },
+  });
+  if (!word) throw new Error("Word not found");
+
+  const sourceName = langName(word.sourceLang);
+  const targetName = langName(word.targetLang);
+  const clipped = history.slice(-12).map((m) => ({
+    role: m.role,
+    content: m.content.slice(0, 2000),
+  })) as ChatMessage[];
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
+        `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
+        `Answer in the "answer" field ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
+        `Give ${sourceName} examples where helpful. ` +
+        `STAY STRICTLY ON TOPIC: only discuss this word/phrase and ${sourceName} language learning ` +
+        `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
+        `asks about anything unrelated (general knowledge, tech, people, etc.), politely decline in ` +
+        `${targetName} and steer back to the word.\n\n` +
+        `SELF-TEST: if the learner asks you to test/quiz them (or says they'll try to recall it), ask ONE ` +
+        `short question about this word — e.g. use it in a sentence, give its meaning, or when to use it — ` +
+        `and wait. When they answer, GRADE it warmly: say what was right, gently correct mistakes, and ` +
+        `show one correct ${sourceName} example. Keep it short and encouraging.\n\n` +
+        `ACTIONS: if the learner asks you to add synonyms or antonyms (or you clearly recommend some), ` +
+        `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
+        `not already listed). If the learner explicitly asks to SAVE/ADD new vocabulary as its own ` +
+        `card(s) — even words unrelated to this one — ALWAYS honor it (this is a valid learning action, ` +
+        `not off-topic): put those ${sourceName} words in "addWords". ` +
+        `If the learner asks to SAVE/ADD an example sentence to this card (e.g. "add this example", ` +
+        `"save that sentence"), put it in "addExamples" as {sentence: the ${sourceName} sentence, ` +
+        `translation: its ${targetName} translation}. Otherwise leave the arrays empty.` +
+        scriptNote(word.sourceLang) +
+        scriptNote(word.targetLang) +
+        ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[], "addExamples": {"sentence": string, "translation": string}[]}.\n\n' +
+        `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
+        (word.synonyms.length ? `\nExisting synonyms: ${word.synonyms.join(", ")}` : "") +
+        (word.antonyms.length ? `\nExisting antonyms: ${word.antonyms.join(", ")}` : "") +
+        (word.examples[0]?.sentenceEn ? `\nExample: ${word.examples[0].sentenceEn}` : ""),
+    },
+    ...clipped,
+  ];
+
+  const result = await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
+  // Don't re-suggest words the card already has.
+  const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
+  const self = word.word.trim().toLowerCase();
+  return {
+    answer: result.answer.trim(),
+    addSynonyms: (result.addSynonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
+    addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
+    addWords: (result.addWords ?? []).filter((s) => s.trim() && s.trim().toLowerCase() !== self),
+    addExamples: (result.addExamples ?? [])
+      .filter((e) => e.sentence.trim())
+      .map((e) => ({ sentence: e.sentence, translation: e.translation ?? "" })),
+  };
 }
 
 /** Aggregated learning stats for the dashboard. */

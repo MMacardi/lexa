@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { useDialog } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -112,6 +113,7 @@ function CollectionCard({
   onChanged: () => void;
 }) {
   const { t } = useI18n();
+  const { confirm } = useDialog();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(collection.name);
 
@@ -177,8 +179,16 @@ function CollectionCard({
                 ✎
               </button>
               <button
-                onClick={() => {
-                  if (confirm(t("col.deleteConfirm", { name: collection.name }))) remove.mutate();
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: t("dialog.deleteCollectionTitle"),
+                      message: t("col.deleteConfirm", { name: collection.name }),
+                      confirmLabel: t("common.delete"),
+                      tone: "danger",
+                    })
+                  )
+                    remove.mutate();
                 }}
                 aria-label="Delete"
                 className="rounded-lg px-2 py-1 text-sm text-ink-faint hover:bg-black/[0.04] hover:text-warn-text"

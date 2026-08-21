@@ -3,7 +3,8 @@
 // is kept for reference.
 export const LANGS = [
   { code: "en", name: "English", native: "English" },
-  { code: "zh", name: "Chinese", native: "中文" },
+  { code: "zh", name: "Chinese (Simplified)", native: "简体中文" },
+  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文" },
   { code: "ru", name: "Russian", native: "Русский" },
   { code: "es", name: "Spanish", native: "Español" },
   { code: "de", name: "German", native: "Deutsch" },
@@ -18,6 +19,7 @@ const CUSTOM_KEY = "lexa.customLangs";
 
 // Custom languages the user added themselves (stored locally).
 export function langLabel(code: string): string {
+  if (code === "auto") return "Auto-detect";
   if (LABELS[code]) return LABELS[code];
   if (typeof window !== "undefined") {
     try {
@@ -35,4 +37,57 @@ export function langLabel(code: string): string {
 
 export function pairLabel(source: string, target: string): string {
   return `${langLabel(source)} → ${langLabel(target)}`;
+}
+
+// The AI agents only reliably handle the built-in languages. A user-added custom
+// language (or "unknown") should fall back to manual cards, since the model may
+// not actually know it.
+const AI_LANGS = new Set<string>(LANGS.map((l) => l.code));
+export function isAiSupported(code: string): boolean {
+  return code === "auto" || AI_LANGS.has(code);
+}
+
+// Coarse "script family" of a language, for spotting a paste/source mismatch.
+export function scriptFamily(lang: string): "latin" | "cyrillic" | "han" | "jpn" | "kor" {
+  if (lang === "ru") return "cyrillic";
+  if (lang === "zh" || lang === "zh-Hant") return "han";
+  if (lang === "ja") return "jpn";
+  if (lang === "ko") return "kor";
+  return "latin";
+}
+
+// Guess the dominant language of a block of text from its script (coarse — Latin
+// scripts can't be told apart, so they all map to "en"). Returns null if unsure.
+export function detectDominantLang(text: string): string | null {
+  const c = { latin: 0, cyrillic: 0, han: 0, kana: 0, hangul: 0 };
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a)) c.latin++;
+    else if (cp >= 0x0400 && cp <= 0x04ff) c.cyrillic++;
+    else if (cp >= 0x3040 && cp <= 0x30ff) c.kana++;
+    else if (cp >= 0xac00 && cp <= 0xd7af) c.hangul++;
+    else if ((cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0x3400 && cp <= 0x4dbf)) c.han++;
+  }
+  const total = c.latin + c.cyrillic + c.han + c.kana + c.hangul;
+  if (total < 3) return null; // too little to judge
+  if (c.kana > 0 && c.kana + c.han >= total * 0.3) return "ja";
+  if (c.hangul >= total * 0.3) return "ko";
+  if (c.han >= total * 0.3) return "zh";
+  if (c.cyrillic >= total * 0.5) return "ru";
+  if (c.latin >= total * 0.5) return "en";
+  return null;
+}
+
+// True when the text is written purely in Han ideographs (no kana / hangul), so
+// it could be Chinese, Japanese kanji, or Korean hanja — genuinely ambiguous.
+// Used to show the inline 中文/日本語/한국어 picker under the add field.
+export function isAmbiguousHan(word: string): boolean {
+  let hasHan = false;
+  for (const ch of word) {
+    const c = ch.codePointAt(0) ?? 0;
+    if (c >= 0x3040 && c <= 0x30ff) return false; // kana → Japanese
+    if (c >= 0xac00 && c <= 0xd7af) return false; // hangul → Korean
+    if ((c >= 0x4e00 && c <= 0x9fff) || (c >= 0x3400 && c <= 0x4dbf)) hasHan = true;
+  }
+  return hasHan;
 }

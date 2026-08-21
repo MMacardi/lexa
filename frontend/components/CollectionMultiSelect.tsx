@@ -2,8 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Collection } from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, type Collection } from "@/lib/api";
+import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
 
 // Pretty dropdown multi-select for collections (same look as LangSelect, but you
@@ -13,18 +16,33 @@ export function CollectionMultiSelect({
   value,
   onChange,
   className,
+  menuClassName,
 }: {
   options: Collection[];
   value: string[];
   onChange: (ids: string[]) => void;
   className?: string;
+  menuClassName?: string;
 }) {
   const { t } = useI18n();
+  const { accountId } = useAccount();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [newName, setNewName] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Create a new set inline and immediately select it.
+  const createSet = useMutation({
+    mutationFn: (name: string) => api.createCollection(name, accountId),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ["collections"] });
+      onChange([...value, created.id]);
+      setNewName("");
+    },
+  });
 
   useLayoutEffect(() => {
     if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
@@ -96,7 +114,10 @@ export function CollectionMultiSelect({
         createPortal(
           <div
             ref={menuRef}
-            className="anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            className={cn(
+              "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              menuClassName,
+            )}
             style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 220) }}
           >
             {options.length > 6 && (
@@ -124,14 +145,7 @@ export function CollectionMultiSelect({
                         on ? "text-sage-deep" : "text-ink hover:bg-black/[0.03]",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] border text-[11px] font-bold",
-                          on ? "border-sage bg-sage text-white" : "border-black/15 bg-surface",
-                        )}
-                      >
-                        {on ? "✓" : ""}
-                      </span>
+                      <Checkbox presentational checked={on} />
                       <span className="flex-1 truncate font-medium">{o.name}</span>
                       <span className="text-xs text-ink-faint">{o.count}</span>
                     </button>
@@ -139,6 +153,29 @@ export function CollectionMultiSelect({
                 );
               })}
             </ul>
+            {/* create a new set inline (like the rest of the app) */}
+            <form
+              className="flex items-center gap-1.5 border-t border-black/[0.06] p-1.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const name = newName.trim();
+                if (name && !createSet.isPending) createSet.mutate(name);
+              }}
+            >
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={t("col.newSetPlaceholder")}
+                className="h-8 min-w-0 flex-1 rounded-[10px] border border-black/[0.08] bg-surface px-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!newName.trim() || createSet.isPending}
+                className="shrink-0 rounded-[10px] bg-sage px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sage-deep disabled:opacity-40"
+              >
+                ＋
+              </button>
+            </form>
           </div>,
           document.body,
         )}

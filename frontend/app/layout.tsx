@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
@@ -10,14 +10,31 @@ export const metadata: Metadata = {
     "Collect English words from real news, with Chinese translations, flashcards and recall checks.",
 };
 
+// Mobile-first viewport: cover the notch/safe-areas and match the browser chrome
+// to the app surface in both themes.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f1ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#17130e" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // The theme boot script sets html.class before hydration, so the server
+    // markup intentionally differs from the client — silence that warning.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Set the theme class before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        {/* Telegram Mini App SDK — no-ops outside Telegram; enables auto-login inside. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://telegram.org/js/telegram-web-app.js" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* App Router root layout: these load globally for every page. */}

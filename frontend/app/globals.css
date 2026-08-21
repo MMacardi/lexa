@@ -33,16 +33,16 @@
 
 /* ---- Dark theme: redefine the palette under html.dark ---- */
 html.dark {
-  --app-bg: #100e0c;
-  --color-paper: #16130f;
-  --color-surface: #211d18;
+  --app-bg: #0c0a08;
+  --color-paper: #17130e;
+  --color-surface: #24201a; /* lighter than the page so cards clearly lift */
   --color-ink: #ece7df;
   --color-ink-muted: #c0b6a6;
   --color-ink-soft: #9b9384;
-  --color-ink-faint: #756d60;
+  --color-ink-faint: #7c7365;
   --color-sage: #87a791;
   --color-sage-deep: #a9c6b0;
-  --color-sage-tint: #20302a;
+  --color-sage-tint: #23342c;
   --color-news-hl: #2a3a2e;
   --color-taupe: #c9b8a8;
   --color-taupe-dim: #8a7d6b;
@@ -55,26 +55,69 @@ html.dark {
   --color-quote: #c6bdaf;
 }
 
-/* In dark mode the faint black hairlines/fills become invisible — lift them. */
-html.dark .border-black\/\[0\.06\],
-html.dark .border-black\/\[0\.07\],
-html.dark .border-black\/\[0\.08\],
-html.dark .border-black\/\[0\.05\] {
-  border-color: rgba(255, 255, 255, 0.09);
+/* In dark mode the faint black hairlines/fills become invisible — lift them to
+   light hairlines so cards, rows and dropdowns keep their edges. */
+html.dark [class*="border-black/"] {
+  border-color: rgba(255, 255, 255, 0.1);
 }
-html.dark .bg-black\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.04); }
-html.dark .bg-black\/\[0\.04\] { background-color: rgba(255, 255, 255, 0.05); }
-html.dark .hover\:bg-black\/\[0\.03\]:hover { background-color: rgba(255, 255, 255, 0.05); }
+html.dark .border-black\/20,
+html.dark .border-black\/10 {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+html.dark .bg-black\/\[0\.015\],
+html.dark .bg-black\/\[0\.02\],
+html.dark .bg-black\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.035); }
+html.dark .bg-black\/\[0\.04\],
+html.dark .bg-black\/\[0\.05\] { background-color: rgba(255, 255, 255, 0.05); }
+html.dark .hover\:bg-black\/\[0\.015\]:hover,
+html.dark .hover\:bg-black\/\[0\.02\]:hover,
+html.dark .hover\:bg-black\/\[0\.03\]:hover { background-color: rgba(255, 255, 255, 0.045); }
 html.dark .hover\:bg-black\/\[0\.04\]:hover { background-color: rgba(255, 255, 255, 0.06); }
+
+/* Give elevated surfaces a real shadow on dark (the light-mode shadows use a
+   near-black tint that vanishes on a dark page). */
+html.dark [class*="shadow-["] {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55) !important;
+}
 
 html {
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%; /* iOS: don't auto-inflate text on rotate */
 }
 body {
   background: var(--app-bg);
   font-family: var(--font-sans);
   color: var(--color-ink);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Snappy taps everywhere: kill the 300ms mobile tap delay and the grey flash so
+   every button/link responds instantly (the app supplies its own hover/active
+   feedback). */
+button,
+a,
+label,
+select,
+[role="button"],
+[role="tab"],
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button:not(:disabled),
+[role="button"] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+/* A subtle press feedback for tappable controls that don't define their own. */
+@media (hover: none) {
+  button:active:not(:disabled),
+  a:active,
+  [role="button"]:active {
+    opacity: 0.72;
+  }
 }
 
 ::-webkit-scrollbar {

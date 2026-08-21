@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import { env } from "./lib/env.js";
 import { wordsRouter } from "./routes/words.js";
 import { authRouter } from "./routes/auth.js";
+import { startImportWorker } from "./services/importWorker.js";
+import { launchBot } from "./bot/index.js";
 
 const app = express();
 
@@ -36,7 +38,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "15mb" })); // room for base64 photo uploads (OCR)
 app.use(cookieParser());
 
 // Liveness probe. Railway and Docker can hit this to know the server is up.
@@ -50,6 +52,9 @@ app.use("/api", wordsRouter);
 
 app.listen(env.PORT, () => {
   console.log(`Backend listening on http://localhost:${env.PORT}`);
+  startImportWorker();
+  // No-op unless ENABLE_TELEGRAM_BOT=true (keeps OpenClaw as the default poller).
+  launchBot();
 });
 
 // NOTE: The Telegram entry point is now OpenClaw (a self-hosted assistant

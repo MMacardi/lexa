@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { LANGS } from "@/lib/langs";
 import { addCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
+import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
 
 // Pretty custom dropdown for picking a language. The menu is rendered in a
@@ -14,19 +15,30 @@ export function LangSelect({
   value,
   onChange,
   className,
+  menuClassName,
+  allowAuto = false,
+  autoLabel = "Auto-detect",
 }: {
   value: string;
   onChange: (v: string) => void;
   className?: string;
+  menuClassName?: string;
+  allowAuto?: boolean;
+  autoLabel?: string;
 }) {
   const { t } = useI18n();
+  const { prompt } = useDialog();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const custom = useCustomLangs();
-  const all = [...LANGS.map((l) => ({ code: l.code, name: l.name })), ...custom];
+  const all = [
+    ...(allowAuto ? [{ code: "auto", name: autoLabel }] : []),
+    ...LANGS.map((l) => ({ code: l.code, name: l.name })),
+    ...custom,
+  ];
   const current = all.find((l) => l.code === value);
 
   useLayoutEffect(() => {
@@ -61,12 +73,19 @@ export function LangSelect({
     ? all.filter((l) => l.name.toLowerCase().includes(q) || l.code.includes(q))
     : all;
 
-  const onAddLanguage = () => {
-    const name = window.prompt(t("col.langPrompt"))?.trim();
+  const onAddLanguage = async () => {
+    setOpen(false);
+    const name = (
+      await prompt({
+        title: t("dialog.addLanguageTitle"),
+        message: t("col.langPrompt"),
+        placeholder: "Portuguese",
+        confirmLabel: t("common.add"),
+      })
+    )?.trim();
     if (!name) return;
     const lang = addCustomLang(name);
     onChange(lang.code);
-    setOpen(false);
   };
 
   return (
@@ -97,7 +116,10 @@ export function LangSelect({
         createPortal(
           <div
             ref={menuRef}
-            className="anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            className={cn(
+              "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              menuClassName,
+            )}
             style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 160) }}
           >
             <input

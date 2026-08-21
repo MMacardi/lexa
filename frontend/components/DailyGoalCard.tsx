@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useDailyGoal } from "@/lib/goal";
 import { useI18n } from "@/lib/i18n";
+import { HoverTip } from "@/components/ui/HoverTip";
 
 // A standalone, prominent daily-goal panel: a big progress ring, encouragement,
 // a 7-day "goal met" strip, and +/- to tune the target.
@@ -77,11 +78,17 @@ export function DailyGoalCard() {
                 const letter = new Date(d.date + "T00:00:00")
                   .toLocaleDateString(dl, { weekday: "short" })
                   .slice(0, 2);
+                const dateLabel = new Date(d.date + "T00:00:00").toLocaleDateString(dl, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
                 return (
                   <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      title={`${d.date} · ${d.reviews}`}
-                      className={`flex h-8 w-full items-center justify-center rounded-[10px] text-[13px] font-bold ${
+                    <HoverTip
+                      title={d.reviews > 0 ? t("stats.reviewsCount", { n: d.reviews }) : t("stats.noReviews")}
+                      subtitle={dateLabel}
+                      className={`flex h-8 w-full cursor-default items-center justify-center rounded-[10px] text-[13px] font-bold transition-transform hover:scale-[1.04] ${
                         met
                           ? "bg-sage text-white"
                           : some
@@ -90,7 +97,7 @@ export function DailyGoalCard() {
                       }`}
                     >
                       {met ? "✓" : some ? d.reviews : ""}
-                    </div>
+                    </HoverTip>
                     <span className="text-[9px] font-medium text-ink-faint">{letter}</span>
                   </div>
                 );

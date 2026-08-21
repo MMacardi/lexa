@@ -4,9 +4,185 @@ import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n, LOCALES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/Select";
+import { langLabel } from "@/lib/langs";
+import {
+  CEFR_LEVELS,
+  LEVEL_HINT,
+  RETENTION_OPTIONS,
+  DEFAULT_RETENTION,
+  clearHanLang,
+  removeLevel,
+  setExampleSource,
+  setLevel,
+  setRetention,
+  setShowTranscription,
+  useAllLevels,
+  useExampleSource,
+  useHanLang,
+  useRetention,
+  useShowTranscription,
+  type CefrLevel,
+  type ExampleSource,
+} from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
+import { ConnectedAccounts } from "@/components/ConnectedAccounts";
+import { BotInfo } from "@/components/BotInfo";
+import { PlanUsage } from "@/components/PlanUsage";
 
-const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "llmlangcardlearnerbot";
+function LevelsSection() {
+  const { t } = useI18n();
+  const levels = useAllLevels();
+  const hanLang = useHanLang();
+  const langs = Object.keys(levels).sort();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("level.sectionTitle")}</h2>
+      <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("level.sectionHint")}</p>
+      {langs.length === 0 ? (
+        <p className="mt-4 rounded-[14px] border border-dashed border-black/[0.12] bg-paper/60 p-4 text-center text-[13px] text-ink-faint">
+          {t("level.empty")}
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {langs.map((lang) => (
+            <li key={lang} className="flex items-center justify-between gap-3">
+              <span className="text-[15px] font-medium text-ink">{langLabel(lang)}</span>
+              <div className="flex items-center gap-1.5">
+                <Select
+                  value={levels[lang]}
+                  onChange={(v) => setLevel(lang, v as CefrLevel)}
+                  ariaLabel={t("level.title")}
+                  className="w-[150px]"
+                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLevel(lang)}
+                  aria-label="Remove"
+                  className="rounded-lg px-2 py-1 text-sm text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {hanLang && (
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+          <span className="text-[13px] text-ink-soft">
+            {t("han.remembered")}{" "}
+            <span className="font-semibold text-ink">{hanLang === "zh" ? "中文" : hanLang === "ja" ? "日本語" : "한국어"}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => clearHanLang()}
+            className="rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
+          >
+            {t("han.reset")}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RetentionSection() {
+  const { t } = useI18n();
+  const retention = useRetention();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("account.srs")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("retention.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {RETENTION_OPTIONS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRetention(r)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 transition-colors",
+                Math.abs(retention - r) < 1e-6 ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {Math.round(r * 100)}%
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">
+        {t("retention.hint")}
+        {Math.abs(retention - DEFAULT_RETENTION) < 1e-6 ? ` · ${t("retention.balanced")}` : ""}
+      </p>
+    </section>
+  );
+}
+
+function ExampleSourceSection() {
+  const { t } = useI18n();
+  const source = useExampleSource();
+  const options: { value: ExampleSource; label: string }[] = [
+    { value: "ai", label: t("exsrc.ai") },
+    { value: "web", label: t("exsrc.web") },
+  ];
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("exsrc.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("exsrc.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setExampleSource(o.value)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 transition-colors",
+                source === o.value ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {o.label}
+              {o.value === "ai" ? <span className="ml-1 opacity-70">· {t("exsrc.recommended")}</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
+    </section>
+  );
+}
+
+function TranscriptionSection() {
+  const { t } = useI18n();
+  const on = useShowTranscription();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("tr.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("tr.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              type="button"
+              onClick={() => setShowTranscription(v)}
+              className={cn(
+                "rounded-full px-4 py-1.5 transition-colors",
+                on === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {v ? t("common.on") : t("common.off")}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("tr.hint")}</p>
+    </section>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -22,10 +198,26 @@ export default function AccountPage() {
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
 
-  const viaTelegram = profile?.authVia === "telegram";
+  const via = profile?.authVia ?? "";
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
-  const displayName = fullName || (profile?.username ? `@${profile.username}` : accountId);
-  const initial = (fullName || accountId || "?").charAt(0).toUpperCase();
+  const emailLocal = profile?.email ? profile.email.split("@")[0] : "";
+  // A friendly name that never falls back to the raw "email:…" account key.
+  const displayName =
+    fullName ||
+    (profile?.username ? `@${profile.username}` : "") ||
+    profile?.email ||
+    (accountId.startsWith("email:") ? accountId.slice(6) : accountId);
+  const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();
+
+  // Sign-in method → label + status-dot colour.
+  const method =
+    via === "telegram"
+      ? { label: t("account.viaTelegram"), dot: "bg-sage" }
+      : via === "google"
+        ? { label: t("account.viaGoogle"), dot: "bg-[#4285F4]" }
+        : via === "email"
+          ? { label: t("account.viaEmail"), dot: "bg-sage" }
+          : { label: t("account.devSession"), dot: "bg-taupe" };
 
   return (
     <div className="anim-fade-up mx-auto max-w-[640px] space-y-6">
@@ -50,15 +242,18 @@ export default function AccountPage() {
                 {initial}
               </div>
             )}
-            <div>
-              <div className="font-serif text-[20px] font-semibold text-ink">{displayName}</div>
+            <div className="min-w-0">
+              <div className="truncate font-serif text-[20px] font-semibold text-ink">{displayName}</div>
+              {profile?.email && (
+                <div className="mt-0.5 truncate text-[13px] text-ink-soft">{profile.email}</div>
+              )}
               <div className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium">
-                <span className={cn("h-2 w-2 rounded-full", viaTelegram ? "bg-sage" : "bg-taupe")} />
-                <span className="text-ink-soft">
-                  {viaTelegram ? t("account.viaTelegram") : t("account.devSession")}
-                </span>
+                <span className={cn("h-2 w-2 rounded-full", method.dot)} />
+                <span className="text-ink-soft">{method.label}</span>
               </div>
-              <div className="mt-0.5 text-[11px] text-ink-faint">ID: {accountId}</div>
+              {!accountId.startsWith("email:") && (
+                <div className="mt-0.5 text-[11px] text-ink-faint">ID: {accountId}</div>
+              )}
             </div>
           </div>
           <Button variant="outline" onClick={() => logout()}>
@@ -67,18 +262,14 @@ export default function AccountPage() {
         </div>
       </Section>
 
-      {/* telegram */}
-      <Section title={t("account.telegram")}>
-        <p className="text-[15px] leading-relaxed text-ink-soft">{t("account.telegramHint")}</p>
-        <a
-          href={`https://t.me/${BOT}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
-        >
-          {t("account.openBot")}
-        </a>
-      </Section>
+      {/* plan + today's AI usage */}
+      <PlanUsage />
+
+      {/* sign-in methods (link Telegram / Google / email to one account) */}
+      <ConnectedAccounts />
+
+      {/* what the Telegram bot can do (+ open it) */}
+      <BotInfo />
 
       {/* appearance */}
       <Section title={t("account.appearance")}>
@@ -122,6 +313,18 @@ export default function AccountPage() {
           </div>
         </div>
       </Section>
+
+      {/* review scheduling (FSRS desired retention) */}
+      <RetentionSection />
+
+      {/* where example sentences come from (AI vs web) */}
+      <ExampleSourceSection />
+
+      {/* transcription (pinyin/romaji) in quick tap lookups */}
+      <TranscriptionSection />
+
+      {/* language levels */}
+      <LevelsSection />
     </div>
   );
 }

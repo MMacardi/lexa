@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -8,6 +9,7 @@ import { useDailyGoal } from "@/lib/goal";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Achievements } from "@/components/Achievements";
+import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { cn } from "@/lib/utils";
 
 const RANGES = [
@@ -41,6 +43,31 @@ function dayLabel(iso: string, monthOnly: boolean) {
 // word's createdAt — so any range works without extra API calls.
 function LearningCurve({ words, days }: { words: Word[]; days: number }) {
   const { t } = useI18n();
+  const [tip, setTip] = useState<{ x: number; y: number; date: string; value: number } | null>(null);
+
+  useEffect(() => {
+    if (!tip) return;
+    const close = () => setTip(null);
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-curvedot]")) setTip(null);
+    };
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setTip(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("keydown", onEsc);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onEsc);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [tip]);
+
+  const showTip = (el: HTMLElement, date: string, value: number) => {
+    const r = el.getBoundingClientRect();
+    setTip({ x: r.left + r.width / 2, y: r.top, date, value });
+  };
   const times = words.map((w) => new Date(w.createdAt).getTime()).sort((a, b) => a - b);
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -136,8 +163,13 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
             showDots || i === n - 1 ? (
               <span
                 key={p.date}
-                title={`${dayLabel(p.date, false)} · ${p.value} words`}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-sage-deep ${
+                data-curvedot
+                onMouseEnter={(e) => showTip(e.currentTarget, p.date, p.value)}
+                onMouseLeave={() => setTip(null)}
+                onPointerDown={(e) => {
+                  if (e.pointerType !== "mouse") showTip(e.currentTarget, p.date, p.value);
+                }}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 border-surface bg-sage-deep transition-transform hover:scale-125 ${
                   i === n - 1 ? "h-3 w-3" : "h-2 w-2"
                 }`}
                 style={{ left: `${xPct(i)}%`, top: `${yPct(p.value)}%` }}
@@ -147,19 +179,41 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
         </div>
       </div>
 
-      {/* x-axis date labels */}
+      {/* portaled tooltip (correct under transformed ancestors + touch tap) */}
+      {tip &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[95] -translate-x-1/2 -translate-y-full rounded-[10px] bg-onyx px-2.5 py-1.5 text-center shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+            style={{ left: tip.x, top: tip.y - 8 }}
+          >
+            <div className="text-[12px] font-semibold text-white">{t("stats.wordsCount", { n: tip.value })}</div>
+            <div className="text-[10px] font-medium text-white/60">{dayLabel(tip.date, false)}</div>
+          </div>,
+          document.body,
+        )}
+
+      {/* x-axis date labels — reserve the last slot for "today" and drop any
+          regular label too close to it so they don't overlap. */}
       <div className="relative ml-8 mt-1.5 h-4">
-        {pts.map((p, i) =>
-          i % labelEvery === 0 || i === n - 1 ? (
+        {pts.map((p, i) => {
+          const isEnd = i === n - 1;
+          const near = Math.max(1, Math.floor(labelEvery / 2));
+          const show = isEnd || (i % labelEvery === 0 && i < n - 1 - near);
+          if (!show) return null;
+          return (
             <span
               key={p.date}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-ink-faint"
+              className={cn(
+                "absolute whitespace-nowrap text-[10px] font-medium text-ink-faint",
+                isEnd ? "-translate-x-full text-right" : "-translate-x-1/2",
+                i === 0 && "translate-x-0",
+              )}
               style={{ left: `${xPct(i)}%` }}
             >
-              {i === n - 1 ? t("stats.today") : dayLabel(p.date, monthOnly)}
+              {isEnd ? t("stats.today") : dayLabel(p.date, monthOnly)}
             </span>
-          ) : null,
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -305,6 +359,8 @@ export function StatsPanel() {
         </div>
         <LearningCurve words={curveWords} days={effDays} />
       </div>
+
+      {data.heat && data.heat.length > 0 && <ActivityHeatmap heat={data.heat} />}
 
       {words && words.length > 0 && <Distributions words={words} />}
 

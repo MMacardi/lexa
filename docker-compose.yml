@@ -1,0 +1,85 @@
+services:
+  db:
+    image: postgres:16
+    container_name: lexa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vocab
+      POSTGRES_PASSWORD: vocab
+      POSTGRES_DB: vocab
+    ports:
+      - "5433:5432"
+    volumes:
+      - lexa-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocab -d vocab"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+
+  backend:
+    image: node:22-slim
+    container_name: lexa-backend
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://vocab:vocab@db:5432/vocab?schema=public
+      PORT: 3000
+      ALLOW_DEV_LOGIN: "true"
+      COOKIE_SECURE: "false"
+      # Closed beta: everyone signed in is Pro (uncapped). Flip to "false" at
+      # public launch; free users then get FREE_DAILY_AI AI actions per day.
+      BETA_ALL_PRO: "${BETA_ALL_PRO:-true}"
+      FREE_DAILY_AI: "${FREE_DAILY_AI:-25}"
+      # Always-Pro accounts (owner / comped friends), even after beta ends.
+      PRO_ALLOWLIST: "${PRO_ALLOWLIST:-865277762}"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - backend-node-modules:/app/node_modules
+    command: sh -lc "npm install && npm run build && npm run start"
+
+  frontend:
+    image: node:22-slim
+    container_name: lexa-frontend
+    working_dir: /app
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_TELEGRAM_ID: ${NEXT_PUBLIC_TELEGRAM_ID:-865277762}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3001}:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    command: sh -lc "npm install && npm run dev -- -p 3000 -H 0.0.0.0"
+
+  openclaw:
+    build:
+      context: ./openclaw
+    container_name: lexa-openclaw
+    profiles: ["bot"]
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      VOCAB_API_URL: http://backend:3000
+      TELEGRAM_ALLOW_FROM: ${TELEGRAM_ALLOW_FROM:-865277762}
+    depends_on:
+      - backend
+    volumes:
+      - openclaw-data:/root/.openclaw
+
+volumes:
+  lexa-pgdata:
+  backend-node-modules:
+  frontend-node-modules:
+  openclaw-data:

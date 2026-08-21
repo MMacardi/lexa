@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,38 +13,45 @@ import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
 import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
-import { downloadShareCard } from "@/lib/shareCard";
+import { HighlightWord } from "@/components/HighlightWord";
+import { ExplainChat } from "@/components/ExplainChat";
+import { TapGlossPills } from "@/components/TapGlossPills";
+import dynamic from "next/dynamic";
 
-const targetFont = (lang: string) => (lang === "zh" ? "font-zh" : "");
+// Heavy, on-demand widgets: the physics word-family graph and the canvas-based
+// print modal. Code-splitting them keeps the initial word-page bundle lean; they
+// load only when this page mounts the graph / opens the modal.
+const WordFamilyGraph = dynamic(() => import("@/components/WordFamilyGraph").then((m) => m.WordFamilyGraph), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[320px] w-full rounded-[20px]" />,
+});
+const PrintCardModal = dynamic(() => import("@/components/PrintCardModal").then((m) => m.PrintCardModal), {
+  ssr: false,
+});
 
-function Pills({ label, items }: { label: string; items: string[] }) {
-  if (!items.length) return null;
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{label}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((it) => (
-          <span
-            key={it}
-            className="rounded-full border border-black/[0.06] bg-sage-tint px-2.5 py-0.5 text-sm text-sage-deep"
-          >
-            {it}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
+
+// Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
+// and language pair via sessionStorage so it survives the navigation.
+function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string) {
+  try {
+    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang }));
+  } catch {
+    /* ignore storage errors */
+  }
+  router.push("/reader");
 }
 
 export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const { data: word, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
   });
-
   if (isLoading)
     return (
       <div className="space-y-6">
@@ -80,16 +87,7 @@ export default function WordDetailPage() {
         {!editing && (
           <div className="flex items-center gap-2">
             <button
-              onClick={() =>
-                downloadShareCard({
-                  word: word.word,
-                  phonetic: word.phonetic,
-                  partOfSpeech: word.partOfSpeech,
-                  meaning: word.meaningZh,
-                  example: word.examples[0]?.sentenceEn,
-                  source: word.examples[0]?.sourceName,
-                })
-              }
+              onClick={() => setPrinting(true)}
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
               {t("word.share")}
@@ -105,6 +103,7 @@ export default function WordDetailPage() {
       </div>
 
       {editing && <EditWordForm word={word} onDone={() => setEditing(false)} />}
+      {printing && <PrintCardModal word={word} onClose={() => setPrinting(false)} />}
 
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-baseline gap-3">
@@ -142,35 +141,67 @@ export default function WordDetailPage() {
 
       <CollectionChips word={word} />
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Pills label={t("word.collocations")} items={word.collocations} />
-        <Pills label={t("word.synonyms")} items={word.synonyms} />
-        <Pills label={t("word.antonyms")} items={word.antonyms} />
-      </div>
+      {word.notes && word.notes.trim() && (
+        <div className="rounded-[18px] border border-black/[0.06] bg-paper/60 p-4">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("edit.notes")}</p>
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{word.notes}</p>
+        </div>
+      )}
+
+      {/* AI tutor — on-demand explanation + follow-up mini-chat that can also add
+          synonyms/antonyms to the card (opt-in, LLM calls) */}
+      <ExplainChat word={word} />
+
+      {word.collocations.length > 0 && (
+        <TapGlossPills
+          label={t("word.collocations")}
+          items={word.collocations}
+          sourceLang={word.sourceLang}
+          targetLang={word.targetLang}
+        />
+      )}
+
+      {/* synonyms + antonyms as a tappable mini word-family graph */}
+      <WordFamilyGraph word={word} />
 
       <div className="space-y-3">
-        <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">
-          {t("word.fromNews")}
-        </h2>
+        {word.examples.length > 0 && (
+          <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">
+            {t("word.inContext")}
+          </h2>
+        )}
         {word.examples.map((ex) => (
           <div
             key={ex.id}
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
-            <p className="font-serif text-[19px] leading-relaxed text-ink">{ex.sentenceEn}</p>
+            <p className="whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
+              <HighlightWord text={ex.sentenceEn} word={word.word} />
+            </p>
             {ex.sentenceZh && (
-              <p className={cn("mt-2 text-[15px] text-ink-soft", targetFont(word.targetLang))}>
+              <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>
                 {ex.sentenceZh}
               </p>
             )}
-            <a
-              href={ex.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
+            {safeHttpUrl(ex.sourceUrl) && ex.sourceName.trim() !== "Manual entry" ? (
+              <a
+                href={safeHttpUrl(ex.sourceUrl)!}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-block text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
+              >
+                🔗 {ex.sourceName}
+              </a>
+            ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
+              <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
             >
-              🔗 {ex.sourceName}
-            </a>
+              📖 {t("word.openInReader")}
+            </button>
           </div>
         ))}
       </div>
