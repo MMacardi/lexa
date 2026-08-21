@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -37,11 +37,16 @@ let counter = 0;
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { accountId } = useAccount();
   const [toasts, setToasts] = useState<(Toast & { leaving?: boolean })[]>([]);
-  const [tracker, setTracker] = useState<ImportTracker | null>(null);
+  // Several imports can run at once (e.g. add 3 cards, then add 1 more while they
+  // enrich). We keep every active job and show ONE combined tracker so the count
+  // stays correct (0/4, not 0/1 when the second job would overwrite the first).
+  const [jobs, setJobs] = useState<ImportTracker[]>([]);
   // Once enrichment finishes, resolve the enriched words → their card ids so the
   // list in the toast is clickable (opens the freshly-made word page).
   const [wordIds, setWordIds] = useState<Record<string, string>>({});
+  const mappedRef = useRef<Set<string>>(new Set()); // jobIds whose words we've resolved
   const [trackerMin, setTrackerMin] = useState(false); // collapsed to a small pill
+  const closeTracker = useCallback(() => setJobs([]), []);
 
   const remove = useCallback((id: number) => {
     // play the exit animation, then unmount
@@ -58,37 +63,48 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [remove],
   );
 
+  const isTerminal = (s: ImportJob["status"]) => s === "completed" || s === "failed";
+
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
-    setWordIds({});
     setTrackerMin(false);
-    setTracker({ ...payload, status: "queued", errors: [], errorMessage: null });
+    setJobs((cur) => {
+      // Keep only still-running jobs, then append the new one (a fresh batch after
+      // everything finished starts clean; a job added mid-flight joins the total).
+      const active = cur.filter((j) => !isTerminal(j.status));
+      if (active.some((j) => j.jobId === payload.jobId)) return cur;
+      if (active.length === 0) {
+        setWordIds({});
+        mappedRef.current = new Set();
+      }
+      return [...active, { ...payload, status: "queued", errors: [], errorMessage: null }];
+    });
   }, []);
 
+  // Poll every active job and update it in place.
   useEffect(() => {
-    if (!tracker) return;
-    if (tracker.status === "completed" || tracker.status === "failed") return;
+    const active = jobs.filter((j) => !isTerminal(j.status));
+    if (active.length === 0) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const poll = async () => {
-      try {
-        const next = await api.getImportJob(tracker.jobId, tracker.telegramId || accountId);
-        if (cancelled) return;
-        setTracker((current) =>
-          current
-            ? {
-                ...current,
-                status: next.status,
-                total: next.total,
-                processed: next.processed,
-                errors: next.errors,
-                errorMessage: next.errorMessage,
-              }
-            : current,
-        );
-      } catch {
-        if (cancelled) return;
-      }
+      await Promise.all(
+        active.map(async (j) => {
+          try {
+            const next = await api.getImportJob(j.jobId, j.telegramId || accountId);
+            if (cancelled) return;
+            setJobs((cur) =>
+              cur.map((x) =>
+                x.jobId === j.jobId
+                  ? { ...x, status: next.status, total: next.total, processed: next.processed, errors: next.errors, errorMessage: next.errorMessage }
+                  : x,
+              ),
+            );
+          } catch {
+            /* keep trying */
+          }
+        }),
+      );
       if (!cancelled) timer = setTimeout(poll, 1500);
     };
 
@@ -97,23 +113,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [tracker, accountId]);
+  }, [jobs, accountId]);
 
-  // When enrichment completes, map the enriched words to their new card ids.
+  // When a job completes, map its enriched words to their new card ids (once).
   useEffect(() => {
-    if (!tracker || tracker.status !== "completed") return;
+    const done = jobs.filter((j) => j.status === "completed" && !mappedRef.current.has(j.jobId));
+    if (done.length === 0) return;
     let cancelled = false;
     (async () => {
       try {
-        const list: Word[] = await api.listWords(tracker.telegramId || accountId);
+        const list: Word[] = await api.listWords(accountId);
         if (cancelled) return;
-        const wanted = new Set(tracker.words.map((w) => w.trim().toLowerCase()));
+        const wanted = new Set(done.flatMap((j) => j.words).map((w) => w.trim().toLowerCase()));
         const map: Record<string, string> = {};
         for (const w of list) {
           const k = w.word.trim().toLowerCase();
-          if (wanted.has(k) && !map[k]) map[k] = w.id; // first (most recent) match
+          if (wanted.has(k) && !map[k]) map[k] = w.id;
         }
-        setWordIds(map);
+        done.forEach((j) => mappedRef.current.add(j.jobId));
+        setWordIds((prev) => ({ ...prev, ...map }));
       } catch {
         /* ignore — links just won't be available */
       }
@@ -121,12 +139,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [tracker?.status, tracker?.jobId, tracker, accountId]);
+  }, [jobs, accountId]);
+
+  // One combined view across all active jobs (correct totals when several run).
+  const tracker = useMemo(() => {
+    if (jobs.length === 0) return null;
+    const allTerminal = jobs.every((j) => isTerminal(j.status));
+    const status: ImportJob["status"] = allTerminal
+      ? jobs.every((j) => j.status === "failed")
+        ? "failed"
+        : "completed"
+      : jobs.some((j) => j.status === "processing")
+        ? "processing"
+        : "queued";
+    return {
+      total: jobs.reduce((s, j) => s + j.total, 0),
+      processed: jobs.reduce((s, j) => s + j.processed, 0),
+      words: jobs.flatMap((j) => j.words),
+      errors: jobs.flatMap((j) => j.errors),
+      errorMessage: jobs.find((j) => j.errorMessage)?.errorMessage ?? null,
+      status,
+    };
+  }, [jobs]);
 
   const currentWord = useMemo(() => {
-    if (!tracker) return null;
-    return tracker.words[tracker.processed] ?? tracker.words[tracker.words.length - 1] ?? null;
-  }, [tracker]);
+    const active = jobs.find((j) => !isTerminal(j.status));
+    if (!active) return null;
+    return active.words[active.processed] ?? active.words[active.words.length - 1] ?? null;
+  }, [jobs]);
 
   return (
     <ToastCtx.Provider value={{ show, trackImport }}>
@@ -168,7 +208,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTracker(null)}
+                  onClick={closeTracker}
                   aria-label="Close"
                   className="rounded-md px-1.5 py-0.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
                 >
@@ -252,7 +292,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 {tracker.status === "completed" && (
                   <button
                     type="button"
-                    onClick={() => setTracker(null)}
+                    onClick={closeTracker}
                     className="mt-3 text-sm font-semibold text-sage hover:text-sage-deep"
                   >
                     Done
