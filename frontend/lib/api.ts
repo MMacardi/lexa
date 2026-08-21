@@ -73,6 +73,22 @@ export interface ReaderTextFull {
   targetLang?: string | null;
 }
 
+export interface Friend {
+  friendshipId: string;
+  telegramId: string;
+  name: string;
+  total: number;
+  mastered: number;
+  reviews: number;
+  languages: string[];
+  streak: number;
+}
+export interface FriendRequest {
+  friendshipId: string;
+  telegramId: string;
+  name: string;
+}
+
 export interface Profile {
   telegramId: string;
   firstName?: string | null;
@@ -350,6 +366,14 @@ export const api = {
     http<Profile>(`/api/auth/email/verify?token=${encodeURIComponent(token)}`),
   unlinkIdentity: (provider: string) =>
     http<{ identities: AuthIdentity[] }>(`/api/auth/identity/${encodeURIComponent(provider)}`, { method: "DELETE" }),
+
+  // Friends + referral (session-authenticated).
+  friends: () => http<Friend[]>(`/api/friends`),
+  friendRequests: () => http<FriendRequest[]>(`/api/friends/requests`),
+  referral: () => http<{ code: string; link: string }>(`/api/friends/referral`),
+  addFriend: (code: string) => http<{ status: "pending" | "accepted" }>(`/api/friends/add`, { method: "POST", body: JSON.stringify({ code }) }),
+  acceptFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}/accept`, { method: "POST" }),
+  removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
 
   // Billing: current plan + today's AI-action usage.
   aiUsage: (telegramId: string) =>
