@@ -8,12 +8,13 @@ import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { Home, Layers, Target, Library, Folders, Sun, Moon, Type, type LucideIcon } from "lucide-react";
 
 interface Item {
   id: string;
   label: string;
   hint?: string;
-  icon: string;
+  Icon: LucideIcon;
   run: () => void;
 }
 
@@ -61,14 +62,14 @@ export function CommandPalette() {
 
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
-      { id: "go-today", icon: "🏠", label: t("cmd.goToday"), run: () => router.push("/") },
-      { id: "go-review", icon: "🃏", label: t("cmd.openFlashcards"), run: () => router.push("/review") },
-      { id: "go-quiz", icon: "🎯", label: t("cmd.openRecall"), run: () => router.push("/quiz") },
-      { id: "go-words", icon: "📚", label: t("cmd.openWords"), run: () => router.push("/words") },
-      { id: "go-collections", icon: "🗂", label: t("cmd.openCollections"), run: () => router.push("/collections") },
+      { id: "go-today", Icon: Home, label: t("cmd.goToday"), run: () => router.push("/") },
+      { id: "go-review", Icon: Layers, label: t("cmd.openFlashcards"), run: () => router.push("/review") },
+      { id: "go-quiz", Icon: Target, label: t("cmd.openRecall"), run: () => router.push("/quiz") },
+      { id: "go-words", Icon: Library, label: t("cmd.openWords"), run: () => router.push("/words") },
+      { id: "go-collections", Icon: Folders, label: t("cmd.openCollections"), run: () => router.push("/collections") },
       {
         id: "theme",
-        icon: theme === "dark" ? "☀️" : "🌙",
+        Icon: theme === "dark" ? Sun : Moon,
         label: theme === "dark" ? t("cmd.themeLight") : t("cmd.themeDark"),
         run: () => toggle(),
       },
@@ -87,7 +88,7 @@ export function CommandPalette() {
       .slice(0, 6)
       .map((w) => ({
         id: `word-${w.id}`,
-        icon: "🔤",
+        Icon: Type,
         label: w.word,
         hint: w.meaningZh ?? undefined,
         run: () => router.push(`/word/${w.id}`),
@@ -150,7 +151,7 @@ export function CommandPalette() {
                   i === active ? "bg-sage-tint text-sage-deep" : "text-ink hover:bg-black/[0.03]",
                 )}
               >
-                <span className="text-[17px]">{it.icon}</span>
+                <it.Icon className="h-[18px] w-[18px] text-ink-muted" />
                 <span className="font-medium">{it.label}</span>
                 {it.hint && <span className="ml-auto truncate text-sm text-ink-faint">{it.hint}</span>}
               </button>

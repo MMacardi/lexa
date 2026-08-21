@@ -14,6 +14,7 @@ import { ImportWordsDialog, exportWords } from "@/components/ImportWordsDialog";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { Select } from "@/components/ui/Select";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { Download, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -154,8 +155,8 @@ export default function WordsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {words.length > 0 && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => exportWords(words)}>
-              ↓ {t("import.export")}
+            <Button type="button" variant="ghost" size="sm" onClick={() => exportWords(words)} className="inline-flex items-center gap-1.5">
+              <Download className="h-4 w-4" /> {t("import.export")}
             </Button>
           )}
           <ImportWordsDialog defaultCollectionId={coll} />
@@ -307,7 +308,7 @@ export default function WordsPage() {
                       }}
                       className="text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
                     >
-                      ✕
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                   </div>
@@ -366,9 +367,9 @@ export default function WordsPage() {
                 )
                   bulkDelete.mutate();
               }}
-              className="rounded-full border border-warn-text/30 px-3 py-1.5 text-sm font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-warn-text/30 px-3 py-1.5 text-sm font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
             >
-              🗑 <span className="hidden sm:inline">{t("words.deleteSelected")}</span>
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{t("words.deleteSelected")}</span>
             </button>
             <button
               type="button"

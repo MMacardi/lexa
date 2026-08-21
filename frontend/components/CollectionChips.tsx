@@ -6,6 +6,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { Check, Plus, X } from "lucide-react";
 
 // Toggle which collections a word belongs to, with an inline "new collection".
 export function CollectionChips({ word }: { word: Word }) {
@@ -62,9 +63,10 @@ export function CollectionChips({ word }: { word: Word }) {
                 on
                   ? "bg-sage text-white"
                   : "border border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                "inline-flex items-center gap-1",
               )}
             >
-              {on ? "✓ " : "+ "}
+              {on ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {c.name}
             </button>
           );
@@ -98,9 +100,9 @@ export function CollectionChips({ word }: { word: Word }) {
                 setCreating(false);
                 setName("");
               }}
-              className="text-sm font-semibold text-ink-faint hover:text-ink-muted"
+              className="text-ink-faint hover:text-ink-muted"
             >
-              ✕
+              <X className="h-4 w-4" />
             </button>
           </form>
         ) : (

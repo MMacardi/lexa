@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import type { Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { X } from "lucide-react";
 import {
   CARD_FIELDS,
   CARD_PRESETS,
@@ -60,8 +61,8 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-serif text-[22px] font-medium text-ink">{t("print.title")}</h2>
-          <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded-lg px-2 py-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
-            ✕
+          <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
+            <X className="h-4 w-4" />
           </button>
         </div>
         <p className="mb-3 text-[13px] text-ink-soft">{t("print.hint")}</p>

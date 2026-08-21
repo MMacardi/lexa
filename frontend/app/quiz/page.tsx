@@ -8,6 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
+import { BookOpen, Target, Pencil } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,7 +274,7 @@ export default function QuizPage() {
   if (words.length < 4)
     return (
       <div className="mx-auto max-w-[480px] rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
-        <div className="text-3xl">📚</div>
+        <BookOpen className="mx-auto h-8 w-8 text-sage" />
         <h2 className="mt-4 font-serif text-[26px] font-medium text-ink">{t("quiz.notEnough")}</h2>
         <p className="mt-2 text-ink-soft">
           {t("quiz.notEnoughText")}{" "}
@@ -391,7 +392,7 @@ export default function QuizPage() {
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         {score / total >= 0.6 && <Confetti />}
-        <div className="text-4xl">🎯</div>
+        <Target className="mx-auto h-9 w-9 text-sage" />
         <h2 className="mt-4 font-serif text-[32px] font-medium text-ink">{t("quiz.done")}</h2>
         <p className="mt-2 text-ink-soft">{t("quiz.score", { x: score, y: total })}</p>
         <Button variant="dark" className="mt-7" onClick={() => setStarted(false)}>
@@ -439,9 +440,9 @@ export default function QuizPage() {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setEditing(q.word)}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
+            <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("edit.editCard")}</span>
           </button>
           <button
             onClick={() => setStarted(false)}

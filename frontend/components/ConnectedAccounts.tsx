@@ -8,6 +8,7 @@ import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Send, Mail, Check } from "lucide-react";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "";
 const GOOGLE_ON = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
@@ -120,7 +121,7 @@ export function ConnectedAccounts() {
           <div className="min-w-0">
             <div className="text-[14px] font-semibold text-ink">{label}</div>
             {on ? (
-              <div className="truncate text-[12px] text-sage-deep">✓ {detail || t("acct.provEmail")}</div>
+              <div className="flex items-center gap-1 truncate text-[12px] text-sage-deep"><Check className="h-3 w-3 shrink-0" /> {detail || t("acct.provEmail")}</div>
             ) : (
               <div className="text-[12px] text-ink-faint">—</div>
             )}
@@ -151,7 +152,7 @@ export function ConnectedAccounts() {
       <div className="mt-4 space-y-2">
         <Row
           prov="telegram"
-          icon="✈️"
+          icon={<Send className="h-[18px] w-[18px] text-[#229ED9]" />}
           label={t("acct.provTelegram")}
           detail={linked("telegram")?.subject}
           connect={
@@ -181,7 +182,7 @@ export function ConnectedAccounts() {
         {GOOGLE_ON && (
           <Row
             prov="google"
-            icon="🇬"
+            icon={<span className="text-[15px] font-bold text-[#4285F4]">G</span>}
             label={t("acct.provGoogle")}
             detail={linked("google")?.subject}
             connect={<GoogleLoginButton onCredential={connectGoogle} />}
@@ -190,7 +191,7 @@ export function ConnectedAccounts() {
 
         <Row
           prov="email"
-          icon="✉️"
+          icon={<Mail className="h-[18px] w-[18px] text-ink-muted" />}
           label={t("acct.provEmail")}
           detail={linked("email")?.subject}
           connect={

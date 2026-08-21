@@ -7,6 +7,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
+import { X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
@@ -541,9 +542,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                   e.stopPropagation();
                   confirmRemove(n);
                 }}
-                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-[9px] font-bold text-white shadow group-hover:flex"
+                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-white shadow group-hover:flex"
               >
-                ✕
+                <X className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
             </div>
           );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
+import { Repeat2, MessageCircle, Bell, Smartphone, Send, type LucideIcon } from "lucide-react";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "";
 
@@ -10,11 +11,11 @@ export function BotInfo() {
   const { t } = useI18n();
   if (!BOT_USERNAME) return null;
 
-  const features: { icon: string; key: string }[] = [
-    { icon: "🔁", key: "bot.featReview" },
-    { icon: "💬", key: "bot.featChat" },
-    { icon: "⏰", key: "bot.featRemind" },
-    { icon: "📱", key: "bot.featMiniApp" },
+  const features: { Icon: LucideIcon; key: string }[] = [
+    { Icon: Repeat2, key: "bot.featReview" },
+    { Icon: MessageCircle, key: "bot.featChat" },
+    { Icon: Bell, key: "bot.featRemind" },
+    { Icon: Smartphone, key: "bot.featMiniApp" },
   ];
 
   return (
@@ -25,7 +26,7 @@ export function BotInfo() {
       <ul className="mt-4 space-y-2.5">
         {features.map((f) => (
           <li key={f.key} className="flex items-start gap-2.5">
-            <span className="mt-0.5 text-[15px]">{f.icon}</span>
+            <f.Icon className="mt-0.5 h-[17px] w-[17px] shrink-0 text-sage-deep" />
             <span className="text-[14px] leading-snug text-ink">{t(f.key)}</span>
           </li>
         ))}
@@ -37,7 +38,7 @@ export function BotInfo() {
         rel="noreferrer"
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#229ED9] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#1c8ac0]"
       >
-        ✈️ {t("bot.open")} @{BOT_USERNAME}
+        <Send className="h-4 w-4" /> {t("bot.open")} @{BOT_USERNAME}
       </a>
     </section>
   );

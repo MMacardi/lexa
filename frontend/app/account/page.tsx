@@ -26,6 +26,7 @@ import {
   type ExampleSource,
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
+import { Sun, Moon, X } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -60,9 +61,9 @@ function LevelsSection() {
                   type="button"
                   onClick={() => removeLevel(lang)}
                   aria-label="Remove"
-                  className="rounded-lg px-2 py-1 text-sm text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
+                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </li>
@@ -284,11 +285,12 @@ export default function AccountPage() {
                     if ((m === "dark") !== (theme === "dark")) toggle();
                   }}
                   className={cn(
-                    "rounded-full px-4 py-1.5 transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors",
                     theme === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
                   )}
                 >
-                  {m === "light" ? `☀️ ${t("account.themeLight")}` : `🌙 ${t("account.themeDark")}`}
+                  {m === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {m === "light" ? t("account.themeLight") : t("account.themeDark")}
                 </button>
               ))}
             </div>

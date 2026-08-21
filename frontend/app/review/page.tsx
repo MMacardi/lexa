@@ -27,6 +27,7 @@ import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
+import { ExternalLink, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -485,15 +486,15 @@ export default function FlashcardsPage() {
             href={`/word/${word.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            {t("review.openCard")} ↗
+            {t("review.openCard")} <ExternalLink className="h-3.5 w-3.5" />
           </a>
           <button
             onClick={() => setEditing(word)}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            ✎ <span className="hidden sm:inline">{t("edit.editCard")}</span>
+            <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("edit.editCard")}</span>
           </button>
           <button
             onClick={() => setStarted(false)}

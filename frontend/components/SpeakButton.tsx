@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { canSpeak, speak } from "@/lib/speak";
 import { cn } from "@/lib/utils";
+import { Volume2 } from "lucide-react";
 
 // 🔊 pronunciation button. Renders nothing if the browser has no speech engine.
 export function SpeakButton({
@@ -37,7 +38,7 @@ export function SpeakButton({
         className,
       )}
     >
-      🔊
+      <Volume2 className="h-[1em] w-[1em]" />
     </button>
   );
 }

@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { X } from "lucide-react";
 import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -125,7 +126,7 @@ export default function CollectionDetailPage() {
                   aria-label="Remove"
                   className="flex h-5 w-5 items-center justify-center rounded-full text-sage-deep/70 hover:bg-black/[0.06] hover:text-warn-text"
                 >
-                  ✕
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </span>
             ))}

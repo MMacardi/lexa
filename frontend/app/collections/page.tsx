@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { X, Pencil } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,9 +153,9 @@ function CollectionCard({
                 setEditing(false);
                 setName(collection.name);
               }}
-              className="text-sm font-semibold text-ink-faint"
+              className="text-ink-faint"
             >
-              ✕
+              <X className="h-4 w-4" />
             </button>
           </form>
         ) : (
@@ -174,9 +175,9 @@ function CollectionCard({
               <button
                 onClick={() => setEditing(true)}
                 aria-label="Rename"
-                className="rounded-lg px-2 py-1 text-sm text-ink-faint hover:bg-black/[0.04]"
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04]"
               >
-                ✎
+                <Pencil className="h-4 w-4" />
               </button>
               <button
                 onClick={async () => {
@@ -191,9 +192,9 @@ function CollectionCard({
                     remove.mutate();
                 }}
                 aria-label="Delete"
-                className="rounded-lg px-2 py-1 text-sm text-ink-faint hover:bg-black/[0.04] hover:text-warn-text"
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-warn-text"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
           </>

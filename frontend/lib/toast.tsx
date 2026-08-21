@@ -5,6 +5,25 @@ import Link from "next/link";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import {
+  TriangleAlert, Sprout, Folders, BookOpen, Target, Languages, WifiOff,
+  PenLine, Library, FileText, Save, Home, Layers, Sparkles, Bell, PartyPopper,
+  type LucideIcon,
+} from "lucide-react";
+
+// Map the emoji that call sites pass to a clean line icon, so toasts match the
+// rest of the UI. Unknown strings fall back to being rendered as-is.
+const TOAST_ICONS: Record<string, LucideIcon> = {
+  "⚠️": TriangleAlert, "🌱": Sprout, "🗂": Folders, "📖": BookOpen, "🎯": Target,
+  "🔤": Languages, "📴": WifiOff, "📝": PenLine, "📚": Library, "📄": FileText,
+  "💾": Save, "🏠": Home, "🃏": Layers, "✨": Sparkles, "🔔": Bell, "🎉": PartyPopper,
+};
+
+function ToastIcon({ icon }: { icon: string }) {
+  const Icon = TOAST_ICONS[icon.trim()];
+  if (!Icon) return <>{icon}</>;
+  return <Icon className={icon.trim() === "⚠️" ? "h-6 w-6 text-warn-text" : "h-6 w-6 text-sage-deep"} />;
+}
 
 export interface Toast {
   id: number;
@@ -340,7 +359,7 @@ function ToastCard({
             goal ? "bg-warn-bg" : "bg-sage-tint"
           }`}
         >
-          {toast.icon}
+          <ToastIcon icon={toast.icon} />
         </div>
         <div className="min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">

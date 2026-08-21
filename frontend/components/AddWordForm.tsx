@@ -7,6 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
+import { ArrowRightLeft } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
 import {
@@ -366,7 +367,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           title={t("add.swap")}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
         >
-          <span className={cn("text-[15px] transition-transform duration-300", swapSpin && "rotate-180")}>⇄</span>
+          <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
         </button>
         <LangSelect value={targetLang} onChange={setTargetLang} />
       </div>

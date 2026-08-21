@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
+import { ArrowRightLeft, Camera, Save, Languages, X } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -483,7 +484,7 @@ export default function ReaderPage() {
               title={t("add.swap")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
             >
-              <span className={cn("text-[15px] transition-transform duration-300", swapSpin && "rotate-180")}>⇄</span>
+              <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
             </button>
             <LangSelect value={targetLang} onChange={setTargetLang} />
           </div>
@@ -552,9 +553,9 @@ export default function ReaderPage() {
               type="button"
               disabled={scanning}
               onClick={() => fileRef.current?.click()}
-              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
             >
-              {scanning ? t("reader.scanning") : `📷 ${t("reader.scan")}`}
+              <Camera className="h-3.5 w-3.5" /> {scanning ? t("reader.scanning") : t("reader.scan")}
             </button>
             <button
               type="button"
@@ -606,9 +607,9 @@ export default function ReaderPage() {
         <button
           type="button"
           onClick={() => setShowSave(true)}
-          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
         >
-          💾 {t("reader.save")}
+          <Save className="h-3.5 w-3.5" /> {t("reader.save")}
         </button>
 
         {/* translate whole text */}
@@ -616,15 +617,16 @@ export default function ReaderPage() {
           type="button"
           onClick={translateAll}
           disabled={translating}
-          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
         >
+          {!translating && !trReady && <Languages className="h-3.5 w-3.5" />}
           {translating
             ? t("reader.translating")
             : trReady && showTr
               ? t("reader.hideTranslation")
               : trReady
                 ? t("reader.showTranslation")
-                : `🌐 ${t("reader.translate")}`}
+                : t("reader.translate")}
         </button>
 
         {newKeys.size > 0 && selected.size < newKeys.size && (
@@ -654,9 +656,9 @@ export default function ReaderPage() {
             <button
               type="button"
               onClick={swapLangs}
-              className="rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
             >
-              ⇄ {t("add.swap")}
+              <ArrowRightLeft className="h-3.5 w-3.5" /> {t("add.swap")}
             </button>
           ) : (
             <button
@@ -852,7 +854,7 @@ export default function ReaderPage() {
                 aria-label={t("common.cancel")}
                 className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
               <div className="max-h-[70vh] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface p-5 shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
                 <div className="min-w-0 pr-9">

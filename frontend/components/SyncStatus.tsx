@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { flushOutbox, isOnline, pendingCount, subscribeSync } from "@/lib/sync";
+import { RefreshCw, Clock, WifiOff } from "lucide-react";
 
 // A small status pill: shows "offline" when there's no network, and "N waiting
 // to sync" while queued changes haven't reached the server. Flushes the queue on
@@ -53,17 +54,27 @@ export function SyncStatus() {
     <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom))] left-1/2 z-[70] -translate-x-1/2 md:bottom-4">
       <div
         className={
-          "rounded-full border px-3.5 py-1.5 text-[12px] font-semibold shadow-[0_10px_30px_rgba(46,42,38,0.2)] backdrop-blur " +
+          "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold shadow-[0_10px_30px_rgba(46,42,38,0.2)] backdrop-blur " +
           (online
             ? "border-sage/30 bg-sage-tint/90 text-sage-deep"
             : "border-black/[0.08] bg-surface/95 text-ink-muted")
         }
       >
-        {pending > 0
-          ? online
-            ? `↻ ${t("sync.syncing", { n: pending })}`
-            : `⏳ ${t("sync.pending", { n: pending })}`
-          : `📴 ${t("sync.offline")}`}
+        {pending > 0 ? (
+          online ? (
+            <>
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" /> {t("sync.syncing", { n: pending })}
+            </>
+          ) : (
+            <>
+              <Clock className="h-3.5 w-3.5" /> {t("sync.pending", { n: pending })}
+            </>
+          )
+        ) : (
+          <>
+            <WifiOff className="h-3.5 w-3.5" /> {t("sync.offline")}
+          </>
+        )}
       </div>
     </div>
   );

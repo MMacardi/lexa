@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { TriangleAlert } from "lucide-react";
 
 // Landing page for the email magic-link. It consumes the token (which sets the
 // session cookie), refreshes the account, and sends the user into the app.
@@ -49,7 +50,7 @@ function EmailVerify() {
       <div className="anim-pop w-full max-w-[420px] rounded-[24px] border border-black/[0.06] bg-surface p-8 text-center shadow-sm">
         {failed ? (
           <>
-            <div className="text-3xl">⚠️</div>
+            <TriangleAlert className="mx-auto h-8 w-8 text-warn-text" />
             <p className="mt-3 text-ink">{t("login.verifyFailed")}</p>
             <Link href="/" className="mt-4 inline-block font-semibold text-sage hover:text-sage-deep">
               {t("login.backToLogin")}
