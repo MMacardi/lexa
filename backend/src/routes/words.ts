@@ -6,7 +6,7 @@ import { translateText, glossInContext } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
-import { listTexts, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
+import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import {
@@ -623,9 +623,20 @@ wordsRouter.post("/translate", async (req, res) => {
 // ---------------- Reader: saved texts ----------------
 const callerId = (req: Request) => readSession(req) ?? String((req.body?.telegramId ?? req.query.telegramId ?? "dev-user"));
 
-// GET /api/reader/texts?q=  -> the user's saved reading texts (search by q)
+// GET /api/reader/texts?q=&collection=  -> the user's saved reading texts
 wordsRouter.get("/reader/texts", async (req, res) => {
-  res.json(await listTexts(callerId(req), req.query.q ? String(req.query.q) : undefined));
+  res.json(
+    await listTexts(
+      callerId(req),
+      req.query.q ? String(req.query.q) : undefined,
+      req.query.collection ? String(req.query.collection) : undefined,
+    ),
+  );
+});
+
+// GET /api/reader/collections -> distinct collection names the user has used
+wordsRouter.get("/reader/collections", async (req, res) => {
+  res.json(await listReaderCollections(callerId(req)));
 });
 
 // GET /api/reader/texts/:id -> full saved text (owner only)
@@ -642,6 +653,8 @@ const readerCreateBody = z.object({
   telegramId: z.string().optional(),
   title: z.string().max(120).default(""),
   content: z.string().min(1).max(20_000),
+  collection: z.string().max(60).optional(),
+  autoName: z.boolean().optional(),
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
 });
