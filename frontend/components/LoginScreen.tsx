@@ -230,6 +230,18 @@ export function LoginScreen() {
         </details>
 
         {err && <p className="mt-3 text-sm text-warn-text">{err}</p>}
+
+        <p className="mt-6 text-[11px] leading-relaxed text-ink-faint">
+          Входя, вы соглашаетесь с{" "}
+          <a href="/terms" className="font-semibold text-ink-soft hover:text-ink hover:underline">
+            Условиями
+          </a>{" "}
+          и{" "}
+          <a href="/privacy" className="font-semibold text-ink-soft hover:text-ink hover:underline">
+            Политикой конфиденциальности
+          </a>
+          .
+        </p>
       </div>
     </main>
   );

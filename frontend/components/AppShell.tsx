@@ -8,8 +8,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { LoginScreen } from "@/components/LoginScreen";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 
-// Routes that render without the auth gate (they establish a session themselves).
-const PUBLIC_ROUTES = ["/login/verify"];
+// Routes that render without the auth gate (session-establishing or public legal).
+const PUBLIC_ROUTES = ["/login/verify", "/privacy", "/terms"];
 
 // These are always-mounted overlays but never on the critical path — defer their
 // chunks so the first page paints without their JS.
