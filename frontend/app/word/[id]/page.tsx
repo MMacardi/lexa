@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn, safeHttpUrl } from "@/lib/utils";
@@ -49,8 +49,20 @@ function Pills({ label, items }: { label: string; items: string[] }) {
   );
 }
 
+// Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
+// and language pair via sessionStorage so it survives the navigation.
+function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string) {
+  try {
+    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang }));
+  } catch {
+    /* ignore storage errors */
+  }
+  router.push("/reader");
+}
+
 export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -196,6 +208,13 @@ export default function WordDetailPage() {
             ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
               <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
             ) : null}
+            <button
+              type="button"
+              onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
+            >
+              📖 {t("word.openInReader")}
+            </button>
           </div>
         ))}
       </div>

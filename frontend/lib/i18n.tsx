@@ -445,7 +445,7 @@ const DICT: Record<string, Entry> = {
     zh: "AI 不支持「{lang}」——仅手动卡片。",
   },
   "add.swapLanguages": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
-  "add.wordPlaceholder": { en: "Word in {lang}", ru: "Слово на языке: {lang}", zh: "{lang} 单词" },
+  "add.wordPlaceholder": { en: "Word or phrase in {lang}", ru: "Слово или словосочетание на языке: {lang}", zh: "{lang} 单词或短语" },
   "add.meaningPlaceholder": { en: "Meaning ({lang}) — required", ru: "Значение ({lang}) — обязательно", zh: "释义（{lang}）— 必填" },
   "add.examplePlaceholder": { en: "Example sentence ({lang})", ru: "Пример предложения ({lang})", zh: "例句（{lang}）" },
   "add.exampleTrPlaceholder": { en: "Example translation ({lang})", ru: "Перевод примера ({lang})", zh: "例句翻译（{lang}）" },
@@ -574,6 +574,7 @@ const DICT: Record<string, Entry> = {
   "word.synonyms": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },
   "word.addExample": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
+  "word.openInReader": { en: "Open in Reader", ru: "Открыть в читалке", zh: "在阅读器中打开" },
   "word.exampleAdded": { en: "Example added", ru: "Пример добавлен", zh: "已添加例句" },
   "word.family": { en: "Word family", ru: "Семья слов", zh: "词族" },
   "word.familyHint": {

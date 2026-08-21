@@ -150,6 +150,17 @@ export default function ReaderPage() {
         if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
         if (p.targetLang) setTargetLang(p.targetLang);
       }
+      // A sentence handed off from a word page ("Open in Reader") — pre-fill it.
+      const pre = sessionStorage.getItem("lexa.readerPrefill");
+      if (pre) {
+        sessionStorage.removeItem("lexa.readerPrefill");
+        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string };
+        if (p.text?.trim()) {
+          setText(p.text);
+          if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
+          if (p.targetLang) setTargetLang(p.targetLang);
+        }
+      }
     } catch {
       /* ignore */
     }
