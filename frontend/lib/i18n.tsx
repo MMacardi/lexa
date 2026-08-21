@@ -21,6 +21,7 @@ const DICT: Record<string, Entry> = {
   "nav.reader": { en: "Reader", ru: "Читалка", zh: "阅读" },
   "nav.collections": { en: "Collections", ru: "Коллекции", zh: "合集" },
   "nav.friends": { en: "Friends", ru: "Друзья", zh: "好友" },
+  "nav.more": { en: "More", ru: "Ещё", zh: "更多" },
   "friends.title": { en: "Friends", ru: "Друзья", zh: "好友" },
   "friends.subtitle": { en: "Invite friends and cheer each other on — see their languages, streaks and achievements.", ru: "Приглашайте друзей и следите за прогрессом — их языки, серии и достижения.", zh: "邀请好友一起学习——查看他们的语言、连续天数和成就。" },
   "friends.invite": { en: "Your invite code", ru: "Ваш код-приглашение", zh: "你的邀请码" },
