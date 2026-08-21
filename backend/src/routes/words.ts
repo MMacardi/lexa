@@ -541,6 +541,7 @@ const glossBody = z.object({
   sentence: z.string().max(1000).default(""),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  withTranscription: z.boolean().optional(),
 });
 wordsRouter.post("/gloss", async (req, res) => {
   const parsed = glossBody.safeParse(req.body);

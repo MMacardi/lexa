@@ -11,6 +11,8 @@ import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
   getReaderSource,
+  getShowTranscription,
+  hasTranscription,
   pushRecentPair,
   setReaderSource,
   useReaderSource,
@@ -94,8 +96,9 @@ export default function ReaderPage() {
   // per-word quick gloss popover (tap a word → its translation)
   const [gloss, setGloss] = useState<{ key: string; word: string; x: number; y: number } | null>(null);
   const [glossText, setGlossText] = useState<string | null>(null);
+  const [glossTr, setGlossTr] = useState<string>(""); // transcription (pinyin/romaji)
   const [glossLoading, setGlossLoading] = useState(false);
-  const glossCache = useRef<Map<string, string>>(new Map());
+  const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const glossKeyRef = useRef<string>("");
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
@@ -231,18 +234,23 @@ export default function ReaderPage() {
     glossKeyRef.current = key;
     const cached = glossCache.current.get(key);
     if (cached != null) {
-      setGlossText(cached);
+      setGlossText(cached.gloss);
+      setGlossTr(cached.tr);
       setGlossLoading(false);
       return;
     }
     setGlossText(null);
+    setGlossTr("");
     setGlossLoading(true);
+    const wantTr = getShowTranscription() && hasTranscription(sourceLang);
     api
-      .translate({ text: wordText, sourceLang, targetLang })
+      .gloss({ word: wordText, sentence: wordText, sourceLang, targetLang, withTranscription: wantTr })
       .then((r) => {
-        glossCache.current.set(key, r.translation);
+        const entry = { gloss: r.gloss, tr: r.transcription ?? "" };
+        glossCache.current.set(key, entry);
         if (glossKeyRef.current === key) {
-          setGlossText(r.translation);
+          setGlossText(entry.gloss);
+          setGlossTr(entry.tr);
           setGlossLoading(false);
         }
       })
@@ -769,6 +777,9 @@ export default function ReaderPage() {
           >
             <div className="max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
               <div className={cn("text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</div>
+              {!glossLoading && glossTr && (
+                <div className="mt-0.5 text-[12px] font-medium text-ink-faint">{glossTr}</div>
+              )}
               <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>
                 {glossLoading ? t("reader.translating") : glossText}
               </div>

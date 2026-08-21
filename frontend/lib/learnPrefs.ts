@@ -23,6 +23,7 @@ export const LEVEL_HINT: Record<CefrLevel, string> = {
 const LEVELS_KEY = "lexa.levels"; // { [lang]: CefrLevel }
 const STYLE_KEY = "lexa.exampleStyle";
 const SOURCE_KEY = "lexa.exampleSource";
+const TRANSCRIPTION_KEY = "lexa.showTranscription";
 const EVT = "lexa-prefs-changed";
 
 function readLevels(): Record<string, CefrLevel> {
@@ -369,4 +370,36 @@ export function useExampleSource(): ExampleSource {
     };
   }, []);
   return source;
+}
+
+// --- Show transcription (pinyin / romaji / romanization) in quick tap-lookups ---
+// Handy when reading CJK: a fast tap shows the reading alongside the meaning.
+export function getShowTranscription(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(TRANSCRIPTION_KEY) !== "0"; // default on
+}
+
+export function setShowTranscription(on: boolean) {
+  localStorage.setItem(TRANSCRIPTION_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useShowTranscription(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getShowTranscription());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
+// Languages where a transcription is meaningful.
+export function hasTranscription(lang: string): boolean {
+  return lang === "zh" || lang === "zh-Hant" || lang === "ja" || lang === "ko";
 }

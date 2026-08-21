@@ -16,10 +16,12 @@ import {
   setExampleSource,
   setLevel,
   setRetention,
+  setShowTranscription,
   useAllLevels,
   useExampleSource,
   useHanLang,
   useRetention,
+  useShowTranscription,
   type CefrLevel,
   type ExampleSource,
 } from "@/lib/learnPrefs";
@@ -149,6 +151,35 @@ function ExampleSourceSection() {
         </div>
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
+    </section>
+  );
+}
+
+function TranscriptionSection() {
+  const { t } = useI18n();
+  const on = useShowTranscription();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("tr.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("tr.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              type="button"
+              onClick={() => setShowTranscription(v)}
+              className={cn(
+                "rounded-full px-4 py-1.5 transition-colors",
+                on === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {v ? t("common.on") : t("common.off")}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("tr.hint")}</p>
     </section>
   );
 }
@@ -295,6 +326,9 @@ export default function AccountPage() {
 
       {/* where example sentences come from (AI vs web) */}
       <ExampleSourceSection />
+
+      {/* transcription (pinyin/romaji) in quick tap lookups */}
+      <TranscriptionSection />
 
       {/* language levels */}
       <LevelsSection />

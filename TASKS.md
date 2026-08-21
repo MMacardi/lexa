@@ -1,33 +1,25 @@
-# Task backlog (from user, this session)
+# Задачи (текущая пачка)
 
-✅ done · 🔨 in progress · ⏳ planned/deferred
+Пишу сюда ДО выполнения, чтобы ничего не забыть. Ставлю [x] когда готово + коммит.
 
-## Bug fixes
-- ✅ Card flip: won't break after quick/double taps — flip via onClick (reliable),
-  swipe via element-scoped pointer capture (no leaked window listeners).
-- ✅ Flashcard layout: title+counter on one line, actions wrap below (no crooked "1/N").
-- ✅ Reader: quick-translate gloss popup dismisses on tap anywhere / scroll / Esc.
-- ✅ 月→월 Korean misdetection: removed Korean from the auto-detect Han picker
-  (only 中文 / 日本語 now; stored "ko" choice is ignored).
-- ✅ Reader: warns when pasted text's script ≠ chosen source (offer swap / set source).
-- ✅ Import word-list preview: enlarged word/meaning/example.
-- ✅ Home "due today" cards: status label pinned to the card bottom (flex + mt-auto).
+## Из последних сообщений
+- [x] 1. Транскрипция при тапе (пиньинь/ромадзи/романизация) + настройка вкл/выкл.
+      Готово. «Баг» был в шелле (curl ломал UTF-8); в браузере gloss корректен:
+      醒来→просыпаться (xǐng lái), 海鸥→чайка (hǎi ōu).
+- [ ] 2. Тап-перевод на СОЧЕТАНИЯХ (collocations) на странице слова (как в ридере,
+      с транскрипцией).
+- [ ] 3. Ридер: переделать панель кнопок — «Сохранить / Текст от ИИ» выглядят
+      нагромождённо, сделать компактнее.
+- [ ] 4. Ридер: сохранять текст и ДО, и ПОСЛЕ перевода (сейчас save только на вводе).
+- [ ] 5. Коллекции для сохранённых текстов (типа «прочитать позже»).
+- [ ] 6. «Текст от ИИ» в ридере — спрашивать уровень языка (CEFR) перед генерацией.
+- [ ] 7. Сохранение текста: заголовок — для ИИ-текста авто (уже так); для вставленного
+      либо ввести самому, либо по умолчанию ИИ придумает заголовок при сохранении.
+      При сохранении предлагать коллекцию и название. ИСТОЧНИК НЕ трогать (оставить
+      как раньше — он нужен для быстрого добавления слов).
+- [ ] 8. Карточки в процессе создания (пустое значение) — показывать плейсхолдер/
+      скелетон «значение создаётся» или анимацию, либо не показывать пустую строку.
 
-## Features
-- ✅ Collection "Create «word»" (empty search) → opens add form in **AI/auto** mode,
-  prefilled (`?word=&mode=auto`), auto-joining the set.
-- ✅ Quiz counts toward "mastered" — verified: correct answers grade Good → reviewCount++.
-- ✅ Unit economics — see `UNIT_ECONOMICS.md` (≈$0.2–2 / user / month; compute is free).
-- ✅ AI tutor that can DO things (tool-use):
-  - ✅ add synonyms/antonyms to the current card from chat (one-tap).
-  - ✅ create new cards from chat ("add the word X") → background batch-add.
-  - ✅ **Global tutor**: floating ✨ button on every page → chat panel with visible
-    quick-actions (words by topic/level, explain), can create cards into a chosen
-    collection, uses the current language pair.
-- 🔨 Printable PNG cards:
-  - ✅ prettier two-face (front + back) PNG, choose what's on each side (reuses the
-    card layout), live preview + download — `PrintCardModal` + `renderPrintableCard`.
-  - ⏳ user image on the card front (needs `Word.imageUrl` + upload/storage). Deferred.
-
-## Wrap-up
-- ✅ Commit to `new_lexa` (PR to main deferred per user).
+## Правила
+- Перед задачей — записать сюда.
+- После — [x] + git commit в new_lexa (без Co-Authored-By).
