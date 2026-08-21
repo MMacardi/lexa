@@ -418,6 +418,12 @@ export function launchBot(): void {
       { command: "help", description: "Что я умею" },
     ])
     .catch((err) => console.error("setMyCommands failed:", (err as Error).message));
+  // Menu button → open the site as a Mini App (Telegram requires an https URL).
+  if (env.FRONTEND_URL.startsWith("https://")) {
+    void bot.telegram
+      .setChatMenuButton({ menuButton: { type: "web_app", text: "Открыть Lexa", web_app: { url: env.FRONTEND_URL } } })
+      .catch((err) => console.error("setChatMenuButton failed:", (err as Error).message));
+  }
   void bot.launch(() => console.log("Telegram tutor bot started (long polling)."));
   // Reminders are per-user opt-in (via /remind), so the sweep always runs.
   startReminderLoop(bot);

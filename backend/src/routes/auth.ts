@@ -4,6 +4,7 @@ import { env } from "../lib/env.js";
 import { prisma } from "../services/db.js";
 import {
   verifyTelegramAuth,
+  verifyTelegramWebApp,
   setSessionCookie,
   clearSessionCookie,
   readSession,
@@ -67,6 +68,30 @@ authRouter.post("/auth/telegram", async (req, res) => {
       lastName: data.last_name ?? null,
       username: data.username ?? null,
       photoUrl: data.photo_url ?? null,
+    },
+    authVia: "telegram",
+    sessionTelegramId: readSession(req),
+  });
+  await finishLogin(res, telegramId);
+});
+
+// POST /api/auth/telegram/webapp — sign in from inside the Telegram Mini App
+// using the WebApp initData (verified by HMAC with the bot token).
+authRouter.post("/auth/telegram/webapp", async (req, res) => {
+  const initData = String((req.body as { initData?: unknown })?.initData ?? "");
+  const u = verifyTelegramWebApp(initData, env.TELEGRAM_BOT_TOKEN);
+  if (!u) {
+    res.status(401).json({ error: "Invalid Telegram Mini App data" });
+    return;
+  }
+  const { telegramId } = await resolveIdentity({
+    provider: "telegram",
+    subject: u.id,
+    profile: {
+      firstName: u.first_name ?? null,
+      lastName: u.last_name ?? null,
+      username: u.username ?? null,
+      photoUrl: u.photo_url ?? null,
     },
     authVia: "telegram",
     sessionTelegramId: readSession(req),

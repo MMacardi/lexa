@@ -40,6 +40,46 @@ export function verifyTelegramAuth(data: TelegramAuthData, botToken: string): bo
   return true;
 }
 
+export interface WebAppUser {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+}
+
+/**
+ * Verify Telegram Mini App initData.
+ * secret = HMAC-SHA256(key="WebAppData", bot_token); the HMAC of the sorted
+ * "k=v\n" data-check-string (minus hash) must equal the provided hash.
+ * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ */
+export function verifyTelegramWebApp(initData: string, botToken: string): WebAppUser | null {
+  if (!botToken || !initData) return null;
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  params.delete("hash");
+  const dataCheckString = [...params.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("\n");
+  const secret = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+  const calc = crypto.createHmac("sha256", secret).update(dataCheckString).digest("hex");
+  const a = Buffer.from(calc, "hex");
+  const b = Buffer.from(hash, "hex");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const authDate = Number(params.get("auth_date"));
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return null;
+  try {
+    const u = JSON.parse(params.get("user") ?? "");
+    if (!u?.id) return null;
+    return { id: String(u.id), first_name: u.first_name, last_name: u.last_name, username: u.username, photo_url: u.photo_url };
+  } catch {
+    return null;
+  }
+}
+
 export function createSessionToken(telegramId: string): string {
   return jwt.sign({ tid: telegramId }, env.JWT_SECRET, { expiresIn: "30d" });
 }
