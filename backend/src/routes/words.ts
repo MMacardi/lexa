@@ -17,6 +17,7 @@ import {
   deleteWord,
   updateWord,
   addExampleToWord,
+  addProvidedExample,
   explainWord,
   askAboutWord,
   getStats,
@@ -407,6 +408,26 @@ wordsRouter.post("/words/:id/example", async (req, res) => {
   }
   try {
     res.json(await addExampleToWord(req.params.id, parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/:id/example/manual -> append a ready-made example (from tutor chat).
+const manualExampleBody = z.object({
+  sentenceEn: z.string().min(1).max(600),
+  sentenceZh: z.string().max(600).optional(),
+});
+wordsRouter.post("/words/:id/example/manual", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  const parsed = manualExampleBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await addProvidedExample(req.params.id, parsed.data.sentenceEn, parsed.data.sentenceZh ?? ""));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });

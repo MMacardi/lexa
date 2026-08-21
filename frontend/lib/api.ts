@@ -218,9 +218,21 @@ export const api = {
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
   askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>
-    http<{ answer: string; addSynonyms: string[]; addAntonyms: string[]; addWords: string[] }>(`/api/words/${id}/ask`, {
+    http<{
+      answer: string;
+      addSynonyms: string[];
+      addAntonyms: string[];
+      addWords: string[];
+      addExamples: { sentence: string; translation: string }[];
+    }>(`/api/words/${id}/ask`, {
       method: "POST",
       body: JSON.stringify({ messages }),
+    }),
+  // Append a ready-made example (from tutor chat) to a card.
+  addManualExample: (id: string, sentenceEn: string, sentenceZh: string) =>
+    http<Word>(`/api/words/${id}/example/manual`, {
+      method: "POST",
+      body: JSON.stringify({ sentenceEn, sentenceZh }),
     }),
   // Global AI tutor chat (not tied to a card).
   tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string }) =>

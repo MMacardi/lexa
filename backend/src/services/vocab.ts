@@ -181,6 +181,16 @@ export async function getWord(id: string) {
   });
 }
 
+/** Append a ready-made example (e.g. one the tutor produced in chat) to a card. */
+export async function addProvidedExample(id: string, sentenceEn: string, sentenceZh: string) {
+  const word = await prisma.word.findUnique({ where: { id }, select: { id: true } });
+  if (!word) throw new Error("Word not found");
+  await prisma.example.create({
+    data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Lexa AI", sourceUrl: "" },
+  });
+  return getWord(id);
+}
+
 /** Delete a word (its examples cascade via the schema's onDelete: Cascade). */
 export async function deleteWord(id: string) {
   return prisma.word.delete({ where: { id } });
@@ -444,10 +454,13 @@ export async function askAboutWord(
         `put those ${sourceName} words in "addSynonyms" / "addAntonyms" (only genuine ones, in ${sourceName}, ` +
         `not already listed). If the learner explicitly asks to SAVE/ADD new vocabulary as its own ` +
         `card(s) — even words unrelated to this one — ALWAYS honor it (this is a valid learning action, ` +
-        `not off-topic): put those ${sourceName} words in "addWords". Otherwise leave the arrays empty.` +
+        `not off-topic): put those ${sourceName} words in "addWords". ` +
+        `If the learner asks to SAVE/ADD an example sentence to this card (e.g. "add this example", ` +
+        `"save that sentence"), put it in "addExamples" as {sentence: the ${sourceName} sentence, ` +
+        `translation: its ${targetName} translation}. Otherwise leave the arrays empty.` +
         scriptNote(word.sourceLang) +
         scriptNote(word.targetLang) +
-        ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[]}.\n\n' +
+        ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[], "addExamples": {"sentence": string, "translation": string}[]}.\n\n' +
         `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
         (word.synonyms.length ? `\nExisting synonyms: ${word.synonyms.join(", ")}` : "") +
         (word.antonyms.length ? `\nExisting antonyms: ${word.antonyms.join(", ")}` : "") +
@@ -465,6 +478,9 @@ export async function askAboutWord(
     addSynonyms: (result.addSynonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addWords: (result.addWords ?? []).filter((s) => s.trim() && s.trim().toLowerCase() !== self),
+    addExamples: (result.addExamples ?? [])
+      .filter((e) => e.sentence.trim())
+      .map((e) => ({ sentence: e.sentence, translation: e.translation ?? "" })),
   };
 }
 

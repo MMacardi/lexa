@@ -37,6 +37,15 @@ export const wordChatSchema = z.object({
   addAntonyms: z.array(z.string()).default([]),
   // Brand-new vocabulary the learner asked to save as its own card(s).
   addWords: z.array(z.string()).default([]),
+  // Example sentences the learner asked to save onto this card.
+  addExamples: z
+    .array(
+      z.object({
+        sentence: z.string().min(1).max(600),
+        translation: z.string().max(600).nullish().transform((v) => v ?? ""),
+      }),
+    )
+    .default([]),
 });
 export type WordChatResult = z.infer<typeof wordChatSchema>;
 
