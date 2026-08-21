@@ -12,16 +12,6 @@ import { useI18n } from "@/lib/i18n";
 const KEY_SET = "lexa.ach.unlocked";
 const KEY_GOAL = "lexa.goal.celebrated";
 
-const LABEL_KEY: Record<string, string> = {
-  "first-word": "ach.firstWord",
-  "10-words": "ach.10words",
-  "50-words": "ach.50words",
-  "first-mastered": "ach.firstMastered",
-  "10-mastered": "ach.10mastered",
-  "streak-3": "ach.streak3",
-  "streak-7": "ach.streak7",
-};
-
 // Invisible component (mounted app-wide) that watches the stats query and pops a
 // toast whenever a new achievement unlocks or the daily goal is hit. Already-
 // earned achievements are seeded silently on first run so we don't spam.
@@ -49,7 +39,7 @@ export function AchievementWatcher() {
       const newly = doneIds.filter((id) => !set.has(id));
       for (const id of newly) {
         const b = badges.find((x) => x.id === id);
-        if (b) show({ icon: b.icon, title: t(LABEL_KEY[id] ?? b.label), subtitle: t("toast.milestone"), tone: "achievement" });
+        if (b) show({ icon: "🏆", title: t(b.labelKey), subtitle: t("toast.milestone"), tone: "achievement" });
       }
       if (newly.length) localStorage.setItem(KEY_SET, JSON.stringify([...set, ...newly]));
     }

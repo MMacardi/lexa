@@ -91,6 +91,8 @@ export interface Stats {
   due: number;
   trainedToday: number;
   streak: number;
+  reviews: number; // lifetime graded reviews
+  languages: string[]; // distinct source languages studied
   days: { date: string; added: number; reviews: number }[];
   heat: { date: string; count: number }[];
 }
