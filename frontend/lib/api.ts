@@ -318,6 +318,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ telegramId }),
     }),
+  // Telegram Mini App: sign in with the WebApp initData (verified server-side).
+  loginTelegramWebApp: (initData: string) =>
+    http<Profile>(`/api/auth/telegram/webapp`, { method: "POST", body: JSON.stringify({ initData }) }),
   // Deep-link login via the bot: get a one-time token, then poll until the user
   // confirms in Telegram (poll returns null while still pending).
   startTelegramLogin: () => http<{ token: string }>(`/api/auth/telegram/start`, { method: "POST" }),
