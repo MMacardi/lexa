@@ -61,6 +61,7 @@ const DICT: Record<string, Entry> = {
   "reader.myTexts": { en: "My texts", ru: "Мои тексты", zh: "我的文本" },
   "reader.generate": { en: "AI text", ru: "Текст от ИИ", zh: "AI 文本" },
   "reader.genTopic": { en: "Topic (e.g. space travel, a café)", ru: "Тема (напр. космос, кафе)", zh: "主题（如太空、咖啡馆）" },
+  "reader.genLevel": { en: "Level", ru: "Уровень", zh: "级别" },
   "reader.genCreate": { en: "Generate", ru: "Создать", zh: "生成" },
   "reader.generating": { en: "Writing…", ru: "Пишу…", zh: "生成中…" },
   "reader.searchTexts": { en: "Search your texts…", ru: "Искать в текстах…", zh: "搜索文本…" },

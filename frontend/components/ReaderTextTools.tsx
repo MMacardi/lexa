@@ -5,7 +5,7 @@ import { api, type ReaderTextSummary } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -188,6 +188,7 @@ function GenerateModal({
   const { t } = useI18n();
   const { show } = useToast();
   const [topic, setTopic] = useState("");
+  const [level, setLevel] = useState<CefrLevel>(getLevel(sourceLang) ?? "B1");
   const [busy, setBusy] = useState(false);
 
   async function go() {
@@ -195,13 +196,7 @@ function GenerateModal({
     if (!tp || busy) return;
     setBusy(true);
     try {
-      const r = await api.generateReaderText({
-        telegramId: accountId,
-        topic: tp,
-        sourceLang,
-        targetLang,
-        level: getLevel(sourceLang) ?? undefined,
-      });
+      const r = await api.generateReaderText({ telegramId: accountId, topic: tp, sourceLang, targetLang, level });
       onStarted(r.id);
     } catch (e) {
       show({ icon: "⚠️", title: (e as Error).message });
@@ -221,7 +216,28 @@ function GenerateModal({
       >
         <h3 className="mb-3 font-serif text-[18px] font-semibold text-ink">✨ {t("reader.generate")}</h3>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t("reader.genTopic")} autoFocus className="h-11" />
-        <Button type="submit" disabled={busy || !topic.trim()} className="mt-3 w-full">
+        <div className="mt-3">
+          <div className="mb-1.5 text-[12px] font-medium text-ink-soft">{t("reader.genLevel")}</div>
+          <div className="flex gap-1">
+            {CEFR_LEVELS.map((lv) => (
+              <button
+                key={lv}
+                type="button"
+                onClick={() => setLevel(lv)}
+                title={LEVEL_HINT[lv]}
+                className={
+                  "flex-1 rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
+                  (level === lv
+                    ? "border-sage bg-sage/15 text-ink"
+                    : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
+                }
+              >
+                {lv}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Button type="submit" disabled={busy || !topic.trim()} className="mt-4 w-full">
           {busy ? t("reader.generating") : t("reader.genCreate")}
         </Button>
       </form>

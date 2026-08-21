@@ -281,11 +281,11 @@ export default function WordsPage() {
                       {pairLabel(w.sourceLang, w.targetLang)}
                     </span>
                     <span className={cn("mt-0.5 block truncate text-sm text-sage sm:hidden", targetFont(w.targetLang))}>
-                      {w.meaningZh}
+                      {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3 w-28 animate-pulse rounded bg-sage/25 align-middle" />}
                     </span>
                   </Link>
                   <span className={cn("hidden truncate text-[17px] text-sage-deep sm:block", targetFont(w.targetLang))}>
-                    {w.meaningZh}
+                    {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3.5 w-32 animate-pulse rounded bg-sage/25 align-middle" />}
                   </span>
                   <span className="hidden text-sm font-medium text-ink-soft sm:block">
                     {w.examples[0]?.sourceName ?? "—"}
