@@ -2,6 +2,13 @@
 
 Пишу сюда ДО выполнения, чтобы ничего не забыть. Ставлю [x] когда готово + коммит.
 
+## Пейволл-проводка (доступ друзьям + задел под платный запуск)
+- [x] User.plan + planUntil (+ миграция). entitlements.ts: isPro, дневной счётчик
+      в памяти, aiQuotaGuard, usageStatus. Навесил guard на AI_POST_PATH; GET
+      /api/ai/usage. Env BETA_ALL_PRO (default true) + FREE_DAILY_AI (25).
+      Фронт: api.aiUsage + PlanUsage на Аккаунте. Проверено: free cap=2 → 3-й 429
+      ai_quota; beta-mode pro безлимит. Капчу решили НЕ делать.
+
 ## Новая пачка (кэш + оценка в чате + ясность UX)
 - [x] A. Кэш ИИ-объяснения на карточке. Word.explainCache + миграция; explainWord
       отдаёт кэш если есть, иначе генерит и сохраняет; updateWord сбрасывает кэш

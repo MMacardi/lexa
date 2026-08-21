@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
+import { aiQuotaGuard, usageStatus } from "../lib/entitlements.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
@@ -46,6 +47,18 @@ const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
   next();
+});
+// Billing cap: after the burst limiter, free users spend one daily AI action per
+// expensive POST; Pro (and the whole closed beta) pass through. Reads are free.
+wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiQuotaGuard(req, res, next);
+  next();
+});
+
+// GET /api/ai/usage -> the caller's plan + today's AI-action usage (for the UI).
+wordsRouter.get("/ai/usage", async (req: Request, res: Response) => {
+  const id = readSession(req) ?? String(req.query.telegramId ?? "anon");
+  res.json(await usageStatus(id));
 });
 
 // Authorization guards for :id routes. The frontend always carries a verified

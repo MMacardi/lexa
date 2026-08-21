@@ -349,6 +349,11 @@ export const api = {
   unlinkIdentity: (provider: string) =>
     http<{ identities: AuthIdentity[] }>(`/api/auth/identity/${encodeURIComponent(provider)}`, { method: "DELETE" }),
 
+  // Billing: current plan + today's AI-action usage.
+  aiUsage: (telegramId: string) =>
+    http<{ pro: boolean; plan: string; used: number; limit: number; remaining: number }>(
+      `/api/ai/usage?telegramId=${encodeURIComponent(telegramId)}`,
+    ),
   // Reader: saved texts + AI generation.
   readerTexts: (telegramId: string, q?: string, collection?: string) =>
     http<ReaderTextSummary[]>(
