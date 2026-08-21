@@ -15,6 +15,7 @@ import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
+import { TapGlossPills } from "@/components/TapGlossPills";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -29,25 +30,6 @@ const PrintCardModal = dynamic(() => import("@/components/PrintCardModal").then(
 });
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
-
-function Pills({ label, items }: { label: string; items: string[] }) {
-  if (!items.length) return null;
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{label}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((it) => (
-          <span
-            key={it}
-            className="rounded-full border border-black/[0.06] bg-sage-tint px-2.5 py-0.5 text-sm text-sage-deep"
-          >
-            {it}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
 // and language pair via sessionStorage so it survives the navigation.
@@ -171,7 +153,12 @@ export default function WordDetailPage() {
       <ExplainChat word={word} />
 
       {word.collocations.length > 0 && (
-        <Pills label={t("word.collocations")} items={word.collocations} />
+        <TapGlossPills
+          label={t("word.collocations")}
+          items={word.collocations}
+          sourceLang={word.sourceLang}
+          targetLang={word.targetLang}
+        />
       )}
 
       {/* synonyms + antonyms as a tappable mini word-family graph */}
