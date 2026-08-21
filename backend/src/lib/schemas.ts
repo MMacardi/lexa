@@ -15,6 +15,13 @@ export const translationSchema = z.object({
 });
 export type Translation = z.infer<typeof translationSchema>;
 
+// Contextual gloss with an optional transcription (pinyin / romaji / romanization)
+// of the looked-up word, for CJK reading.
+export const glossSchema = z.object({
+  translation: z.string().min(1),
+  transcription: z.string().nullish().transform((v) => v ?? ""),
+});
+
 // A single composed example sentence — used as a fallback when the web search
 // yields nothing usable in the target script/language.
 export const exampleSentenceSchema = z.object({
