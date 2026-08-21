@@ -6,7 +6,7 @@ import { translateText, glossInContext } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
-import { listTexts, getText, createText, updateText, deleteText, generateText } from "../services/readerText.js";
+import { listTexts, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import {
@@ -694,9 +694,9 @@ wordsRouter.post("/reader/generate", async (req, res) => {
     return;
   }
   try {
-    res.json(await generateText(parsed.data));
+    res.status(201).json(await startGeneration(callerId(req), parsed.data));
   } catch (err) {
     console.error(err);
-    res.status(502).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message });
   }
 });
