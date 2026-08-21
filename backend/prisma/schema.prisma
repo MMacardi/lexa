@@ -103,6 +103,7 @@ model ReaderText {
   title      String
   content    String
   status     String   @default("ready") // ready | generating | failed
+  collection String? // optional "read later"-style folder name
   sourceLang String?
   targetLang String?
   createdAt  DateTime @default(now())

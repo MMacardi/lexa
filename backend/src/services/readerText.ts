@@ -11,18 +11,20 @@ async function userId(telegramId: string): Promise<string | null> {
   return u?.id ?? null;
 }
 
-export async function listTexts(telegramId: string, q?: string) {
+export async function listTexts(telegramId: string, q?: string, collection?: string) {
   const uid = await userId(telegramId);
   if (!uid) return [];
   const query = q?.trim();
+  const coll = collection?.trim();
   const rows = await prisma.readerText.findMany({
     where: {
       userId: uid,
+      ...(coll ? { collection: coll } : {}),
       ...(query ? { OR: [{ title: { contains: query, mode: "insensitive" } }, { content: { contains: query, mode: "insensitive" } }] } : {}),
     },
     orderBy: { updatedAt: "desc" },
     take: 100,
-    select: { id: true, title: true, content: true, status: true, sourceLang: true, targetLang: true, updatedAt: true },
+    select: { id: true, title: true, content: true, status: true, collection: true, sourceLang: true, targetLang: true, updatedAt: true },
   });
   // Return a short snippet for the list, full content only when opening one.
   return rows.map((r) => ({
@@ -30,10 +32,24 @@ export async function listTexts(telegramId: string, q?: string) {
     title: r.title,
     snippet: r.content.slice(0, 140),
     status: r.status,
+    collection: r.collection,
     sourceLang: r.sourceLang,
     targetLang: r.targetLang,
     updatedAt: r.updatedAt,
   }));
+}
+
+// Distinct non-empty collection names this user has used (for the library filter).
+export async function listCollections(telegramId: string): Promise<string[]> {
+  const uid = await userId(telegramId);
+  if (!uid) return [];
+  const rows = await prisma.readerText.findMany({
+    where: { userId: uid, collection: { not: null } },
+    distinct: ["collection"],
+    orderBy: { collection: "asc" },
+    select: { collection: true },
+  });
+  return rows.map((r) => r.collection!).filter((c) => c.trim());
 }
 
 export async function getText(telegramId: string, id: string) {
@@ -42,15 +58,40 @@ export async function getText(telegramId: string, id: string) {
   return prisma.readerText.findFirst({ where: { id, userId: uid } });
 }
 
+// Ask the model for a short, natural title for a pasted text (the "let AI name
+// it" option at save time). Best-effort: falls back to the first line on error.
+async function titleFor(content: string, sourceLang?: string): Promise<string> {
+  const source = langName(sourceLang ?? "en");
+  const body = content.trim().slice(0, 1500);
+  const fallback = body.slice(0, 40) || "Untitled";
+  try {
+    const r = await chatJson({
+      system:
+        `Give a short, natural ${source} title (3–6 words, no quotes, no trailing ` +
+        `punctuation) for the ${source} text the user sends.` +
+        scriptNote(sourceLang ?? "en") +
+        ` Respond as JSON: {"title": string}.`,
+      user: body,
+      schema: z.object({ title: z.string().min(1).max(120) }),
+      timeoutMs: 20000,
+    });
+    return r.title.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function createText(
   telegramId: string,
-  data: { title: string; content: string; sourceLang?: string; targetLang?: string },
+  data: { title: string; content: string; collection?: string; autoName?: boolean; sourceLang?: string; targetLang?: string },
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
-  const title = data.title.trim() || data.content.trim().slice(0, 40) || "Untitled";
+  const typed = data.title.trim();
+  const title = typed || (data.autoName ? await titleFor(data.content, data.sourceLang) : data.content.trim().slice(0, 40) || "Untitled");
+  const collection = data.collection?.trim() || null;
   return prisma.readerText.create({
-    data: { userId: uid, title, content: data.content, sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null },
+    data: { userId: uid, title, content: data.content, collection, sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null },
     select: { id: true, title: true },
   });
 }

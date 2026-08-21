@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { ReaderTextTools } from "@/components/ReaderTextTools";
+import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
@@ -109,6 +109,7 @@ export default function ReaderPage() {
   const [addingExample, setAddingExample] = useState(false);
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
+  const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
   const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -529,41 +530,47 @@ export default function ReaderPage() {
             )}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={startReading} disabled={!text.trim()} className="flex-1 sm:flex-none">
-              {t("reader.read")}
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) scanPhoto(f);
-              }}
-            />
-            <Button
-              variant="outline"
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) scanPhoto(f);
+            }}
+          />
+          {/* primary action */}
+          <Button onClick={startReading} disabled={!text.trim()} className="w-full">
+            {t("reader.read")}
+          </Button>
+          {/* secondary tools — one compact chip row */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} onStartGen={startGen} />
+            <button
               type="button"
               disabled={scanning}
               onClick={() => fileRef.current?.click()}
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
             >
               {scanning ? t("reader.scanning") : `📷 ${t("reader.scan")}`}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setText(SAMPLE[sourceLang] ?? SAMPLE.en)}
+            </button>
+            <button
               type="button"
+              onClick={() => setText(SAMPLE[sourceLang] ?? SAMPLE.en)}
+              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
             >
               {t("reader.pasteSample")}
-            </Button>
-            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} onStartGen={startGen} />
+            </button>
             {text.trim() && (
-              <Button variant="ghost" onClick={() => setText("")} type="button">
+              <button
+                type="button"
+                onClick={() => setText("")}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-ink-faint transition-colors hover:text-ink-muted"
+              >
                 {t("reader.clear")}
-              </Button>
+              </button>
             )}
           </div>
         </div>
@@ -594,6 +601,15 @@ export default function ReaderPage() {
         <span className="ml-auto text-xs font-medium text-ink-faint">
           {t("reader.wordCount", { n: wordCount })} · {t("reader.newCount", { n: newKeys.size })}
         </span>
+
+        {/* save this text (works before or after translating) */}
+        <button
+          type="button"
+          onClick={() => setShowSave(true)}
+          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+        >
+          💾 {t("reader.save")}
+        </button>
 
         {/* translate whole text */}
         <button
@@ -925,6 +941,16 @@ export default function ReaderPage() {
             document.body,
           );
         })()}
+
+      {showSave && (
+        <SaveModal
+          text={text}
+          sourceLang={sourceLang}
+          targetLang={targetLang}
+          onClose={() => setShowSave(false)}
+          onSaved={() => setShowSave(false)}
+        />
+      )}
     </div>
   );
 }
