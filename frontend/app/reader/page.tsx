@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { ReaderTextTools } from "@/components/ReaderTextTools";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
@@ -505,6 +506,7 @@ export default function ReaderPage() {
             >
               {t("reader.pasteSample")}
             </Button>
+            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} />
             {text.trim() && (
               <Button variant="ghost" onClick={() => setText("")} type="button">
                 {t("reader.clear")}
