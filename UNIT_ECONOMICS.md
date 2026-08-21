@@ -57,3 +57,33 @@ effectively $0; the LLM calls dominate.
 - If costs ever bite: cache tutor/example results per (word, pair) globally so the
   same word added by many users is generated once; batch tutor+example into one
   call; and keep heavy features (OCR, chat) behind the existing opt-in toggles.
+
+## Free tier cost (with the daily AI cap)
+The paywall gives free users **`FREE_DAILY_AI` = 25 AI actions/day** (reviews and
+manual cards are always free and cost $0). Blended cost per action, given a
+free-user mix (mostly glosses/explains/reader-adds, few auto-adds), is ≈ **$0.003**.
+
+| Free-user profile | Actions/mo | Est. AI cost/mo |
+|---|---|---|
+| Typical (≈12 active days × 8 actions) | ~100 | **~$0.30** |
+| Heavy (maxes 25/day, ~20 days) | ~500 | **~$1.50** |
+| Theoretical ceiling (25/day × 30, all cheap) | 750 | **~$2.25** |
+| Ceiling if every action were an auto-add | 750 | ~$6.75 |
+
+So a free user realistically costs **~$0.30–0.50/mo**, and the cap bounds the worst
+case. **Caveat (batch leak):** a Reader batch-add of N words is one request = 1
+action but ~N×$0.009 of cost. Until batch/import is metered *per word*, cap the
+free batch size or charge N actions — otherwise the daily cap doesn't bound cost.
+
+## Pro margin
+Even a *power* user is ≈ **$2/mo** of AI; a typical engaged user ≈ **$0.66/mo**.
+
+| Pro price | Cost (typical → power) | Gross margin |
+|---|---|---|
+| $4.99 / ~499₽ | $0.66 → $2.0 | **87% → 60%** |
+| $6.99 / ~699₽ | $0.66 → $2.0 | **91% → 71%** |
+
+**Recommendation:** price Pro at **$4.99–5.99 (499–599₽)** for 60–87% gross margin
+even on heavy users. Biggest margin levers (all cheap): the gloss + explanation
+caches (done), pushing adds through the **Reader** (4× cheaper than auto-add), a
+global per-(word, pair) cache, and folding tutor+example into one call.
