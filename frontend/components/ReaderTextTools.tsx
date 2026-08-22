@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type ReaderTextSummary } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { getLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
+import { getLevel, getShowTextLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, Library, Sparkles, Clock, TriangleAlert, X } from "lucide-react";
+import { Save, Sparkles } from "lucide-react";
 import { CollectionCombo } from "@/components/CollectionCombo";
 
 // Small pill button — the compact toolbar style shared with the reading view.
@@ -27,56 +28,33 @@ function Chip({
   );
 }
 
-// Reader companion: save the current text, browse/search saved ones, or have the
-// AI write a fresh reading text on a topic. Rendered as a compact chip cluster.
+// Reader companion on the input page: just the "AI text" generator. Saving lives
+// in the reading view (SaveModal), and browsing is the inline SavedTexts list.
 export function ReaderTextTools({
-  text,
   sourceLang,
   targetLang,
-  onLoad,
   onStartGen,
 }: {
-  text: string;
   sourceLang: string;
   targetLang: string;
-  onLoad: (content: string) => void;
   onStartGen: (id: string) => void;
 }) {
   const { t } = useI18n();
-  const [panel, setPanel] = useState<null | "save" | "library" | "generate">(null);
+  const [gen, setGen] = useState(false);
 
   return (
     <>
-      <Chip disabled={!text.trim()} onClick={() => setPanel("save")}>
-        <Save className="h-3.5 w-3.5" /> {t("reader.save")}
-      </Chip>
-      <Chip onClick={() => setPanel("library")}>
-        <Library className="h-3.5 w-3.5" /> {t("reader.myTexts")}
-      </Chip>
-      <Chip onClick={() => setPanel("generate")}>
+      <Chip onClick={() => setGen(true)}>
         <Sparkles className="h-3.5 w-3.5" /> {t("reader.generate")}
       </Chip>
-
-      {panel === "save" && (
-        <SaveModal text={text} sourceLang={sourceLang} targetLang={targetLang} onClose={() => setPanel(null)} onSaved={() => setPanel(null)} />
-      )}
-      {panel === "library" && (
-        <LibraryModal
-          onClose={() => setPanel(null)}
-          onOpen={(content) => {
-            onLoad(content);
-            setPanel(null);
-          }}
-        />
-      )}
-      {panel === "generate" && (
+      {gen && (
         <GenerateModal
           sourceLang={sourceLang}
           targetLang={targetLang}
-          onClose={() => setPanel(null)}
+          onClose={() => setGen(false)}
           onStarted={(id) => {
             onStartGen(id);
-            setPanel(null);
+            setGen(false);
           }}
         />
       )}
@@ -104,12 +82,16 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
 // drop it into a named collection ("read later"). Reused from input & reading views.
 export function SaveModal({
   text,
+  translation,
+  clickedWords,
   sourceLang,
   targetLang,
   onClose,
   onSaved,
 }: {
   text: string;
+  translation?: string;
+  clickedWords?: string[];
   sourceLang: string;
   targetLang: string;
   onClose: () => void;
@@ -118,6 +100,7 @@ export function SaveModal({
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
+  const qc = useQueryClient();
   const [title, setTitle] = useState(text.trim().slice(0, 50));
   const [aiName, setAiName] = useState(false);
   const [collection, setCollection] = useState("");
@@ -139,9 +122,13 @@ export function SaveModal({
         content: body,
         collection: collection.trim() || undefined,
         autoName: aiName,
+        translation: translation?.trim() || undefined,
+        clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
+        estimateLevel: getShowTextLevel(),
         sourceLang,
         targetLang,
       });
+      qc.invalidateQueries({ queryKey: ["reader-texts"] });
       show({ icon: "💾", title: t("reader.saved") });
       onSaved();
     } catch (e) {
@@ -186,122 +173,6 @@ export function SaveModal({
         </Button>
       </form>
     </Overlay>
-  );
-}
-
-function LibraryModal({ onClose, onOpen }: { onClose: () => void; onOpen: (content: string) => void }) {
-  const { accountId } = useAccount();
-  const { t } = useI18n();
-  const [q, setQ] = useState("");
-  const [collection, setCollection] = useState<string | null>(null); // null = all
-  const [collections, setCollections] = useState<string[]>([]);
-  const [items, setItems] = useState<ReaderTextSummary[] | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.readerCollections(accountId).then(setCollections).catch(() => {});
-  }, [accountId]);
-
-  useEffect(() => {
-    let cancel = false;
-    const id = setTimeout(() => {
-      api
-        .readerTexts(accountId, q.trim() || undefined, collection ?? undefined)
-        .then((r) => !cancel && setItems(r))
-        .catch(() => !cancel && setItems([]));
-    }, 200);
-    return () => {
-      cancel = true;
-      clearTimeout(id);
-    };
-  }, [q, collection, accountId]);
-
-  async function open(id: string) {
-    setLoadingId(id);
-    try {
-      const full = await api.readerText(id, accountId);
-      onOpen(full.content);
-    } finally {
-      setLoadingId(null);
-    }
-  }
-
-  async function remove(id: string) {
-    await api.deleteReaderText(id, accountId).catch(() => {});
-    setItems((list) => (list ?? []).filter((x) => x.id !== id));
-  }
-
-  return (
-    <Overlay onClose={onClose}>
-      <div className="border-b border-black/[0.06] p-3">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("reader.searchTexts")} autoFocus className="h-10" />
-        {collections.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <FilterChip active={collection === null} onClick={() => setCollection(null)}>
-              {t("reader.allTexts")}
-            </FilterChip>
-            {collections.map((c) => (
-              <FilterChip key={c} active={collection === c} onClick={() => setCollection(c)}>
-                {c}
-              </FilterChip>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="max-h-[56vh] overflow-y-auto p-2">
-        {items === null ? (
-          <p className="p-4 text-center text-sm text-ink-faint">…</p>
-        ) : items.length === 0 ? (
-          <p className="p-6 text-center text-sm text-ink-faint">{t("reader.noTexts")}</p>
-        ) : (
-          items.map((it) => (
-            <div key={it.id} className="group flex items-start gap-2 rounded-[12px] p-2 hover:bg-black/[0.03]">
-              <button
-                type="button"
-                onClick={() => it.status === "ready" && open(it.id)}
-                disabled={loadingId === it.id || it.status !== "ready"}
-                className="min-w-0 flex-1 text-left disabled:cursor-default"
-              >
-                <div className="flex items-center gap-1.5">
-                  {it.status === "generating" && <Clock className="h-3.5 w-3.5 shrink-0 text-ink-faint" />}
-                  {it.status === "failed" && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warn-text" />}
-                  <span className="truncate text-[14px] font-semibold text-ink">{it.title}</span>
-                  {it.collection && (
-                    <span className="shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">{it.collection}</span>
-                  )}
-                </div>
-                <div className="truncate text-[12px] text-ink-soft">
-                  {it.status === "generating" ? t("reader.generating") : it.status === "failed" ? "—" : it.snippet}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(it.id)}
-                aria-label="Delete"
-                className="shrink-0 rounded-md p-1 text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-    </Overlay>
-  );
-}
-
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors " +
-        (active ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-muted hover:bg-black/[0.03]")
-      }
-    >
-      {children}
-    </button>
   );
 }
 

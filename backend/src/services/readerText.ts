@@ -24,7 +24,7 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     },
     orderBy: { updatedAt: "desc" },
     take: 100,
-    select: { id: true, title: true, content: true, status: true, collection: true, sourceLang: true, targetLang: true, updatedAt: true },
+    select: { id: true, title: true, content: true, status: true, collection: true, level: true, sourceLang: true, targetLang: true, updatedAt: true },
   });
   // Return a short snippet for the list, full content only when opening one.
   return rows.map((r) => ({
@@ -33,6 +33,7 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     snippet: r.content.slice(0, 140),
     status: r.status,
     collection: r.collection,
+    level: r.level,
     sourceLang: r.sourceLang,
     targetLang: r.targetLang,
     updatedAt: r.updatedAt,
@@ -81,18 +82,60 @@ async function titleFor(content: string, sourceLang?: string): Promise<string> {
   }
 }
 
+const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+
+// Cheaply estimate a text's CEFR level in one short call. Best-effort.
+async function estimateLevel(content: string, sourceLang?: string): Promise<string | null> {
+  const source = langName(sourceLang ?? "en");
+  try {
+    const r = await chatJson({
+      system:
+        `Estimate the CEFR level of the ${source} text (one of A1, A2, B1, B2, C1, C2) ` +
+        `by its vocabulary and grammar. Respond as JSON: {"level": string}.`,
+      user: content.trim().slice(0, 1500),
+      schema: z.object({ level: z.string().min(1).max(12) }),
+      timeoutMs: 15000,
+    });
+    const lvl = r.level.trim().toUpperCase();
+    return (LEVELS as readonly string[]).includes(lvl) ? lvl : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createText(
   telegramId: string,
-  data: { title: string; content: string; collection?: string; autoName?: boolean; sourceLang?: string; targetLang?: string },
+  data: {
+    title: string;
+    content: string;
+    collection?: string;
+    autoName?: boolean;
+    translation?: string;
+    clickedWords?: string[];
+    estimateLevel?: boolean;
+    sourceLang?: string;
+    targetLang?: string;
+  },
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
   const typed = data.title.trim();
   const title = typed || (data.autoName ? await titleFor(data.content, data.sourceLang) : data.content.trim().slice(0, 40) || "Untitled");
   const collection = data.collection?.trim() || null;
+  const level = data.estimateLevel ? await estimateLevel(data.content, data.sourceLang) : null;
   return prisma.readerText.create({
-    data: { userId: uid, title, content: data.content, collection, sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null },
-    select: { id: true, title: true },
+    data: {
+      userId: uid,
+      title,
+      content: data.content,
+      collection,
+      translation: data.translation?.trim() || null,
+      clickedWords: data.clickedWords ?? [],
+      level,
+      sourceLang: data.sourceLang ?? null,
+      targetLang: data.targetLang ?? null,
+    },
+    select: { id: true, title: true, level: true },
   });
 }
 

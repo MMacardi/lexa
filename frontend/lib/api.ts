@@ -60,6 +60,7 @@ export interface ReaderTextSummary {
   snippet: string;
   status: string; // ready | generating | failed
   collection?: string | null;
+  level?: string | null;
   sourceLang?: string | null;
   targetLang?: string | null;
   updatedAt: string;
@@ -69,6 +70,10 @@ export interface ReaderTextFull {
   title: string;
   content: string;
   status: string;
+  collection?: string | null;
+  translation?: string | null;
+  clickedWords?: string[];
+  level?: string | null;
   sourceLang?: string | null;
   targetLang?: string | null;
 }
@@ -389,8 +394,18 @@ export const api = {
     http<string[]>(`/api/reader/collections?telegramId=${encodeURIComponent(telegramId)}`),
   readerText: (id: string, telegramId: string) =>
     http<ReaderTextFull>(`/api/reader/texts/${id}?telegramId=${encodeURIComponent(telegramId)}`),
-  saveReaderText: (payload: { telegramId: string; title: string; content: string; collection?: string; autoName?: boolean; sourceLang?: string; targetLang?: string }) =>
-    http<{ id: string; title: string }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
+  saveReaderText: (payload: {
+    telegramId: string;
+    title: string;
+    content: string;
+    collection?: string;
+    autoName?: boolean;
+    translation?: string;
+    clickedWords?: string[];
+    estimateLevel?: boolean;
+    sourceLang?: string;
+    targetLang?: string;
+  }) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
   updateReaderText: (id: string, payload: { telegramId: string; title?: string; content?: string }) =>
     http<{ id: string; title: string }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteReaderText: (id: string, telegramId: string) =>

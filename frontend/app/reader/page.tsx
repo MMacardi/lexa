@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
+import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
@@ -237,6 +238,24 @@ export default function ReaderPage() {
     }
     setSelected(new Set());
     setShowTr(false);
+    setReading(true);
+  }
+
+  // Open a saved text: restore its content, pair, translation and the words the
+  // reader had engaged with, then jump straight into the reading view.
+  function openSavedText(full: ReaderTextFull) {
+    setText(full.content);
+    if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
+    if (full.targetLang) setTargetLang(full.targetLang);
+    if (full.translation) {
+      setTranslation(full.translation);
+      translatedFor.current = full.content;
+    } else {
+      setTranslation(null);
+    }
+    setShowTr(false);
+    setAdded(new Set(full.clickedWords ?? []));
+    setSelected(new Set());
     setReading(true);
   }
 
@@ -569,7 +588,7 @@ export default function ReaderPage() {
           </Button>
           {/* secondary tools — one compact chip row */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} onStartGen={startGen} />
+            <ReaderTextTools sourceLang={sourceLang} targetLang={targetLang} onStartGen={startGen} />
             <button
               type="button"
               disabled={scanning}
@@ -596,6 +615,8 @@ export default function ReaderPage() {
             )}
           </div>
         </div>
+
+        <SavedTexts onOpen={openSavedText} />
       </div>
     );
   }
@@ -995,6 +1016,8 @@ export default function ReaderPage() {
       {showSave && (
         <SaveModal
           text={text}
+          translation={trReady ? translation ?? undefined : undefined}
+          clickedWords={Array.from(new Set([...added, ...selected]))}
           sourceLang={sourceLang}
           targetLang={targetLang}
           onClose={() => setShowSave(false)}
