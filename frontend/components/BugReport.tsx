@@ -31,6 +31,64 @@ export function BugReport() {
   const errorsRef = useRef<CapturedError[]>([]);
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
 
+  // Draggable FAB: offset from its docked corner, remembered across reloads. A
+  // small movement threshold distinguishes a drag from a tap (which opens the
+  // form); a post-drag clamp keeps the button from being lost off-screen.
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const r = localStorage.getItem("lexa.bugPos");
+      if (r) {
+        const p = JSON.parse(r);
+        if (typeof p?.x === "number" && typeof p?.y === "number") return p;
+      }
+    } catch {
+      /* ignore */
+    }
+    return { x: 0, y: 0 };
+  });
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const movedRef = useRef(false);
+  const suppressClick = useRef(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("lexa.bugPos", JSON.stringify(pos));
+    } catch {
+      /* ignore */
+    }
+  }, [pos]);
+
+  function onDown(e: React.PointerEvent) {
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y };
+    movedRef.current = false;
+  }
+  function onMove(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (!movedRef.current && Math.hypot(dx, dy) > 5) movedRef.current = true;
+    if (movedRef.current) setPos({ x: d.ox + dx, y: d.oy + dy });
+  }
+  function onUp(e: React.PointerEvent) {
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    dragRef.current = null;
+    if (!movedRef.current) return;
+    suppressClick.current = true; // it was a drag, not a tap → don't open the form
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const pad = 8;
+    setPos((p) => {
+      let x = p.x;
+      let y = p.y;
+      if (r.left < pad) x += pad - r.left;
+      else if (r.right > window.innerWidth - pad) x -= r.right - (window.innerWidth - pad);
+      if (r.top < pad) y += pad - r.top;
+      else if (r.bottom > window.innerHeight - pad) y -= r.bottom - (window.innerHeight - pad);
+      return { x, y };
+    });
+  }
+
   useEffect(() => initBugCapture(), []);
 
   // On open, snapshot the recent errors and (if enabled) grab a screenshot. We
@@ -89,10 +147,20 @@ export function BugReport() {
     <>
       <button
         type="button"
-        onClick={openForm}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onClick={() => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          openForm();
+        }}
         aria-label={t("bug.button")}
         title={t("bug.button")}
-        className="fixed right-4 bottom-[calc(132px_+_env(safe-area-inset-bottom))] z-50 flex h-12 w-12 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-warn-text shadow-[0_10px_28px_rgba(46,42,38,0.24)] transition-transform hover:scale-105 active:scale-95 md:bottom-[92px]"
+        style={{ transform: `translate(${pos.x}px, ${pos.y}px)`, touchAction: "none" }}
+        className="fixed right-4 bottom-[calc(132px_+_env(safe-area-inset-bottom))] z-50 flex h-12 w-12 cursor-grab touch-none select-none items-center justify-center rounded-full border border-black/[0.08] bg-surface text-warn-text shadow-[0_10px_28px_rgba(46,42,38,0.24)] transition-shadow hover:shadow-[0_14px_34px_rgba(46,42,38,0.3)] active:cursor-grabbing md:bottom-[92px]"
       >
         <Bug className="h-5 w-5" />
       </button>
