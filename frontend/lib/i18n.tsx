@@ -277,6 +277,7 @@ const DICT: Record<string, Entry> = {
 
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },
+  "common.drag": { en: "Drag to move", ru: "Перетащить", zh: "拖动移动" },
   "common.save": { en: "Save", ru: "Сохранить", zh: "保存" },
   "common.add": { en: "Add", ru: "Добавить", zh: "添加" },
   "common.all": { en: "All", ru: "Все", zh: "全部" },

@@ -13,7 +13,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
-import { Sparkles, RotateCcw, X, LocateFixed } from "lucide-react";
+import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -192,17 +192,21 @@ export function GlobalTutor() {
           className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]"
           style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
         >
-          {/* header — drag handle + title, clickable language pair, actions */}
-          <div
-            onPointerDown={startDrag}
-            onPointerMove={moveDrag}
-            onPointerUp={endDrag}
-            className="cursor-move touch-none select-none border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4"
-          >
-            <div className="flex items-center justify-between gap-2">
+          {/* header — title, centered drag handle, clickable language pair, actions */}
+          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
+            <div className="relative flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
                 <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
                 {t("tutor.title")}
+              </div>
+              <div
+                onPointerDown={startDrag}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                aria-label={t("common.drag")}
+                className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
+              >
+                <GripHorizontal className="h-4 w-4" />
               </div>
               <div className="flex items-center gap-1.5">
                 {moved && (
