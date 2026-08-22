@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type { Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { X } from "lucide-react";
@@ -53,43 +54,42 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
     setCardLayout({ ...layout, [side]: next });
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="anim-pop max-h-[90vh] w-full max-w-[560px] overflow-y-auto rounded-[22px] border border-black/[0.08] bg-surface p-5 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-6"
+        className="anim-pop flex max-h-[94vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-[22px] font-medium text-ink">{t("print.title")}</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-serif text-[19px] font-medium text-ink">{t("print.title")}</h2>
           <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <p className="mb-3 text-[13px] text-ink-soft">{t("print.hint")}</p>
 
         {/* preview */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={preview} alt="card preview" className="mb-4 w-full rounded-[14px] border border-black/[0.06]" />
+        <img src={preview} alt="card preview" className="mb-3 max-h-[38vh] w-full rounded-[14px] border border-black/[0.06] object-contain" />
 
         {/* presets */}
-        <div className="mb-2 flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+        <div className="mb-2 flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
           {CARD_PRESETS.map((p) => (
             <button
               key={p.id}
               onClick={() => setCardLayout({ front: p.front, back: p.back })}
-              className={cn("rounded-full px-3 py-1 transition-colors", activePreset === p.id ? "bg-sage text-white" : "text-ink-muted")}
+              className={cn("rounded-full px-2.5 py-0.5 transition-colors", activePreset === p.id ? "bg-sage text-white" : "text-ink-muted")}
             >
               {t(`layout.${p.id}`)}
             </button>
           ))}
-          {activePreset === "custom" && <span className="rounded-full bg-sage px-3 py-1 text-white">{t("layout.custom")}</span>}
+          {activePreset === "custom" && <span className="rounded-full bg-sage px-2.5 py-0.5 text-white">{t("layout.custom")}</span>}
         </div>
 
         {/* per-side field toggles */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 overflow-y-auto">
           {(["front", "back"] as const).map((side) => (
             <div key={side} className="flex flex-wrap items-center gap-1.5">
-              <span className="w-12 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t(`layout.${side}`)}</span>
+              <span className="w-11 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t(`layout.${side}`)}</span>
               {CARD_FIELDS.map((f) => {
                 const on = layout[side].includes(f);
                 return (
@@ -98,7 +98,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
                     type="button"
                     onClick={() => toggleField(side, f)}
                     className={cn(
-                      "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                      "rounded-full border px-2.5 py-0.5 text-[12px] font-medium transition-colors",
                       on ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-faint hover:border-sage/60",
                     )}
                   >
@@ -113,11 +113,12 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
         <button
           type="button"
           onClick={() => downloadDataUrl(preview, `lexa-${word.word}.png`)}
-          className="mt-5 w-full rounded-full bg-sage px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
+          className="mt-3 w-full shrink-0 rounded-full bg-sage px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
         >
           ↓ {t("print.download")}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

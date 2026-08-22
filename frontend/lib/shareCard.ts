@@ -97,9 +97,16 @@ function drawFace(
   let scale = 1;
   let { h, laid } = measure(1);
   if (h > availH) {
-    scale = Math.max(0.5, availH / h);
+    scale = Math.max(0.4, availH / h);
     ({ h, laid } = measure(scale));
   }
+
+  // Clip to the card's content area so an over-long example (e.g. a full dialogue)
+  // is cut at the card edge instead of spilling outside it.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(face.x, face.y + padTop - 22, face.w, availH + 22);
+  ctx.clip();
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -119,6 +126,7 @@ function drawFace(
     }
     cy += Math.round(BLOCK_GAP * scale);
   }
+  ctx.restore();
   ctx.textBaseline = "alphabetic"; // reset for other draws (tags, brand)
 }
 

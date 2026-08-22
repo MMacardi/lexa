@@ -151,8 +151,21 @@ button:disabled {
 .anim-fade-in { animation: lexaFadeIn 0.5s ease both; }
 .anim-pop { animation: lexaPop 0.4s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
 
+/* Small anchored popovers (reader gloss, tappable chips): a gentle rise+scale in,
+   and a softer fade+scale out so dismissing never feels abrupt. */
+@keyframes lexaPopoverIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lexaPopoverOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(3px) scale(0.96); }
+}
+.anim-popover { animation: lexaPopoverIn 0.17s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+.anim-popover-out { animation: lexaPopoverOut 0.16s ease both; }
+
 @media (prefers-reduced-motion: reduce) {
-  .anim-fade-up, .anim-fade-in, .anim-pop { animation: none; }
+  .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out { animation: none; }
 }
 
 /* 3D flip card — grid stacking lets the card size to the taller face (no overlap) */

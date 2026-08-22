@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -31,30 +31,64 @@ export function TapGlossPills({
 }) {
   const { t } = useI18n();
   const [pop, setPop] = useState<Pop | null>(null);
+  const [closing, setClosing] = useState(false);
   const [gloss, setGloss] = useState<string | null>(null);
   const [tr, setTr] = useState("");
   const [loading, setLoading] = useState(false);
   const cache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const keyRef = useRef("");
+  const anchorRef = useRef<HTMLElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
+  const closeTimer = useRef<number | null>(null);
 
-  // Dismiss the popover on scroll / resize / Escape / a tap elsewhere.
+  // Animate the popover out, then unmount. Kept in a ref-cleared timer so a rapid
+  // re-open cancels a pending close.
+  const requestClose = useCallback(() => {
+    setClosing(true);
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      setPop(null);
+      setClosing(false);
+      anchorRef.current = null;
+    }, 150);
+  }, []);
+
+  const isOpen = pop !== null;
+
+  // While open: follow the anchor on scroll (don't vanish), close on a tap
+  // outside the popover, on resize, or on Escape. Taps *inside* the popover are
+  // ignored so the meaning stays put long enough to select and copy it.
   useEffect(() => {
-    if (!pop) return;
-    const close = () => setPop(null);
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    window.addEventListener("keydown", onEsc);
-    document.addEventListener("pointerdown", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("keydown", onEsc);
-      document.removeEventListener("pointerdown", close);
+    if (!isOpen) return;
+    const reposition = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < -40 || rect.top > window.innerHeight + 40) return requestClose();
+      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+      setPop((p) => (p ? { ...p, x, y: rect.bottom } : p));
     };
-  }, [pop]);
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && requestClose();
+    const onDown = (e: PointerEvent) => {
+      if (popupRef.current?.contains(e.target as Node)) return;
+      requestClose();
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", requestClose);
+    window.addEventListener("keydown", onEsc);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", requestClose);
+      window.removeEventListener("keydown", onEsc);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [isOpen, requestClose]);
 
   function tap(text: string, el: HTMLElement) {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    setClosing(false);
+    anchorRef.current = el;
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setPop({ text, x, y: rect.bottom });
@@ -123,11 +157,17 @@ export function TapGlossPills({
 
       {pop &&
         createPortal(
-          <div className="anim-fade-up fixed z-[90] -translate-x-1/2" style={{ left: pop.x, top: pop.y + 8 }}>
-            <div className="max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
-              <div className={cn("text-[13px] font-semibold text-ink", srcFont(sourceLang))}>{pop.text}</div>
-              {!loading && tr && <div className="mt-0.5 text-[12px] font-medium text-ink-faint">{tr}</div>}
-              <div className={cn("mt-0.5 text-[13px] text-sage-deep", tgtFont(targetLang))}>
+          <div className="fixed z-[90] -translate-x-1/2" style={{ left: pop.x, top: pop.y + 8 }}>
+            <div
+              ref={popupRef}
+              className={cn(
+                "max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]",
+                closing ? "anim-popover-out" : "anim-popover",
+              )}
+            >
+              <div className={cn("select-text text-[13px] font-semibold text-ink", srcFont(sourceLang))}>{pop.text}</div>
+              {!loading && tr && <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">{tr}</div>}
+              <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", tgtFont(targetLang))}>
                 {loading ? t("reader.translating") : gloss}
               </div>
             </div>
