@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus } from "lucide-react";
+import { ArrowRightLeft, X, Plus, Sparkles, Globe, Ban } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
 import {
@@ -23,6 +23,8 @@ import {
   setLevel,
   useExampleStyle,
   setExampleStyle,
+  useExampleSource,
+  setExampleSource,
   getExampleCount,
   setExampleCount,
   useExampleCount,
@@ -117,7 +119,22 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
   // learner prefs (example difficulty + register)
   const style = useExampleStyle();
+  const exSource = useExampleSource();
   const exCount = useExampleCount();
+  // One control for where examples come from: AI-composed, mined from the web, or
+  // none. Derived from the style/source prefs so it stays a single source of truth.
+  const exMode: "ai" | "web" | "none" = style === "none" ? "none" : exSource === "web" ? "web" : "ai";
+  const setExMode = (m: "ai" | "web" | "none") => {
+    if (m === "none") {
+      setExampleStyle("none");
+    } else if (m === "web") {
+      setExampleSource("web");
+      setExampleStyle("news"); // the web miner searches news/articles
+    } else {
+      setExampleSource("ai");
+      if (style === "none") setExampleStyle("casual");
+    }
+  };
   const currentLevel = useLevel(sourceLang);
   const recentPairs = useRecentPairs();
   // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
@@ -409,48 +426,76 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </div>
       )}
 
-      {/* AI example tuning: source register + learner level (auto mode only) */}
+      {/* Example tuning (auto mode): where examples come from + register + level */}
       {mode === "auto" && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
+          {/* source of examples: AI-composed, mined from the web, or none */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
-            <Select
-              value={style}
-              onChange={(v) => setExampleStyle(v as ExampleStyle)}
-              ariaLabel={t("style.label")}
-              className="w-[150px]"
-              options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
-            />
-            {sourceLang !== "auto" && (
-              <>
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
-                <Select
-                  value={currentLevel ?? ""}
-                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
-                  ariaLabel={t("level.title")}
-                  placeholder={t("level.pick")}
-                  className="w-[136px]"
-                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
-                />
-              </>
-            )}
-            {style !== "none" && (
-              <>
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
-                <Select
-                  value={String(exCount)}
-                  onChange={(v) => setExampleCount(Number(v))}
-                  ariaLabel={t("count.label")}
-                  className="w-[92px]"
-                  options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))}
-                />
-              </>
-            )}
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
+            <div className="inline-flex rounded-full bg-black/[0.05] p-0.5 text-xs font-semibold">
+              {([
+                ["ai", Sparkles],
+                ["web", Globe],
+                ["none", Ban],
+              ] as const).map(([m, Icon]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setExMode(m)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                    exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                </button>
+              ))}
+            </div>
           </div>
-          {/* plain-language hint so it's obvious what the selectors do */}
+
+          {exMode !== "none" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* register only applies to AI-composed examples */}
+              {exMode === "ai" && (
+                <>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
+                  <Select
+                    value={style}
+                    onChange={(v) => setExampleStyle(v as ExampleStyle)}
+                    ariaLabel={t("style.label")}
+                    className="w-[150px]"
+                    options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+                  />
+                </>
+              )}
+              {sourceLang !== "auto" && (
+                <>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                  <Select
+                    value={currentLevel ?? ""}
+                    onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                    ariaLabel={t("level.title")}
+                    placeholder={t("level.pick")}
+                    className="w-[136px]"
+                    options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                  />
+                </>
+              )}
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+              <Select
+                value={String(exCount)}
+                onChange={(v) => setExampleCount(Number(v))}
+                ariaLabel={t("count.label")}
+                className="w-[92px]"
+                options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))}
+              />
+            </div>
+          )}
+
+          {/* plain-language hint */}
           <p className="text-[12px] leading-snug text-ink-faint">
-            {t(`style.desc.${style}`)}
-            {style !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+            {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
+            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
           </p>
         </div>
       )}
