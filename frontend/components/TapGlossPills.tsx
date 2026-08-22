@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { getShowTranscription, hasTranscription } from "@/lib/learnPrefs";
+import { isLocalTr, localTranscribe } from "@/lib/transcribe";
 import { cn } from "@/lib/utils";
 
 const srcFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
@@ -68,15 +69,24 @@ export function TapGlossPills({
     setGloss(null);
     setTr("");
     setLoading(true);
-    const wantTr = getShowTranscription() && hasTranscription(sourceLang);
+    const local = isLocalTr(sourceLang);
+    const showTr = getShowTranscription() && hasTranscription(sourceLang);
+    // Chinese/Korean transcription is computed locally (instant, no model call).
+    if (local && showTr) {
+      localTranscribe(text, sourceLang).then((p) => {
+        if (keyRef.current === text) setTr(p);
+      });
+    }
+    const wantTr = showTr && !local; // only Japanese asks the model
     api
       .gloss({ word: text, sentence: text, sourceLang, targetLang, withTranscription: wantTr })
-      .then((r) => {
-        const entry = { gloss: r.gloss, tr: r.transcription ?? "" };
+      .then(async (r) => {
+        const tr = local && showTr ? await localTranscribe(text, sourceLang) : r.transcription ?? "";
+        const entry = { gloss: r.gloss, tr };
         cache.current.set(text, entry);
         if (keyRef.current === text) {
           setGloss(entry.gloss);
-          setTr(entry.tr);
+          if (tr) setTr(tr);
           setLoading(false);
         }
       })
