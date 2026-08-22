@@ -18,6 +18,8 @@ import {
   setReaderSource,
   useReaderSource,
   useRecentPairs,
+  useAutoGloss,
+  setAutoGloss,
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { Button } from "@/components/ui/button";
@@ -75,6 +77,7 @@ export default function ReaderPage() {
   const { show, trackImport } = useToast();
   const recentPairs = useRecentPairs();
   const readerSource = useReaderSource();
+  const autoGloss = useAutoGloss();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
@@ -102,6 +105,7 @@ export default function ReaderPage() {
   const [glossLoading, setGlossLoading] = useState(false);
   const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const glossKeyRef = useRef<string>("");
+  const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -335,12 +339,24 @@ export default function ReaderPage() {
     });
   }
 
+  // Local (offline, no tokens) pinyin for a Chinese word, cached alongside ruby.
+  async function localPinyin(word: string): Promise<string> {
+    const ck = `${sourceLang}:${word}`;
+    const hit = rubyCache.current.get(ck);
+    if (hit) return hit;
+    const { pinyin } = await import("pinyin-pro");
+    const v = pinyin(word, { toneType: "symbol", type: "string" });
+    rubyCache.current.set(ck, v);
+    return v;
+  }
+
   // Show a quick translation of a single word, anchored under the tapped token.
   function openGloss(key: string, wordText: string, el: HTMLElement) {
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setGloss({ key, word: wordText, x, y: rect.bottom });
     glossKeyRef.current = key;
+    glossElRef.current = el;
     const cached = glossCache.current.get(key);
     if (cached != null) {
       setGlossText(cached.gloss);
@@ -351,15 +367,25 @@ export default function ReaderPage() {
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
-    const wantTr = getShowTranscription() && hasTranscription(sourceLang);
+    const isZh = sourceLang === "zh" || sourceLang === "zh-Hant";
+    const showTr = getShowTranscription() && hasTranscription(sourceLang);
+    // Chinese transcription: computed locally with pinyin-pro (instant, no model call).
+    if (isZh && showTr) {
+      localPinyin(wordText).then((p) => {
+        if (glossKeyRef.current === key) setGlossTr(p);
+      });
+    }
+    // Only ask the model for a transcription for Japanese/Korean.
+    const wantTr = showTr && !isZh;
     api
       .gloss({ word: wordText, sentence: wordText, sourceLang, targetLang, withTranscription: wantTr })
       .then((r) => {
-        const entry = { gloss: r.gloss, tr: r.transcription ?? "" };
+        const tr = isZh ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
+        const entry = { gloss: r.gloss, tr };
         glossCache.current.set(key, entry);
         if (glossKeyRef.current === key) {
           setGlossText(entry.gloss);
-          setGlossTr(entry.tr);
+          if (tr) setGlossTr(tr);
           setGlossLoading(false);
         }
       })
@@ -371,23 +397,35 @@ export default function ReaderPage() {
       });
   }
 
-  // Dismiss the gloss on scroll / resize / Escape / a tap anywhere. Tapping a
-  // word re-opens it (that happens on pointer-up, after this pointer-down clears).
+  // Keep the gloss anchored to its word while scrolling/resizing (instead of
+  // vanishing); dismiss on Escape or a tap elsewhere. Off-screen → close.
+  const glossOpen = gloss !== null;
   useEffect(() => {
-    if (!gloss) return;
+    if (!glossOpen) return;
     const close = () => setGloss(null);
+    const reposition = () => {
+      const el = glossElRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        close();
+        return;
+      }
+      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+      setGloss((g) => (g ? { ...g, x, y: rect.bottom } : g));
+    };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
     document.addEventListener("pointerdown", close);
     return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
       document.removeEventListener("pointerdown", close);
     };
-  }, [gloss]);
+  }, [glossOpen]);
 
   // Escape closes the known-word popup / card panel.
   useEffect(() => {
@@ -556,18 +594,20 @@ export default function ReaderPage() {
 
   const trReady = translation !== null && translatedFor.current === text;
 
-  // Render a word with its transcription above it (ruby) when ruby mode is on. The
-  // annotation inherits the word's colour (so it stays readable on a green
-  // selection) at reduced opacity.
-  const rubyText = (txt: string) =>
-    rubyOn && rubyMap[txt] ? (
+  // Render a word: the highlight (selection/known tint) goes on the base character
+  // only, and the transcription floats ABOVE it on the clean page background — so
+  // ruby and the green selection never overlap.
+  const wordNode = (txt: string, highlight: string) => {
+    const base = <span className={highlight}>{txt}</span>;
+    return rubyOn && rubyMap[txt] ? (
       <ruby className="leading-none">
-        {txt}
-        <rt className="pb-0.5 text-[0.5em] font-normal leading-none tracking-tight opacity-55">{rubyMap[txt]}</rt>
+        {base}
+        <rt className="pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint">{rubyMap[txt]}</rt>
       </ruby>
     ) : (
-      txt
+      base
     );
+  };
 
   async function scanPhoto(file: File) {
     if (scanning) return;
@@ -734,6 +774,19 @@ export default function ReaderPage() {
           <Save className="h-3.5 w-3.5" /> {t("reader.save")}
         </button>
 
+        {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
+        <button
+          type="button"
+          onClick={() => setAutoGloss(!autoGloss)}
+          title={t("reader.autoGlossHint")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+            autoGloss ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+          )}
+        >
+          <Languages className="h-3.5 w-3.5" /> {t("reader.autoGloss")}
+        </button>
+
         {/* pinyin/romaji over the characters (CJK only) */}
         {hasTranscription(sourceLang) && (
           <button
@@ -843,30 +896,29 @@ export default function ReaderPage() {
                     const el = e.currentTarget;
                     endPress(() => openKnownPop(knownId, tk.text, i, el));
                   }}
-                  className={cn(
-                    "cursor-pointer rounded-[5px] underline-offset-4",
-                    isAdded
-                      ? "bg-sage-tint px-0.5 text-sage-deep hover:bg-sage-tint/70"
-                      : "text-ink-faint underline decoration-ink-faint/30 hover:text-sage-deep",
-                  )}
+                  className="cursor-pointer"
                 >
-                  {rubyText(tk.text)}
+                  {wordNode(
+                    tk.text,
+                    cn(
+                      "rounded-[5px] underline-offset-4",
+                      isAdded
+                        ? "bg-sage-tint px-0.5 text-sage-deep"
+                        : "text-ink-faint underline decoration-ink-faint/30",
+                    ),
+                  )}
                 </span>
               );
             }
             // Added but its card id hasn't resolved yet (enrichment lag) → green.
             if (isAdded) {
-              return (
-                <span key={i} className="rounded-[5px] bg-sage-tint px-0.5 text-sage-deep">
-                  {rubyText(tk.text)}
-                </span>
-              );
+              return <span key={i}>{wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}</span>;
             }
             const onPick = (el: HTMLElement) => {
               const wasSelected = selected.has(key);
               toggle(key);
               if (wasSelected) setGloss(null); // deselecting → hide gloss
-              else openGloss(key, tk.text, el); // selecting → show quick translation
+              else if (autoGloss) openGloss(key, tk.text, el); // selecting → quick translation (opt-in)
             };
             return (
               <span
@@ -885,12 +937,12 @@ export default function ReaderPage() {
                     onPick(e.currentTarget);
                   }
                 }}
-                className={cn(
-                  "cursor-pointer rounded-[5px] px-0.5 transition-colors",
-                  isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
-                )}
+                className="cursor-pointer"
               >
-                {rubyText(tk.text)}
+                {wordNode(
+                  tk.text,
+                  cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60"),
+                )}
               </span>
             );
           })}
