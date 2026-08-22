@@ -130,17 +130,19 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 disabled={loadingId === it.id || it.status !== "ready"}
                 className="block w-full text-left disabled:cursor-default"
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pr-12">
                   {statusIcon(it.status)}
-                  <span className="truncate font-semibold text-ink">{it.title}</span>
+                  <span className="truncate text-[15px] font-semibold text-ink">{it.title}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-soft">
                   {it.status === "generating" ? t("reader.generating") : it.snippet}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-                  {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-sage-deep">~{it.level}</span>}
-                  {it.collection && <span className="rounded-full bg-black/[0.05] px-1.5 py-0.5 text-ink-muted">{it.collection}</span>}
-                  {pair(it.sourceLang, it.targetLang) && <span className="text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold">
+                  {it.collection && <span className="shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-ink-muted">{it.collection}</span>}
+                  {pair(it.sourceLang, it.targetLang) && <span className="truncate text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
+                  {showLevel && it.level && (
+                    <span className="ml-auto shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-sage-deep">~{it.level}</span>
+                  )}
                 </div>
               </button>
               <div className="absolute right-2 top-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -169,7 +171,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
       ) : (
         <div className="overflow-hidden rounded-[14px] border border-black/[0.07]">
           {shown.map((it) => (
-            <div key={it.id} className="group flex items-center gap-2 border-b border-black/[0.05] px-3.5 py-2.5 last:border-b-0 hover:bg-black/[0.02]">
+            <div key={it.id} className="group flex items-center gap-3 border-b border-black/[0.05] px-3.5 py-2.5 last:border-b-0 hover:bg-black/[0.02]">
               <button
                 type="button"
                 onClick={() => it.status === "ready" && open(it.id)}
@@ -177,11 +179,16 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
               >
                 {statusIcon(it.status)}
-                <span className="truncate font-semibold text-ink">{it.title}</span>
-                {showLevel && it.level && <span className="shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">~{it.level}</span>}
-                {pair(it.sourceLang, it.targetLang) && <span className="shrink-0 text-[11px] text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
-                {it.collection && <span className="ml-auto shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">{it.collection}</span>}
+                <span className="truncate text-[14px] font-semibold text-ink">{it.title}</span>
               </button>
+              {/* Fixed right-hand columns so level + language pair line up across rows. */}
+              <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">
+                <span className="flex w-9 justify-end">
+                  {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] text-sage-deep">~{it.level}</span>}
+                </span>
+                <span className="hidden w-[190px] truncate text-right font-medium text-ink-faint sm:block">{pair(it.sourceLang, it.targetLang)}</span>
+                {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-ink-muted md:inline">{it.collection}</span>}
+              </div>
               <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                 {it.status === "ready" && (
                   <button
