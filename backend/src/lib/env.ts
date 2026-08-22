@@ -41,6 +41,11 @@ const schema = z.object({
   // Comma-separated telegramIds that are always Pro (owner / comped friends),
   // regardless of BETA_ALL_PRO or billing.
   PRO_ALLOWLIST: z.string().default(""),
+  // Beta bug reports (the in-app "report a bug" form) are delivered here. Email
+  // needs SMTP_URL to actually send; the Telegram channel needs TELEGRAM_BOT_TOKEN.
+  // FEEDBACK_TELEGRAM_CHAT falls back to the first PRO_ALLOWLIST id when empty.
+  FEEDBACK_EMAIL: z.string().default(""),
+  FEEDBACK_TELEGRAM_CHAT: z.string().default(""),
 });
 
 export const env = schema.parse(process.env);

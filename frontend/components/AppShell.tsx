@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = ["/login/verify", "/privacy", "/terms"];
 const CommandPalette = dynamic(() => import("@/components/CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 const GlobalTutor = dynamic(() => import("@/components/GlobalTutor").then((m) => m.GlobalTutor), { ssr: false });
 const SyncStatus = dynamic(() => import("@/components/SyncStatus").then((m) => m.SyncStatus), { ssr: false });
+const BugReport = dynamic(() => import("@/components/BugReport").then((m) => m.BugReport), { ssr: false });
 
 // Gates the app behind login. Until the session check finishes we show a light
 // loading state; signed-out users get the login screen; signed-in users get the
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <AchievementWatcher />
       <GlobalTutor />
       <SyncStatus />
+      <BugReport />
     </div>
   );
 }

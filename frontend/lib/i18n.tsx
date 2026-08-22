@@ -849,6 +849,34 @@ const DICT: Record<string, Entry> = {
   "cmd.noMatches": { en: "No matches.", ru: "Ничего не найдено.", zh: "无匹配。" },
   "cmd.navHint": { en: "↑↓ to navigate · ↵ to open", ru: "↑↓ — выбор · ↵ — открыть", zh: "↑↓ 导航 · ↵ 打开" },
   "cmd.escHint": { en: "Esc to close", ru: "Esc — закрыть", zh: "Esc 关闭" },
+
+  // --- beta bug report ---
+  "bug.button": { en: "Report a bug", ru: "Сообщить об ошибке", zh: "报告问题" },
+  "bug.title": { en: "Report a bug", ru: "Сообщить об ошибке", zh: "报告问题" },
+  "bug.subtitle": {
+    en: "Found something broken or odd? Tell me what happened — a screenshot and technical details are attached automatically.",
+    ru: "Что-то сломалось или работает странно? Опишите, что произошло — скриншот и технические детали приложатся автоматически.",
+    zh: "发现问题或异常？描述一下发生了什么——截图和技术细节会自动附上。",
+  },
+  "bug.kind.bug": { en: "Bug", ru: "Ошибка", zh: "问题" },
+  "bug.kind.idea": { en: "Idea", ru: "Идея", zh: "想法" },
+  "bug.kind.other": { en: "Other", ru: "Другое", zh: "其他" },
+  "bug.placeholder": {
+    en: "What did you do, and what went wrong? e.g. \"Tapped a word in the reader and the popup didn't close.\"",
+    ru: "Что вы делали и что пошло не так? Напр.: «Нажал на слово в читалке, и попап не закрылся».",
+    zh: "你做了什么，出了什么问题？例如：“在阅读器点了一个单词，弹窗没有关闭。”",
+  },
+  "bug.attachShot": { en: "Attach a screenshot of this page", ru: "Приложить скриншот этой страницы", zh: "附上本页截图" },
+  "bug.shotCapturing": { en: "Capturing screenshot…", ru: "Делаю скриншот…", zh: "正在截图…" },
+  "bug.shotReady": { en: "Screenshot attached", ru: "Скриншот приложен", zh: "已附上截图" },
+  "bug.shotFailed": { en: "Couldn't capture a screenshot — sending without it.", ru: "Не удалось сделать скриншот — отправлю без него.", zh: "无法截图——将不带截图发送。" },
+  "bug.errorsCaptured": { en: "{n} recent error(s) will be included", ru: "Будет добавлено недавних ошибок: {n}", zh: "将包含 {n} 条近期错误" },
+  "bug.send": { en: "Send report", ru: "Отправить", zh: "发送报告" },
+  "bug.sending": { en: "Sending…", ru: "Отправка…", zh: "发送中…" },
+  "bug.thanks": { en: "Thank you! Your report was sent.", ru: "Спасибо! Отчёт отправлен.", zh: "谢谢！报告已发送。" },
+  "bug.failed": { en: "Couldn't send — please try again.", ru: "Не удалось отправить — попробуйте ещё раз.", zh: "发送失败——请重试。" },
+  "bug.emptyMsg": { en: "Please describe the problem first.", ru: "Сначала опишите проблему.", zh: "请先描述问题。" },
+  "bug.close": { en: "Close", ru: "Закрыть", zh: "关闭" },
 };
 
 const I18nCtx = createContext<{

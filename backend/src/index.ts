@@ -5,6 +5,7 @@ import { env } from "./lib/env.js";
 import { wordsRouter } from "./routes/words.js";
 import { authRouter } from "./routes/auth.js";
 import { friendsRouter } from "./routes/friends.js";
+import { feedbackRouter } from "./routes/feedback.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
 
@@ -50,6 +51,7 @@ app.get("/health", (_req, res) => {
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);
 app.use("/api", friendsRouter);
+app.use("/api", feedbackRouter);
 app.use("/api", wordsRouter);
 
 app.listen(env.PORT, () => {
