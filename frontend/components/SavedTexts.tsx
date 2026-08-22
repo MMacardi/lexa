@@ -8,7 +8,8 @@ import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
 import { getShowTextLevel } from "@/lib/learnPrefs";
 import { Select } from "@/components/ui/Select";
-import { LayoutGrid, List, Clock, TriangleAlert, Trash2 } from "lucide-react";
+import { SaveModal } from "@/components/ReaderTextTools";
+import { LayoutGrid, List, Clock, TriangleAlert, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Inline "My texts" library on the reader's input page: browse saved texts as
@@ -22,6 +23,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [fPair, setFPair] = useState(""); // "sourceLang|targetLang" filter, "" = all
   const [fColl, setFColl] = useState(""); // collection filter, "" = all
+  const [editing, setEditing] = useState<ReaderTextFull | null>(null);
   const showLevel = getShowTextLevel();
 
   const { data: items } = useQuery({
@@ -58,6 +60,13 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
   async function remove(id: string) {
     await api.deleteReaderText(id, accountId).catch(() => {});
     qc.setQueryData<typeof items>(["reader-texts", accountId], (list) => (list ?? []).filter((x) => x.id !== id));
+  }
+  async function edit(id: string) {
+    try {
+      setEditing(await api.readerText(id, accountId));
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!items || items.length === 0) return null;
@@ -134,14 +143,26 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                   {pair(it.sourceLang, it.targetLang) && <span className="text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
                 </div>
               </button>
-              <button
-                type="button"
-                onClick={() => remove(it.id)}
-                aria-label={t("friends.remove")}
-                className="absolute right-2 top-2 rounded-md p-1 text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="absolute right-2 top-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                {it.status === "ready" && (
+                  <button
+                    type="button"
+                    onClick={() => edit(it.id)}
+                    aria-label={t("reader.editAction")}
+                    className="rounded-md p-1 text-ink-faint hover:text-sage-deep"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => remove(it.id)}
+                  aria-label={t("friends.remove")}
+                  className="rounded-md p-1 text-ink-faint hover:text-warn-text"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -161,17 +182,45 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 {pair(it.sourceLang, it.targetLang) && <span className="shrink-0 text-[11px] text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
                 {it.collection && <span className="ml-auto shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">{it.collection}</span>}
               </button>
-              <button
-                type="button"
-                onClick={() => remove(it.id)}
-                aria-label={t("friends.remove")}
-                className="shrink-0 rounded-md p-1 text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                {it.status === "ready" && (
+                  <button
+                    type="button"
+                    onClick={() => edit(it.id)}
+                    aria-label={t("reader.editAction")}
+                    className="rounded-md p-1 text-ink-faint hover:text-sage-deep"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => remove(it.id)}
+                  aria-label={t("friends.remove")}
+                  className="rounded-md p-1 text-ink-faint hover:text-warn-text"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <SaveModal
+          text={editing.content}
+          translation={editing.translation ?? undefined}
+          clickedWords={editing.clickedWords}
+          sourceLang={editing.sourceLang ?? "auto"}
+          targetLang={editing.targetLang ?? "zh"}
+          editId={editing.id}
+          initialTitle={editing.title}
+          initialCollection={editing.collection ?? ""}
+          initialLevel={editing.level ?? ""}
+          onClose={() => setEditing(null)}
+          onSaved={() => setEditing(null)}
+        />
       )}
     </div>
   );

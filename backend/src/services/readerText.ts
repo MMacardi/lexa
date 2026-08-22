@@ -149,7 +149,14 @@ export async function createText(
 export async function updateText(
   telegramId: string,
   id: string,
-  data: { title?: string; content?: string },
+  data: {
+    title?: string;
+    content?: string;
+    collection?: string | null;
+    level?: string | null;
+    translation?: string | null;
+    clickedWords?: string[];
+  },
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
@@ -160,8 +167,12 @@ export async function updateText(
     data: {
       ...(data.title !== undefined ? { title: data.title.trim() || "Untitled" } : {}),
       ...(data.content !== undefined ? { content: data.content } : {}),
+      ...(data.collection !== undefined ? { collection: data.collection?.trim() || null } : {}),
+      ...(data.level !== undefined ? { level: data.level?.trim().toUpperCase() || null } : {}),
+      ...(data.translation !== undefined ? { translation: data.translation?.trim() || null } : {}),
+      ...(data.clickedWords !== undefined ? { clickedWords: data.clickedWords } : {}),
     },
-    select: { id: true, title: true },
+    select: { id: true, title: true, level: true },
   });
 }
 

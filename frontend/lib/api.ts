@@ -446,8 +446,18 @@ export const api = {
     sourceLang?: string;
     targetLang?: string;
   }) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
-  updateReaderText: (id: string, payload: { telegramId: string; title?: string; content?: string }) =>
-    http<{ id: string; title: string }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  updateReaderText: (
+    id: string,
+    payload: {
+      telegramId: string;
+      title?: string;
+      content?: string;
+      collection?: string | null;
+      level?: string | null;
+      translation?: string | null;
+      clickedWords?: string[];
+    },
+  ) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteReaderText: (id: string, telegramId: string) =>
     http<{ ok: true }>(`/api/reader/texts/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   // Kicks off background generation; returns the new row id (poll readerText for status).

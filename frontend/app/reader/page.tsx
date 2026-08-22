@@ -93,6 +93,7 @@ export default function ReaderPage() {
   const [text, setText] = useState("");
   const [reading, setReading] = useState(false);
   const [textLevel, setTextLevel] = useState<string | null>(null); // CEFR of the open saved text
+  const [openText, setOpenText] = useState<ReaderTextFull | null>(null); // the saved text being read (for edit-in-place on save)
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [queueing, setQueueing] = useState(false);
@@ -148,9 +149,11 @@ export default function ReaderPage() {
           if (cancel) return;
           if (full.status === "ready") {
             setPendingGen((p) => p.filter((x) => x !== id));
+            qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
             show({ icon: "📄", title: t("reader.genReady"), subtitle: full.title });
           } else if (full.status === "failed") {
             setPendingGen((p) => p.filter((x) => x !== id));
+            qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
             show({ icon: "⚠️", title: t("reader.genFailed") });
           }
         } catch {
@@ -162,10 +165,11 @@ export default function ReaderPage() {
       cancel = true;
       clearInterval(timer);
     };
-  }, [pendingGen, accountId, show, t]);
+  }, [pendingGen, accountId, show, t, qc]);
 
   function startGen(id: string) {
     setPendingGen((p) => [...p, id]);
+    qc.invalidateQueries({ queryKey: ["reader-texts", accountId] }); // show the "generating" row at once
     show({ icon: "✨", title: t("reader.genStarted") });
   }
 
@@ -326,6 +330,7 @@ export default function ReaderPage() {
     setSelected(new Set());
     setShowTr(false);
     setTextLevel(null); // a freshly pasted text has no level until it's saved
+    setOpenText(null); // fresh paste → Save creates a new text, not an update
     setReading(true);
   }
 
@@ -334,6 +339,7 @@ export default function ReaderPage() {
   function openSavedText(full: ReaderTextFull) {
     setText(full.content);
     setTextLevel(full.level ?? null);
+    setOpenText(full); // editing this one → Save updates it instead of duplicating
     // Attribute words added from this text to its title (falls back to "Reader").
     if (full.title?.trim()) setReaderSource(full.title.trim());
     if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
@@ -1281,8 +1287,16 @@ export default function ReaderPage() {
           clickedWords={Array.from(new Set([...added, ...selected]))}
           sourceLang={sourceLang}
           targetLang={targetLang}
+          editId={openText?.id}
+          initialTitle={openText?.title}
+          initialCollection={openText?.collection ?? ""}
+          initialLevel={openText?.level ?? ""}
           onClose={() => setShowSave(false)}
-          onSaved={() => setShowSave(false)}
+          onSaved={(saved) => {
+            if (openText && saved) setOpenText({ ...openText, ...saved });
+            setTextLevel(saved?.level ?? textLevel);
+            setShowSave(false);
+          }}
         />
       )}
     </div>
