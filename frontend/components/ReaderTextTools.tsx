@@ -9,6 +9,7 @@ import { getLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, Library, Sparkles, Clock, TriangleAlert, X } from "lucide-react";
+import { CollectionCombo } from "@/components/CollectionCombo";
 
 // Small pill button — the compact toolbar style shared with the reading view.
 function Chip({
@@ -178,35 +179,7 @@ export function SaveModal({
         </label>
 
         <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.collectionLabel")}</label>
-        <Input
-          value={collection}
-          onChange={(e) => setCollection(e.target.value)}
-          placeholder={t("reader.collectionPh")}
-          list="reader-collections"
-          className="h-11"
-        />
-        <datalist id="reader-collections">
-          {known.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-        {known.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {known.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCollection((cur) => (cur === c ? "" : c))}
-                className={
-                  "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors " +
-                  (collection === c ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-muted hover:bg-black/[0.03]")
-                }
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        )}
+        <CollectionCombo value={collection} onChange={setCollection} options={known} placeholder={t("reader.collectionPh")} />
 
         <Button type="submit" disabled={busy || !text.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
           {busy ? "…" : t("reader.save")}
