@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed } from "lucide-react";
+import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -112,6 +112,10 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
+  const [rubyOn, setRubyOn] = useState(false);
+  const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
+  const rubyCache = useRef<Map<string, string>>(new Map());
   // Draggable word-card panel: offset from its docked position (reset per card).
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
   const cardDrag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
@@ -230,6 +234,45 @@ export default function ReaderPage() {
   }, [tokens, knownMap, added]);
 
   const busy = queueing;
+
+  // When ruby (pinyin over characters) is on, transcribe all distinct words in
+  // ONE batch call; results are cached per word so re-toggling and repeats are free.
+  useEffect(() => {
+    if (!rubyOn || !reading || !hasTranscription(sourceLang)) {
+      setRubyMap({});
+      return;
+    }
+    const key = (w: string) => `${sourceLang}:${w}`;
+    const distinct = Array.from(new Set(tokens.filter((tk) => tk.wordLike).map((tk) => tk.text)));
+    const build = () => {
+      const m: Record<string, string> = {};
+      for (const w of distinct) {
+        const v = rubyCache.current.get(key(w));
+        if (v) m[w] = v;
+      }
+      setRubyMap(m);
+    };
+    build();
+    const missing = distinct.filter((w) => !rubyCache.current.has(key(w)));
+    if (missing.length === 0) return;
+    let cancel = false;
+    api
+      .transcribe(missing, sourceLang)
+      .then((items) => {
+        if (cancel) return;
+        missing.forEach((w, i) => {
+          const v = items[i]?.trim();
+          if (v) rubyCache.current.set(key(w), v);
+        });
+        build();
+      })
+      .catch(() => {
+        /* transcription is best-effort */
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [rubyOn, reading, sourceLang, tokens]);
 
   function startReading() {
     if (!text.trim()) {
@@ -489,6 +532,17 @@ export default function ReaderPage() {
 
   const trReady = translation !== null && translatedFor.current === text;
 
+  // Render a word with its transcription above it (ruby) when ruby mode is on.
+  const rubyText = (txt: string) =>
+    rubyOn && rubyMap[txt] ? (
+      <ruby>
+        {txt}
+        <rt className="text-[0.5em] font-normal tracking-tight text-ink-faint">{rubyMap[txt]}</rt>
+      </ruby>
+    ) : (
+      txt
+    );
+
   async function scanPhoto(file: File) {
     if (scanning) return;
     setScanning(true);
@@ -654,6 +708,20 @@ export default function ReaderPage() {
           <Save className="h-3.5 w-3.5" /> {t("reader.save")}
         </button>
 
+        {/* pinyin/romaji over the characters (CJK only) */}
+        {hasTranscription(sourceLang) && (
+          <button
+            type="button"
+            onClick={() => setRubyOn((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              rubyOn ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Baseline className="h-3.5 w-3.5" /> {t("reader.ruby")}
+          </button>
+        )}
+
         {/* translate whole text */}
         <button
           type="button"
@@ -735,7 +803,7 @@ export default function ReaderPage() {
             if (isAdded) {
               return (
                 <span key={i} className="rounded-[5px] bg-sage-tint px-0.5 text-sage-deep">
-                  {tk.text}
+                  {rubyText(tk.text)}
                 </span>
               );
             }
@@ -755,7 +823,7 @@ export default function ReaderPage() {
                   }}
                   className="cursor-pointer rounded-[4px] text-ink-faint underline decoration-ink-faint/30 underline-offset-4 hover:text-sage-deep"
                 >
-                  {tk.text}
+                  {rubyText(tk.text)}
                 </span>
               );
             }
@@ -787,7 +855,7 @@ export default function ReaderPage() {
                   isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
                 )}
               >
-                {tk.text}
+                {rubyText(tk.text)}
               </span>
             );
           })}

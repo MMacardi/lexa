@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { chatJson } from "./llm.js";
 import { translationSchema, glossSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
@@ -63,6 +64,30 @@ export async function glossInContext(params: {
     timeoutMs: 30000,
   });
   return { gloss: result.translation.trim(), transcription: (result.transcription ?? "").trim() };
+}
+
+/**
+ * Batch-transcribe many words in ONE call (for the reader's "pinyin over
+ * characters" mode). Returns a transcription per input word, in the same order,
+ * so the whole passage costs a single request instead of one per word.
+ */
+export async function transcribeWords(params: { words: string[]; sourceLang?: string }): Promise<string[]> {
+  const lang = params.sourceLang ?? "zh";
+  if (!TRANSCRIBABLE.has(lang)) return [];
+  const words = params.words.map((w) => w.trim()).filter(Boolean).slice(0, 400);
+  if (words.length === 0) return [];
+  const source = langName(lang);
+  const trName = transcriptionName(lang);
+  const result = await chatJson({
+    system:
+      `You transcribe ${source}. The user sends a JSON array of ${source} words/phrases. ` +
+      `Output its ${trName} for each item. Respond as JSON {"items": string[]} with EXACTLY the ` +
+      `same length and order as the input — transcription only, no translation, no extra text.`,
+    user: JSON.stringify(words),
+    schema: z.object({ items: z.array(z.string()) }),
+    timeoutMs: 45000,
+  });
+  return result.items.map((s) => s.trim());
 }
 
 // Cap the text we send to the model so a giant paste can't blow up latency/cost.

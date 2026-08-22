@@ -284,6 +284,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  // Batch transcription of many words in one call (Reader "pinyin over characters").
+  transcribe: (words: string[], sourceLang: string) =>
+    http<{ items: string[] }>(`/api/transcribe`, { method: "POST", body: JSON.stringify({ words, sourceLang }) }).then((r) => r.items),
   // OCR: extract text from a photo (base64 data URL) for the Reader.
   ocr: (payload: { image: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/ocr`, { method: "POST", body: JSON.stringify(payload) }),

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { aiQuotaGuard, usageStatus } from "../lib/entitlements.js";
 import { suggestWord } from "../services/suggest.js";
-import { translateText, glossInContext } from "../services/translate.js";
+import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
@@ -42,7 +42,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -627,6 +627,26 @@ wordsRouter.post("/translate", async (req, res) => {
   }
   try {
     res.json(await translateText(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/transcribe -> batch transcription of many words in one call (Reader
+// "pinyin over characters"). Returns { items: string[] } aligned to the input.
+const transcribeBody = z.object({
+  words: z.array(z.string().max(120)).min(1).max(400),
+  sourceLang: z.string().max(12).optional(),
+});
+wordsRouter.post("/transcribe", async (req, res) => {
+  const parsed = transcribeBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json({ items: await transcribeWords(parsed.data) });
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
