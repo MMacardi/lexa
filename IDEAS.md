@@ -11,6 +11,17 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   page screenshot to the owner over email and/or Telegram. Popovers everywhere
   fixed to allow copying their value (no dismiss on inside-tap), follow on scroll,
   and fade out gently. Logo → Today.
+- ✅ **Example register/level knobs + labels** — the inline "+ add example" AI
+  button now picks source (AI/web), register and CEFR level; AI examples record
+  how they were made and show it as chips next to "Lexa AI" on the word page.
+
+## Pre-launch checklist
+- ⏭ **Site email** — buy a domain + wire a transactional provider (Resend/
+  Postmark) as `SMTP_URL`, sender `no-reply@<domain>`; point `FEEDBACK_EMAIL`
+  at an inbox. Powers magic-links, retention mail, and bug reports.
+- ⏭ **Bump Next.js** before public launch — `npm audit` flags advisories in the
+  pinned Next (plus generic transitive DoS in brace-expansion/js-yaml/nanoid,
+  mostly dev-only). Not urgent for the closed beta.
 - ✅ **Cloze cards from examples** — Quiz has a "Fill the blank" mode: the target
   word is hidden in its example sentence, learner types it. (RemNote-inspired #1)
 - ✅ **AI "Explain / when to use"** — word page button: nuance, register, synonym
