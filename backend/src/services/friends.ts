@@ -7,6 +7,11 @@ import { env } from "../lib/env.js";
 
 type UserRow = { id: string; telegramId: string; firstName: string | null; lastName: string | null; username: string | null; referralCode: string | null };
 
+// Throw an error carrying a machine-readable code so the frontend can localize it.
+function fail(code: string, message: string): never {
+  throw Object.assign(new Error(message), { code });
+}
+
 async function userByTelegramId(telegramId: string) {
   return prisma.user.findUnique({ where: { telegramId } });
 }
@@ -109,8 +114,8 @@ export async function sendRequestByCode(telegramId: string, code: string) {
   const me = await userByTelegramId(telegramId);
   if (!me) throw new Error("Account not found");
   const other = await prisma.user.findUnique({ where: { referralCode: code.trim().toUpperCase() } });
-  if (!other) throw new Error("No one has that code");
-  if (other.id === me.id) throw new Error("That's your own code");
+  if (!other) fail("no_code", "No one has that code");
+  if (other.id === me.id) fail("own_code", "That's your own code");
 
   // Already linked either way?
   const existing = await prisma.friendship.findFirst({
@@ -134,7 +139,7 @@ export async function acceptRequest(telegramId: string, friendshipId: string) {
   if (!me) throw new Error("Account not found");
   // Only the addressee can accept.
   const link = await prisma.friendship.findFirst({ where: { id: friendshipId, addresseeId: me.id, status: "pending" } });
-  if (!link) throw new Error("Request not found");
+  if (!link) fail("not_found", "Request not found");
   await prisma.friendship.update({ where: { id: link.id }, data: { status: "accepted" } });
   return { ok: true };
 }

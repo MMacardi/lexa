@@ -47,7 +47,7 @@ friendsRouter.get("/friends/referral", async (req, res) => {
   try {
     res.json(await getReferral(id));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message, code: (err as { code?: string }).code });
   }
 });
 
@@ -64,7 +64,7 @@ friendsRouter.post("/friends/add", (req, res, next) => addLimiter(req, res, next
   try {
     res.json(await sendRequestByCode(id, parsed.data.code));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message, code: (err as { code?: string }).code });
   }
 });
 
@@ -75,7 +75,7 @@ friendsRouter.post("/friends/:id/accept", async (req, res) => {
   try {
     res.json(await acceptRequest(id, String(req.params.id)));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message, code: (err as { code?: string }).code });
   }
 });
 

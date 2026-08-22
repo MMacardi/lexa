@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   TriangleAlert, Sprout, Folders, BookOpen, Target, Languages, WifiOff,
   PenLine, Library, FileText, Save, Home, Layers, Sparkles, Bell, PartyPopper,
-  Trophy, UserPlus, type LucideIcon,
+  Trophy, UserPlus, Trash2, type LucideIcon,
 } from "lucide-react";
 
 // Map the emoji that call sites pass to a clean line icon, so toasts match the
@@ -17,7 +17,7 @@ const TOAST_ICONS: Record<string, LucideIcon> = {
   "⚠️": TriangleAlert, "🌱": Sprout, "🗂": Folders, "📖": BookOpen, "🎯": Target,
   "🔤": Languages, "📴": WifiOff, "📝": PenLine, "📚": Library, "📄": FileText,
   "💾": Save, "🏠": Home, "🃏": Layers, "✨": Sparkles, "🔔": Bell, "🎉": PartyPopper,
-  "🏆": Trophy, "👥": UserPlus,
+  "🏆": Trophy, "👥": UserPlus, "🗑": Trash2,
 };
 
 function ToastIcon({ icon }: { icon: string }) {

@@ -399,6 +399,32 @@ export function useShowTranscription(): boolean {
   return on;
 }
 
+// Auto-translate a word when you select it in the Reader (a per-tap model call).
+// Off = tapping just selects it, no request — handy for batch-adding.
+const AUTOGLOSS_KEY = "lexa.autoGloss";
+export function getAutoGloss(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(AUTOGLOSS_KEY) !== "0"; // default on
+}
+export function setAutoGloss(on: boolean) {
+  localStorage.setItem(AUTOGLOSS_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useAutoGloss(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getAutoGloss());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Show an estimated CEFR level on saved texts (and estimate it at save time).
 const LEVEL_BADGE_KEY = "lexa.showTextLevel";
 export function getShowTextLevel(): boolean {
