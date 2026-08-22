@@ -6,6 +6,11 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 ---
 
 ## Done
+- ✅ **Beta bug reporter** — floating "report a bug/idea" form, app-wide. Sends
+  the message + auto context (route, env, recent JS/network errors) + optional
+  page screenshot to the owner over email and/or Telegram. Popovers everywhere
+  fixed to allow copying their value (no dismiss on inside-tap), follow on scroll,
+  and fade out gently. Logo → Today.
 - ✅ **Cloze cards from examples** — Quiz has a "Fill the blank" mode: the target
   word is hidden in its example sentence, learner types it. (RemNote-inspired #1)
 - ✅ **AI "Explain / when to use"** — word page button: nuance, register, synonym
