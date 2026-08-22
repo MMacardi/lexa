@@ -87,6 +87,10 @@ export function SaveModal({
   clickedWords,
   sourceLang,
   targetLang,
+  editId,
+  initialTitle,
+  initialCollection,
+  initialLevel,
   onClose,
   onSaved,
 }: {
@@ -95,18 +99,23 @@ export function SaveModal({
   clickedWords?: string[];
   sourceLang: string;
   targetLang: string;
+  // When set, saving UPDATES this existing text instead of creating a new one.
+  editId?: string;
+  initialTitle?: string;
+  initialCollection?: string;
+  initialLevel?: string | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (saved?: { id: string; title: string; level?: string | null; collection: string | null }) => void;
 }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
-  const [title, setTitle] = useState(text.trim().slice(0, 50));
+  const [title, setTitle] = useState((initialTitle ?? text).trim().slice(0, 50));
   const [aiName, setAiName] = useState(false);
-  const [collection, setCollection] = useState("");
+  const [collection, setCollection] = useState(initialCollection ?? "");
   const [known, setKnown] = useState<string[]>([]);
-  const [level, setLevel] = useState<CefrLevel | "">(getLevel(sourceLang) ?? "");
+  const [level, setLevel] = useState<CefrLevel | "">((initialLevel as CefrLevel) || getLevel(sourceLang) || "");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -118,24 +127,35 @@ export function SaveModal({
     if (!body || busy) return;
     setBusy(true);
     try {
-      await api.saveReaderText({
-        telegramId: accountId,
-        title: aiName ? "" : title.trim(),
-        content: body,
-        collection: collection.trim() || undefined,
-        autoName: aiName,
-        translation: translation?.trim() || undefined,
-        clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
-        // A level the user picked here is used directly (no AI). Only fall back to
-        // an AI estimate when they left it blank and the badge setting is on.
-        level: level || undefined,
-        estimateLevel: !level && getShowTextLevel(),
-        sourceLang,
-        targetLang,
-      });
+      const collVal = collection.trim() || null;
+      const saved = editId
+        ? await api.updateReaderText(editId, {
+            telegramId: accountId,
+            title: aiName ? undefined : title.trim(),
+            content: body,
+            collection: collVal,
+            level: level || null,
+            translation: translation?.trim() || null,
+            clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
+          })
+        : await api.saveReaderText({
+            telegramId: accountId,
+            title: aiName ? "" : title.trim(),
+            content: body,
+            collection: collVal || undefined,
+            autoName: aiName,
+            translation: translation?.trim() || undefined,
+            clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
+            // A level the user picked here is used directly (no AI). Only fall back to
+            // an AI estimate when they left it blank and the badge setting is on.
+            level: level || undefined,
+            estimateLevel: !level && getShowTextLevel(),
+            sourceLang,
+            targetLang,
+          });
       qc.invalidateQueries({ queryKey: ["reader-texts"] });
-      show({ icon: "💾", title: t("reader.saved") });
-      onSaved();
+      show({ icon: "💾", title: t(editId ? "reader.updated" : "reader.saved") });
+      onSaved({ id: saved.id, title: saved.title, level: saved.level ?? (level || null), collection: collVal });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -153,7 +173,7 @@ export function SaveModal({
         }}
       >
         <h3 className="mb-3 flex items-center gap-2 font-serif text-[18px] font-semibold text-ink">
-          <Save className="h-[18px] w-[18px] text-sage-deep" /> {t("reader.saveTitle")}
+          <Save className="h-[18px] w-[18px] text-sage-deep" /> {t(editId ? "reader.editTitle" : "reader.saveTitle")}
         </h3>
 
         <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
@@ -192,7 +212,7 @@ export function SaveModal({
         </div>
 
         <Button type="submit" disabled={busy || !text.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
-          {busy ? "…" : t("reader.save")}
+          {busy ? "…" : t(editId ? "reader.update" : "reader.save")}
         </Button>
       </form>
     </Overlay>

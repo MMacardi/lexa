@@ -727,6 +727,10 @@ const readerUpdateBody = z.object({
   telegramId: z.string().optional(),
   title: z.string().max(120).optional(),
   content: z.string().max(20_000).optional(),
+  collection: z.string().max(60).nullish(),
+  level: z.string().max(4).nullish(),
+  translation: z.string().max(20_000).nullish(),
+  clickedWords: z.array(z.string().max(120)).max(2000).optional(),
 });
 wordsRouter.put("/reader/texts/:id", async (req, res) => {
   const parsed = readerUpdateBody.safeParse(req.body);
