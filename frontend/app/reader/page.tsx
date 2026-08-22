@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ReaderTextFull } from "@/lib/api";
@@ -108,6 +108,9 @@ export default function ReaderPage() {
   const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const glossKeyRef = useRef<string>("");
   const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
+  const glossPopRef = useRef<HTMLDivElement | null>(null); // popup box, to ignore taps inside it
+  const [glossClosing, setGlossClosing] = useState(false);
+  const glossCloseTimer = useRef<number | null>(null);
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -115,6 +118,8 @@ export default function ReaderPage() {
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
+  const [knownClosing, setKnownClosing] = useState(false);
+  const knownCloseTimer = useRef<number | null>(null);
   const [cardPanel, setCardPanel] = useState<{ wordId: string; sentence: string } | null>(null);
   const [addingExample, setAddingExample] = useState(false);
   // Background AI text generations we're waiting on (poll until ready).
@@ -365,6 +370,8 @@ export default function ReaderPage() {
 
   // Show a quick translation of a single word, anchored under the tapped token.
   function openGloss(key: string, wordText: string, el: HTMLElement) {
+    if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
+    setGlossClosing(false);
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setGloss({ key, word: wordText, x, y: rect.bottom });
@@ -410,48 +417,72 @@ export default function ReaderPage() {
       });
   }
 
+  // Animate the gloss out, then unmount (a re-open cancels a pending close).
+  const closeGloss = useCallback(() => {
+    setGlossClosing(true);
+    if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
+    glossCloseTimer.current = window.setTimeout(() => {
+      setGloss(null);
+      setGlossClosing(false);
+    }, 150);
+  }, []);
+
   // Keep the gloss anchored to its word while scrolling/resizing (instead of
-  // vanishing); dismiss on Escape or a tap elsewhere. Off-screen → close.
+  // vanishing); dismiss on Escape or a tap *outside* the popup. Taps inside stay
+  // put so the meaning can be selected/copied. Off-screen → close.
   const glossOpen = gloss !== null;
   useEffect(() => {
     if (!glossOpen) return;
-    const close = () => setGloss(null);
     const reposition = () => {
       const el = glossElRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.bottom < 0 || rect.top > window.innerHeight) {
-        close();
+        closeGloss();
         return;
       }
       const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
       setGloss((g) => (g ? { ...g, x, y: rect.bottom } : g));
     };
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && closeGloss();
+    const onDown = (e: PointerEvent) => {
+      if (glossPopRef.current?.contains(e.target as Node)) return;
+      closeGloss();
+    };
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
-    document.addEventListener("pointerdown", close);
+    document.addEventListener("pointerdown", onDown);
     return () => {
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
-      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("pointerdown", onDown);
     };
-  }, [glossOpen]);
+  }, [glossOpen, closeGloss]);
+
+  // Animate the known-word popup out, then unmount.
+  const closeKnown = useCallback(() => {
+    setKnownClosing(true);
+    if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
+    knownCloseTimer.current = window.setTimeout(() => {
+      setKnownPop(null);
+      setKnownClosing(false);
+    }, 150);
+  }, []);
 
   // Escape closes the known-word popup / card panel.
   useEffect(() => {
     if (!knownPop && !cardPanel) return;
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setKnownPop(null);
+        closeKnown();
         setCardPanel(null);
       }
     };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
-  }, [knownPop, cardPanel]);
+  }, [knownPop, cardPanel, closeKnown]);
 
   // Known-word popup: follow its word while scrolling (don't vanish), and close
   // on a tap anywhere outside the popup itself (its buttons stay clickable).
@@ -463,14 +494,14 @@ export default function ReaderPage() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.bottom < 0 || rect.top > window.innerHeight) {
-        setKnownPop(null);
+        closeKnown();
         return;
       }
       const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
       setKnownPop((p) => (p ? { ...p, x, y: rect.bottom } : p));
     };
     const onDown = (e: PointerEvent) => {
-      if (!knownPopRef.current?.contains(e.target as Node)) setKnownPop(null);
+      if (!knownPopRef.current?.contains(e.target as Node)) closeKnown();
     };
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
@@ -480,7 +511,7 @@ export default function ReaderPage() {
       window.removeEventListener("resize", reposition);
       document.removeEventListener("pointerdown", onDown);
     };
-  }, [knownOpen]);
+  }, [knownOpen, closeKnown]);
 
   // The sentence a token belongs to (for provided example / context).
   function sentenceAround(index: number): string {
@@ -504,6 +535,8 @@ export default function ReaderPage() {
 
   // Short tap on a saved word → small popup with its meaning + "add example".
   function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
+    if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
+    setKnownClosing(false);
     const w = (words ?? []).find((x) => x.id === wordId);
     knownElRef.current = el;
     const rect = el.getBoundingClientRect();
@@ -1025,16 +1058,19 @@ export default function ReaderPage() {
       {/* per-word quick gloss popover */}
       {gloss &&
         createPortal(
-          <div
-            className="anim-fade-up fixed z-[90] -translate-x-1/2"
-            style={{ left: gloss.x, top: gloss.y + 8 }}
-          >
-            <div className="max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
-              <div className={cn("text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</div>
-              {!glossLoading && glossTr && (
-                <div className="mt-0.5 text-[12px] font-medium text-ink-faint">{glossTr}</div>
+          <div className="fixed z-[90] -translate-x-1/2" style={{ left: gloss.x, top: gloss.y + 8 }}>
+            <div
+              ref={glossPopRef}
+              className={cn(
+                "max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]",
+                glossClosing ? "anim-popover-out" : "anim-popover",
               )}
-              <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>
+            >
+              <div className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</div>
+              {!glossLoading && glossTr && (
+                <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">{glossTr}</div>
+              )}
+              <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>
                 {glossLoading ? t("reader.translating") : glossText}
               </div>
             </div>
@@ -1045,11 +1081,17 @@ export default function ReaderPage() {
       {/* known word — short tap popup: meaning + add example from this sentence */}
       {knownPop &&
         createPortal(
-          <div className="anim-fade-up fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
-            <div ref={knownPopRef} className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
-              <div className={cn("text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
+          <div className="fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
+            <div
+              ref={knownPopRef}
+              className={cn(
+                "w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]",
+                knownClosing ? "anim-popover-out" : "anim-popover",
+              )}
+            >
+              <div className={cn("select-text text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
               {knownPop.meaning && (
-                <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
+                <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
               )}
               <div className="mt-2.5 flex flex-col gap-1.5">
                 <button
