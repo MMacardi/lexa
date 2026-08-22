@@ -399,6 +399,31 @@ export function useShowTranscription(): boolean {
   return on;
 }
 
+// Show an estimated CEFR level on saved texts (and estimate it at save time).
+const LEVEL_BADGE_KEY = "lexa.showTextLevel";
+export function getShowTextLevel(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(LEVEL_BADGE_KEY) !== "0"; // default on
+}
+export function setShowTextLevel(on: boolean) {
+  localStorage.setItem(LEVEL_BADGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useShowTextLevel(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getShowTextLevel());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Languages where a transcription is meaningful.
 export function hasTranscription(lang: string): boolean {
   return lang === "zh" || lang === "zh-Hant" || lang === "ja" || lang === "ko";
