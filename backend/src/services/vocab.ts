@@ -64,6 +64,7 @@ export async function addWordForUser(params: {
   level?: string;
   exampleStyle?: string;
   exampleSource?: string;
+  exampleCount?: number; // how many examples to generate (1–3); default 1
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
@@ -82,6 +83,21 @@ export async function addWordForUser(params: {
     sourceLang: params.sourceLang,
     targetLang: params.targetLang,
   });
+
+  // Extra examples: compose N-1 more, each avoiding the ones already there. Skipped
+  // for the "no example" style.
+  const count = Math.max(1, Math.min(3, Math.round(params.exampleCount ?? 1)));
+  if (count > 1 && params.exampleStyle !== "none") {
+    for (let i = 1; i < count; i++) {
+      await addExampleToWord(example.wordId, {
+        exampleStyle: params.exampleStyle,
+        exampleSource: params.exampleSource,
+        level: params.level,
+      }).catch(() => {
+        /* one extra example failing shouldn't fail the whole add */
+      });
+    }
+  }
 
   return prisma.word.findUniqueOrThrow({
     where: { id: example.wordId },
