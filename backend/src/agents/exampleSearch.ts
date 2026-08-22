@@ -95,6 +95,14 @@ export async function runExampleSearch(params: {
   const targetLang = params.targetLang ?? "zh";
   const sourceName = langName(sourceLang);
   const targetName = langName(targetLang);
+
+  // "none" → create the card but generate NO example (no model call, no search).
+  if (params.exampleStyle === "none") {
+    const wordId =
+      params.wordId ?? (await prisma.word.create({ data: { userId: params.userId, word, sourceLang, targetLang } })).id;
+    return { wordId, sentenceEn: "", sentenceZh: "", sourceName: "", sourceUrl: "" };
+  }
+
   const style = STYLE_HINTS[params.exampleStyle ?? "news"] ? (params.exampleStyle ?? "news") : "news";
   const styleInfo = STYLE_HINTS[style];
 

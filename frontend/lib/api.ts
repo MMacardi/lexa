@@ -147,7 +147,7 @@ export interface AddAuto {
   sourceLang: string;
   targetLang: string;
   level?: string; // learner CEFR level for example difficulty
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
 }
 
@@ -184,7 +184,7 @@ export interface ImportOptions {
   generateDetails: boolean;
   generateExamples: boolean;
   level?: string;
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
 }
 
@@ -257,7 +257,7 @@ export const api = {
   ) => http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   addExample: (
     id: string,
-    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
+    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
@@ -305,7 +305,7 @@ export const api = {
     items?: { word: string; sentence?: string }[];
     source?: string; // attribution for the provided example
     level?: string;
-    exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+    exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
     exampleSource?: "ai" | "web";
     collectionIds?: string[];
     enrich?: boolean;

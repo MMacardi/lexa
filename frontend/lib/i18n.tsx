@@ -144,7 +144,7 @@ const DICT: Record<string, Entry> = {
   "reader.scanFailed": { en: "Couldn't read the photo", ru: "Не удалось распознать фото", zh: "无法识别照片" },
   "reader.contextTitle": { en: "In context", ru: "В контексте", zh: "在语境中" },
   "reader.sourceLabel": { en: "Text source", ru: "Источник текста", zh: "文本来源" },
-  "reader.sourceDefault": { en: "Your own text", ru: "Пользовательский", zh: "自己的文本" },
+  "reader.sourceDefault": { en: "Reader", ru: "Читалка", zh: "阅读器" },
   "reader.sourcePlaceholder": { en: "e.g. a book, article, your own…", ru: "напр. книга, статья, своё…", zh: "如书籍、文章、自己的…" },
   "reader.addExample": { en: "＋ Example from this sentence", ru: "＋ Пример из этого предложения", zh: "＋ 用这句作例句" },
   "reader.exampleAdded": { en: "Example added to “{word}”", ru: "Пример добавлен к «{word}»", zh: "已把例句加到“{word}”" },
@@ -339,11 +339,18 @@ const DICT: Record<string, Entry> = {
     ru: "Более богатые предложения из книг и прозы.",
     zh: "来自书籍和散文的更丰富句子。",
   },
+  "style.none": { en: "No example", ru: "Без примера", zh: "无例句" },
+  "style.desc.none": {
+    en: "Add the card without an example — spends no tokens on it.",
+    ru: "Карточка без примера — не тратит на него токены.",
+    zh: "添加卡片但不生成例句——不消耗额度。",
+  },
   // short one-liners shown under each option inside the dropdown
   "style.hint.news": { en: "Real news articles", ru: "Из реальных новостей", zh: "真实新闻文章" },
   "style.hint.casual": { en: "Everyday, real-life speech", ru: "Повседневная живая речь", zh: "日常真实口语" },
   "style.hint.dialogue": { en: "Conversational lines", ru: "Разговорные реплики", zh: "对话式句子" },
   "style.hint.literary": { en: "Books & prose", ru: "Книги и проза", zh: "书籍与散文" },
+  "style.hint.none": { en: "Fastest, no tokens", ru: "Быстрее всего, без токенов", zh: "最快，不耗额度" },
 
   // --- learner level (CEFR) ---
   "level.title": { en: "Your language level", ru: "Ваш уровень языка", zh: "你的语言水平" },

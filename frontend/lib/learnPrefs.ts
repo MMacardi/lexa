@@ -311,7 +311,7 @@ export function useRetention(): number {
 }
 
 // --- Example source style (register), a single global default ---
-export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary"] as const;
+export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
 
 export function getExampleStyle(): ExampleStyle {
