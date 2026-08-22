@@ -53,7 +53,7 @@ export function rateLimit(opts: { windowMs: number; max: number; name?: string }
     b.count++;
     if (b.count > opts.max) {
       res.setHeader("Retry-After", String(Math.ceil((b.resetAt - now) / 1000)));
-      res.status(429).json({ error: "Too many requests — slow down and try again shortly." });
+      res.status(429).json({ error: "Too many requests — slow down and try again shortly.", code: "rate_limit" });
       return;
     }
     next();

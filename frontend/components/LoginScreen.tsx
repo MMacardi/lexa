@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ export function LoginScreen() {
       await api.loginGoogle(credential);
       await finishLogin();
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errText(e, t));
     }
   }
 
@@ -56,7 +57,7 @@ export function LoginScreen() {
       setEmailSent(true);
       setDevLink(r.devLink ?? null);
     } catch (e) {
-      setErr((e as Error).message || t("login.emailInvalid"));
+      setErr(errText(e, t));
     } finally {
       setBusy(false);
     }
@@ -115,7 +116,7 @@ export function LoginScreen() {
       await loginDev(id.trim());
       router.replace("/");
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errText(e, t));
     } finally {
       setBusy(false);
     }

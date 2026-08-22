@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { getLevel, getShowTextLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
@@ -132,7 +133,7 @@ export function SaveModal({
       show({ icon: "💾", title: t("reader.saved") });
       onSaved();
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setBusy(false);
     }
@@ -202,7 +203,7 @@ function GenerateModal({
       const r = await api.generateReaderText({ telegramId: accountId, topic: tp, sourceLang, targetLang, level });
       onStarted(r.id);
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setBusy(false);
     }

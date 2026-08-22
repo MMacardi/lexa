@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { AddWordForm } from "@/components/AddWordForm";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
@@ -69,7 +70,7 @@ export default function TodayPage() {
     );
 
   if (isError)
-    return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
+    return <ErrorState message={errText(error, t)} onRetry={() => refetch()} />;
 
   const list = words ?? [];
   const collected = list.length;
