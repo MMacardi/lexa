@@ -7,7 +7,8 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
-import { ArrowRightLeft } from "lucide-react";
+import { errText } from "@/lib/errText";
+import { ArrowRightLeft, X, Plus } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
 import {
@@ -98,9 +99,13 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   };
   // manual fields
   const [meaning, setMeaning] = useState("");
-  const [exEn, setExEn] = useState("");
-  const [exZh, setExZh] = useState("");
+  const [manualEx, setManualEx] = useState<{ en: string; tr: string }[]>([{ en: "", tr: "" }]);
   const [src, setSrc] = useState("");
+  const MAX_EX = 10;
+  const updateEx = (i: number, patch: Partial<{ en: string; tr: string }>) =>
+    setManualEx((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addExRow = () => setManualEx((rows) => (rows.length >= MAX_EX ? rows : [...rows, { en: "", tr: "" }]));
+  const removeExRow = (i: number) => setManualEx((rows) => (rows.length <= 1 ? rows : rows.filter((_, idx) => idx !== i)));
   // optional collections to drop the word into (multi-select)
   const [collIds, setCollIds] = useState<string[]>([]);
   // AI spell-check ("did you mean") state
@@ -175,8 +180,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const reset = () => {
     setWord("");
     setMeaning("");
-    setExEn("");
-    setExZh("");
+    setManualEx([{ en: "", tr: "" }]);
     setSrc("");
     setResolvedSourceLang(null);
   };
@@ -195,14 +199,21 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       let created;
       if (manual) {
         const fromForm = mode === "manual";
+        const rows = fromForm ? manualEx.filter((r) => r.en.trim()).slice(0, MAX_EX) : [];
+        const single = rows.length === 1 ? rows[0] : undefined;
         created = await api.addWordManual({
           ...base,
           meaningZh: fromForm ? meaning.trim() || undefined : undefined,
-          example:
-            fromForm && exEn.trim()
-              ? { sentenceEn: exEn.trim(), sentenceZh: exZh.trim() || undefined, sourceName: src.trim() || undefined }
-              : undefined,
+          example: single
+            ? { sentenceEn: single.en.trim(), sentenceZh: single.tr.trim() || undefined, sourceName: src.trim() || undefined }
+            : undefined,
         });
+        // More than one example → set the full list on the freshly-created card.
+        if (rows.length > 1) {
+          created = await api.updateWord(created.id, {
+            examples: rows.map((r) => ({ sentenceEn: r.en.trim(), sentenceZh: r.tr.trim(), sourceName: src.trim() || "Manual entry" })),
+          });
+        }
       } else {
         created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource() });
       }
@@ -531,8 +542,31 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       {mode === "manual" && (
         <div className="space-y-2">
           <Input value={meaning} onChange={(e) => setMeaning(e.target.value)} placeholder={t("add.meaningPlaceholder", { lang: langLabel(targetLang) })} />
-          <Input value={exEn} onChange={(e) => setExEn(e.target.value)} placeholder={t("add.examplePlaceholder", { lang: langLabel(sourceLang) })} />
-          <Input value={exZh} onChange={(e) => setExZh(e.target.value)} placeholder={t("add.exampleTrPlaceholder", { lang: langLabel(targetLang) })} />
+          {manualEx.map((row, i) => (
+            <div key={i} className="space-y-2 rounded-[14px] border border-black/[0.06] bg-paper/40 p-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                  {t("add.exampleN", { n: i + 1 })}
+                </span>
+                {manualEx.length > 1 && (
+                  <button type="button" onClick={() => removeExRow(i)} aria-label={t("word.delete")} className="rounded-md p-1 text-ink-faint hover:text-warn-text">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Input value={row.en} onChange={(e) => updateEx(i, { en: e.target.value })} placeholder={t("add.examplePlaceholder", { lang: langLabel(sourceLang) })} />
+              <Input value={row.tr} onChange={(e) => updateEx(i, { tr: e.target.value })} placeholder={t("add.exampleTrPlaceholder", { lang: langLabel(targetLang) })} />
+            </div>
+          ))}
+          {manualEx.length < MAX_EX && (
+            <button
+              type="button"
+              onClick={addExRow}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
+            >
+              <Plus className="h-3.5 w-3.5" /> {t("add.exampleAdd")}
+            </button>
+          )}
           <Input value={src} onChange={(e) => setSrc(e.target.value)} placeholder={t("add.sourcePlaceholder")} />
         </div>
       )}
@@ -548,7 +582,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       )}
 
       {mutation.isError && (
-        <p className="text-sm font-medium text-warn-text">{(mutation.error as Error).message}</p>
+        <p className="text-sm font-medium text-warn-text">{errText(mutation.error, t)}</p>
       )}
       {mutation.isPending && mode === "auto" && !suggestions && (
         <p className="text-sm text-ink-soft">{t("add.findingSentence")}</p>
