@@ -33,6 +33,18 @@ export const exampleSentenceSchema = z.object({
 export const tutorChatSchema = z.object({
   answer: z.string().min(1),
   addWords: z.array(z.string()).default([]),
+  // The same suggestions carrying the meaning + example the tutor already wrote in
+  // `answer`, so the client can save them as cards WITHOUT a second AI call.
+  addCards: z
+    .array(
+      z.object({
+        word: z.string(),
+        meaning: z.string().default(""),
+        example: z.string().default(""),
+        exampleTr: z.string().default(""),
+      }),
+    )
+    .default([]),
 });
 export type TutorChatResult = z.infer<typeof tutorChatSchema>;
 

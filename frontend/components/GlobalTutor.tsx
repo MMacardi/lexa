@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type TutorCard } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
@@ -16,7 +16,7 @@ import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Check } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
+type Msg = { role: "user" | "assistant"; content: string; addWords?: string[]; addCards?: TutorCard[] };
 
 // The learner's current pair (shared with Add/Reader). Tutor adds words to it.
 function readPair(): { source: string; target: string } {
@@ -120,7 +120,7 @@ export function GlobalTutor() {
         sourceLang: pair.source,
         targetLang: pair.target,
       }),
-    onSuccess: (r) => setMessages((m) => [...m, { role: "assistant", content: r.answer, addWords: r.addWords }]),
+    onSuccess: (r) => setMessages((m) => [...m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }]),
   });
   const busy = ask.isPending;
 
@@ -158,24 +158,49 @@ export function GlobalTutor() {
   }
 
   async function createCards(index: number, terms: string[]) {
-    if (creating) return;
-    if (isAiSupported(pair.source)) {
+    if (creating || terms.length === 0) return;
+    // Reuse the meaning + example the tutor already wrote (in addCards) so we can
+    // save these cards WITHOUT a second AI call. Only when every selected word has
+    // both a meaning and an example; otherwise fall back to normal AI enrichment.
+    const byWord = new Map((messages[index]?.addCards ?? []).map((c) => [c.word.trim().toLowerCase(), c]));
+    const reuseAll = terms.every((w) => {
+      const c = byWord.get(w.trim().toLowerCase());
+      return c && c.meaning && c.example;
+    });
+
+    // A level is only needed when the AI will compose examples.
+    if (!reuseAll && isAiSupported(pair.source)) {
       const { ok } = await ensureLevel(pair.source);
       if (!ok) return;
     }
     setCreating(true);
     try {
-      const r = await api.batchAddWords({
-        telegramId: accountId,
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        words: terms,
-        level: getLevel(pair.source) ?? undefined,
-        exampleStyle: getExampleStyle(),
-        exampleSource: getExampleSource(),
-        enrich: isAiSupported(pair.source),
-        collectionIds: collIds.length ? collIds : undefined,
-      });
+      const r = await api.batchAddWords(
+        reuseAll
+          ? {
+              telegramId: accountId,
+              sourceLang: pair.source,
+              targetLang: pair.target,
+              items: terms.map((w) => {
+                const c = byWord.get(w.trim().toLowerCase())!;
+                return { word: w, meaning: c.meaning, sentence: c.example, exampleTr: c.exampleTr };
+              }),
+              source: "Lexa AI",
+              enrich: false, // meaning + example are already known → no tokens spent
+              collectionIds: collIds.length ? collIds : undefined,
+            }
+          : {
+              telegramId: accountId,
+              sourceLang: pair.source,
+              targetLang: pair.target,
+              words: terms,
+              level: getLevel(pair.source) ?? undefined,
+              exampleStyle: getExampleStyle(),
+              exampleSource: getExampleSource(),
+              enrich: isAiSupported(pair.source),
+              collectionIds: collIds.length ? collIds : undefined,
+            },
+      );
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: terms, total: r.job.total, processed: 0 });
