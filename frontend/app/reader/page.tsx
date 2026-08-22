@@ -8,6 +8,7 @@ import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
@@ -511,7 +512,7 @@ export default function ReaderPage() {
       qc.invalidateQueries({ queryKey: ["word", wordId] });
       show({ icon: "📝", title: t("reader.exampleAdded", { word: w.word }) });
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setAddingExample(false);
       setKnownPop(null);
@@ -576,7 +577,7 @@ export default function ReaderPage() {
       show({ icon: "📖", title: t("reader.addedToast", { n: r.created }) });
       if (r.skipped > 0) show({ icon: "⚠️", title: t("reader.someFailed", { n: r.skipped }) });
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.someFailed", { n: keys.length }), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.someFailed", { n: keys.length }), subtitle: errText(e, t) });
     } finally {
       setQueueing(false);
     }
@@ -596,7 +597,7 @@ export default function ReaderPage() {
       translatedFor.current = text;
       setShowTr(true);
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: errText(e, t) });
     } finally {
       setTranslating(false);
     }
@@ -628,7 +629,7 @@ export default function ReaderPage() {
       const found = r.text.trim();
       if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: errText(e, t) });
     } finally {
       setScanning(false);
       if (fileRef.current) fileRef.current.value = "";

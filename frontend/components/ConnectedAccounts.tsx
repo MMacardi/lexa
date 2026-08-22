@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ export function ConnectedAccounts() {
       await api.loginGoogle(credential);
       await refresh();
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errText(e, t));
     }
   }
 
@@ -80,7 +81,7 @@ export function ConnectedAccounts() {
       setEmailSent(true);
       setDevLink(r.devLink ?? null);
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errText(e, t));
     } finally {
       setBusy(null);
     }
@@ -94,7 +95,7 @@ export function ConnectedAccounts() {
       await api.unlinkIdentity(p);
       await refresh();
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errText(e, t));
     } finally {
       setBusy(null);
     }

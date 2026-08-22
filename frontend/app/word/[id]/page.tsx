@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
 import { useToast } from "@/lib/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,7 +56,7 @@ export default function WordDetailPage() {
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { data: word, isLoading, isError, error, refetch } = useQuery({
+  const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
   });
@@ -77,7 +78,7 @@ export default function WordDetailPage() {
       show({ icon: "🗑", title: t("word.deleted") });
       router.push("/words");
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
       setDeleting(false);
     }
   }
@@ -99,7 +100,7 @@ export default function WordDetailPage() {
           {t("word.back")}
         </Link>
         <ErrorState
-          message={(error as Error)?.message ?? t("word.notFound")}
+          message={t("word.notFound")}
           onRetry={() => refetch()}
         />
       </div>

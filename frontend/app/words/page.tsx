@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
 import { useToast } from "@/lib/toast";
 import { pairLabel } from "@/lib/langs";
@@ -174,7 +175,7 @@ export default function WordsPage() {
           ))}
         </div>
       )}
-      {isError && <ErrorState message={(error as Error).message} onRetry={() => refetch()} />}
+      {isError && <ErrorState message={errText(error, t)} onRetry={() => refetch()} />}
 
       {data && words.length === 0 && (
         <p className="rounded-[18px] border border-dashed border-black/[0.12] bg-surface/60 p-8 text-center text-sm text-ink-soft">

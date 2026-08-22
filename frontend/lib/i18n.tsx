@@ -296,6 +296,12 @@ const DICT: Record<string, Entry> = {
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },
   "common.drag": { en: "Drag to move", ru: "Перетащить", zh: "拖动移动" },
+  "common.error": { en: "Something went wrong — try again", ru: "Что-то пошло не так — попробуйте ещё раз", zh: "出错了——请重试" },
+  "errState.title": { en: "Something went wrong", ru: "Что-то пошло не так", zh: "出错了" },
+  "errState.hint": { en: "Is the backend running? Try again in a moment.", ru: "Сервер запущен? Попробуйте через мгновение.", zh: "后端在运行吗？请稍后再试。" },
+  "errState.retry": { en: "Retry", ru: "Повторить", zh: "重试" },
+  "err.aiQuota": { en: "You've used today's free AI actions. Upgrade to Pro for unlimited.", ru: "На сегодня бесплатные ИИ-действия закончились. Pro снимает лимит.", zh: "今日免费 AI 次数已用完，升级 Pro 解除限制。" },
+  "err.rateLimit": { en: "Too fast — wait a moment and try again.", ru: "Слишком часто — подождите немного и попробуйте снова.", zh: "太频繁了——请稍候再试。" },
   "common.save": { en: "Save", ru: "Сохранить", zh: "保存" },
   "common.add": { en: "Add", ru: "Добавить", zh: "添加" },
   "common.all": { en: "All", ru: "Все", zh: "全部" },

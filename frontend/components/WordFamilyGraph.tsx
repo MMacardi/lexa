@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
@@ -106,7 +107,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       );
       if (found) setAddedIds((m) => new Map(m).set(key, found.id));
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Add a synonym/antonym to the word itself (grows the graph), edited right here.
@@ -122,7 +123,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       qc.invalidateQueries({ queryKey: ["word", word.id] });
       qc.invalidateQueries({ queryKey: ["words"] });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Create a bare manual card (no AI) — safe for unusual/unknown terms.
@@ -136,7 +137,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       setAddedIds((m) => new Map(m).set(term.trim().toLowerCase(), created.id));
       show({ icon: "🌱", title: t("word.addedRelated", { word: term }) });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Remove a synonym/antonym from the word (edited from the graph, with confirm).
@@ -152,7 +153,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       qc.invalidateQueries({ queryKey: ["word", word.id] });
       qc.invalidateQueries({ queryKey: ["words"] });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   async function confirmRemove(node: SimNode) {

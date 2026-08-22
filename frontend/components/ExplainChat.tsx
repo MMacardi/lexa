@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
@@ -112,7 +113,7 @@ export function ExplainChat({ word }: { word: Word }) {
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
       setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addWords: [] } : msg)));
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setCreating(false);
     }
