@@ -45,12 +45,28 @@ export function GlobalTutor() {
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Draggable panel: offset from its docked corner (reset each time it opens).
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // Draggable panel: offset from its docked corner, remembered across opens and
+  // page reloads (localStorage). The "reset position" button clears it.
+  const [offset, setOffset] = useState<{ x: number; y: number }>(() => {
+    try {
+      const r = localStorage.getItem("lexa.tutorPos");
+      if (r) {
+        const p = JSON.parse(r);
+        if (typeof p?.x === "number" && typeof p?.y === "number") return p;
+      }
+    } catch {
+      /* ignore */
+    }
+    return { x: 0, y: 0 };
+  });
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   useEffect(() => {
-    if (open) setOffset({ x: 0, y: 0 });
-  }, [open]);
+    try {
+      localStorage.setItem("lexa.tutorPos", JSON.stringify(offset));
+    } catch {
+      /* ignore */
+    }
+  }, [offset]);
   function startDrag(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("button, a, input, select, [role='button']")) return;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
