@@ -112,6 +112,7 @@ export function SaveModal({
   const { show } = useToast();
   const qc = useQueryClient();
   const [title, setTitle] = useState((initialTitle ?? text).trim().slice(0, 50));
+  const [content, setContent] = useState(text);
   const [aiName, setAiName] = useState(false);
   const [collection, setCollection] = useState(initialCollection ?? "");
   const [known, setKnown] = useState<string[]>([]);
@@ -123,7 +124,7 @@ export function SaveModal({
   }, [accountId]);
 
   async function save() {
-    const body = text.trim();
+    const body = content.trim();
     if (!body || busy) return;
     setBusy(true);
     try {
@@ -190,6 +191,18 @@ export function SaveModal({
           {t("reader.aiName")}
         </label>
 
+        {editId && (
+          <>
+            <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.contentLabel")}</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              className="max-h-[40vh] w-full resize-y rounded-[12px] border border-black/[0.1] bg-paper px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-sage/60"
+            />
+          </>
+        )}
+
         <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.collectionLabel")}</label>
         <CollectionCombo value={collection} onChange={setCollection} options={known} placeholder={t("reader.collectionPh")} />
 
@@ -211,7 +224,7 @@ export function SaveModal({
           ))}
         </div>
 
-        <Button type="submit" disabled={busy || !text.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
+        <Button type="submit" disabled={busy || !content.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
           {busy ? "…" : t(editId ? "reader.update" : "reader.save")}
         </Button>
       </form>

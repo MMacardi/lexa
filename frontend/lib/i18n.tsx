@@ -93,6 +93,7 @@ const DICT: Record<string, Entry> = {
   "reader.updated": { en: "Text updated", ru: "Текст обновлён", zh: "文本已更新" },
   "reader.editTitle": { en: "Edit text", ru: "Редактировать текст", zh: "编辑文本" },
   "reader.editAction": { en: "Edit", ru: "Редактировать", zh: "编辑" },
+  "reader.contentLabel": { en: "Text", ru: "Текст", zh: "文本" },
   "reader.myTexts": { en: "My texts", ru: "Мои тексты", zh: "我的文本" },
   "txtlvl.title": { en: "Text level", ru: "Уровень текста", zh: "文本级别" },
   "txtlvl.label": { en: "Show estimated level on saved texts", ru: "Показывать примерный уровень у сохранённых текстов", zh: "在保存的文本上显示预估级别" },
