@@ -6,12 +6,25 @@ import { env } from "../lib/env.js";
 
 const transport = env.SMTP_URL ? nodemailer.createTransport(env.SMTP_URL) : null;
 
-export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<void> {
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+  cid?: string; // set to reference the attachment inline in the HTML via src="cid:…"
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  text: string,
+  attachments?: MailAttachment[],
+): Promise<void> {
   if (!transport) {
     console.log(`[mailer:dev] to=${to} subject="${subject}"\n${text}`);
     return;
   }
-  await transport.sendMail({ from: env.EMAIL_FROM, to, subject, html, text });
+  await transport.sendMail({ from: env.EMAIL_FROM, to, subject, html, text, attachments });
 }
 
 export function emailConfigured(): boolean {

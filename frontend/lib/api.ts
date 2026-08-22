@@ -141,6 +141,20 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface FeedbackPayload {
+  message: string;
+  kind: "bug" | "idea" | "other";
+  url?: string;
+  route?: string;
+  userAgent?: string;
+  viewport?: string;
+  locale?: string;
+  appLang?: string;
+  theme?: string;
+  errors?: { message: string; source?: string; time?: string }[];
+  screenshot?: string; // data URL
+}
+
 export interface AddAuto {
   word: string;
   telegramId: string;
@@ -385,6 +399,13 @@ export const api = {
   addFriend: (code: string) => http<{ status: "pending" | "accepted" }>(`/api/friends/add`, { method: "POST", body: JSON.stringify({ code }) }),
   acceptFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}/accept`, { method: "POST" }),
   removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
+
+  // Beta bug/idea report (message + auto-collected context + optional screenshot).
+  sendFeedback: (payload: FeedbackPayload) =>
+    http<{ ok: true; delivered: { email: boolean; telegram: boolean; logged: boolean } }>(`/api/feedback`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   // Billing: current plan + today's AI-action usage.
   aiUsage: (telegramId: string) =>
