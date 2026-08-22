@@ -143,6 +143,15 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// A tutor-suggested word carrying the meaning + example it already wrote in chat,
+// so saving it as a card needs no extra AI call.
+export interface TutorCard {
+  word: string;
+  meaning: string;
+  example: string;
+  exampleTr: string;
+}
+
 export interface FeedbackPayload {
   message: string;
   kind: "bug" | "idea" | "other";
@@ -297,7 +306,7 @@ export const api = {
     }),
   // Global AI tutor chat (not tied to a card).
   tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string }) =>
-    http<{ answer: string; addWords: string[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
+    http<{ answer: string; addWords: string[]; addCards?: TutorCard[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
   translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
     http<{ translation: string }>(`/api/translate`, {
       method: "POST",
@@ -319,7 +328,8 @@ export const api = {
     targetLang: string;
     words?: string[];
     // Reader: each word plus the sentence it came from (kept as the card's example).
-    items?: { word: string; sentence?: string }[];
+    // Tutor chat also passes a ready meaning/translation so the card needs no AI call.
+    items?: { word: string; sentence?: string; meaning?: string; exampleTr?: string }[];
     source?: string; // attribution for the provided example
     level?: string;
     exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";

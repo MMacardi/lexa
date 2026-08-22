@@ -498,9 +498,17 @@ const batchBody = z
     targetLang: z.string().min(1),
     // Either plain words (AI finds an example) …
     words: z.array(z.string().min(1).max(100)).max(100).optional(),
-    // … or items carrying the sentence they came from (Reader — keep it as the example).
+    // … or items carrying the sentence they came from (Reader — keep it as the example),
+    // optionally with a ready meaning/translation (tutor chat — reuse, skip AI enrichment).
     items: z
-      .array(z.object({ word: z.string().min(1).max(100), sentence: z.string().max(1000).optional() }))
+      .array(
+        z.object({
+          word: z.string().min(1).max(100),
+          sentence: z.string().max(1000).optional(),
+          meaning: z.string().max(500).optional(),
+          exampleTr: z.string().max(1000).optional(),
+        }),
+      )
       .max(100)
       .optional(),
     source: z.string().max(120).optional(), // attribution for the provided example
@@ -525,7 +533,13 @@ wordsRouter.post("/words/batch", async (req, res) => {
   // the Reader), only generate the dictionary details. Plain words → AI example.
   const useContext = Boolean(b.items && b.items.some((i) => i.sentence?.trim()));
   const items = b.items
-    ? b.items.map((i) => ({ word: i.word, meaning: "", example: i.sentence?.trim() ?? "", exampleTranslation: "", synonyms: [] }))
+    ? b.items.map((i) => ({
+        word: i.word,
+        meaning: i.meaning?.trim() ?? "",
+        example: i.sentence?.trim() ?? "",
+        exampleTranslation: i.exampleTr?.trim() ?? "",
+        synonyms: [],
+      }))
     : (b.words ?? []).map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] }));
   try {
     const result = await importWordsForUser({

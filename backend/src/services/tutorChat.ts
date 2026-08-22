@@ -30,10 +30,16 @@ export async function tutorChat(params: {
         `ACTIONS — you can add words to the learner's deck: whenever they ask to save/add words, OR ask ` +
         `you to suggest words on a topic/level to study, put those ${source} words (single words or short ` +
         `phrases, real ${source}, deduplicated) in "addWords" so they can be added with one tap. If no ` +
-        `words are being added, use an empty array.` +
+        `words are being added, use an empty array. ` +
+        `IMPORTANT (saves work): for EACH word in "addWords", also add an object to "addCards" with ` +
+        `{word, meaning, example, exampleTr}, REUSING the exact meaning and example sentence you already ` +
+        `wrote in "answer" — do not invent new ones. "meaning" is the definition in ${target}; "example" is ` +
+        `one natural ${source} sentence using the word; "exampleTr" is that sentence translated to ${target}. ` +
+        `Keep "addCards" aligned with "addWords" (same words, same order). If you have no example for a word, ` +
+        `leave its "example" empty.` +
         scriptNote(params.sourceLang ?? "en") +
         ` (This applies to example sentences, vocabulary, and every ${source} word you write.) ` +
-        'Respond as JSON: {"answer": string, "addWords": string[]}.',
+        'Respond as JSON: {"answer": string, "addWords": string[], "addCards": [{"word": string, "meaning": string, "example": string, "exampleTr": string}]}.',
     },
     ...clipped,
   ];
@@ -42,5 +48,14 @@ export async function tutorChat(params: {
   return {
     answer: result.answer.trim(),
     addWords: (result.addWords ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 30),
+    addCards: (result.addCards ?? [])
+      .map((c) => ({
+        word: c.word.trim(),
+        meaning: (c.meaning ?? "").trim(),
+        example: (c.example ?? "").trim(),
+        exampleTr: (c.exampleTr ?? "").trim(),
+      }))
+      .filter((c) => c.word)
+      .slice(0, 30),
   };
 }
