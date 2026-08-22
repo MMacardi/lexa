@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
 import { getShowTextLevel } from "@/lib/learnPrefs";
+import { Select } from "@/components/ui/Select";
 import { LayoutGrid, List, Clock, TriangleAlert, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,12 +20,32 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
   const qc = useQueryClient();
   const [view, setView] = useState<"cards" | "list">("cards");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [fPair, setFPair] = useState(""); // "sourceLang|targetLang" filter, "" = all
+  const [fColl, setFColl] = useState(""); // collection filter, "" = all
   const showLevel = getShowTextLevel();
 
   const { data: items } = useQuery({
     queryKey: ["reader-texts", accountId],
     queryFn: () => api.readerTexts(accountId),
   });
+
+  // Distinct language pairs + collections present, for the filter dropdowns.
+  const pairOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const it of items ?? []) {
+      if (it.sourceLang && it.targetLang) m.set(`${it.sourceLang}|${it.targetLang}`, `${langLabel(it.sourceLang)} → ${langLabel(it.targetLang)}`);
+    }
+    return [...m].map(([value, label]) => ({ value, label }));
+  }, [items]);
+  const collOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of items ?? []) if (it.collection) s.add(it.collection);
+    return [...s].map((c) => ({ value: c, label: c }));
+  }, [items]);
+
+  const shown = (items ?? []).filter(
+    (it) => (!fPair || `${it.sourceLang}|${it.targetLang}` === fPair) && (!fColl || it.collection === fColl),
+  );
 
   async function open(id: string) {
     setLoadingId(id);
@@ -47,8 +68,28 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-[20px] font-medium text-ink">{t("reader.myTexts")}</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="mr-auto font-serif text-[20px] font-medium text-ink">{t("reader.myTexts")}</h2>
+        {pairOptions.length > 1 && (
+          <Select
+            value={fPair}
+            onChange={setFPair}
+            ariaLabel={t("reader.filterLang")}
+            placeholder={t("reader.allLangs")}
+            className="w-[168px]"
+            options={[{ value: "", label: t("reader.allLangs") }, ...pairOptions]}
+          />
+        )}
+        {collOptions.length > 0 && (
+          <Select
+            value={fColl}
+            onChange={setFColl}
+            ariaLabel={t("reader.filterColl")}
+            placeholder={t("reader.allColls")}
+            className="w-[150px]"
+            options={[{ value: "", label: t("reader.allColls") }, ...collOptions]}
+          />
+        )}
         <div className="flex items-center gap-1 rounded-full border border-black/[0.08] p-0.5">
           <button
             type="button"
@@ -68,10 +109,11 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
           </button>
         </div>
       </div>
+      {shown.length === 0 && <p className="py-6 text-center text-[13px] text-ink-faint">{t("reader.noTextMatches")}</p>}
 
       {view === "cards" ? (
         <div className="grid gap-2.5 sm:grid-cols-2">
-          {items.map((it) => (
+          {shown.map((it) => (
             <div key={it.id} className="group relative rounded-[16px] border border-black/[0.07] bg-surface p-3.5 transition-colors hover:border-sage/40">
               <button
                 type="button"
@@ -105,7 +147,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
         </div>
       ) : (
         <div className="overflow-hidden rounded-[14px] border border-black/[0.07]">
-          {items.map((it) => (
+          {shown.map((it) => (
             <div key={it.id} className="group flex items-center gap-2 border-b border-black/[0.05] px-3.5 py-2.5 last:border-b-0 hover:bg-black/[0.02]">
               <button
                 type="button"
@@ -117,6 +159,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <span className="truncate font-semibold text-ink">{it.title}</span>
                 {showLevel && it.level && <span className="shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">~{it.level}</span>}
                 {pair(it.sourceLang, it.targetLang) && <span className="shrink-0 text-[11px] text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
+                {it.collection && <span className="ml-auto shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">{it.collection}</span>}
               </button>
               <button
                 type="button"

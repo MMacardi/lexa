@@ -113,6 +113,7 @@ export async function createText(
     translation?: string;
     clickedWords?: string[];
     estimateLevel?: boolean;
+    level?: string;
     sourceLang?: string;
     targetLang?: string;
   },
@@ -122,7 +123,13 @@ export async function createText(
   const typed = data.title.trim();
   const title = typed || (data.autoName ? await titleFor(data.content, data.sourceLang) : data.content.trim().slice(0, 40) || "Untitled");
   const collection = data.collection?.trim() || null;
-  const level = data.estimateLevel ? await estimateLevel(data.content, data.sourceLang) : null;
+  // A level the user picked wins (no tokens); only estimate via the model when
+  // asked to and none was provided.
+  const level = data.level?.trim()
+    ? data.level.trim().toUpperCase()
+    : data.estimateLevel
+      ? await estimateLevel(data.content, data.sourceLang)
+      : null;
   return prisma.readerText.create({
     data: {
       userId: uid,

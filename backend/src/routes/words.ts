@@ -706,6 +706,7 @@ const readerCreateBody = z.object({
   translation: z.string().max(20_000).optional(),
   clickedWords: z.array(z.string().max(120)).max(2000).optional(),
   estimateLevel: z.boolean().optional(),
+  level: z.string().max(4).optional(),
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
 });

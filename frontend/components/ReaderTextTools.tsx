@@ -106,6 +106,7 @@ export function SaveModal({
   const [aiName, setAiName] = useState(false);
   const [collection, setCollection] = useState("");
   const [known, setKnown] = useState<string[]>([]);
+  const [level, setLevel] = useState<CefrLevel | "">(getLevel(sourceLang) ?? "");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -125,7 +126,10 @@ export function SaveModal({
         autoName: aiName,
         translation: translation?.trim() || undefined,
         clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
-        estimateLevel: getShowTextLevel(),
+        // A level the user picked here is used directly (no AI). Only fall back to
+        // an AI estimate when they left it blank and the badge setting is on.
+        level: level || undefined,
+        estimateLevel: !level && getShowTextLevel(),
         sourceLang,
         targetLang,
       });
@@ -168,6 +172,24 @@ export function SaveModal({
 
         <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.collectionLabel")}</label>
         <CollectionCombo value={collection} onChange={setCollection} options={known} placeholder={t("reader.collectionPh")} />
+
+        <label className="mb-1.5 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.levelLabel")}</label>
+        <div className="flex gap-1">
+          {CEFR_LEVELS.map((lv) => (
+            <button
+              key={lv}
+              type="button"
+              onClick={() => setLevel((cur) => (cur === lv ? "" : lv))}
+              title={LEVEL_HINT[lv]}
+              className={
+                "flex-1 rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
+                (level === lv ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
+              }
+            >
+              {lv}
+            </button>
+          ))}
+        </div>
 
         <Button type="submit" disabled={busy || !text.trim() || (!aiName && !title.trim())} className="mt-4 w-full">
           {busy ? "…" : t("reader.save")}
