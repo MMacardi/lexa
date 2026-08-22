@@ -311,6 +311,32 @@ export function useRetention(): number {
 }
 
 // --- Example source style (register), a single global default ---
+// How many examples to auto-generate per word (1–3). Default 1.
+const EX_COUNT_KEY = "lexa.exampleCount";
+export function getExampleCount(): number {
+  if (typeof window === "undefined") return 1;
+  const v = Number(localStorage.getItem(EX_COUNT_KEY));
+  return v >= 1 && v <= 3 ? Math.round(v) : 1;
+}
+export function setExampleCount(n: number) {
+  localStorage.setItem(EX_COUNT_KEY, String(Math.max(1, Math.min(3, Math.round(n)))));
+  window.dispatchEvent(new Event(EVT));
+}
+export function useExampleCount(): number {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    const sync = () => setN(getExampleCount());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return n;
+}
+
 export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
 

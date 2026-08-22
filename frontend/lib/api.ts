@@ -149,6 +149,7 @@ export interface AddAuto {
   level?: string; // learner CEFR level for example difficulty
   exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
+  exampleCount?: number; // how many examples to generate (1–3)
 }
 
 export interface AddManual extends AddAuto {

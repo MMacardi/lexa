@@ -315,29 +315,30 @@ const DICT: Record<string, Entry> = {
 
   // --- example source style ---
   "style.label": { en: "Examples", ru: "Примеры", zh: "例句" },
-  "style.news": { en: "News", ru: "Новости", zh: "新闻" },
-  "style.casual": { en: "Everyday", ru: "Повседневные", zh: "日常" },
-  "style.dialogue": { en: "Dialogue", ru: "Диалоги", zh: "对话" },
-  "style.literary": { en: "Literary", ru: "Литература", zh: "文学" },
+  "count.label": { en: "How many", ru: "Сколько", zh: "数量" },
+  "style.news": { en: "Formal", ru: "Формальный", zh: "正式" },
+  "style.casual": { en: "Casual", ru: "Бытовой", zh: "日常" },
+  "style.dialogue": { en: "Dialogue", ru: "Диалог", zh: "对话" },
+  "style.literary": { en: "Literary", ru: "Литературный", zh: "文学" },
   "style.desc.news": {
-    en: "Sentences from real news articles (Reuters, BBC…).",
-    ru: "Предложения из реальных новостей (Reuters, BBC…).",
-    zh: "来自真实新闻文章的句子（Reuters、BBC…）。",
+    en: "A formal, news-style sentence.",
+    ru: "Формальное предложение в новостном тоне.",
+    zh: "正式的新闻风格句子。",
   },
   "style.desc.casual": {
-    en: "Everyday, real-life phrases the way people actually speak.",
-    ru: "Повседневные фразы из жизни — как люди говорят на самом деле.",
-    zh: "人们真实使用的日常口语短语。",
+    en: "One simple everyday sentence.",
+    ru: "Одна простая фраза из повседневной жизни.",
+    zh: "一句简单的日常句子。",
   },
   "style.desc.dialogue": {
-    en: "Short conversational lines, like a spoken exchange.",
-    ru: "Короткие разговорные реплики, как в живой беседе.",
-    zh: "简短的对话式句子，像真实交谈。",
+    en: "A short back-and-forth exchange (2–3 lines).",
+    ru: "Короткий диалог из 2–3 реплик.",
+    zh: "简短的往来对话（2–3 句）。",
   },
   "style.desc.literary": {
-    en: "Richer sentences from books and prose.",
-    ru: "Более богатые предложения из книг и прозы.",
-    zh: "来自书籍和散文的更丰富句子。",
+    en: "A richer sentence, like in books and prose.",
+    ru: "Более богатое предложение, как в книгах и прозе.",
+    zh: "更丰富的句子，如书籍散文。",
   },
   "style.none": { en: "No example", ru: "Без примера", zh: "无例句" },
   "style.desc.none": {
@@ -346,10 +347,10 @@ const DICT: Record<string, Entry> = {
     zh: "添加卡片但不生成例句——不消耗额度。",
   },
   // short one-liners shown under each option inside the dropdown
-  "style.hint.news": { en: "Real news articles", ru: "Из реальных новостей", zh: "真实新闻文章" },
-  "style.hint.casual": { en: "Everyday, real-life speech", ru: "Повседневная живая речь", zh: "日常真实口语" },
-  "style.hint.dialogue": { en: "Conversational lines", ru: "Разговорные реплики", zh: "对话式句子" },
-  "style.hint.literary": { en: "Books & prose", ru: "Книги и проза", zh: "书籍与散文" },
+  "style.hint.news": { en: "Formal, news tone", ru: "Формальный, новостной тон", zh: "正式、新闻语气" },
+  "style.hint.casual": { en: "One everyday phrase", ru: "Одна фраза из жизни", zh: "一句日常口语" },
+  "style.hint.dialogue": { en: "Mini-dialogue, 2–3 lines", ru: "Мини-диалог, 2–3 реплики", zh: "迷你对话，2–3 句" },
+  "style.hint.literary": { en: "Like in books", ru: "Как в книгах", zh: "如书中一般" },
   "style.hint.none": { en: "Fastest, no tokens", ru: "Быстрее всего, без токенов", zh: "最快，不耗额度" },
 
   // --- learner level (CEFR) ---
