@@ -54,8 +54,14 @@ function FriendsInner() {
   // Localize backend error codes (falls back to the raw message).
   const friendErr = (e: unknown): string => {
     const code = (e as { code?: string }).code;
-    const map: Record<string, string> = { own_code: "friends.errOwnCode", no_code: "friends.errNoCode", not_found: "friends.errNotFound" };
-    return code && map[code] ? t(map[code]) : (e as Error).message;
+    const map: Record<string, string> = {
+      own_code: "friends.errOwnCode",
+      no_code: "friends.errNoCode",
+      not_found: "friends.errNotFound",
+      no_input: "friends.errNoInput",
+    };
+    // Known code → localized; otherwise a localized generic (never raw English).
+    return code && map[code] ? t(map[code]) : t("friends.errGeneric");
   };
 
   const add = useMutation({

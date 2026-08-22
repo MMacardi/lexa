@@ -35,6 +35,8 @@ const DICT: Record<string, Entry> = {
   "friends.errOwnCode": { en: "That's your own code", ru: "Это ваш собственный код", zh: "这是你自己的邀请码" },
   "friends.errNoCode": { en: "No one has that code", ru: "Никого с таким кодом нет", zh: "没有人使用该邀请码" },
   "friends.errNotFound": { en: "Request not found", ru: "Запрос не найден", zh: "未找到请求" },
+  "friends.errNoInput": { en: "Enter a friend's code", ru: "Введите код друга", zh: "请输入好友的邀请码" },
+  "friends.errGeneric": { en: "Couldn't add — try again", ru: "Не удалось добавить — попробуйте ещё раз", zh: "添加失败——请重试" },
   "friends.nowFriends": { en: "You're now friends!", ru: "Теперь вы друзья!", zh: "你们现在是好友了！" },
   "friends.requests": { en: "Requests ({n})", ru: "Запросы ({n})", zh: "请求 ({n})" },
   "friends.accept": { en: "Accept", ru: "Принять", zh: "接受" },
