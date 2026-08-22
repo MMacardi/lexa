@@ -130,6 +130,9 @@ model ReaderText {
   content    String
   status     String   @default("ready") // ready | generating | failed
   collection String? // optional "read later"-style folder name
+  translation String? // cached whole-text translation, saved with the text
+  clickedWords String[] @default([]) // normalized keys of words the reader engaged with
+  level      String? // estimated CEFR level of the text (e.g. "B2"), optional
   sourceLang String?
   targetLang String?
   createdAt  DateTime @default(now())

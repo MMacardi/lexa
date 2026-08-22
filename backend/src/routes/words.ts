@@ -668,6 +668,9 @@ const readerCreateBody = z.object({
   content: z.string().min(1).max(20_000),
   collection: z.string().max(60).optional(),
   autoName: z.boolean().optional(),
+  translation: z.string().max(20_000).optional(),
+  clickedWords: z.array(z.string().max(120)).max(2000).optional(),
+  estimateLevel: z.boolean().optional(),
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
 });
