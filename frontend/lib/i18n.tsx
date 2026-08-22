@@ -67,6 +67,7 @@ const DICT: Record<string, Entry> = {
   "tutor.levelTemplate": { en: "Give me 8 {level}-level words to practice", ru: "Дай 8 слов уровня {level} для практики", zh: "给我 8 个 {level} 级别的练习词" },
   "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
   "tutor.toSet": { en: "Add to set", ru: "В набор", zh: "加入合集" },
+  "tutor.alreadyAdded": { en: "Already in your words", ru: "Уже в ваших словах", zh: "已在你的单词中" },
   "tutor.capabilities": {
     en: "I can explain words, give examples, and add words to your deck.",
     ru: "Я умею объяснять слова, давать примеры и добавлять слова в словарь.",

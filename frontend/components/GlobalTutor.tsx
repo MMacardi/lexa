@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -14,7 +14,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
-import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal } from "lucide-react";
+import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Check } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -88,6 +88,21 @@ export function GlobalTutor() {
     queryFn: () => api.collections(accountId),
     enabled: open,
   });
+
+  // The learner's existing deck, so we can flag words the tutor suggests that are
+  // already saved (matched within the current pair's source language). Shares the
+  // Sidebar's cache — no extra request in practice.
+  const { data: myWords } = useQuery({
+    queryKey: ["words", accountId],
+    queryFn: () => api.listWords(accountId),
+    enabled: !!accountId,
+  });
+  const ownedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const w of myWords ?? []) if (w.sourceLang === pair.source) s.add(w.word.trim().toLowerCase());
+    return s;
+  }, [myWords, pair.source]);
+  const isAdded = (w: string) => ownedSet.has(w.trim().toLowerCase());
 
   // Refresh the pair each time the panel opens (it may have changed elsewhere).
   useEffect(() => {
@@ -273,7 +288,8 @@ export function GlobalTutor() {
                     m.addWords.length > 0 &&
                     (() => {
                       const all = m.addWords;
-                      const selected = wordSel[i] ?? all; // default: all selected
+                      const addable = all.filter((w) => !isAdded(w)); // exclude ones already in the deck
+                      const selected = (wordSel[i] ?? addable).filter((w) => !isAdded(w));
                       return (
                         <div className="space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5">
                           <div className="flex items-center justify-between gap-2">
@@ -281,7 +297,7 @@ export function GlobalTutor() {
                               {t("reader.selectedN", { n: selected.length })}
                             </span>
                             <div className="flex gap-2 text-[11px] font-semibold">
-                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [...all] }))} className="text-sage hover:text-sage-deep">
+                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [...addable] }))} className="text-sage hover:text-sage-deep">
                                 {t("reader.selectAllNew")}
                               </button>
                               <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [] }))} className="text-ink-faint hover:text-ink-muted">
@@ -291,17 +307,25 @@ export function GlobalTutor() {
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {all.map((w) => {
-                              const on = selected.includes(w);
+                              const added = isAdded(w);
+                              const on = !added && selected.includes(w);
                               return (
                                 <button
                                   key={w}
                                   type="button"
-                                  onClick={() => toggleWord(i, all, w)}
+                                  disabled={added}
+                                  title={added ? t("tutor.alreadyAdded") : undefined}
+                                  onClick={() => toggleWord(i, addable, w)}
                                   className={cn(
-                                    "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                                    on ? "border-sage bg-sage text-white" : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
+                                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                                    added
+                                      ? "cursor-default border-black/[0.08] bg-black/[0.03] text-ink-faint line-through opacity-70"
+                                      : on
+                                        ? "border-sage bg-sage text-white"
+                                        : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
                                   )}
                                 >
+                                  {added && <Check className="h-3 w-3 shrink-0" />}
                                   {w}
                                 </button>
                               );
