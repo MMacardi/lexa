@@ -261,22 +261,20 @@ export default function ReaderPage() {
     };
     let cancel = false;
 
-    // Chinese → local, instant.
-    if (sourceLang === "zh" || sourceLang === "zh-Hant") {
+    // Chinese / Korean → local, instant, no tokens.
+    if (isLocalTr(sourceLang)) {
       (async () => {
-        const { pinyin } = await import("pinyin-pro");
-        if (cancel) return;
         for (const w of distinct) {
-          if (!rubyCache.current.has(key(w))) rubyCache.current.set(key(w), pinyin(w, { toneType: "symbol", type: "string" }));
+          if (!rubyCache.current.has(key(w))) await localTranscribe(w);
         }
-        build();
+        if (!cancel) build();
       })();
       return () => {
         cancel = true;
       };
     }
 
-    // Japanese / Korean → one batched model call for the missing words.
+    // Japanese → one batched model call for the missing words.
     build();
     const missing = distinct.filter((w) => !rubyCache.current.has(key(w)));
     if (missing.length === 0) return;
@@ -300,6 +298,8 @@ export default function ReaderPage() {
     return () => {
       cancel = true;
     };
+    // localTranscribe is stable w.r.t. these deps (reads sourceLang + a ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rubyOn, reading, sourceLang, tokens]);
 
   function startReading() {
@@ -339,13 +339,23 @@ export default function ReaderPage() {
     });
   }
 
-  // Local (offline, no tokens) pinyin for a Chinese word, cached alongside ruby.
-  async function localPinyin(word: string): Promise<string> {
+  // Languages we can transcribe LOCALLY (offline, no model call): Chinese via
+  // pinyin-pro, Korean via es-hangul. Japanese still needs the model (kanji).
+  const isLocalTr = (lang: string) => lang === "zh" || lang === "zh-Hant" || lang === "ko";
+
+  // Local transcription for one word, cached alongside ruby (offline, no tokens).
+  async function localTranscribe(word: string): Promise<string> {
     const ck = `${sourceLang}:${word}`;
     const hit = rubyCache.current.get(ck);
-    if (hit) return hit;
-    const { pinyin } = await import("pinyin-pro");
-    const v = pinyin(word, { toneType: "symbol", type: "string" });
+    if (hit !== undefined) return hit;
+    let v = "";
+    if (sourceLang === "zh" || sourceLang === "zh-Hant") {
+      const { pinyin } = await import("pinyin-pro");
+      v = pinyin(word, { toneType: "symbol", type: "string" });
+    } else if (sourceLang === "ko") {
+      const { romanize } = await import("es-hangul");
+      v = romanize(word);
+    }
     rubyCache.current.set(ck, v);
     return v;
   }
@@ -367,20 +377,20 @@ export default function ReaderPage() {
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
-    const isZh = sourceLang === "zh" || sourceLang === "zh-Hant";
+    const local = isLocalTr(sourceLang);
     const showTr = getShowTranscription() && hasTranscription(sourceLang);
-    // Chinese transcription: computed locally with pinyin-pro (instant, no model call).
-    if (isZh && showTr) {
-      localPinyin(wordText).then((p) => {
+    // Chinese/Korean transcription: computed locally (instant, no model call).
+    if (local && showTr) {
+      localTranscribe(wordText).then((p) => {
         if (glossKeyRef.current === key) setGlossTr(p);
       });
     }
-    // Only ask the model for a transcription for Japanese/Korean.
-    const wantTr = showTr && !isZh;
+    // Only ask the model for a transcription for Japanese.
+    const wantTr = showTr && !local;
     api
       .gloss({ word: wordText, sentence: wordText, sourceLang, targetLang, withTranscription: wantTr })
       .then((r) => {
-        const tr = isZh ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
+        const tr = local ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
         const entry = { gloss: r.gloss, tr };
         glossCache.current.set(key, entry);
         if (glossKeyRef.current === key) {

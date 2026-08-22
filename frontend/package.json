@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
+    "es-hangul": "^2.4.0",
     "lucide-react": "^1.33.0",
     "next": "^15.5.19",
     "pinyin-pro": "^3.29.3",
