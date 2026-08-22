@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline } from "lucide-react";
+import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -115,6 +115,7 @@ export default function ReaderPage() {
   // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
   const [rubyOn, setRubyOn] = useState(false);
   const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
+  const [rubyBusy, setRubyBusy] = useState(false);
   const rubyCache = useRef<Map<string, string>>(new Map());
   // Draggable word-card panel: offset from its docked position (reset per card).
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
@@ -235,11 +236,13 @@ export default function ReaderPage() {
 
   const busy = queueing;
 
-  // When ruby (pinyin over characters) is on, transcribe all distinct words in
-  // ONE batch call; results are cached per word so re-toggling and repeats are free.
+  // "Pinyin over characters" (ruby). Chinese is transcribed LOCALLY with pinyin-pro
+  // (instant, offline, zero tokens); Japanese/Korean use one batched model call,
+  // cached per word. Results are cached so re-toggling and repeats are free.
   useEffect(() => {
     if (!rubyOn || !reading || !hasTranscription(sourceLang)) {
       setRubyMap({});
+      setRubyBusy(false);
       return;
     }
     const key = (w: string) => `${sourceLang}:${w}`;
@@ -252,10 +255,28 @@ export default function ReaderPage() {
       }
       setRubyMap(m);
     };
+    let cancel = false;
+
+    // Chinese → local, instant.
+    if (sourceLang === "zh" || sourceLang === "zh-Hant") {
+      (async () => {
+        const { pinyin } = await import("pinyin-pro");
+        if (cancel) return;
+        for (const w of distinct) {
+          if (!rubyCache.current.has(key(w))) rubyCache.current.set(key(w), pinyin(w, { toneType: "symbol", type: "string" }));
+        }
+        build();
+      })();
+      return () => {
+        cancel = true;
+      };
+    }
+
+    // Japanese / Korean → one batched model call for the missing words.
     build();
     const missing = distinct.filter((w) => !rubyCache.current.has(key(w)));
     if (missing.length === 0) return;
-    let cancel = false;
+    setRubyBusy(true);
     api
       .transcribe(missing, sourceLang)
       .then((items) => {
@@ -267,7 +288,10 @@ export default function ReaderPage() {
         build();
       })
       .catch(() => {
-        /* transcription is best-effort */
+        /* best-effort */
+      })
+      .finally(() => {
+        if (!cancel) setRubyBusy(false);
       });
     return () => {
       cancel = true;
@@ -532,12 +556,14 @@ export default function ReaderPage() {
 
   const trReady = translation !== null && translatedFor.current === text;
 
-  // Render a word with its transcription above it (ruby) when ruby mode is on.
+  // Render a word with its transcription above it (ruby) when ruby mode is on. The
+  // annotation inherits the word's colour (so it stays readable on a green
+  // selection) at reduced opacity.
   const rubyText = (txt: string) =>
     rubyOn && rubyMap[txt] ? (
-      <ruby>
+      <ruby className="leading-none">
         {txt}
-        <rt className="text-[0.5em] font-normal tracking-tight text-ink-faint">{rubyMap[txt]}</rt>
+        <rt className="pb-0.5 text-[0.5em] font-normal leading-none tracking-tight opacity-55">{rubyMap[txt]}</rt>
       </ruby>
     ) : (
       txt
@@ -718,7 +744,8 @@ export default function ReaderPage() {
               rubyOn ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
             )}
           >
-            <Baseline className="h-3.5 w-3.5" /> {t("reader.ruby")}
+            {rubyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Baseline className="h-3.5 w-3.5" />}
+            {rubyBusy ? t("reader.rubyLoading") : t("reader.ruby")}
           </button>
         )}
 
@@ -790,7 +817,8 @@ export default function ReaderPage() {
       <div className={cn("grid gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
           className={cn(
-            "select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] leading-[1.9] text-ink sm:p-7 sm:text-[21px]",
+            "select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
+            rubyOn ? "leading-[2.7]" : "leading-[1.9]",
             sourceFont(sourceLang),
           )}
         >
@@ -800,16 +828,10 @@ export default function ReaderPage() {
             const knownId = knownMap.get(key);
             const isAdded = added.has(key);
             const isSel = selected.has(key);
-            if (isAdded) {
-              return (
-                <span key={i} className="rounded-[5px] bg-sage-tint px-0.5 text-sage-deep">
-                  {rubyText(tk.text)}
-                </span>
-              );
-            }
+            // A saved word (including one just added this session) stays clickable:
+            // tap = meaning popup, press-and-hold = the card panel. Freshly-added
+            // ones keep the green tint so you can see what you just added.
             if (knownId) {
-              // Already saved → tap shows a small popup (meaning + add example);
-              // press-and-hold opens the card in a panel (no page switch).
               return (
                 <span
                   key={i}
@@ -821,8 +843,21 @@ export default function ReaderPage() {
                     const el = e.currentTarget;
                     endPress(() => openKnownPop(knownId, tk.text, i, el));
                   }}
-                  className="cursor-pointer rounded-[4px] text-ink-faint underline decoration-ink-faint/30 underline-offset-4 hover:text-sage-deep"
+                  className={cn(
+                    "cursor-pointer rounded-[5px] underline-offset-4",
+                    isAdded
+                      ? "bg-sage-tint px-0.5 text-sage-deep hover:bg-sage-tint/70"
+                      : "text-ink-faint underline decoration-ink-faint/30 hover:text-sage-deep",
+                  )}
                 >
+                  {rubyText(tk.text)}
+                </span>
+              );
+            }
+            // Added but its card id hasn't resolved yet (enrichment lag) → green.
+            if (isAdded) {
+              return (
+                <span key={i} className="rounded-[5px] bg-sage-tint px-0.5 text-sage-deep">
                   {rubyText(tk.text)}
                 </span>
               );
