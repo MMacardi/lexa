@@ -210,7 +210,7 @@ const addBody = z.object({
   mode: z.enum(["auto", "manual"]).default("auto"),
   // auto-mode example tuning (ignored in manual mode)
   level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
@@ -250,7 +250,7 @@ const importCommitBody = z.object({
   generateDetails: z.boolean().default(false),
   generateExamples: z.boolean().default(false),
   level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
 });
 
@@ -408,7 +408,7 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
 
 // POST /api/words/:id/example -> fetch a fresh AI example (add or regenerate).
 const exampleBody = z.object({
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
@@ -504,7 +504,7 @@ const batchBody = z
       .optional(),
     source: z.string().max(120).optional(), // attribution for the provided example
     level: z.string().max(4).optional(),
-    exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+    exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
     exampleSource: z.enum(["ai", "web"]).optional(),
     collectionIds: z.array(z.string()).optional(),
     enrich: z.boolean().default(true),

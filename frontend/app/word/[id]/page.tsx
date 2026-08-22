@@ -37,9 +37,9 @@ const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "fon
 
 // Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
 // and language pair via sessionStorage so it survives the navigation.
-function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string) {
+function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string, word?: string) {
   try {
-    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang }));
+    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang, word }));
   } catch {
     /* ignore storage errors */
   }
@@ -237,7 +237,7 @@ export default function WordDetailPage() {
               ) : null}
               <button
                 type="button"
-                onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang)}
+                onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang, word.word)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
               >
                 <BookOpen className="h-3.5 w-3.5" /> {t("word.openInReader")}

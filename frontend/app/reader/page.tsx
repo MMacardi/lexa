@@ -112,6 +112,8 @@ export default function ReaderPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
+  const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
+  const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [cardPanel, setCardPanel] = useState<{ wordId: string; sentence: string } | null>(null);
   const [addingExample, setAddingExample] = useState(false);
   // Background AI text generations we're waiting on (poll until ready).
@@ -191,11 +193,17 @@ export default function ReaderPage() {
       const pre = sessionStorage.getItem("lexa.readerPrefill");
       if (pre) {
         sessionStorage.removeItem("lexa.readerPrefill");
-        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string };
+        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string; word?: string };
         if (p.text?.trim()) {
           setText(p.text);
           if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
           if (p.targetLang) setTargetLang(p.targetLang);
+          // Opened for a specific word (from a card's example) → jump straight into
+          // reading with that word highlighted.
+          if (p.word?.trim()) {
+            setReading(true);
+            setSelected(new Set([wordKey(p.word.trim())]));
+          }
         }
       }
     } catch {
@@ -317,6 +325,8 @@ export default function ReaderPage() {
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
     setText(full.content);
+    // Attribute words added from this text to its title (falls back to "Reader").
+    if (full.title?.trim()) setReaderSource(full.title.trim());
     if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
     if (full.targetLang) setTargetLang(full.targetLang);
     if (full.translation) {
@@ -448,12 +458,37 @@ export default function ReaderPage() {
       }
     };
     window.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", () => setKnownPop(null), true);
-    return () => {
-      window.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", () => setKnownPop(null), true);
-    };
+    return () => window.removeEventListener("keydown", onEsc);
   }, [knownPop, cardPanel]);
+
+  // Known-word popup: follow its word while scrolling (don't vanish), and close
+  // on a tap anywhere outside the popup itself (its buttons stay clickable).
+  const knownOpen = knownPop !== null;
+  useEffect(() => {
+    if (!knownOpen) return;
+    const reposition = () => {
+      const el = knownElRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setKnownPop(null);
+        return;
+      }
+      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+      setKnownPop((p) => (p ? { ...p, x, y: rect.bottom } : p));
+    };
+    const onDown = (e: PointerEvent) => {
+      if (!knownPopRef.current?.contains(e.target as Node)) setKnownPop(null);
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [knownOpen]);
 
   // The sentence a token belongs to (for provided example / context).
   function sentenceAround(index: number): string {
@@ -478,6 +513,7 @@ export default function ReaderPage() {
   // Short tap on a saved word → small popup with its meaning + "add example".
   function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
     const w = (words ?? []).find((x) => x.id === wordId);
+    knownElRef.current = el;
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setKnownPop({
@@ -1018,7 +1054,7 @@ export default function ReaderPage() {
       {knownPop &&
         createPortal(
           <div className="anim-fade-up fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
-            <div className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
+            <div ref={knownPopRef} className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
               <div className={cn("text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
               {knownPop.meaning && (
                 <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>

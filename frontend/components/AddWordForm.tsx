@@ -423,7 +423,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           {/* plain-language hint so it's obvious what the selectors do */}
           <p className="text-[12px] leading-snug text-ink-faint">
             {t(`style.desc.${style}`)}
-            {sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+            {style !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
           </p>
         </div>
       )}
