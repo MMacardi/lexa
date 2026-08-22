@@ -18,7 +18,7 @@ async function userByTelegramId(telegramId: string) {
 
 function displayName(u: { firstName: string | null; lastName: string | null; username: string | null; telegramId: string }): string {
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
-  return name || u.username || `Learner ${u.telegramId.slice(-4)}`;
+  return name || u.username || "Lexa student";
 }
 
 // Compact public stats for a friend card: totals, streak, and languages studied.
