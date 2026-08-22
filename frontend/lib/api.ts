@@ -134,7 +134,9 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    const err = new Error(body.error ?? `Request failed: ${res.status}`);
+    if (body.code) (err as Error & { code?: string }).code = body.code;
+    throw err;
   }
   return res.json() as Promise<T>;
 }

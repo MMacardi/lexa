@@ -51,6 +51,13 @@ function FriendsInner() {
     qc.invalidateQueries({ queryKey: ["friend-requests"] });
   };
 
+  // Localize backend error codes (falls back to the raw message).
+  const friendErr = (e: unknown): string => {
+    const code = (e as { code?: string }).code;
+    const map: Record<string, string> = { own_code: "friends.errOwnCode", no_code: "friends.errNoCode", not_found: "friends.errNotFound" };
+    return code && map[code] ? t(map[code]) : (e as Error).message;
+  };
+
   const add = useMutation({
     mutationFn: (c: string) => api.addFriend(c),
     onSuccess: (r) => {
@@ -58,7 +65,7 @@ function FriendsInner() {
       invalidate();
       show({ icon: "👥", title: r.status === "accepted" ? t("friends.nowFriends") : t("friends.requestSent") });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: friendErr(e) }),
   });
   const accept = useMutation({
     mutationFn: (id: string) => api.acceptFriend(id),
