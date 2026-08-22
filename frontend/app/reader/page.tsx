@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal } from "lucide-react";
+import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -886,9 +886,21 @@ export default function ReaderPage() {
                   onPointerDown={startCardDrag}
                   onPointerMove={moveCardDrag}
                   onPointerUp={endCardDrag}
-                  className="flex cursor-move touch-none select-none items-center justify-center border-b border-black/[0.05] py-1.5 text-ink-faint transition-colors hover:text-ink-muted"
+                  className="relative flex cursor-move touch-none select-none items-center justify-center border-b border-black/[0.05] py-1.5 text-ink-faint transition-colors hover:text-ink-muted"
                 >
                   <GripHorizontal className="h-4 w-4" />
+                  {(cardOffset.x !== 0 || cardOffset.y !== 0) && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => setCardOffset({ x: 0, y: 0 })}
+                      aria-label={t("tutor.resetPos")}
+                      title={t("tutor.resetPos")}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                    >
+                      <LocateFixed className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-[calc(70vh-2.25rem)] overflow-y-auto p-5">
                 <div className="min-w-0 pr-9">

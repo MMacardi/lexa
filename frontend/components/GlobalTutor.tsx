@@ -13,7 +13,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
-import { Sparkles, RotateCcw, X } from "lucide-react";
+import { Sparkles, RotateCcw, X, LocateFixed } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -45,6 +45,26 @@ export function GlobalTutor() {
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Draggable panel: offset from its docked corner (reset each time it opens).
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  useEffect(() => {
+    if (open) setOffset({ x: 0, y: 0 });
+  }, [open]);
+  function startDrag(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest("button, a, input, select, [role='button']")) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: offset.x, oy: offset.y };
+  }
+  function moveDrag(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    setOffset({ x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) });
+  }
+  function endDrag() {
+    dragRef.current = null;
+  }
+  const moved = offset.x !== 0 || offset.y !== 0;
 
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -152,15 +172,34 @@ export function GlobalTutor() {
 
       {/* chat panel */}
       {open && (
-        <div className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]">
-          {/* header — title, clickable language pair, actions */}
-          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
+        <div
+          className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        >
+          {/* header — drag handle + title, clickable language pair, actions */}
+          <div
+            onPointerDown={startDrag}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            className="cursor-move touch-none select-none border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4"
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
                 <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
                 {t("tutor.title")}
               </div>
               <div className="flex items-center gap-1.5">
+                {moved && (
+                  <button
+                    type="button"
+                    onClick={() => setOffset({ x: 0, y: 0 })}
+                    aria-label={t("tutor.resetPos")}
+                    title={t("tutor.resetPos")}
+                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    <LocateFixed className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     type="button"

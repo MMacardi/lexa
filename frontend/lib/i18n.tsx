@@ -48,6 +48,7 @@ const DICT: Record<string, Entry> = {
   // --- global AI tutor ---
   "tutor.title": { en: "AI tutor", ru: "ИИ-репетитор", zh: "AI 老师" },
   "tutor.open": { en: "Open AI tutor", ru: "Открыть ИИ-репетитора", zh: "打开 AI 老师" },
+  "tutor.resetPos": { en: "Reset position", ru: "Вернуть на место", zh: "复位" },
   "tutor.welcome": {
     en: "Ask me anything about the language — or ask me to pick and add words to your deck.",
     ru: "Спроси что угодно про язык — или попроси подобрать и добавить слова в словарь.",
