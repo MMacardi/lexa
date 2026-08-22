@@ -23,6 +23,7 @@ import {
   setAutoGloss,
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
+import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
@@ -352,21 +353,12 @@ export default function ReaderPage() {
 
   // Languages we can transcribe LOCALLY (offline, no model call): Chinese via
   // pinyin-pro, Korean via es-hangul. Japanese still needs the model (kanji).
-  const isLocalTr = (lang: string) => lang === "zh" || lang === "zh-Hant" || lang === "ko";
-
   // Local transcription for one word, cached alongside ruby (offline, no tokens).
   async function localTranscribe(word: string): Promise<string> {
     const ck = `${sourceLang}:${word}`;
     const hit = rubyCache.current.get(ck);
     if (hit !== undefined) return hit;
-    let v = "";
-    if (sourceLang === "zh" || sourceLang === "zh-Hant") {
-      const { pinyin } = await import("pinyin-pro");
-      v = pinyin(word, { toneType: "symbol", type: "string" });
-    } else if (sourceLang === "ko") {
-      const { romanize } = await import("es-hangul");
-      v = romanize(word);
-    }
+    const v = await libTranscribe(word, sourceLang);
     rubyCache.current.set(ck, v);
     return v;
   }
