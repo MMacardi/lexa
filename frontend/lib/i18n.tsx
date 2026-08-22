@@ -591,6 +591,8 @@ const DICT: Record<string, Entry> = {
   "add.examplePlaceholder": { en: "Example sentence ({lang})", ru: "Пример предложения ({lang})", zh: "例句（{lang}）" },
   "add.exampleTrPlaceholder": { en: "Example translation ({lang})", ru: "Перевод примера ({lang})", zh: "例句翻译（{lang}）" },
   "add.sourcePlaceholder": { en: "Source (optional)", ru: "Источник (необязательно)", zh: "来源（可选）" },
+  "add.exampleN": { en: "Example {n}", ru: "Пример {n}", zh: "例句 {n}" },
+  "add.exampleAdd": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
   "add.submit": { en: "Add word →", ru: "Добавить →", zh: "添加 →" },
   "add.searching": { en: "Searching…", ru: "Ищу…", zh: "搜索中…" },
   "add.saving": { en: "Saving…", ru: "Сохраняю…", zh: "保存中…" },
