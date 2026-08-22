@@ -88,6 +88,7 @@ const DICT: Record<string, Entry> = {
   "txtlvl.label": { en: "Show estimated level on saved texts", ru: "Показывать примерный уровень у сохранённых текстов", zh: "在保存的文本上显示预估级别" },
   "txtlvl.hint": { en: "When on, the AI estimates a text's CEFR level (~B2) as you save it.", ru: "Когда включено, при сохранении ИИ прикидывает уровень текста по CEFR (~B2).", zh: "开启后，保存时 AI 会预估文本的 CEFR 级别（~B2）。" },
   "reader.ruby": { en: "Pinyin", ru: "Транскрипция", zh: "拼音" },
+  "reader.rubyLoading": { en: "Transcribing…", ru: "Транскрибирую…", zh: "生成中…" },
   "reader.viewCards": { en: "Cards", ru: "Карточки", zh: "卡片" },
   "reader.viewList": { en: "List", ru: "Список", zh: "列表" },
   "reader.generate": { en: "AI text", ru: "Текст от ИИ", zh: "AI 文本" },
