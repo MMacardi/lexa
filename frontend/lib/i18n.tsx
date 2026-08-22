@@ -316,6 +316,15 @@ const DICT: Record<string, Entry> = {
   // --- example source style ---
   "style.label": { en: "Examples", ru: "Примеры", zh: "例句" },
   "count.label": { en: "How many", ru: "Сколько", zh: "数量" },
+  "exmode.label": { en: "Examples", ru: "Примеры", zh: "例句" },
+  "exmode.ai": { en: "AI", ru: "ИИ", zh: "AI" },
+  "exmode.web": { en: "Web", ru: "Интернет", zh: "网络" },
+  "exmode.none": { en: "None", ru: "Без примера", zh: "无" },
+  "exmode.webDesc": {
+    en: "A real sentence mined from news/articles (Reuters, BBC…), with its source.",
+    ru: "Реальное предложение из новостей/статей (Reuters, BBC…), с указанием источника.",
+    zh: "从新闻/文章（Reuters、BBC…）中挖掘的真实句子，并标注来源。",
+  },
   "style.news": { en: "Formal", ru: "Формальный", zh: "正式" },
   "style.casual": { en: "Casual", ru: "Бытовой", zh: "日常" },
   "style.dialogue": { en: "Dialogue", ru: "Диалог", zh: "对话" },
