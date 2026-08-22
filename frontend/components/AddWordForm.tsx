@@ -23,6 +23,9 @@ import {
   setLevel,
   useExampleStyle,
   setExampleStyle,
+  getExampleCount,
+  setExampleCount,
+  useExampleCount,
   useLevel,
   useRecentPairs,
   type CefrLevel,
@@ -114,6 +117,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
   // learner prefs (example difficulty + register)
   const style = useExampleStyle();
+  const exCount = useExampleCount();
   const currentLevel = useLevel(sourceLang);
   const recentPairs = useRecentPairs();
   // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
@@ -215,7 +219,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           });
         }
       } else {
-        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource() });
+        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource(), exampleCount: getExampleCount() });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
       return created;
@@ -427,6 +431,18 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   placeholder={t("level.pick")}
                   className="w-[136px]"
                   options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+              </>
+            )}
+            {style !== "none" && (
+              <>
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+                <Select
+                  value={String(exCount)}
+                  onChange={(v) => setExampleCount(Number(v))}
+                  ariaLabel={t("count.label")}
+                  className="w-[92px]"
+                  options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))}
                 />
               </>
             )}

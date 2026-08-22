@@ -212,6 +212,7 @@ const addBody = z.object({
   level: z.string().max(4).optional(),
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
+  exampleCount: z.number().int().min(1).max(3).optional(),
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),
