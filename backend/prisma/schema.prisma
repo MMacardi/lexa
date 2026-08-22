@@ -157,6 +157,11 @@ model Example {
   sentenceZh String
   sourceName String
   sourceUrl  String
+  // How an AI-composed example was generated, for display next to "Lexa AI":
+  // register = the example style (casual/dialogue/literary/news); level = CEFR.
+  // Null for web-mined and manual examples.
+  register   String?
+  level      String?
   createdAt  DateTime @default(now())
 }
 

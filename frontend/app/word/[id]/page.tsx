@@ -236,6 +236,16 @@ export default function WordDetailPage() {
               ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
                 <div className="text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
               ) : null}
+              {ex.register && (
+                <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
+                  {t(`style.${ex.register}`)}
+                </span>
+              )}
+              {ex.level && (
+                <span className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[11px] font-semibold text-ink-faint">
+                  {ex.level}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang, word.word)}
