@@ -712,6 +712,8 @@ const DICT: Record<string, Entry> = {
   "word.share": { en: "↗ Share", ru: "↗ Поделиться", zh: "↗ 分享" },
   "word.edit": { en: "✎ Edit", ru: "✎ Изменить", zh: "✎ 编辑" },
   "word.delete": { en: "Delete", ru: "Удалить", zh: "删除" },
+  "word.addExampleBtn": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
+  "word.aiExample": { en: "AI example", ru: "Пример от ИИ", zh: "AI 例句" },
   "word.deleteTitle": { en: "Delete card?", ru: "Удалить карточку?", zh: "删除卡片？" },
   "word.deleteConfirm": { en: "“{word}” will be removed for good.", ru: "«{word}» будет удалено безвозвратно.", zh: "“{word}” 将被永久删除。" },
   "word.deleted": { en: "Card deleted", ru: "Карточка удалена", zh: "卡片已删除" },

@@ -19,6 +19,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
 import { TapGlossPills } from "@/components/TapGlossPills";
+import { AddExampleInline } from "@/components/AddExampleInline";
 import { Link as LinkIcon, BookOpen, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -245,6 +246,7 @@ export default function WordDetailPage() {
             </div>
           </div>
         ))}
+        <AddExampleInline word={word} />
       </div>
     </div>
   );
