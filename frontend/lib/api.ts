@@ -12,6 +12,8 @@ export interface Example {
   sentenceZh: string;
   sourceName: string;
   sourceUrl: string;
+  register?: string | null; // AI example register/style (casual/dialogue/…)
+  level?: string | null; // AI example CEFR level
   createdAt: string;
 }
 
