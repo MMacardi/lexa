@@ -442,6 +442,7 @@ export const api = {
     translation?: string;
     clickedWords?: string[];
     estimateLevel?: boolean;
+    level?: string;
     sourceLang?: string;
     targetLang?: string;
   }) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ReaderTextFull } from "@/lib/api";
@@ -92,6 +92,7 @@ export default function ReaderPage() {
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
   const [reading, setReading] = useState(false);
+  const [textLevel, setTextLevel] = useState<string | null>(null); // CEFR of the open saved text
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [queueing, setQueueing] = useState(false);
@@ -324,6 +325,7 @@ export default function ReaderPage() {
     }
     setSelected(new Set());
     setShowTr(false);
+    setTextLevel(null); // a freshly pasted text has no level until it's saved
     setReading(true);
   }
 
@@ -331,6 +333,7 @@ export default function ReaderPage() {
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
     setText(full.content);
+    setTextLevel(full.level ?? null);
     // Attribute words added from this text to its title (falls back to "Reader").
     if (full.title?.trim()) setReaderSource(full.title.trim());
     if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
@@ -669,15 +672,34 @@ export default function ReaderPage() {
   // Render a word: the highlight (selection/known tint) goes on the base character
   // only, and the transcription floats ABOVE it on the clean page background — so
   // ruby and the green selection never overlap.
+  const rtClass = "pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint";
   const wordNode = (txt: string, highlight: string) => {
-    const base = <span className={highlight}>{txt}</span>;
-    return rubyOn && rubyMap[txt] ? (
+    if (!(rubyOn && rubyMap[txt])) return <span className={highlight}>{txt}</span>;
+    const chars = Array.from(txt);
+    const syllables = rubyMap[txt].split(/\s+/).filter(Boolean);
+    // Per-character ruby when the syllables line up 1:1 with the characters: each
+    // reading sits centred over its OWN character. A single <rt> spanning the whole
+    // word let the browser's ruby-align justify it — spreading "ān" into "a  n" and
+    // pushing syllables off-centre. The highlight stays on each base char (never the
+    // reading), so the pinyin still floats on the clean page background.
+    if (syllables.length === chars.length && chars.length > 1) {
+      const flat = highlight.replace(/\brounded-\[5px\]\b/g, "").replace(/\bpx-0\.5\b/g, "");
+      return (
+        <ruby className="leading-none">
+          {chars.map((c, i) => (
+            <Fragment key={i}>
+              <span className={flat}>{c}</span>
+              <rt className={rtClass}>{syllables[i]}</rt>
+            </Fragment>
+          ))}
+        </ruby>
+      );
+    }
+    return (
       <ruby className="leading-none">
-        {base}
-        <rt className="pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint">{rubyMap[txt]}</rt>
+        <span className={highlight}>{txt}</span>
+        <rt className={rtClass}>{rubyMap[txt]}</rt>
       </ruby>
-    ) : (
-      base
     );
   };
 
@@ -833,6 +855,9 @@ export default function ReaderPage() {
         <span className="hidden text-xs font-medium text-ink-faint sm:inline">
           {langLabel(sourceLang)} → {langLabel(targetLang)}
         </span>
+        {textLevel && (
+          <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">~{textLevel}</span>
+        )}
         <span className="ml-auto text-xs font-medium text-ink-faint">
           {t("reader.wordCount", { n: wordCount })} · {t("reader.newCount", { n: newKeys.size })}
         </span>
