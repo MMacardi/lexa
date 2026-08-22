@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Save, Languages, X } from "lucide-react";
+import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -111,6 +111,9 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // Draggable word-card panel: offset from its docked position (reset per card).
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
+  const cardDrag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -144,6 +147,24 @@ export default function ReaderPage() {
   function startGen(id: string) {
     setPendingGen((p) => [...p, id]);
     show({ icon: "✨", title: t("reader.genStarted") });
+  }
+
+  // Reset the card-panel drag offset whenever a different card opens.
+  useEffect(() => {
+    setCardOffset({ x: 0, y: 0 });
+  }, [cardPanel?.wordId]);
+
+  function startCardDrag(e: React.PointerEvent) {
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    cardDrag.current = { sx: e.clientX, sy: e.clientY, ox: cardOffset.x, oy: cardOffset.y };
+  }
+  function moveCardDrag(e: React.PointerEvent) {
+    const d = cardDrag.current;
+    if (!d) return;
+    setCardOffset({ x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) });
+  }
+  function endCardDrag() {
+    cardDrag.current = null;
   }
 
   // Restore the shared pair (Reader needs a concrete source language, not auto).
@@ -846,17 +867,30 @@ export default function ReaderPage() {
           const w = (words ?? []).find((x) => x.id === cardPanel.wordId);
           if (!w) return null;
           return createPortal(
-            <div className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]">
+            <div
+              className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]"
+              style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
+            >
               {/* close button pinned to the panel corner — always reachable while scrolling */}
               <button
                 type="button"
                 onClick={() => setCardPanel(null)}
                 aria-label={t("common.cancel")}
-                className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
+                className="absolute right-2.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
               >
                 <X className="h-4 w-4" />
               </button>
-              <div className="max-h-[70vh] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface p-5 shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+              <div className="overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+                {/* drag handle — grab here to move the card */}
+                <div
+                  onPointerDown={startCardDrag}
+                  onPointerMove={moveCardDrag}
+                  onPointerUp={endCardDrag}
+                  className="flex cursor-move touch-none select-none items-center justify-center border-b border-black/[0.05] py-1.5 text-ink-faint transition-colors hover:text-ink-muted"
+                >
+                  <GripHorizontal className="h-4 w-4" />
+                </div>
+                <div className="max-h-[calc(70vh-2.25rem)] overflow-y-auto p-5">
                 <div className="min-w-0 pr-9">
                   <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
@@ -937,6 +971,7 @@ export default function ReaderPage() {
                   >
                     {t("review.openCard")} ↗
                   </a>
+                </div>
                 </div>
               </div>
             </div>,
