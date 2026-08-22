@@ -336,6 +336,9 @@ function ToastCard({
 }) {
   const { t } = useI18n();
   const goal = toast.tone === "goal";
+  // Only real milestone toasts get the celebratory eyebrow; generic toasts (saves,
+  // errors, info) show just their title so an error never reads as an achievement.
+  const eyebrow = goal ? t("toast.goalLabel") : toast.tone === "achievement" ? t("toast.achievement") : null;
   return (
     <div
       onClick={onClose}
@@ -357,16 +360,16 @@ function ToastCard({
       <div className="flex items-center gap-3.5 p-4">
         <div
           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[24px] ${
-            goal ? "bg-warn-bg" : "bg-sage-tint"
+            goal || toast.icon.trim() === "⚠️" ? "bg-warn-bg" : "bg-sage-tint"
           }`}
         >
           <ToastIcon icon={toast.icon} />
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
-            {goal ? t("toast.goalLabel") : t("toast.achievement")}
-          </div>
-          <div className="truncate font-serif text-[18px] font-semibold leading-tight text-ink">
+          {eyebrow && (
+            <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">{eyebrow}</div>
+          )}
+          <div className={`truncate font-serif font-semibold leading-tight text-ink ${eyebrow ? "text-[18px]" : "text-[16px]"}`}>
             {toast.title}
           </div>
           {toast.subtitle && (
