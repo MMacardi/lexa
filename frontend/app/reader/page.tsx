@@ -868,42 +868,43 @@ export default function ReaderPage() {
           if (!w) return null;
           return createPortal(
             <div
-              className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]"
+              className="fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]"
               style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
             >
-              {/* close button pinned to the panel corner — always reachable while scrolling */}
-              <button
-                type="button"
-                onClick={() => setCardPanel(null)}
-                aria-label={t("common.cancel")}
-                className="absolute right-2.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <div className="overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
-                {/* drag handle — grab here to move the card */}
-                <div
-                  onPointerDown={startCardDrag}
-                  onPointerMove={moveCardDrag}
-                  onPointerUp={endCardDrag}
-                  className="relative flex cursor-move touch-none select-none items-center justify-center border-b border-black/[0.05] py-1.5 text-ink-faint transition-colors hover:text-ink-muted"
-                >
-                  <GripHorizontal className="h-4 w-4" />
+              <div className="anim-fade-up overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+                {/* title bar: reset (left) · grip drag handle (center) · close (right) */}
+                <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
                   {(cardOffset.x !== 0 || cardOffset.y !== 0) && (
                     <button
                       type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => setCardOffset({ x: 0, y: 0 })}
                       aria-label={t("tutor.resetPos")}
                       title={t("tutor.resetPos")}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                      className="rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
                     >
                       <LocateFixed className="h-3.5 w-3.5" />
                     </button>
                   )}
+                  <div
+                    onPointerDown={startCardDrag}
+                    onPointerMove={moveCardDrag}
+                    onPointerUp={endCardDrag}
+                    aria-label={t("common.drag")}
+                    className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
+                  >
+                    <GripHorizontal className="h-4 w-4" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCardPanel(null)}
+                    aria-label={t("common.cancel")}
+                    className="ml-auto rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="max-h-[calc(70vh-2.25rem)] overflow-y-auto p-5">
-                <div className="min-w-0 pr-9">
+                <div className="max-h-[calc(70vh-2.75rem)] overflow-y-auto p-5">
+                <div className="min-w-0">
                   <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
