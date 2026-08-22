@@ -58,7 +58,7 @@ friendsRouter.post("/friends/add", (req, res, next) => addLimiter(req, res, next
   if (!id) return;
   const parsed = addBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "A code is required" });
+    res.status(400).json({ error: "A code is required", code: "no_input" });
     return;
   }
   try {
