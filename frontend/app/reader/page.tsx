@@ -24,6 +24,7 @@ import {
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
+import { getGloss as getCachedGloss, setGloss as setCachedGloss } from "@/lib/glossCache";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
@@ -447,8 +448,11 @@ export default function ReaderPage() {
     setGloss({ key, word: wordText, x, y: rect.bottom });
     glossKeyRef.current = key;
     glossElRef.current = el;
-    const cached = glossCache.current.get(key);
+    // In-memory first, then the cross-session localStorage cache (a repeat tap of
+    // the same word, even later, costs no model call).
+    const cached = glossCache.current.get(key) ?? getCachedGloss(wordText, sourceLang, targetLang) ?? undefined;
     if (cached != null) {
+      glossCache.current.set(key, cached);
       setGlossText(cached.gloss);
       setGlossTr(cached.tr);
       setGlossLoading(false);
@@ -473,6 +477,7 @@ export default function ReaderPage() {
         const tr = local ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
         const entry = { gloss: r.gloss, tr };
         glossCache.current.set(key, entry);
+        setCachedGloss(wordText, sourceLang, targetLang, entry);
         if (glossKeyRef.current === key) {
           setGlossText(entry.gloss);
           if (tr) setGlossTr(tr);

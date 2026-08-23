@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { getShowTranscription, hasTranscription } from "@/lib/learnPrefs";
 import { isLocalTr, localTranscribe } from "@/lib/transcribe";
+import { getGloss as getCachedGloss, setGloss as setCachedGloss } from "@/lib/glossCache";
 import { cn } from "@/lib/utils";
 
 const srcFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
@@ -93,8 +94,11 @@ export function TapGlossPills({
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setPop({ text, x, y: rect.bottom });
     keyRef.current = text;
-    const cached = cache.current.get(text);
+    // In-memory first, then the cross-session localStorage cache — a repeat tap
+    // (even in a later session) costs no model call.
+    const cached = cache.current.get(text) ?? getCachedGloss(text, sourceLang, targetLang) ?? undefined;
     if (cached) {
+      cache.current.set(text, cached);
       setGloss(cached.gloss);
       setTr(cached.tr);
       setLoading(false);
@@ -118,6 +122,7 @@ export function TapGlossPills({
         const tr = local && showTr ? await localTranscribe(text, sourceLang) : r.transcription ?? "";
         const entry = { gloss: r.gloss, tr };
         cache.current.set(text, entry);
+        setCachedGloss(text, sourceLang, targetLang, entry);
         if (keyRef.current === text) {
           setGloss(entry.gloss);
           if (tr) setTr(tr);
