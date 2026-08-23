@@ -128,11 +128,23 @@ function readRetention(): number {
   return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : 0.9;
 }
 
+// The "test the free tier" toggle (localStorage). Read directly to avoid a React
+// dependency here; it only ever restricts the caller, so it's safe to send.
+function simulateFreeHeader(): Record<string, string> {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem("lexa.simulateFree") === "1"
+      ? { "X-Simulate-Free": "1" }
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     credentials: "include", // send the session cookie cross-site
     ...init,
+    headers: { "Content-Type": "application/json", ...simulateFreeHeader(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

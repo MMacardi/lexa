@@ -310,6 +310,32 @@ export function useRetention(): number {
   return r;
 }
 
+// --- Testing: pretend to be a free-tier user (applies the daily AI cap even for
+// Pro/beta accounts). Only ever restricts the caller, so it's harmless. ---
+const SIM_FREE_KEY = "lexa.simulateFree";
+export function getSimulateFree(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(SIM_FREE_KEY) === "1";
+}
+export function setSimulateFree(on: boolean) {
+  localStorage.setItem(SIM_FREE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useSimulateFree(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const sync = () => setOn(getSimulateFree());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // --- Meaning style: how card meanings are written. A preset for most people
 // ("concise" default, or "detailed" with nuance/register), plus a free-text
 // "custom" mode for a personal instruction (e.g. a topic focus). Sets Lexa apart
