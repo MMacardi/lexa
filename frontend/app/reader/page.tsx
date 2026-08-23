@@ -94,6 +94,9 @@ export default function ReaderPage() {
   const [reading, setReading] = useState(false);
   const [textLevel, setTextLevel] = useState<string | null>(null); // CEFR of the open saved text
   const [openText, setOpenText] = useState<ReaderTextFull | null>(null); // the saved text being read (for edit-in-place on save)
+  // A "open in Reader" hand-off that references a saved text by title (from a card
+  // example) — resolved to the full text once the account id is available.
+  const [srcPrefill, setSrcPrefill] = useState<{ text: string; sourceLang?: string; targetLang?: string; word?: string; source: string } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [queueing, setQueueing] = useState(false);
@@ -204,16 +207,22 @@ export default function ReaderPage() {
       const pre = sessionStorage.getItem("lexa.readerPrefill");
       if (pre) {
         sessionStorage.removeItem("lexa.readerPrefill");
-        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string; word?: string };
+        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string; word?: string; source?: string };
         if (p.text?.trim()) {
-          setText(p.text);
-          if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
-          if (p.targetLang) setTargetLang(p.targetLang);
-          // Opened for a specific word (from a card's example) → jump straight into
-          // reading with that word highlighted.
-          if (p.word?.trim()) {
-            setReading(true);
-            setSelected(new Set([wordKey(p.word.trim())]));
+          if (p.source?.trim()) {
+            // Came from an example that belongs to a saved text — try to reopen the
+            // FULL text (resolved once the account id is ready), not just the line.
+            setSrcPrefill({ text: p.text, sourceLang: p.sourceLang, targetLang: p.targetLang, word: p.word, source: p.source });
+          } else {
+            setText(p.text);
+            if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
+            if (p.targetLang) setTargetLang(p.targetLang);
+            // Opened for a specific word (from a card's example) → jump straight into
+            // reading with that word highlighted.
+            if (p.word?.trim()) {
+              setReading(true);
+              setSelected(new Set([wordKey(p.word.trim())]));
+            }
           }
         }
       }
@@ -226,6 +235,41 @@ export default function ReaderPage() {
     if (!ready) return;
     localStorage.setItem(PAIR_KEY, JSON.stringify({ sourceLang, targetLang }));
   }, [ready, sourceLang, targetLang]);
+
+  // Resolve an "open in Reader" hand-off that referenced a saved text by title:
+  // find that text and open it in full; if it's gone, fall back to the sentence.
+  useEffect(() => {
+    if (!srcPrefill || !accountId) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const texts = await api.readerTexts(accountId);
+        const match = texts.find((x) => x.status === "ready" && x.title.trim() === srcPrefill.source.trim());
+        if (match) {
+          const full = await api.readerText(match.id, accountId);
+          if (cancel) return;
+          openSavedText(full);
+          if (srcPrefill.word?.trim()) setSelected(new Set([wordKey(srcPrefill.word.trim())]));
+          if (!cancel) setSrcPrefill(null);
+          return;
+        }
+      } catch {
+        /* fall through to the sentence */
+      }
+      if (cancel) return;
+      setText(srcPrefill.text);
+      if (srcPrefill.sourceLang && srcPrefill.sourceLang !== "auto") setSourceLang(srcPrefill.sourceLang);
+      if (srcPrefill.targetLang) setTargetLang(srcPrefill.targetLang);
+      if (srcPrefill.word?.trim()) {
+        setReading(true);
+        setSelected(new Set([wordKey(srcPrefill.word.trim())]));
+      }
+      setSrcPrefill(null);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [srcPrefill, accountId]);
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
