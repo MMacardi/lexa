@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
-import { aiQuotaGuard, usageStatus, simulatingFree } from "../lib/entitlements.js";
+import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance } from "../lib/entitlements.js";
+import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
@@ -48,10 +49,13 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
   next();
 });
-// Billing cap: after the burst limiter, free users spend one daily AI action per
-// expensive POST; Pro (and the whole closed beta) pass through. Reads are free.
+// Daily "generation" pool (free tier): only the actions that produce/expand cards
+// spend from the daily quota — add a word, add an example, or a tutor/word chat.
+// Cheap or UX-critical calls (gloss, transcribe, translate, spell-check suggest)
+// stay free; reader text generation and OCR have their own monthly quotas.
+const DAILY_POOL_PATH = /^\/(tutor\/ask|words)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiQuotaGuard(req, res, next);
+  if (req.method === "POST" && DAILY_POOL_PATH.test(req.path)) return aiQuotaGuard(req, res, next);
   next();
 });
 
@@ -289,10 +293,15 @@ wordsRouter.post("/words/import/preview", async (req, res) => {
 });
 
 // POST /api/words/import -> create the checked cards in one batch.
-wordsRouter.post("/words/import", async (req, res) => {
+wordsRouter.post("/words/import", requireProFeature, async (req, res) => {
   const parsed = importCommitBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const importMax = await importAllowance(req);
+  if ((parsed.data.items?.length ?? 0) > importMax) {
+    res.status(403).json({ error: `The free plan imports up to ${importMax} cards at once. Upgrade to Pro for more.`, code: "import_limit", limit: importMax });
     return;
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
@@ -316,7 +325,7 @@ wordsRouter.get("/words/import/:jobId", async (req, res) => {
 });
 
 // POST /api/words  -> auto (runs both agents) or manual (uses provided fields)
-wordsRouter.post("/words", async (req, res) => {
+wordsRouter.post("/words", requireProFeature, async (req, res) => {
   const parsed = addBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -415,7 +424,7 @@ const exampleBody = z.object({
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
 });
-wordsRouter.post("/words/:id/example", async (req, res) => {
+wordsRouter.post("/words/:id/example", requireProFeature, async (req, res) => {
   if (!(await guardWord(req, res))) return;
   const parsed = exampleBody.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -423,7 +432,7 @@ wordsRouter.post("/words/:id/example", async (req, res) => {
     return;
   }
   try {
-    res.json(await addExampleToWord(req.params.id, parsed.data));
+    res.json(await addExampleToWord(String(req.params.id), parsed.data));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });
@@ -522,13 +531,19 @@ const batchBody = z
   .refine((b) => (b.words?.length ?? 0) > 0 || (b.items?.length ?? 0) > 0, {
     message: "Provide words or items",
   });
-wordsRouter.post("/words/batch", async (req, res) => {
+wordsRouter.post("/words/batch", requireProFeature, async (req, res) => {
   const parsed = batchBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
   const b = parsed.data;
+  const batchCount = (b.words?.length ?? 0) + (b.items?.length ?? 0);
+  const batchMax = await importAllowance(req);
+  if (batchCount > batchMax) {
+    res.status(403).json({ error: `The free plan adds up to ${batchMax} cards at once. Upgrade to Pro for more.`, code: "import_limit", limit: batchMax });
+    return;
+  }
   const telegramId = readSession(req) ?? b.telegramId;
   // Items with sentences → keep that sentence as the card's example (context from
   // the Reader), only generate the dictionary details. Plain words → AI example.
@@ -591,7 +606,7 @@ const ocrBody = z.object({
   image: z.string().min(1).max(15_000_000).regex(/^data:image\//, "Expected an image data URL"),
   sourceLang: z.string().optional(),
 });
-wordsRouter.post("/ocr", async (req, res) => {
+wordsRouter.post("/ocr", monthlyGuard("ocr", env.FREE_MONTHLY_OCR), async (req, res) => {
   const parsed = ocrBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -758,7 +773,7 @@ const generateBody = z.object({
   targetLang: z.string().max(12).optional(),
   level: z.string().max(4).optional(),
 });
-wordsRouter.post("/reader/generate", async (req, res) => {
+wordsRouter.post("/reader/generate", monthlyGuard("reader_gen", env.FREE_MONTHLY_READER_GEN), async (req, res) => {
   const parsed = generateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
