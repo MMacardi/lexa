@@ -334,6 +334,23 @@ export default function ReaderPage() {
     setReading(true);
   }
 
+  // Leave the reading view. A saved text is edited via its own edit modal now, so
+  // the back button starts a FRESH, empty input. An unsaved paste is kept in the
+  // box so the user can tweak the text they just wrote.
+  function leaveReading() {
+    if (openText) {
+      setText("");
+      setTranslation(null);
+      translatedFor.current = "";
+      setSelected(new Set());
+      setAdded(new Set());
+      setTextLevel(null);
+      setOpenText(null);
+      setReaderSource("");
+    }
+    setReading(false);
+  }
+
   // Open a saved text: restore its content, pair, translation and the words the
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
@@ -853,10 +870,10 @@ export default function ReaderPage() {
       <div className="sticky top-[53px] z-20 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-paper/95 px-4 py-2.5 backdrop-blur sm:top-0 sm:mx-0 sm:rounded-[14px] sm:border sm:px-4">
         <button
           type="button"
-          onClick={() => setReading(false)}
+          onClick={leaveReading}
           className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
         >
-          ← {t("reader.edit")}
+          ← {t(openText ? "reader.back" : "reader.edit")}
         </button>
         <span className="hidden text-xs font-medium text-ink-faint sm:inline">
           {langLabel(sourceLang)} → {langLabel(targetLang)}
