@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
+import { enrichWordEntry } from "../agents/enrich.js";
 import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
 
@@ -85,6 +86,44 @@ async function processOneImportJob() {
         errors.push(`${card.word}: card no longer exists`);
       } else {
         try {
+          const wantAiExample = job.generateExamples && job.exampleSource !== "web";
+          if (job.generateDetails && wantAiExample) {
+            // Common case (full AI enrich, no provided example) → ONE combined call
+            // for the dictionary entry + example + translation, instead of three.
+            const entry = await enrichWordEntry({
+              word: word.word,
+              sourceLang: word.sourceLang,
+              targetLang: word.targetLang,
+              level: job.level ?? undefined,
+              exampleStyle: job.exampleStyle ?? undefined,
+              withExample: true,
+            });
+            const preserveMeaning = Boolean(word.meaningZh?.trim());
+            await prisma.word.update({
+              where: { id: word.id },
+              data: {
+                phonetic: entry.phonetic || null,
+                partOfSpeech: entry.partOfSpeech || null,
+                ...(preserveMeaning ? {} : { meaningZh: entry.meaningZh || null }),
+                collocations: entry.collocations,
+                synonyms: entry.synonyms,
+                antonyms: entry.antonyms,
+              },
+            });
+            if (entry.example) {
+              await prisma.example.create({
+                data: {
+                  wordId: word.id,
+                  sentenceEn: entry.example,
+                  sentenceZh: entry.exampleTranslation,
+                  sourceName: "Lexa AI",
+                  sourceUrl: "",
+                  register: job.exampleStyle ?? "casual",
+                  level: job.level ?? null,
+                },
+              });
+            }
+          } else {
           if (job.generateDetails) {
             await runTutor({
               wordId: word.id,
@@ -123,6 +162,7 @@ async function processOneImportJob() {
               });
               await prisma.example.update({ where: { id: ex.id }, data: { sentenceZh: translation } });
             }
+          }
           }
         } catch (error) {
           console.error(`Import enrichment failed for ${card.word}`, error);
