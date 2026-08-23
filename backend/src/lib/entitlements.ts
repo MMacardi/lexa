@@ -46,40 +46,62 @@ export async function isPro(telegramId: string): Promise<boolean> {
   return u.plan === "pro" && (!u.planUntil || u.planUntil.getTime() > Date.now());
 }
 
-// In-memory daily counters (single instance): telegramId -> {day, count}. Reset
-// at the UTC day boundary; a restart just gives everyone a fresh count (harmless).
-const daily = new Map<string, { day: number; count: number }>();
+// Persistent usage counters (Postgres): a restart or a second instance can't
+// reset or multiply a user's allowance — required for real billing. The `key`
+// encodes the period + user (+ feature), so each new day/month is a fresh row.
 const dayNumber = () => Math.floor(Date.now() / 86_400_000);
-function bucket(id: string): { day: number; count: number } {
-  const day = dayNumber();
-  let b = daily.get(id);
-  if (!b || b.day !== day) {
-    b = { day, count: 0 };
-    daily.set(id, b);
-  }
-  return b;
+const monthNumber = () => new Date().getUTCFullYear() * 12 + new Date().getUTCMonth();
+const dailyKey = (id: string) => `d:${id}:${dayNumber()}`;
+const monthKey = (id: string, name: string) => `m:${id}:${monthNumber()}:${name}`;
+function endOfDay(): Date {
+  const d = new Date();
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
 }
-// Drop stale day-buckets so the map can't grow unbounded.
+function endOfMonth(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + 1, 1));
+}
+
+async function peekCounter(key: string): Promise<number> {
+  try {
+    const r = await prisma.usageCounter.findUnique({ where: { key }, select: { count: true } });
+    return r?.count ?? 0;
+  } catch {
+    return 0; // never block a request on a counter-read failure
+  }
+}
+async function bumpCounter(key: string, resetAt: Date): Promise<void> {
+  try {
+    await prisma.usageCounter.upsert({
+      where: { key },
+      create: { key, count: 1, resetAt },
+      update: { count: { increment: 1 } },
+    });
+  } catch {
+    /* ignore counter-write failures */
+  }
+}
+// Drop expired rows so the table can't grow unbounded.
 const sweep = setInterval(() => {
-  const day = dayNumber();
-  for (const [k, b] of daily) if (b.day !== day) daily.delete(k);
-}, 3_600_000);
+  prisma.usageCounter.deleteMany({ where: { resetAt: { lt: new Date() } } }).catch(() => {});
+}, 6 * 3_600_000);
 sweep.unref?.();
 
-/** Current usage without incrementing (for the UI indicator). */
-export function peekUsage(id: string): { used: number; limit: number } {
-  return { used: bucket(id).count, limit: FREE_DAILY_AI };
+/** Current daily usage without incrementing (for the UI indicator). */
+export async function peekUsage(id: string): Promise<{ used: number; limit: number }> {
+  return { used: await peekCounter(dailyKey(id)), limit: FREE_DAILY_AI };
 }
 
 /** Plan + today's usage, for GET /api/ai/usage. `forceFree` reflects the test toggle. */
 export async function usageStatus(id: string, forceFree = false) {
   const pro = !forceFree && (await isPro(id));
-  const { used, limit } = peekUsage(id);
+  const { used, limit } = await peekUsage(id);
   return { pro, plan: pro ? "pro" : "free", used, limit, remaining: Math.max(0, limit - used), simulatingFree: forceFree };
 }
 
 /**
- * Express guard for the expensive LLM endpoints: Pro passes through untouched;
+ * Express guard for the daily "generation" pool: Pro passes through untouched;
  * free users consume one of their daily actions, and get a 429 with a machine-
  * readable `code: "ai_quota"` once the cap is hit.
  */
@@ -87,53 +109,37 @@ export async function aiQuotaGuard(req: Request, res: Response, next: NextFuncti
   const id = callerId(req);
   // Skip the Pro fast-path when the caller is simulating the free tier (test mode).
   if (!simulatingFree(req) && (await isPro(id))) return next();
-  const b = bucket(id);
-  if (b.count >= FREE_DAILY_AI) {
+  const key = dailyKey(id);
+  if ((await peekCounter(key)) >= FREE_DAILY_AI) {
     res.status(429).json({
       error: "You've used today's free AI actions. Upgrade to Pro for unlimited, or come back tomorrow.",
       code: "ai_quota",
-      used: b.count,
+      used: FREE_DAILY_AI,
       limit: FREE_DAILY_AI,
     });
     return;
   }
-  b.count++;
+  await bumpCounter(key, endOfDay());
   next();
 }
-
-// --- Monthly quotas for the pricier one-off actions (reader text generation, OCR).
-// Same in-memory pattern as the daily pool, keyed by the UTC month. ---
-const monthly = new Map<string, { month: number; counts: Record<string, number> }>();
-const monthNumber = () => new Date().getUTCFullYear() * 12 + new Date().getUTCMonth();
-const monthSweep = setInterval(() => {
-  const m = monthNumber();
-  for (const [k, b] of monthly) if (b.month !== m) monthly.delete(k);
-}, 6 * 3_600_000);
-monthSweep.unref?.();
 
 /** Guard factory: free users get `limit` of a named action per month; Pro is uncapped. */
 export function monthlyGuard(name: string, limit: number) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const id = callerId(req);
     if (!simulatingFree(req) && (await isPro(id))) return next();
-    const m = monthNumber();
-    let b = monthly.get(id);
-    if (!b || b.month !== m) {
-      b = { month: m, counts: {} };
-      monthly.set(id, b);
-    }
-    const used = b.counts[name] ?? 0;
-    if (used >= limit) {
+    const key = monthKey(id, name);
+    if ((await peekCounter(key)) >= limit) {
       res.status(429).json({
         error: "You've used this month's free allowance for this feature. Upgrade to Pro for unlimited.",
         code: "quota_monthly",
         feature: name,
-        used,
+        used: limit,
         limit,
       });
       return;
     }
-    b.counts[name] = used + 1;
+    await bumpCounter(key, endOfMonth());
     next();
   };
 }

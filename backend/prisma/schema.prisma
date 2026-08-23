@@ -165,6 +165,17 @@ model Example {
   createdAt  DateTime @default(now())
 }
 
+// Persistent usage counters for the free-tier quotas (daily AI pool + monthly
+// feature caps). Stored in Postgres so a restart or a second instance can't reset
+// or multiply a user's allowance — a prerequisite for real billing. The `key`
+// encodes the period + user (+ feature), so a new day/month simply starts a fresh
+// row; `resetAt` lets a sweep drop stale ones.
+model UsageCounter {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+}
+
 // Durable Postgres-backed work queue for optional AI enrichment after a bulk
 // import. Unlike an in-memory Promise, a job survives a Railway restart.
 model ImportJob {
