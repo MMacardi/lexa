@@ -310,6 +310,33 @@ export function useRetention(): number {
   return r;
 }
 
+// --- Meaning style: a learner-editable instruction for how card meanings are
+// written. Empty = the app's concise default. Lets power users get richer entries
+// (nuance, register, usage) and sets Lexa apart from a plain translator. ---
+const MEANING_PROMPT_KEY = "lexa.meaningPrompt";
+export function getMeaningPrompt(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(MEANING_PROMPT_KEY) ?? "";
+}
+export function setMeaningPrompt(v: string) {
+  localStorage.setItem(MEANING_PROMPT_KEY, v);
+  window.dispatchEvent(new Event(EVT));
+}
+export function useMeaningPrompt(): string {
+  const [v, setV] = useState("");
+  useEffect(() => {
+    const sync = () => setV(getMeaningPrompt());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return v;
+}
+
 // --- Example source style (register), a single global default ---
 // How many examples to auto-generate per word (1–3). Default 1.
 const EX_COUNT_KEY = "lexa.exampleCount";

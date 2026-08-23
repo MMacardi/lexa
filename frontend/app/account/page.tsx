@@ -18,6 +18,8 @@ import {
   setRetention,
   setShowTranscription,
   setShowTextLevel,
+  setMeaningPrompt,
+  useMeaningPrompt,
   useShowTextLevel,
   useAllLevels,
   useExampleSource,
@@ -216,6 +218,33 @@ function TextLevelSection() {
   );
 }
 
+function MeaningStyleSection() {
+  const { t } = useI18n();
+  const v = useMeaningPrompt();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("meaning.title")}</h2>
+      <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("meaning.hint")}</p>
+      <textarea
+        value={v}
+        onChange={(e) => setMeaningPrompt(e.target.value)}
+        rows={3}
+        placeholder={t("meaning.placeholder")}
+        className="mt-3 w-full resize-y rounded-[12px] border border-black/[0.1] bg-paper px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-sage/60"
+      />
+      {v.trim() && (
+        <button
+          type="button"
+          onClick={() => setMeaningPrompt("")}
+          className="mt-2 text-[13px] font-semibold text-ink-soft hover:text-ink"
+        >
+          {t("meaning.reset")}
+        </button>
+      )}
+    </section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
@@ -352,6 +381,9 @@ export default function AccountPage() {
 
       {/* where example sentences come from (AI vs web) */}
       <ExampleSourceSection />
+
+      {/* how card meanings are written (learner-editable prompt) */}
+      <MeaningStyleSection />
 
       {/* transcription (pinyin/romaji) in quick tap lookups */}
       <TranscriptionSection />

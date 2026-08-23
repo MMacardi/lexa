@@ -175,6 +175,7 @@ export interface AddAuto {
   exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
   exampleCount?: number; // how many examples to generate (1–3)
+  meaningPrompt?: string; // learner override for how the meaning is written
 }
 
 export interface AddManual extends AddAuto {

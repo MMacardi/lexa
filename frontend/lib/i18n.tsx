@@ -570,6 +570,18 @@ const DICT: Record<string, Entry> = {
   "import.clearAll": { en: "Clear", ru: "Снять выбор", zh: "清除" },
   "import.keepExtras": { en: "Keep examples and synonyms from my list", ru: "Сохранить примеры и синонимы из списка", zh: "保留词表中的例句和同义词" },
   "import.noExtras": { en: "Your list had no examples or synonyms", ru: "Вы не писали своих примеров или синонимов", zh: "词表中没有例句或同义词" },
+  "meaning.title": { en: "Meaning style", ru: "Стиль значения", zh: "释义风格" },
+  "meaning.hint": {
+    en: "How the AI writes card meanings. Leave empty for a concise translation, or describe what you want (e.g. add nuance, register, usage notes).",
+    ru: "Как ИИ пишет значения карточек. Оставьте пустым для краткого перевода или опишите, что хотите (например: с нюансами, регистром, примечаниями по употреблению).",
+    zh: "AI 如何撰写卡片释义。留空则为简洁翻译，或描述你的需求（如：加入语气、语域、用法说明）。",
+  },
+  "meaning.placeholder": {
+    en: "Default: a concise translation — the direct equivalent, a short clarifier only if ambiguous.",
+    ru: "По умолчанию: краткий перевод — прямой эквивалент, короткое уточнение только при неоднозначности.",
+    zh: "默认：简洁翻译——直接对应词，仅在歧义时加简短说明。",
+  },
+  "meaning.reset": { en: "Reset to default", ru: "Сбросить по умолчанию", zh: "恢复默认" },
   "import.simple": { en: "Simple cards", ru: "Простые карточки", zh: "简单卡片" },
   "import.simpleHint": { en: "word + meaning only", ru: "только слово и перевод", zh: "仅单词和释义" },
   "import.useDetails": { en: "Keep list details", ru: "Сохранить детали списка", zh: "保留词表详情" },
