@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LANGS } from "@/lib/langs";
-import { addCustomLang, useCustomLangs } from "@/lib/customLangs";
+import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
@@ -135,8 +135,9 @@ export function LangSelect({
               )}
               {filtered.map((l) => {
                 const active = l.code === value;
+                const isCustom = custom.some((c) => c.code === l.code);
                 return (
-                  <li key={l.code}>
+                  <li key={l.code} className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -144,13 +145,29 @@ export function LangSelect({
                         setOpen(false);
                       }}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-[15px] transition-colors",
+                        "flex min-w-0 flex-1 items-center justify-between rounded-[10px] px-3 py-2 text-left text-[15px] transition-colors",
                         active ? "bg-sage-tint font-semibold text-sage-deep" : "text-ink hover:bg-black/[0.03]",
                       )}
                     >
-                      {l.name}
-                      {active && <span className="text-sage">✓</span>}
+                      <span className="truncate">{l.name}</span>
+                      {active && <span className="shrink-0 text-sage">✓</span>}
                     </button>
+                    {isCustom && (
+                      <button
+                        type="button"
+                        aria-label={t("col.removeLang")}
+                        title={t("col.removeLang")}
+                        onClick={() => {
+                          removeCustomLang(l.code);
+                          if (l.code === value) onChange("en"); // reset if we deleted the selected one
+                        }}
+                        className="shrink-0 rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-warn-text"
+                      >
+                        <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" fill="none">
+                          <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    )}
                   </li>
                 );
               })}
