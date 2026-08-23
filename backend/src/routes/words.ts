@@ -49,6 +49,14 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
   next();
 });
+// Pro-only request params (web examples / custom meaning / >1 example) are
+// rejected for free users BEFORE the daily pool is charged — so a Pro-only add
+// that gets a 403 doesn't also cost a free daily action.
+const PRO_PARAM_PATH = /^\/words$|^\/words\/(batch|import)$|^\/words\/[^/]+\/example$/;
+wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST" && PRO_PARAM_PATH.test(req.path)) return requireProFeature(req, res, next);
+  next();
+});
 // Daily "generation" pool (free tier): only the actions that produce/expand cards
 // spend from the daily quota — add a word, add an example, or a tutor/word chat.
 // Cheap or UX-critical calls (gloss, transcribe, translate, spell-check suggest)
@@ -293,7 +301,7 @@ wordsRouter.post("/words/import/preview", async (req, res) => {
 });
 
 // POST /api/words/import -> create the checked cards in one batch.
-wordsRouter.post("/words/import", requireProFeature, async (req, res) => {
+wordsRouter.post("/words/import", async (req, res) => {
   const parsed = importCommitBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -325,7 +333,7 @@ wordsRouter.get("/words/import/:jobId", async (req, res) => {
 });
 
 // POST /api/words  -> auto (runs both agents) or manual (uses provided fields)
-wordsRouter.post("/words", requireProFeature, async (req, res) => {
+wordsRouter.post("/words", async (req, res) => {
   const parsed = addBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -424,7 +432,7 @@ const exampleBody = z.object({
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
 });
-wordsRouter.post("/words/:id/example", requireProFeature, async (req, res) => {
+wordsRouter.post("/words/:id/example", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   const parsed = exampleBody.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -531,7 +539,7 @@ const batchBody = z
   .refine((b) => (b.words?.length ?? 0) > 0 || (b.items?.length ?? 0) > 0, {
     message: "Provide words or items",
   });
-wordsRouter.post("/words/batch", requireProFeature, async (req, res) => {
+wordsRouter.post("/words/batch", async (req, res) => {
   const parsed = batchBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
