@@ -213,6 +213,7 @@ const addBody = z.object({
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   exampleCount: z.number().int().min(1).max(3).optional(),
+  meaningPrompt: z.string().max(400).optional(), // learner override for meaning style
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),

@@ -26,6 +26,7 @@ import {
   useExampleSource,
   setExampleSource,
   getExampleCount,
+  getMeaningPrompt,
   setExampleCount,
   useExampleCount,
   useLevel,
@@ -236,7 +237,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           });
         }
       } else {
-        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource(), exampleCount: getExampleCount() });
+        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource(), exampleCount: getExampleCount(), meaningPrompt: getMeaningPrompt() || undefined });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
       return created;

@@ -2,6 +2,7 @@ import { prisma } from "./db.js";
 import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
+import { enrichWordEntry } from "../agents/enrich.js";
 import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
@@ -65,31 +66,79 @@ export async function addWordForUser(params: {
   exampleStyle?: string;
   exampleSource?: string;
   exampleCount?: number; // how many examples to generate (1–3); default 1
+  meaningPrompt?: string; // learner override for how the meaning is written
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
-  const example = await runExampleSearch({
-    userId: user.id,
-    word: params.word,
-    sourceLang,
-    targetLang: params.targetLang,
-    level: params.level,
-    exampleStyle: params.exampleStyle,
-    exampleSource: params.exampleSource,
-  });
-  await runTutor({
-    wordId: example.wordId,
-    word: params.word,
-    sourceLang: params.sourceLang,
-    targetLang: params.targetLang,
-  });
+  const targetLang = params.targetLang ?? "zh";
+  const useWeb = params.exampleSource === "web";
+  const withExample = params.exampleStyle !== "none";
+  const count = Math.max(1, Math.min(3, Math.round(params.exampleCount ?? 1)));
+
+  let wordId: string;
+
+  if (useWeb) {
+    // Web-mined example: the sentence comes from a real search, so keep the
+    // dedicated two-step agent, then the dictionary agent.
+    const example = await runExampleSearch({
+      userId: user.id,
+      word: params.word,
+      sourceLang,
+      targetLang: params.targetLang,
+      level: params.level,
+      exampleStyle: params.exampleStyle,
+      exampleSource: params.exampleSource,
+    });
+    wordId = example.wordId;
+    await runTutor({ wordId, word: params.word, sourceLang: params.sourceLang, targetLang: params.targetLang });
+  } else {
+    // AI-composed (default) or "none": ONE combined call for the whole entry
+    // (dictionary + example + translation) instead of three separate ones.
+    const entry = await enrichWordEntry({
+      word: params.word,
+      sourceLang,
+      targetLang,
+      level: params.level,
+      exampleStyle: params.exampleStyle,
+      withExample,
+      meaningInstruction: params.meaningPrompt,
+    });
+    const created = await prisma.word.create({
+      data: {
+        userId: user.id,
+        word: params.word.trim().toLowerCase(),
+        sourceLang,
+        targetLang,
+        phonetic: entry.phonetic || null,
+        partOfSpeech: entry.partOfSpeech || null,
+        meaningZh: entry.meaningZh || null,
+        collocations: entry.collocations,
+        synonyms: entry.synonyms,
+        antonyms: entry.antonyms,
+        examples:
+          withExample && entry.example
+            ? {
+                create: {
+                  sentenceEn: entry.example,
+                  sentenceZh: entry.exampleTranslation,
+                  sourceName: "Lexa AI",
+                  sourceUrl: "",
+                  register: params.exampleStyle ?? "casual",
+                  level: params.level ?? null,
+                },
+              }
+            : undefined,
+      },
+      select: { id: true },
+    });
+    wordId = created.id;
+  }
 
   // Extra examples: compose N-1 more, each avoiding the ones already there. Skipped
   // for the "no example" style.
-  const count = Math.max(1, Math.min(3, Math.round(params.exampleCount ?? 1)));
-  if (count > 1 && params.exampleStyle !== "none") {
+  if (count > 1 && withExample) {
     for (let i = 1; i < count; i++) {
-      await addExampleToWord(example.wordId, {
+      await addExampleToWord(wordId, {
         exampleStyle: params.exampleStyle,
         exampleSource: params.exampleSource,
         level: params.level,
@@ -100,7 +149,7 @@ export async function addWordForUser(params: {
   }
 
   return prisma.word.findUniqueOrThrow({
-    where: { id: example.wordId },
+    where: { id: wordId },
     include: {
       examples: { orderBy: { createdAt: "desc" } },
       collections: { select: { id: true, name: true } },

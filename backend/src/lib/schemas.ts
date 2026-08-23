@@ -128,3 +128,18 @@ export const tutorSchema = z.object({
   antonyms: z.array(z.string()),
 });
 export type TutorResult = z.infer<typeof tutorSchema>;
+
+// Combined enrichment: the full dictionary entry PLUS a composed example and its
+// translation, in ONE model call (replaces the separate tutor + example-search
+// calls for AI-composed examples — cuts a card's cost from ~3 calls to 1).
+export const enrichEntrySchema = z.object({
+  phonetic: z.string().default(""),
+  partOfSpeech: z.string().default(""),
+  meaningZh: z.string().default(""),
+  collocations: z.array(z.string()).default([]),
+  synonyms: z.array(z.string()).default([]),
+  antonyms: z.array(z.string()).default([]),
+  example: z.string().default(""),
+  exampleTranslation: z.string().default(""),
+});
+export type EnrichEntryResult = z.infer<typeof enrichEntrySchema>;
