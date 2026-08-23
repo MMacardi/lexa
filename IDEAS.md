@@ -46,8 +46,9 @@ Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
 - ✅ **/pro screen** — benefits, Free-vs-Pro table, pricing; CTA = "coming soon".
 - ⏭ **Payment** — wire YooKassa (самозанятый) and/or Telegram Payments to the
   /pro CTA; webhook sets `User.plan="pro"` + `planUntil`.
-- ⏭ **Persist usage counters** — daily/monthly caps are in-memory (reset on
-  restart); move to the DB before real billing.
+- ✅ **Persist usage counters** — daily/monthly caps now live in a Postgres
+  `UsageCounter` table (survive restarts + multiple instances). Pro-only 403s no
+  longer spend a daily action.
 - ⏭ **Flip `BETA_ALL_PRO=false`** at public launch (new users default to free).
 
 ## Token-cost follow-ups (combined-enrich already cut single-add 3→1)
