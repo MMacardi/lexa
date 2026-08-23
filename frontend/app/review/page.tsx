@@ -464,7 +464,9 @@ export default function FlashcardsPage() {
   };
   // Flip on a genuine tap/click (skipped right after a drag). Using onClick keeps
   // rapid/double taps reliable where a manual pointerup toggle could get stuck.
-  const onFlip = () => {
+  // Ignore taps on interactive children (speak button, links) so they don't flip.
+  const onFlip = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
     if (draggedRef.current) {
       draggedRef.current = false;
       return;
@@ -563,8 +565,10 @@ export default function FlashcardsPage() {
               <div className="flip-face flip-back flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 <div
                   className="flex max-h-[300px] flex-col gap-3 overflow-y-auto px-2 py-1"
+                  // Keep the pointer for scrolling (so a drag here scrolls instead of
+                  // starting a swipe), but DON'T swallow the click — a tap on the back
+                  // must still flip the card back to the front.
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
                   style={{ touchAction: "pan-y" }}
                 >
                   {backFields.map((f, i) => (

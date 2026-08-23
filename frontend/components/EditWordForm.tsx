@@ -6,11 +6,11 @@ import { api, type Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { EXAMPLE_STYLES, getExampleSource, getExampleStyle, getLevel, type ExampleStyle } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
-import { X, RefreshCw } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
-import { LangSelect } from "@/components/LangSelect";
+import { langLabel } from "@/lib/langs";
 import { cn } from "@/lib/utils";
 
 const csv = (a: string[]) => a.join(", ");
@@ -51,8 +51,8 @@ export function EditWordForm({
   const ensureLevel = useEnsureLevel();
 
   const [w, setW] = useState(word.word);
-  const [sourceLang, setSourceLang] = useState(word.sourceLang);
-  const [targetLang, setTargetLang] = useState(word.targetLang);
+  const [sourceLang] = useState(word.sourceLang);
+  const [targetLang] = useState(word.targetLang);
   const [phonetic, setPhonetic] = useState(word.phonetic ?? "");
   const [pos, setPos] = useState(word.partOfSpeech ?? "");
   const [meaning, setMeaning] = useState(word.meaningZh ?? "");
@@ -118,11 +118,13 @@ export function EditWordForm({
         <Field label={t("edit.word")}>
           <Input value={w} onChange={(e) => setW(e.target.value)} className="w-48" />
         </Field>
+        {/* A card's language pair is fixed after creation — show it read-only so the
+            (non-functional) dropdown animation doesn't mislead. */}
         <Field label={t("edit.from")}>
-          <LangSelect value={sourceLang} onChange={setSourceLang} />
+          <div className="flex h-11 items-center text-[15px] font-medium text-ink-muted">{langLabel(sourceLang)}</div>
         </Field>
         <Field label={t("edit.to")}>
-          <LangSelect value={targetLang} onChange={setTargetLang} />
+          <div className="flex h-11 items-center text-[15px] font-medium text-ink-muted">{langLabel(targetLang)}</div>
         </Field>
       </div>
 
@@ -205,24 +207,6 @@ export function EditWordForm({
         />
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          disabled={regen.isPending}
-          onClick={async () => {
-            const { ok } = await ensureLevel(sourceLang);
-            if (ok) regen.mutate(true);
-          }}
-        >
-          {regen.isPending ? (
-            t("edit.fetching")
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              <RefreshCw className="h-4 w-4" /> {t("edit.regenerate")}
-            </span>
-          )}
-        </Button>
-        <Button
-          type="button"
           variant="ghost"
           size="sm"
           disabled={regen.isPending}
@@ -231,7 +215,11 @@ export function EditWordForm({
             if (ok) regen.mutate(false);
           }}
         >
-          + {t("edit.addExample")}
+          {regen.isPending ? (
+            t("edit.fetching")
+          ) : (
+            <span className="inline-flex items-center gap-1.5">+ {t("edit.addExample")}</span>
+          )}
         </Button>
         {regen.isError && <span className="text-sm text-warn-text">{(regen.error as Error).message}</span>}
       </div>
