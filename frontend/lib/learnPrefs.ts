@@ -310,22 +310,63 @@ export function useRetention(): number {
   return r;
 }
 
-// --- Meaning style: a learner-editable instruction for how card meanings are
-// written. Empty = the app's concise default. Lets power users get richer entries
-// (nuance, register, usage) and sets Lexa apart from a plain translator. ---
-const MEANING_PROMPT_KEY = "lexa.meaningPrompt";
-export function getMeaningPrompt(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(MEANING_PROMPT_KEY) ?? "";
+// --- Meaning style: how card meanings are written. A preset for most people
+// ("concise" default, or "detailed" with nuance/register), plus a free-text
+// "custom" mode for a personal instruction (e.g. a topic focus). Sets Lexa apart
+// from a plain translator without forcing anyone to write a prompt. ---
+export type MeaningMode = "concise" | "detailed" | "custom";
+const MEANING_MODE_KEY = "lexa.meaningMode";
+const MEANING_CUSTOM_KEY = "lexa.meaningPrompt"; // free-text used only in "custom" mode
+
+// The instruction the "detailed" preset sends (kept in English to match the
+// surrounding enrichment prompt; the output language is fixed elsewhere).
+const DETAILED_INSTRUCTION =
+  "the translation, then a brief note on nuance, register and typical usage — keep it compact (at most 1-2 short extra lines).";
+
+export function getMeaningMode(): MeaningMode {
+  if (typeof window === "undefined") return "concise";
+  const v = localStorage.getItem(MEANING_MODE_KEY);
+  return v === "detailed" || v === "custom" ? v : "concise";
 }
-export function setMeaningPrompt(v: string) {
-  localStorage.setItem(MEANING_PROMPT_KEY, v);
+export function setMeaningMode(m: MeaningMode) {
+  localStorage.setItem(MEANING_MODE_KEY, m);
   window.dispatchEvent(new Event(EVT));
 }
-export function useMeaningPrompt(): string {
+export function getMeaningCustom(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(MEANING_CUSTOM_KEY) ?? "";
+}
+export function setMeaningCustom(v: string) {
+  localStorage.setItem(MEANING_CUSTOM_KEY, v);
+  window.dispatchEvent(new Event(EVT));
+}
+
+/** The effective instruction sent to the backend (empty = the concise default). */
+export function getMeaningPrompt(): string {
+  const mode = getMeaningMode();
+  if (mode === "detailed") return DETAILED_INSTRUCTION;
+  if (mode === "custom") return getMeaningCustom().trim();
+  return "";
+}
+
+export function useMeaningMode(): MeaningMode {
+  const [m, setM] = useState<MeaningMode>("concise");
+  useEffect(() => {
+    const sync = () => setM(getMeaningMode());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return m;
+}
+export function useMeaningCustom(): string {
   const [v, setV] = useState("");
   useEffect(() => {
-    const sync = () => setV(getMeaningPrompt());
+    const sync = () => setV(getMeaningCustom());
     sync();
     window.addEventListener(EVT, sync);
     window.addEventListener("storage", sync);
