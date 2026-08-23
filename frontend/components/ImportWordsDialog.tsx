@@ -120,7 +120,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
           synonyms: card.synonyms,
         })),
         collectionIds: ids,
-        keepProvidedExtras,
+        keepProvidedExtras: keepExtras,
         generateDetails,
         generateExamples,
         // only relevant when we actually search for examples
@@ -147,6 +147,10 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
   });
 
   const selected = cards.filter((card) => card.selected);
+  // Did the pasted list actually carry examples/synonyms? Only then can "keep list
+  // details" do anything — otherwise it's disabled. (We also never invent them.)
+  const hasExtras = cards.some((card) => card.example?.trim() || (card.synonyms?.length ?? 0) > 0);
+  const keepExtras = keepProvidedExtras && hasExtras;
   const close = () => {
     if (commit.isPending) return;
     setOpen(false);
@@ -345,7 +349,12 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                             <span className={cn("text-[19px] font-semibold text-sage-deep", (targetLang === "zh" || targetLang === "zh-Hant") && "font-zh")}>{card.meaning || "—"}</span>
                           </span>
                           {(card.example || card.synonyms.length > 0) && (
-                            <span className="mt-1.5 block text-[14px] leading-relaxed text-ink-soft">
+                            <span
+                              className={cn(
+                                "mt-1.5 block rounded-md text-[14px] leading-relaxed transition-colors",
+                                keepExtras ? "bg-sage-tint/60 px-2 py-1 font-medium text-sage-deep" : "text-ink-faint",
+                              )}
+                            >
                               {card.example ? `“${card.example}”` : ""}
                               {card.example && card.synonyms.length ? " · " : ""}
                               {card.synonyms.length ? `${card.synonyms.join(", ")}` : ""}
@@ -363,8 +372,14 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                         {t("import.contentTitle")}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        <Choice active={!keepProvidedExtras} onClick={() => setKeepProvidedExtras(false)} title={t("import.simple")} hint={t("import.simpleHint")} />
-                        <Choice active={keepProvidedExtras} onClick={() => setKeepProvidedExtras(true)} title={t("import.useDetails")} hint={t("import.keepExtras")} />
+                        <Choice active={!keepExtras} onClick={() => setKeepProvidedExtras(false)} title={t("import.simple")} hint={t("import.simpleHint")} />
+                        <Choice
+                          active={keepExtras}
+                          disabled={!hasExtras}
+                          onClick={() => setKeepProvidedExtras(true)}
+                          title={t("import.useDetails")}
+                          hint={hasExtras ? t("import.keepExtras") : t("import.noExtras")}
+                        />
                       </div>
                     </div>
 
@@ -470,14 +485,19 @@ function Toggle({
   );
 }
 
-function Choice({ active, onClick, title, hint }: { active: boolean; onClick: () => void; title: string; hint: string }) {
+function Choice({ active, onClick, title, hint, disabled }: { active: boolean; onClick: () => void; title: string; hint: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "rounded-[13px] border px-3 py-2 text-left transition-colors",
-        active ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-paper text-ink-muted hover:bg-black/[0.02]",
+        disabled
+          ? "cursor-not-allowed border-black/[0.06] bg-paper text-ink-faint opacity-60"
+          : active
+            ? "border-sage bg-sage-tint text-sage-deep"
+            : "border-black/[0.08] bg-paper text-ink-muted hover:bg-black/[0.02]",
       )}
     >
       <span className="block text-sm font-semibold">{title}</span>
