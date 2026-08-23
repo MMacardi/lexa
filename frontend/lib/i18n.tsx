@@ -569,6 +569,7 @@ const DICT: Record<string, Entry> = {
   "import.selectAll": { en: "Select all", ru: "Выбрать все", zh: "全选" },
   "import.clearAll": { en: "Clear", ru: "Снять выбор", zh: "清除" },
   "import.keepExtras": { en: "Keep examples and synonyms from my list", ru: "Сохранить примеры и синонимы из списка", zh: "保留词表中的例句和同义词" },
+  "import.noExtras": { en: "Your list had no examples or synonyms", ru: "Вы не писали своих примеров или синонимов", zh: "词表中没有例句或同义词" },
   "import.simple": { en: "Simple cards", ru: "Простые карточки", zh: "简单卡片" },
   "import.simpleHint": { en: "word + meaning only", ru: "только слово и перевод", zh: "仅单词和释义" },
   "import.useDetails": { en: "Keep list details", ru: "Сохранить детали списка", zh: "保留词表详情" },

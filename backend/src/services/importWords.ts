@@ -37,7 +37,10 @@ export async function previewImportedWords(params: {
       `words (and obvious phrases) and make one card per word, generating each ${targetName} meaning. ` +
       `Keep the words the user actually wrote; only skip pure punctuation/numbers.\n` +
       `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
-      `no commentary. If the input is empty or has no usable words, return an empty items array.` +
+      `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
+      `CRITICAL: NEVER invent an example, its translation, or synonyms. Fill "example", ` +
+      `"exampleTranslation" and "synonyms" ONLY with values the user explicitly wrote in the input; ` +
+      `if the input has none for an item, return "" for example/exampleTranslation and [] for synonyms. ` +
       scriptNote(params.sourceLang) +
       scriptNote(params.targetLang) +
       " " +
