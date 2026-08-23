@@ -884,6 +884,7 @@ const DICT: Record<string, Entry> = {
   "col.emptySet": { en: "No words in this set yet — add some below.", ru: "В наборе пока нет слов — добавьте ниже.", zh: "该合集还没有单词——在下面添加。" },
   "col.deleteConfirm": { en: "Delete collection \"{name}\"? (words are kept)", ru: "Удалить набор «{name}»? Слова останутся.", zh: "删除合集“{name}”？（单词保留）" },
   "col.addLanguage": { en: "+ Add language…", ru: "+ Добавить язык…", zh: "+ 添加语言…" },
+  "col.removeLang": { en: "Remove language", ru: "Удалить язык", zh: "删除语言" },
   "col.searchLang": { en: "Search language…", ru: "Поиск языка…", zh: "搜索语言…" },
   "col.langPrompt": { en: "New language name (in English, e.g. Portuguese):", ru: "Название нового языка (по-английски, напр. Portuguese):", zh: "新语言名称（用英文，如 Portuguese）：" },
 

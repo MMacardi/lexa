@@ -39,12 +39,19 @@ export function pairLabel(source: string, target: string): string {
   return `${langLabel(source)} → ${langLabel(target)}`;
 }
 
-// The AI agents only reliably handle the built-in languages. A user-added custom
-// language (or "unknown") should fall back to manual cards, since the model may
-// not actually know it.
+// AI cards work for the built-in languages AND any language the user deliberately
+// added (Qwen is broadly multilingual — e.g. it knows Hindi, Arabic, Turkish…). A
+// truly unknown code (never added) still falls back to manual cards.
 const AI_LANGS = new Set<string>(LANGS.map((l) => l.code));
 export function isAiSupported(code: string): boolean {
-  return code === "auto" || AI_LANGS.has(code);
+  if (code === "auto" || AI_LANGS.has(code)) return true;
+  if (typeof window === "undefined") return false;
+  try {
+    const custom = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]") as { code: string }[];
+    return custom.some((x) => x.code === code);
+  } catch {
+    return false;
+  }
 }
 
 // Coarse "script family" of a language, for spotting a paste/source mismatch.

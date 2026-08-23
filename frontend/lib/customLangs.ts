@@ -39,6 +39,13 @@ export function addCustomLang(rawName: string): CustomLang {
   return { code, name };
 }
 
+/** Remove a custom language the user added. */
+export function removeCustomLang(code: string) {
+  const list = getCustomLangs().filter((l) => l.code !== code);
+  localStorage.setItem(KEY, JSON.stringify(list));
+  window.dispatchEvent(new Event(EVT));
+}
+
 /** Reactive list of custom languages (updates when one is added anywhere). */
 export function useCustomLangs(): CustomLang[] {
   const [langs, setLangs] = useState<CustomLang[]>([]);
