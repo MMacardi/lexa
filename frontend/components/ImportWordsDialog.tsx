@@ -355,10 +355,8 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                       </label>
                     ))}
                   </div>
-                </div>
 
-                <footer className="shrink-0 border-t border-black/[0.07] bg-surface px-5 py-4 sm:px-7">
-                  <div className="space-y-3.5">
+                  <div className="mt-5 space-y-3.5 border-t border-black/[0.07] pt-4">
                     {/* what each card stores from the pasted list */}
                     <div>
                       <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
@@ -425,7 +423,10 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                     )}
                   </div>
                   {commit.isError && <p className="mt-3 text-sm font-medium text-warn-text">{(commit.error as Error).message}</p>}
-                  <div className="mt-4 flex items-center justify-between gap-3">
+                </div>
+
+                <footer className="shrink-0 border-t border-black/[0.07] bg-surface px-5 py-3 sm:px-7">
+                  <div className="flex items-center justify-between gap-3">
                     <button type="button" onClick={() => setCards([])} className="text-sm font-semibold text-ink-soft hover:text-ink">{t("import.back")}</button>
                     <Button type="button" disabled={selected.length === 0 || commit.isPending} onClick={() => commit.mutate()}>
                       {commit.isPending ? t("import.adding") : t("import.add", { n: selected.length })}
