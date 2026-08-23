@@ -289,6 +289,12 @@ const DICT: Record<string, Entry> = {
   "sync.pending": { en: "{n} waiting to sync", ru: "{n} ждут синхронизации", zh: "{n} 项待同步" },
   "sync.syncing": { en: "syncing {n}…", ru: "синхронизирую {n}…", zh: "正在同步 {n}…" },
   "plan.title": { en: "Plan & usage", ru: "Тариф и лимиты", zh: "套餐与用量" },
+  "plan.simTitle": { en: "Test the free tier", ru: "Тест: тариф Free", zh: "测试免费档" },
+  "plan.simHint": {
+    en: "Apply the free daily AI cap to your account so you can preview the limits.",
+    ru: "Применить дневной лимит AI как на Free — чтобы посмотреть, как это ощущается.",
+    zh: "对你的账户应用免费档的每日 AI 上限，以预览限制体验。",
+  },
   "plan.free": { en: "Free", ru: "Бесплатный", zh: "免费" },
   "plan.proHint": { en: "Unlimited AI — thanks for testing", ru: "Безлимитный ИИ — спасибо за тест", zh: "无限 AI——感谢试用" },
   "plan.usedToday": { en: "{used}/{limit} AI actions used today", ru: "{used}/{limit} ИИ-действий за сегодня", zh: "今日已用 {used}/{limit} 次 AI" },

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
-import { aiQuotaGuard, usageStatus } from "../lib/entitlements.js";
+import { aiQuotaGuard, usageStatus, simulatingFree } from "../lib/entitlements.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
@@ -58,7 +58,7 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
 // GET /api/ai/usage -> the caller's plan + today's AI-action usage (for the UI).
 wordsRouter.get("/ai/usage", async (req: Request, res: Response) => {
   const id = readSession(req) ?? String(req.query.telegramId ?? "anon");
-  res.json(await usageStatus(id));
+  res.json(await usageStatus(id, simulatingFree(req)));
 });
 
 // Authorization guards for :id routes. The frontend always carries a verified

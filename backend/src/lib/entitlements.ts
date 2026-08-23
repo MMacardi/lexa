@@ -27,6 +27,14 @@ function callerId(req: Request): string {
   return "anon";
 }
 
+// A client can ask to be treated as a FREE user for this request (the "test the
+// free tier" toggle). It can only ever RESTRICT the caller — never grant Pro — so
+// it's safe to honour for anyone.
+export function simulatingFree(req: Request): boolean {
+  const h = req.headers["x-simulate-free"];
+  return h === "1" || h === "true";
+}
+
 /** Is this account currently on the Pro plan (uncapped)? */
 export async function isPro(telegramId: string): Promise<boolean> {
   if (BETA_ALL_PRO) return true;
@@ -62,11 +70,11 @@ export function peekUsage(id: string): { used: number; limit: number } {
   return { used: bucket(id).count, limit: FREE_DAILY_AI };
 }
 
-/** Plan + today's usage, for GET /api/ai/usage. */
-export async function usageStatus(id: string) {
-  const pro = await isPro(id);
+/** Plan + today's usage, for GET /api/ai/usage. `forceFree` reflects the test toggle. */
+export async function usageStatus(id: string, forceFree = false) {
+  const pro = !forceFree && (await isPro(id));
   const { used, limit } = peekUsage(id);
-  return { pro, plan: pro ? "pro" : "free", used, limit, remaining: Math.max(0, limit - used) };
+  return { pro, plan: pro ? "pro" : "free", used, limit, remaining: Math.max(0, limit - used), simulatingFree: forceFree };
 }
 
 /**
@@ -76,7 +84,8 @@ export async function usageStatus(id: string) {
  */
 export async function aiQuotaGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   const id = callerId(req);
-  if (await isPro(id)) return next();
+  // Skip the Pro fast-path when the caller is simulating the free tier (test mode).
+  if (!simulatingFree(req) && (await isPro(id))) return next();
   const b = bucket(id);
   if (b.count >= FREE_DAILY_AI) {
     res.status(429).json({

@@ -1,9 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { getSimulateFree, setSimulateFree, useSimulateFree } from "@/lib/learnPrefs";
+import { cn } from "@/lib/utils";
 import { Star } from "lucide-react";
 
 // Shows the account's plan and today's AI-action usage. During the closed beta
@@ -12,8 +14,10 @@ import { Star } from "lucide-react";
 export function PlanUsage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
+  const qc = useQueryClient();
+  const simFree = useSimulateFree();
   const { data } = useQuery({
-    queryKey: ["ai-usage", accountId],
+    queryKey: ["ai-usage", accountId, simFree],
     queryFn: () => api.aiUsage(accountId),
     staleTime: 60_000,
   });
@@ -57,6 +61,37 @@ export function PlanUsage() {
       )}
 
       <p className="mt-3 text-[12px] leading-snug text-ink-faint">{t("plan.footnote")}</p>
+
+      {/* Testing: pretend to be free-tier to preview the caps. Shown while Pro or
+          while the simulation is on (a genuine free user has nothing to toggle). */}
+      {(pro || simFree) && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-dashed border-black/[0.12] bg-paper/50 p-3">
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-ink">{t("plan.simTitle")}</div>
+            <div className="text-[12px] leading-snug text-ink-faint">{t("plan.simHint")}</div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={simFree}
+            onClick={() => {
+              setSimulateFree(!getSimulateFree());
+              qc.invalidateQueries({ queryKey: ["ai-usage"] });
+            }}
+            className={cn(
+              "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+              simFree ? "bg-sage" : "bg-black/[0.15]",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                simFree ? "translate-x-[22px]" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
