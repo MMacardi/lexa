@@ -44,6 +44,7 @@ export async function runTutor(params: {
       '"collocations": string[], "synonyms": string[], "antonyms": string[]}.',
     user: params.word,
     schema: tutorSchema,
+    label: "tutor(dictionary)",
   });
 
   // Chinese/Korean: use deterministic local pinyin/romanization for the phonetic

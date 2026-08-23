@@ -157,6 +157,7 @@ export async function runExampleSearch(params: {
         "sourceIndex is the [n] of the excerpt the sentence came from (or -1 if you wrote it).",
       user: `Target word: ${word}\n\nExcerpts:\n${numbered}`,
       schema: sentenceSelectionSchema,
+      label: "example.select",
     });
 
     sentence = selection.sentence.trim();
@@ -193,6 +194,7 @@ export async function runExampleSearch(params: {
       system: composedSystem,
       user: word,
       schema: exampleSentenceSchema,
+      label: "example.compose",
     });
     sentence = written.sentence.trim();
     source = null;
@@ -207,6 +209,7 @@ export async function runExampleSearch(params: {
       ` Respond as JSON: {"translation": string}.`,
     user: sentence,
     schema: translationSchema,
+    label: "example.translate",
   });
 
   // 4. Persist. Attach to an existing card when a wordId is given (import

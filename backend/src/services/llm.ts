@@ -51,6 +51,14 @@ function friendlyLlmError(err: unknown): Error {
 // qwen-plus: good quality/cost balance for sentence selection + translation.
 const MODEL = "qwen-plus";
 
+// Log per-call token usage so we can compare prompt strategies (combined vs
+// separate) with real numbers. Bailian returns OpenAI-style `usage`.
+function logUsage(label: string, completion: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }) {
+  const u = completion.usage;
+  if (!u) return;
+  console.log(`[llm usage] ${label} in=${u.prompt_tokens ?? "?"} out=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}`);
+}
+
 /**
  * Single reusable LLM call that returns validated JSON.
  * Asks the model for a JSON object, parses it, and validates it against `schema`
@@ -63,6 +71,7 @@ export async function chatJson<T>(opts: {
   // Optional per-call timeout override (ms). Bulk import can produce a large
   // array of cards that takes longer than a single-word lookup.
   timeoutMs?: number;
+  label?: string; // for token-usage logging
 }): Promise<T> {
   let completion;
   try {
@@ -81,6 +90,7 @@ export async function chatJson<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
+  logUsage(opts.label ?? "chatJson", completion);
 
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
@@ -138,6 +148,7 @@ export async function chatJsonConversation<T>(opts: {
   messages: ChatMessage[];
   schema: ZodSchema<T>;
   timeoutMs?: number;
+  label?: string;
 }): Promise<T> {
   let completion;
   try {
@@ -153,6 +164,7 @@ export async function chatJsonConversation<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
+  logUsage(opts.label ?? "chatJsonConversation", completion);
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
   try {
