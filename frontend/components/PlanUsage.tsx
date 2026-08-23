@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -60,7 +61,20 @@ export function PlanUsage() {
         </div>
       )}
 
-      <p className="mt-3 text-[12px] leading-snug text-ink-faint">{t("plan.footnote")}</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] leading-snug text-ink-faint">{t("plan.footnote")}</p>
+        <Link
+          href="/pro"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
+            pro
+              ? "text-sage-deep hover:bg-sage-tint/50"
+              : "bg-sage text-white hover:bg-sage-deep",
+          )}
+        >
+          <Star className={cn("h-3.5 w-3.5", pro && "fill-current")} /> {pro ? t("pro.aboutLink") : t("pro.cta")}
+        </Link>
+      </div>
 
       {/* Testing: pretend to be free-tier to preview the caps. Shown while Pro or
           while the simulation is on (a genuine free user has nothing to toggle). */}
