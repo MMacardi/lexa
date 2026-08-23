@@ -35,6 +35,26 @@ Rules of thumb: **~10,000 added cards ≈ ¥7 (~$1)**. A free user at 20 adds/da
 Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
 `[llm usage]` logs give real per-call numbers to refine this during the beta.
 
+## Monetization / paywall
+- ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
+  quotas (reader-gen 3, OCR 5), Pro-only params (web examples / detailed+custom
+  meaning / 2-3 examples), free import cap (25). Gloss/read stays free.
+- ✅ **Simulate-free toggle** (Account → Plan) to preview the free tier on a Pro
+  account, via `X-Simulate-Free` header.
+- ✅ **Upfront UI locks** — free users see "Pro" tags on locked knobs (+ request
+  sanitizer), no surprise 403.
+- ✅ **/pro screen** — benefits, Free-vs-Pro table, pricing; CTA = "coming soon".
+- ⏭ **Payment** — wire YooKassa (самозанятый) and/or Telegram Payments to the
+  /pro CTA; webhook sets `User.plan="pro"` + `planUntil`.
+- ⏭ **Persist usage counters** — daily/monthly caps are in-memory (reset on
+  restart); move to the DB before real billing.
+- ⏭ **Flip `BETA_ALL_PRO=false`** at public launch (new users default to free).
+
+## Token-cost follow-ups (combined-enrich already cut single-add 3→1)
+- ⏭ **Batch import (importWorker)** — still 2 calls/card (tutor + example);
+  route the AI path through `enrichWordEntry` to make it 1.
+- ⏭ **Extra "+ add example"** — merge compose+translate into one call (2→1).
+
 ## Pre-launch checklist
 - ⏭ **Site email** — buy a domain + wire a transactional provider (Resend/
   Postmark) as `SMTP_URL`, sender `no-reply@<domain>`; point `FEEDBACK_EMAIL`
@@ -42,6 +62,8 @@ Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
 - ⏭ **Bump Next.js** before public launch — `npm audit` flags advisories in the
   pinned Next (plus generic transitive DoS in brace-expansion/js-yaml/nanoid,
   mostly dev-only). Not urgent for the closed beta.
+- 💡 **Meaning backfill** — existing cards keep their long meanings; an on-demand
+  AI pass could shorten them (costs tokens). Offered, awaiting your call.
 - ✅ **Cloze cards from examples** — Quiz has a "Fill the blank" mode: the target
   word is hidden in its example sentence, learner types it. (RemNote-inspired #1)
 - ✅ **AI "Explain / when to use"** — word page button: nuance, register, synonym
