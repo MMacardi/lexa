@@ -136,6 +136,7 @@ const DICT: Record<string, Entry> = {
   "reader.genReady": { en: "Text ready — in My texts", ru: "Текст готов — в «Мои тексты»", zh: "文本已就绪——在“我的文本”" },
   "reader.genFailed": { en: "Couldn't generate the text", ru: "Не удалось сгенерировать текст", zh: "生成文本失败" },
   "reader.edit": { en: "Edit text", ru: "Изменить текст", zh: "编辑文本" },
+  "reader.back": { en: "New text", ru: "Новый текст", zh: "新文本" },
   "reader.clear": { en: "Clear", ru: "Очистить", zh: "清空" },
   "reader.tapHint": {
     en: "Tap unknown words to select them. Words you already have are underlined.",
