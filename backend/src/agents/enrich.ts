@@ -91,6 +91,7 @@ export async function enrichWordEntry(params: {
       '"synonyms":string[],"antonyms":string[],"example":string,"exampleTranslation":string}.',
     user: word,
     schema: enrichEntrySchema,
+    label: params.withExample ? "enrich(+example)" : "enrich",
   });
 
   // Chinese/Korean: deterministic local pinyin/romanization beats the model's IPA.
