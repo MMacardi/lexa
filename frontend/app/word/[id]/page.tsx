@@ -38,13 +38,32 @@ const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "fon
 
 // Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
 // and language pair via sessionStorage so it survives the navigation.
-function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string, word?: string) {
+function openInReader(
+  router: ReturnType<typeof useRouter>,
+  text: string,
+  sourceLang: string,
+  targetLang: string,
+  word?: string,
+  source?: string,
+) {
   try {
-    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang, word }));
+    // `source` is the example's attribution (a saved text's title when it came
+    // from the Reader) — the Reader uses it to reopen that FULL text if it still
+    // exists, instead of just this one sentence.
+    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang, word, source }));
   } catch {
     /* ignore storage errors */
   }
   router.push("/reader");
+}
+
+// Attributions that are not a saved reader text (so don't try to reopen a text).
+const NON_TEXT_SOURCE = new Set(["", "Manual entry", "Lexa AI", "Imported list"]);
+
+// An example added from the Reader carries the text's title as its source and no
+// URL. We label those "«title» (reader)" and let "Open in Reader" reopen the text.
+function isReaderSource(ex: { sourceName: string; sourceUrl: string }): boolean {
+  return !ex.sourceUrl?.trim() && !!ex.sourceName?.trim() && !NON_TEXT_SOURCE.has(ex.sourceName.trim());
 }
 
 export default function WordDetailPage() {
@@ -233,6 +252,10 @@ export default function WordDetailPage() {
                 >
                   <LinkIcon className="h-3.5 w-3.5" /> {ex.sourceName}
                 </a>
+              ) : isReaderSource(ex) ? (
+                <div className="text-[13px] font-semibold tracking-[0.04em] text-ink-faint">
+                  — «{ex.sourceName}» {t("word.fromReader")}
+                </div>
               ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
                 <div className="text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
               ) : null}
@@ -248,7 +271,9 @@ export default function WordDetailPage() {
               )}
               <button
                 type="button"
-                onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang, word.word)}
+                onClick={() =>
+                  openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang, word.word, isReaderSource(ex) ? ex.sourceName : undefined)
+                }
                 className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
               >
                 <BookOpen className="h-3.5 w-3.5" /> {t("word.openInReader")}

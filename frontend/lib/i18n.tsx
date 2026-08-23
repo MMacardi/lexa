@@ -747,6 +747,7 @@ const DICT: Record<string, Entry> = {
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },
   "word.addExample": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
   "word.openInReader": { en: "Open in Reader", ru: "Открыть в читалке", zh: "在阅读器中打开" },
+  "word.fromReader": { en: "(reader)", ru: "(читалка)", zh: "（阅读器）" },
   "word.exampleAdded": { en: "Example added", ru: "Пример добавлен", zh: "已添加例句" },
   "word.family": { en: "Word family", ru: "Семья слов", zh: "词族" },
   "word.familyHint": {
