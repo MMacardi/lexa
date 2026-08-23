@@ -18,8 +18,10 @@ import {
   setRetention,
   setShowTranscription,
   setShowTextLevel,
-  setMeaningPrompt,
-  useMeaningPrompt,
+  setMeaningMode,
+  setMeaningCustom,
+  useMeaningMode,
+  useMeaningCustom,
   useShowTextLevel,
   useAllLevels,
   useExampleSource,
@@ -28,6 +30,7 @@ import {
   useShowTranscription,
   type CefrLevel,
   type ExampleSource,
+  type MeaningMode,
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { Sun, Moon, X } from "lucide-react";
@@ -220,26 +223,42 @@ function TextLevelSection() {
 
 function MeaningStyleSection() {
   const { t } = useI18n();
-  const v = useMeaningPrompt();
+  const mode = useMeaningMode();
+  const custom = useMeaningCustom();
+  const modes: { id: MeaningMode; label: string; hint: string }[] = [
+    { id: "concise", label: t("meaning.concise"), hint: t("meaning.conciseHint") },
+    { id: "detailed", label: t("meaning.detailed"), hint: t("meaning.detailedHint") },
+    { id: "custom", label: t("meaning.custom"), hint: t("meaning.customHint") },
+  ];
+  const active = modes.find((m) => m.id === mode) ?? modes[0];
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("meaning.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("meaning.hint")}</p>
-      <textarea
-        value={v}
-        onChange={(e) => setMeaningPrompt(e.target.value)}
-        rows={3}
-        placeholder={t("meaning.placeholder")}
-        className="mt-3 w-full resize-y rounded-[12px] border border-black/[0.1] bg-paper px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-sage/60"
-      />
-      {v.trim() && (
-        <button
-          type="button"
-          onClick={() => setMeaningPrompt("")}
-          className="mt-2 text-[13px] font-semibold text-ink-soft hover:text-ink"
-        >
-          {t("meaning.reset")}
-        </button>
+      <div className="mt-3 inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+        {modes.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMeaningMode(m.id)}
+            className={cn(
+              "rounded-full px-4 py-1.5 transition-colors",
+              mode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{active.hint}</p>
+      {mode === "custom" && (
+        <textarea
+          value={custom}
+          onChange={(e) => setMeaningCustom(e.target.value)}
+          rows={3}
+          placeholder={t("meaning.placeholder")}
+          className="mt-3 w-full resize-y rounded-[12px] border border-black/[0.1] bg-paper px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-sage/60"
+        />
       )}
     </section>
   );
