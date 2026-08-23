@@ -322,6 +322,7 @@ const DICT: Record<string, Entry> = {
   "err.aiQuota": { en: "You've used today's free AI actions. Upgrade to Pro for unlimited.", ru: "На сегодня бесплатные ИИ-действия закончились. Pro снимает лимит.", zh: "今日免费 AI 次数已用完，升级 Pro 解除限制。" },
   "err.quotaMonthly": { en: "You've used this month's free allowance for this feature. Pro is unlimited.", ru: "Месячный бесплатный лимит этой функции исчерпан. В Pro — без лимита.", zh: "本月该功能的免费额度已用完，Pro 无限制。" },
   "err.proOnly": { en: "That's a Pro feature. Upgrade to use it.", ru: "Это функция Pro — оформите Pro, чтобы пользоваться.", zh: "这是 Pro 功能，升级后可用。" },
+  "pro.locked": { en: "Pro feature", ru: "Функция Pro", zh: "Pro 功能" },
   "err.importLimit": { en: "The free plan imports a limited number of cards at once. Pro removes the cap.", ru: "На Free можно импортировать ограниченное число карточек за раз. Pro снимает лимит.", zh: "免费版单次导入卡片数量有限，Pro 解除上限。" },
   "err.rateLimit": { en: "Too fast — wait a moment and try again.", ru: "Слишком часто — подождите немного и попробуйте снова.", zh: "太频繁了——请稍候再试。" },
   "common.save": { en: "Save", ru: "Сохранить", zh: "保存" },

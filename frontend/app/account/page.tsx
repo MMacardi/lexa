@@ -32,6 +32,8 @@ import {
   type ExampleSource,
   type MeaningMode,
 } from "@/lib/learnPrefs";
+import { useIsPro } from "@/lib/useIsPro";
+import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
 import { Sun, Moon, X } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
@@ -223,35 +225,45 @@ function TextLevelSection() {
 
 function MeaningStyleSection() {
   const { t } = useI18n();
+  const pro = useIsPro();
   const mode = useMeaningMode();
   const custom = useMeaningCustom();
-  const modes: { id: MeaningMode; label: string; hint: string }[] = [
-    { id: "concise", label: t("meaning.concise"), hint: t("meaning.conciseHint") },
-    { id: "detailed", label: t("meaning.detailed"), hint: t("meaning.detailedHint") },
-    { id: "custom", label: t("meaning.custom"), hint: t("meaning.customHint") },
+  const modes: { id: MeaningMode; label: string; hint: string; proOnly: boolean }[] = [
+    { id: "concise", label: t("meaning.concise"), hint: t("meaning.conciseHint"), proOnly: false },
+    { id: "detailed", label: t("meaning.detailed"), hint: t("meaning.detailedHint"), proOnly: true },
+    { id: "custom", label: t("meaning.custom"), hint: t("meaning.customHint"), proOnly: true },
   ];
-  const active = modes.find((m) => m.id === mode) ?? modes[0];
+  // A free user is always effectively "concise" regardless of a stale stored mode.
+  const effMode: MeaningMode = pro ? mode : "concise";
+  const active = modes.find((m) => m.id === effMode) ?? modes[0];
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("meaning.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("meaning.hint")}</p>
       <div className="mt-3 inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-        {modes.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setMeaningMode(m.id)}
-            className={cn(
-              "rounded-full px-4 py-1.5 transition-colors",
-              mode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-            )}
-          >
-            {m.label}
-          </button>
-        ))}
+        {modes.map((m) => {
+          const locked = m.proOnly && !pro;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              disabled={locked}
+              title={locked ? t("pro.locked") : undefined}
+              onClick={() => setMeaningMode(m.id)}
+              className={cn(
+                "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
+                effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                locked && "cursor-not-allowed opacity-50",
+              )}
+            >
+              {m.label}
+              {locked && <ProTag />}
+            </button>
+          );
+        })}
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{active.hint}</p>
-      {mode === "custom" && (
+      {effMode === "custom" && (
         <textarea
           value={custom}
           onChange={(e) => setMeaningCustom(e.target.value)}

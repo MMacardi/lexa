@@ -20,6 +20,8 @@ import { langLabel } from "@/lib/langs";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
+import { useIsPro } from "@/lib/useIsPro";
+import { ProTag } from "@/components/ProTag";
 import { Plus, Sparkles, Globe, X } from "lucide-react";
 
 // A little "+ add example" affordance under a card's examples: type one in (with
@@ -36,6 +38,7 @@ export function AddExampleInline({ word }: { word: Word }) {
   const [busy, setBusy] = useState(false);
 
   // AI-example knobs (local: tweaking here doesn't change the add-word default).
+  const pro = useIsPro();
   const [src, setSrc] = useState<"ai" | "web">(() => getExampleSource());
   const [style, setStyle] = useState<ExampleStyle>(() => {
     const s = getExampleStyle();
@@ -71,7 +74,7 @@ export function AddExampleInline({ word }: { word: Word }) {
     try {
       await api.addExample(word.id, {
         exampleStyle: style,
-        exampleSource: src,
+        exampleSource: pro ? src : "ai", // web examples are Pro
         level: level || undefined,
       });
       show({ icon: "🌱", title: t("word.exampleAdded") });
@@ -130,19 +133,26 @@ export function AddExampleInline({ word }: { word: Word }) {
           {([
             ["ai", Sparkles],
             ["web", Globe],
-          ] as const).map(([m, Icon]) => (
+          ] as const).map(([m, Icon]) => {
+            const locked = m === "web" && !pro;
+            return (
             <button
               key={m}
               type="button"
+              disabled={locked}
+              title={locked ? t("pro.locked") : undefined}
               onClick={() => setSrc(m)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                src === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                (pro ? src : "ai") === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                locked && "cursor-not-allowed opacity-50",
               )}
             >
               <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+              {locked && <ProTag />}
             </button>
-          ))}
+            );
+          })}
         </div>
         {src === "ai" && (
           <Select

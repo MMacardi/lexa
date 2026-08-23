@@ -34,6 +34,8 @@ import {
   type CefrLevel,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
+import { useIsPro } from "@/lib/useIsPro";
+import { ProTag } from "@/components/ProTag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -119,6 +121,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
 
   // learner prefs (example difficulty + register)
+  const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
   const style = useExampleStyle();
   const exSource = useExampleSource();
   const exCount = useExampleCount();
@@ -237,7 +240,16 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           });
         }
       } else {
-        created = await api.addWord({ ...base, level, exampleStyle, exampleSource: getExampleSource(), exampleCount: getExampleCount(), meaningPrompt: getMeaningPrompt() || undefined });
+        created = await api.addWord({
+          ...base,
+          level,
+          exampleStyle,
+          // Free plan: never send Pro-only params (web source, 2-3 examples, custom
+          // meaning) — the UI locks them, this is the safety net against a stale pref.
+          exampleSource: pro ? getExampleSource() : "ai",
+          exampleCount: pro ? getExampleCount() : 1,
+          meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
+        });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
       return created;
@@ -339,9 +351,10 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       setResolvedSourceLang(detectedSourceLang);
       const typedLc = typed.toLowerCase();
       const alts = r.suggestions.filter(Boolean);
-      const others = alts.filter((a) => a !== typedLc);
-      // Input is a real word and nothing else to offer → add it with AI.
-      if (r.corrected === typedLc && others.length === 0) {
+      // The word is already correctly spelled → add it straight away. "Did you
+      // mean…" only makes sense for an actual typo (the model corrected it to
+      // something else); alternatives for a valid word are just noise.
+      if (r.corrected === typedLc) {
         addWithChecks({ chosen: typedLc, manual: false, sourceLangOverride: detectedSourceLang });
       } else {
         setSuggestions(alts.length ? alts : [r.corrected]);
@@ -438,19 +451,26 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 ["ai", Sparkles],
                 ["web", Globe],
                 ["none", Ban],
-              ] as const).map(([m, Icon]) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setExMode(m)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                    exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
-                </button>
-              ))}
+              ] as const).map(([m, Icon]) => {
+                const locked = m === "web" && !pro; // web-sourced examples are Pro
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={locked}
+                    title={locked ? t("pro.locked") : undefined}
+                    onClick={() => setExMode(m)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                      exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                      locked && "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                    {locked && <ProTag />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -482,13 +502,17 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   />
                 </>
               )}
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+              <span className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                {t("count.label")}
+                {!pro && <ProTag />}
+              </span>
               <Select
-                value={String(exCount)}
+                value={String(pro ? exCount : 1)}
                 onChange={(v) => setExampleCount(Number(v))}
                 ariaLabel={t("count.label")}
                 className="w-[92px]"
-                options={[1, 2, 3].map((n) => ({ value: String(n), label: String(n) }))}
+                // Free plan can only add 1 example per word; 2-3 is Pro.
+                options={(pro ? [1, 2, 3] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
               />
             </div>
           )}
