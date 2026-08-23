@@ -15,6 +15,26 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   button now picks source (AI/web), register and CEFR level; AI examples record
   how they were made and show it as chips next to "Lexa AI" on the word page.
 
+## Economics — cost per AI action
+Model: **qwen-plus** on Alibaba **Bailian (China region, CNY)** — lowest tier
+(our calls are ~500 tokens, always ≤128K): **input ¥0.8 / output ¥2 per 1M tokens**.
+New accounts get 1M free tokens per model. (Intl `dashscope-intl` endpoint bills in
+USD and differs.) Numbers below use measured token counts where we have them.
+
+| Action | Tokens (in/out) | Cost (¥) | ≈ USD |
+|---|---|---|---|
+| **Add card** (combined enrich + spell-check) | ~440 / ~170 | **¥0.0007** | ~$0.0001 |
+| — combined enrich only (measured) | 338 / 153 | ¥0.00058 | — |
+| Gloss tap (reader/word-page) — cached repeat = 0 | ~50 / 20 | ¥0.00008 | — |
+| Tutor chat message | ~400 / 200 | ¥0.00072 | — |
+| Reader text generation | ~300 / 800 | ¥0.0018 | ~$0.0003 |
+| OCR scan (qwen-vl-plus, image tokens dominate) | varies | ~¥0.001–0.005 | approx |
+
+Rules of thumb: **~10,000 added cards ≈ ¥7 (~$1)**. A free user at 20 adds/day ≈
+**¥0.4/mo**; a heavy Pro user ≈ **¥2–3/mo** — so at ~$4–5/mo Pro the margin is >90%.
+Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
+`[llm usage]` logs give real per-call numbers to refine this during the beta.
+
 ## Pre-launch checklist
 - ⏭ **Site email** — buy a domain + wire a transactional provider (Resend/
   Postmark) as `SMTP_URL`, sender `no-reply@<domain>`; point `FEEDBACK_EMAIL`
