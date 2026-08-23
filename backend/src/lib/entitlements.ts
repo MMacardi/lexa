@@ -9,6 +9,7 @@ import { env } from "./env.js";
 
 const BETA_ALL_PRO = env.BETA_ALL_PRO === "true";
 const FREE_DAILY_AI = env.FREE_DAILY_AI;
+const FREE_IMPORT_MAX = env.FREE_IMPORT_MAX;
 // Accounts that are always Pro regardless of beta flag / billing (owner, comped
 // friends). Comma-separated telegramIds in PRO_ALLOWLIST.
 const PRO_ALLOWLIST = new Set(
@@ -98,4 +99,66 @@ export async function aiQuotaGuard(req: Request, res: Response, next: NextFuncti
   }
   b.count++;
   next();
+}
+
+// --- Monthly quotas for the pricier one-off actions (reader text generation, OCR).
+// Same in-memory pattern as the daily pool, keyed by the UTC month. ---
+const monthly = new Map<string, { month: number; counts: Record<string, number> }>();
+const monthNumber = () => new Date().getUTCFullYear() * 12 + new Date().getUTCMonth();
+const monthSweep = setInterval(() => {
+  const m = monthNumber();
+  for (const [k, b] of monthly) if (b.month !== m) monthly.delete(k);
+}, 6 * 3_600_000);
+monthSweep.unref?.();
+
+/** Guard factory: free users get `limit` of a named action per month; Pro is uncapped. */
+export function monthlyGuard(name: string, limit: number) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const id = callerId(req);
+    if (!simulatingFree(req) && (await isPro(id))) return next();
+    const m = monthNumber();
+    let b = monthly.get(id);
+    if (!b || b.month !== m) {
+      b = { month: m, counts: {} };
+      monthly.set(id, b);
+    }
+    const used = b.counts[name] ?? 0;
+    if (used >= limit) {
+      res.status(429).json({
+        error: "You've used this month's free allowance for this feature. Upgrade to Pro for unlimited.",
+        code: "quota_monthly",
+        feature: name,
+        used,
+        limit,
+      });
+      return;
+    }
+    b.counts[name] = used + 1;
+    next();
+  };
+}
+
+/**
+ * Reject Pro-only request parameters for free users (web-sourced examples, a
+ * custom meaning style, or more than one example per word). Pro passes through.
+ */
+export async function requireProFeature(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const id = callerId(req);
+  if (!simulatingFree(req) && (await isPro(id))) return next();
+  const b = (req.body ?? {}) as { exampleSource?: unknown; meaningPrompt?: unknown; exampleCount?: unknown };
+  const features: string[] = [];
+  if (b.exampleSource === "web") features.push("web_examples");
+  if (typeof b.meaningPrompt === "string" && b.meaningPrompt.trim()) features.push("meaning_style");
+  if (typeof b.exampleCount === "number" && b.exampleCount > 1) features.push("multi_example");
+  if (features.length) {
+    res.status(403).json({ error: "That's a Pro feature. Upgrade to use it.", code: "pro_only", features });
+    return;
+  }
+  next();
+}
+
+/** How many cards a caller may import at once (free users are capped). */
+export async function importAllowance(req: Request): Promise<number> {
+  if (!simulatingFree(req) && (await isPro(callerId(req)))) return Infinity;
+  return FREE_IMPORT_MAX;
 }

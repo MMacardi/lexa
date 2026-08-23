@@ -37,7 +37,10 @@ const schema = z.object({
   // public launch — new users default to "free" and get FREE_DAILY_AI AI actions
   // a day; comp your beta friends by setting their User.plan = "pro".
   BETA_ALL_PRO: z.string().default("true"),
-  FREE_DAILY_AI: z.coerce.number().default(25), // free-tier AI actions per day
+  FREE_DAILY_AI: z.coerce.number().default(20), // free-tier "generation" actions/day (add, example, tutor)
+  FREE_MONTHLY_READER_GEN: z.coerce.number().default(3), // free reader AI text generations / month
+  FREE_MONTHLY_OCR: z.coerce.number().default(5), // free OCR scans / month
+  FREE_IMPORT_MAX: z.coerce.number().default(25), // max cards a free user can import at once
   // Comma-separated telegramIds that are always Pro (owner / comped friends),
   // regardless of BETA_ALL_PRO or billing.
   PRO_ALLOWLIST: z.string().default(""),

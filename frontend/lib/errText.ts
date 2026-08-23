@@ -6,6 +6,9 @@ type T = (key: string, params?: Record<string, string | number>) => string;
 
 const CODE_KEYS: Record<string, string> = {
   ai_quota: "err.aiQuota",
+  quota_monthly: "err.quotaMonthly",
+  pro_only: "err.proOnly",
+  import_limit: "err.importLimit",
   rate_limit: "err.rateLimit",
   own_code: "friends.errOwnCode",
   no_code: "friends.errNoCode",
