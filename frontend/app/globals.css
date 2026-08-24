@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Always reserve the scrollbar gutter so the viewport width doesn't change
+   between a scrolling and a non-scrolling page — otherwise fixed elements docked
+   to the right edge (the AI tutor, the bug button) visibly jump on navigation. */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Lexa design tokens — calm editorial palette */
 @theme {
   --color-paper: #f4f1ec;

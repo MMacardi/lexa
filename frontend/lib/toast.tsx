@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -56,6 +57,7 @@ let counter = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { accountId } = useAccount();
+  const qc = useQueryClient();
   const [toasts, setToasts] = useState<(Toast & { leaving?: boolean })[]>([]);
   // Several imports can run at once (e.g. add 3 cards, then add 1 more while they
   // enrich). We keep every active job and show ONE combined tracker so the count
@@ -144,6 +146,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       try {
         const list: Word[] = await api.listWords(accountId);
         if (cancelled) return;
+        // Push the freshly-enriched cards into the query cache so every view (My
+        // words, the word page…) shows the filled-in meaning/example without an F5.
+        qc.setQueryData(["words", accountId], list);
+        qc.invalidateQueries({ queryKey: ["stats"] });
         const wanted = new Set(done.flatMap((j) => j.words).map((w) => w.trim().toLowerCase()));
         const map: Record<string, string> = {};
         for (const w of list) {
@@ -159,7 +165,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [jobs, accountId]);
+  }, [jobs, accountId, qc]);
 
   // One combined view across all active jobs (correct totals when several run).
   const tracker = useMemo(() => {
