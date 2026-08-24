@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useIsPro } from "@/lib/useIsPro";
@@ -14,6 +14,24 @@ export default function ProPage() {
   const { t } = useI18n();
   const pro = useIsPro();
   const [notice, setNotice] = useState(false);
+
+  // Where the user came from (set by the upsell popup): drives a contextual back
+  // link and echoes the word they were adding. Falls back to the account page.
+  const [origin, setOrigin] = useState<{ from?: string; word?: string }>({});
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("lexa.upsell");
+      if (raw) setOrigin(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const from = origin.from;
+  const back =
+    from && (from === "/" || from.startsWith("/words"))
+      ? { href: from, label: t("pro.backWords") }
+      : from && !from.startsWith("/account")
+        ? { href: from, label: t("pro.backHome") }
+        : { href: "/account", label: t("pro.back") };
 
   const benefits: { Icon: LucideIcon; title: string; desc: string }[] = [
     { Icon: InfinityIcon, title: t("pro.b1"), desc: t("pro.b1d") },
@@ -48,9 +66,17 @@ export default function ProPage() {
 
   return (
     <div className="anim-fade-up mx-auto max-w-[880px] space-y-10 pb-16">
-      <Link href="/account" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
-        <ArrowLeft className="h-4 w-4" /> {t("pro.back")}
-      </Link>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Link href={back.href} className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
+          <ArrowLeft className="h-4 w-4" /> {back.label}
+        </Link>
+        {origin.word && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1 text-[13px] text-ink-soft">
+            <span className="text-ink-faint">{t("pro.typedWord")}:</span>
+            <span className="font-semibold text-ink">{origin.word}</span>
+          </span>
+        )}
+      </div>
 
       {/* hero */}
       <div className="relative overflow-hidden rounded-[26px] border border-sage/25 bg-gradient-to-br from-sage-tint/70 via-surface to-surface p-8 text-center sm:p-12">
