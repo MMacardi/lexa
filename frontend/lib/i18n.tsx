@@ -395,6 +395,12 @@ const DICT: Record<string, Entry> = {
   "coach.pNew": { en: "new goal", ru: "новых", zh: "新词目标" },
   "coach.pReview": { en: "Start review", ru: "Повторять", zh: "开始复习" },
   "coach.drillWeak": { en: "Drill your weak words", ru: "Тренировать слабые слова", zh: "训练你的薄弱词" },
+  "coach.importTitle": { en: "Anything → deck", ru: "Из чего угодно → дек", zh: "任何内容 → 卡组" },
+  "coach.importHint": {
+    en: "Paste a word list or drop a PDF (textbook, article) — Lexa turns it into a reviewable deck.",
+    ru: "Вставь список слов или загрузи PDF (учебник, статью) — Lexa соберёт из этого дек для повторения.",
+    zh: "粘贴词表或上传 PDF（课本、文章）——Lexa 会做成可复习的卡组。",
+  },
   "coach.pAddNew": { en: "Add new words", ru: "Новые слова", zh: "添加新词" },
   "coach.planFoot": {
     en: "≈{mins} min · {total} words total, {mastered} mastered.",
@@ -659,7 +665,8 @@ const DICT: Record<string, Entry> = {
   "import.dir.custom": { en: "Custom", ru: "Другое", zh: "自定义" },
   "import.pair": { en: "Selected pair:", ru: "Выбранная пара:", zh: "当前语言对：" },
   "import.paste": { en: "Paste your list here…", ru: "Вставьте список сюда…", zh: "在此粘贴词表…" },
-  "import.file": { en: "Choose .txt", ru: "Выбрать .txt", zh: "选择 .txt" },
+  "import.file": { en: "Choose .txt / .pdf", ru: "Выбрать .txt / .pdf", zh: "选择 .txt / .pdf" },
+  "import.extracting": { en: "Reading PDF…", ru: "Читаю PDF…", zh: "正在读取 PDF…" },
   "import.parse": { en: "Prepare cards →", ru: "Подготовить карточки →", zh: "生成卡片 →" },
   "import.parsing": { en: "Reading your list…", ru: "Разбираю список…", zh: "正在解析词表…" },
   "import.preview": { en: "Review cards", ru: "Проверьте карточки", zh: "确认卡片" },

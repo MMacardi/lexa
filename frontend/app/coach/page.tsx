@@ -12,6 +12,7 @@ import { errText } from "@/lib/errText";
 import { getLevel, getExampleStyle } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
+import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout } from "lucide-react";
@@ -286,6 +287,13 @@ export default function CoachPage() {
             )}
           </Button>
         )}
+      </section>
+
+      {/* Anything → deck: paste a list or drop a PDF, get a reviewable deck */}
+      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+        <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.importTitle")}</h2>
+        <p className="mt-0.5 mb-4 text-[13px] text-ink-soft">{t("coach.importHint")}</p>
+        <ImportWordsDialog />
       </section>
     </div>
   );
