@@ -124,8 +124,10 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
                 type: "text",
                 text:
                   `Read ALL the text in this image and return it verbatim, preserving reading order ` +
-                  `and line breaks. Do not translate, summarize, or add any commentary — output only ` +
-                  `the text found in the image.${langHint}`,
+                  `and line breaks. The text may be HANDWRITTEN — read the handwriting as best you can, ` +
+                  `keeping a word-list layout (one entry per line, and any "word — translation" pairs) ` +
+                  `intact. Do not translate, summarize, or add any commentary — output only the text ` +
+                  `found in the image.${langHint}`,
               },
               { type: "image_url", image_url: { url: opts.dataUrl } },
             ],

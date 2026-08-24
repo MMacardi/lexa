@@ -689,8 +689,13 @@ const DICT: Record<string, Entry> = {
     zh: "……或直接粘贴任意文本、照片里的词或杂乱列表，Lexa 会自动整理。",
   },
   "import.paste": { en: "Paste your list here…", ru: "Вставьте список сюда…", zh: "在此粘贴词表…" },
-  "import.file": { en: "Choose .txt / .pdf", ru: "Выбрать .txt / .pdf", zh: "选择 .txt / .pdf" },
-  "import.extracting": { en: "Reading PDF…", ru: "Читаю PDF…", zh: "正在读取 PDF…" },
+  "import.file": { en: "File / photo", ru: "Файл / фото", zh: "文件 / 照片" },
+  "import.extracting": { en: "Reading…", ru: "Распознаю…", zh: "识别中…" },
+  "import.ocrEmpty": {
+    en: "Couldn't read any text from that photo — try a clearer, well-lit shot.",
+    ru: "Не удалось распознать текст на фото — попробуйте снимок чётче и при хорошем свете.",
+    zh: "无法从照片中识别文字 — 请拍得更清晰、光线更好。",
+  },
   "import.parse": { en: "Prepare cards →", ru: "Подготовить карточки →", zh: "生成卡片 →" },
   "import.parsing": { en: "Reading your list…", ru: "Разбираю список…", zh: "正在解析词表…" },
   "import.enrichFailed": {
