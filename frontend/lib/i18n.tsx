@@ -367,7 +367,7 @@ const DICT: Record<string, Entry> = {
   "pro.monthlyHint": { en: "Cancel anytime.", ru: "Отмена в любой момент.", zh: "随时取消。" },
   "pro.annual": { en: "Yearly", ru: "На год", zh: "按年" },
   "pro.perYearSuffix": { en: " / yr", ru: " / год", zh: " / 年" },
-  "pro.annualHint": { en: "≈166 ₽/mo — two months free.", ru: "≈166 ₽/мес — два месяца в подарок.", zh: "≈166 ₽/月——赠送两个月。" },
+  "pro.annualHint": { en: "≈166 ₽/mo — the best deal.", ru: "≈166 ₽/мес — самый выгодный.", zh: "≈166 ₽/月——最划算。" },
   "pro.save": { en: "Best value", ru: "Выгодно", zh: "超值" },
   "pro.cta": { en: "Get Pro", ru: "Оформить Pro", zh: "升级 Pro" },
   "pro.aboutLink": { en: "About Pro", ru: "О Pro", zh: "关于 Pro" },
