@@ -35,6 +35,20 @@ Rules of thumb: **~10,000 added cards ≈ ¥7 (~$1)**. A free user at 20 adds/da
 Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
 `[llm usage]` logs give real per-call numbers to refine this during the beta.
 
+## Coach (Pro Plus) — the "personal AI mentor" layer
+Positioning wedge vs Quizlet: it tells you WHAT to learn, plans, adapts to weak
+spots, practises actively, and eats anything. Architecture rule: assemble context
+from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agents.
+- ✅ **Words for you** — level-appropriate picks the learner lacks (deduped
+  against the deck server-side). One call, verified relevant + zero dups.
+- ✅ **Today's plan** — due / weak spots / new goal + actions (pure data, no AI).
+- ✅ **Drill weak words** — focused review session of high-lapse cards.
+- ⏭ **PDF/text → deck** — the landing "wow": upload → structured deck + plan.
+- ⏭ **Adaptive conversational tutor** (this one is genuinely agentic) — chats at
+  your level, drills your words, corrects; web + Telegram; pronunciation.
+- ⏭ **Weekly recap / coaching**; proactive Telegram nudges.
+- ⏭ Gate the Coach behind a real **Pro Plus** tier (add plan tier + /pro column).
+
 ## Monetization / paywall
 - ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
   quotas (reader-gen 3, OCR 5), Pro-only params (web examples / detailed+custom
