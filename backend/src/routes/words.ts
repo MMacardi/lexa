@@ -10,6 +10,7 @@ import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { getImportJobForUser } from "../services/importWorker.js";
+import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import {
   addWordForUser,
@@ -43,7 +44,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/picks|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -71,6 +72,30 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
 wordsRouter.get("/ai/usage", async (req: Request, res: Response) => {
   const id = readSession(req) ?? String(req.query.telegramId ?? "anon");
   res.json(await usageStatus(id, simulatingFree(req)));
+});
+
+// POST /api/coach/picks -> Coach "Daily picks": level-appropriate words the learner
+// doesn't have yet (deduped against their deck).
+const coachPicksBody = z.object({
+  telegramId: z.string().optional(),
+  sourceLang: z.string().min(2),
+  targetLang: z.string().min(2),
+  level: z.string().max(4).optional(),
+  count: z.number().int().min(3).max(20).optional(),
+});
+wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
+  const parsed = coachPicksBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId ?? "anon";
+  try {
+    res.json(await suggestDailyPicks({ ...parsed.data, telegramId }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // Authorization guards for :id routes. The frontend always carries a verified

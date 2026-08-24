@@ -425,6 +425,10 @@ export const api = {
   acceptFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}/accept`, { method: "POST" }),
   removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
 
+  // Coach "Daily picks": level-appropriate words the learner doesn't have yet.
+  coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number }) =>
+    http<{ picks: { word: string; reason: string }[] }>(`/api/coach/picks`, { method: "POST", body: JSON.stringify(payload) }),
+
   // Beta bug/idea report (message + auto-collected context + optional screenshot).
   sendFeedback: (payload: FeedbackPayload) =>
     http<{ ok: true; delivered: { email: boolean; telegram: boolean; logged: boolean } }>(`/api/feedback`, {
