@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -35,6 +36,18 @@ export default function CoachPage() {
   const { t } = useI18n();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
+  const router = useRouter();
+
+  // Hand the learner's weak words to the review screen for a focused drill.
+  function startWeakDrill(ids: string[]) {
+    if (!ids.length) return;
+    try {
+      sessionStorage.setItem("lexa.reviewFocusIds", JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+    router.push("/review");
+  }
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -155,13 +168,19 @@ export default function CoachPage() {
             </div>
             <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pDue")}</div>
           </div>
-          <div className="rounded-[14px] bg-warn-bg p-3.5 text-center">
+          <button
+            type="button"
+            disabled={weak === 0}
+            title={weak > 0 ? t("coach.drillWeak") : undefined}
+            onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
+            className="rounded-[14px] bg-warn-bg p-3.5 text-center transition-transform enabled:hover:scale-[1.03] disabled:cursor-default"
+          >
             <div className="flex items-center justify-center gap-1.5 text-warn-text">
               <Dumbbell className="h-4 w-4" />
               <span className="font-serif text-[26px] font-bold leading-none">{weak}</span>
             </div>
             <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pWeak")}</div>
-          </div>
+          </button>
           <div className="rounded-[14px] bg-black/[0.04] p-3.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-ink-muted">
               <Sprout className="h-4 w-4 text-sage" />

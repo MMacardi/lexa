@@ -99,6 +99,32 @@ export default function FlashcardsPage() {
   const draggedRef = useRef(false);
   const pointerActive = useRef(false); // synchronous "a drag is in progress" flag
 
+  // A focused session handed off from the Coach ("drill weak words"): start
+  // immediately with exactly those cards, skipping the setup screen.
+  const focusStarted = useRef(false);
+  useEffect(() => {
+    if (focusStarted.current || allWords == null) return;
+    let ids: string[] = [];
+    try {
+      ids = JSON.parse(sessionStorage.getItem("lexa.reviewFocusIds") ?? "[]");
+    } catch {
+      ids = [];
+    }
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    sessionStorage.removeItem("lexa.reviewFocusIds");
+    focusStarted.current = true;
+    const byId = new Map(allWords.map((w) => [w.id, w]));
+    const focusDeck = ids.map((id) => byId.get(id)).filter(Boolean) as Word[];
+    if (focusDeck.length === 0) return;
+    setDeck(focusDeck);
+    setIndex(0);
+    setFlipped(false);
+    setKnown(0);
+    setLearning(0);
+    setDragX(0);
+    setStarted(true);
+  }, [allWords]);
+
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
   // Nothing selected by default — the learner picks a pair (quick chips below the
