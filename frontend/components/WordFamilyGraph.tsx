@@ -12,7 +12,7 @@ import { X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
-import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLevel, getGraphAddMethod, setGraphAddMethod, type GraphAddMethod } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 
 type Kind = "center" | "syn" | "ant";
@@ -373,15 +373,27 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     addingRef.current = true;
     try {
       const ai = isAiSupported(word.sourceLang);
-      const how = ai
-        ? await choose({
-            title: t("graph.addTitle", { word: node.label }),
-            options: [
-              { value: "ai", label: t("add.auto"), hint: t("graph.aiHint") },
-              { value: "manual", label: t("add.manual"), hint: t("graph.manualHint") },
-            ],
-          })
-        : "manual";
+      const stored = getGraphAddMethod();
+      let how: string | null;
+      if (!ai) {
+        how = "manual";
+      } else if (stored !== "ask") {
+        how = stored; // user chose "don't ask again" earlier
+      } else {
+        let remember = false;
+        how = await choose({
+          title: t("graph.addTitle", { word: node.label }),
+          options: [
+            { value: "ai", label: t("add.auto"), hint: t("graph.aiHint") },
+            { value: "manual", label: t("add.manual"), hint: t("graph.manualHint") },
+          ],
+          checkboxLabel: t("graph.remember"),
+          onResult: (checked) => {
+            remember = checked;
+          },
+        });
+        if (how && remember) setGraphAddMethod(how as GraphAddMethod);
+      }
       if (!how) return;
       if (how === "manual") {
         await addManual.mutateAsync(node.label);
