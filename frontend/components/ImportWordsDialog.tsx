@@ -40,6 +40,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
+  const [extracting, setExtracting] = useState(false); // reading a PDF
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("ru");
   const [direction, setDirection] = useState<ImportDirection>("en-ru");
@@ -164,11 +165,24 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
 
   const readFile = async (file?: File) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".txt")) {
-      preview.reset();
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".pdf")) {
+      setExtracting(true);
+      try {
+        const { extractPdfText } = await import("@/lib/pdfText");
+        setText(await extractPdfText(file));
+      } catch {
+        setText("");
+      } finally {
+        setExtracting(false);
+      }
       return;
     }
-    setText(await file.text());
+    if (name.endsWith(".txt")) {
+      setText(await file.text());
+      return;
+    }
+    preview.reset();
   };
 
   return (
@@ -305,9 +319,9 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   className="min-h-56 w-full resize-y rounded-[18px] border border-black/[0.08] bg-surface p-4 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
-                  <input ref={inputRef} type="file" accept=".txt,text/plain" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
-                  <Button type="button" variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
-                    ▣ {t("import.file")}
+                  <input ref={inputRef} type="file" accept=".txt,.pdf,text/plain,application/pdf" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
+                  <Button type="button" variant="ghost" size="sm" disabled={extracting} onClick={() => inputRef.current?.click()}>
+                    {extracting ? t("import.extracting") : `▣ ${t("import.file")}`}
                   </Button>
                   <Button type="submit" disabled={!text.trim() || preview.isPending}>
                     {preview.isPending ? t("import.parsing") : t("import.parse")}
