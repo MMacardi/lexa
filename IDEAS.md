@@ -5,6 +5,30 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 
 ---
 
+## Dev notes — browser vision (Playwright MCP)
+- **What it is:** an MCP server (`@playwright/mcp`) that gives Claude a real
+  browser — it can navigate, take DOM snapshots and screenshots, click, type and
+  read console/network. Config lives in `.mcp.json`:
+  `{"mcpServers":{"playwright":{"command":"cmd","args":["/c","npx","-y","@playwright/mcp@latest"]}}}`
+  (the `cmd /c` wrapper is what makes `npx` resolve on Windows).
+- **Status: DISABLED** — renamed to `.mcp.json.disabled`. Every `browser_snapshot`
+  / screenshot costs tens of thousands of tokens, which was burning the 5-hour
+  limit fast. Re-enable by renaming back to `.mcp.json` + restarting the session
+  only when a visual check is truly worth the spend.
+- **Takeaway:** I can read/reason about the code and CSS, but I cannot see
+  rendered pixels without this tool on. Prefer describing expected layout over
+  spending tokens to verify it in a live browser.
+
+## Context — the "Coach" direction (pre-paywall discussion)
+The wedge vs Quizlet: Lexa should feel like a **personal AI mentor**, not a
+flashcard box. It tells you *what* to learn for your level + language, builds a
+daily plan, adapts to weak spots, and can turn *anything* (a photo of a notebook,
+a txt, a PDF, a messy word list) into a structured deck. That framing is what
+makes the marketing lines honest. See the **Coach (Pro Plus)** section below for
+the shipped/next pieces.
+
+---
+
 ## Done
 - ✅ **Beta bug reporter** — floating "report a bug/idea" form, app-wide. Sends
   the message + auto context (route, env, recent JS/network errors) + optional

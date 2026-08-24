@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, GraduationCap, Target } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,10 +219,10 @@ function CollectionCard({
       {/* actions */}
       <div className="mt-4 flex flex-wrap gap-2 pt-1">
         <Action href={`/review?coll=${collection.id}`} disabled={count < 1} reason={t("col.needWords")}>
-          {t("col.study")}
+          <GraduationCap className="h-4 w-4" /> {t("col.study")}
         </Action>
         <Action href={`/quiz?coll=${collection.id}`} disabled={count < 4} reason={t("col.needFour")}>
-          {t("col.quiz")}
+          <Target className="h-4 w-4" /> {t("col.quiz")}
         </Action>
         <Action href={`/collections/${collection.id}`} variant="ghost">
           {t("col.open")} →
@@ -252,7 +252,7 @@ function Action({
   if (disabled)
     return (
       <span className="group relative inline-block">
-        <span className="inline-block cursor-not-allowed rounded-full border border-black/[0.05] px-3.5 py-1.5 text-sm font-semibold text-ink-faint/50">
+        <span className="inline-flex items-center gap-1.5 cursor-not-allowed rounded-full border border-black/[0.05] px-3.5 py-1.5 text-sm font-semibold text-ink-faint/50">
           {children}
         </span>
         {reason && (
@@ -266,7 +266,7 @@ function Action({
   return (
     <Link
       href={href}
-      className={cn("rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors", cls)}
+      className={cn("inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors", cls)}
     >
       {children}
     </Link>

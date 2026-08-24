@@ -460,7 +460,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                     key={m}
                     type="button"
                     title={locked ? t("pro.locked") : undefined}
-                    onClick={() => (locked ? upsell() : setExMode(m))}
+                    onClick={() => (locked ? upsell({ word }) : setExMode(m))}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
                       exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
@@ -506,7 +506,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               {pro ? (
                 <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
               ) : (
-                <button type="button" onClick={upsell} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
+                <button type="button" onClick={() => upsell({ word })} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
                   {t("count.label")}
                   <ProTag />
                 </button>
