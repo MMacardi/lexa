@@ -29,6 +29,24 @@ the shipped/next pieces.
 
 ---
 
+## Done (live-test feedback batch)
+- ✅ **Pro upsell popup** — tapping a locked Pro control now opens a small
+  marketing popup (echoes the word you were adding) before /pro, and /pro's back
+  link is contextual ("Back to my words") + shows that word.
+- ✅ **Import parses source-lang synonyms** — "awesome - cool, astonishing" now
+  files cool/astonishing as synonyms (decided by language, not punctuation) and
+  keeps them; added a format hint under the paste box.
+- ✅ **No more blank cards** — the import worker falls back to a plain translation
+  when enrichment fails/returns nothing, so a graph-added synonym is never empty;
+  the "N skipped" toast is reworded (the cards were added).
+- ✅ **Remember graph add-method** — the AI-vs-manual chooser has a "don't ask
+  again" checkbox; the choice persists and is changeable in Account.
+- ✅ **Grouped settings** — the growing toggle list is now under headings (Adding
+  words / Study / Reading).
+- ✅ **Consistent icons** — Collections Study/Quiz use lucide icons (not 🃏/🎯);
+  toasts already map their emoji to line icons.
+- ✅ **Tutor can't be lost** — clamps back on-screen; fixed the on-navigation drift.
+
 ## Done
 - ✅ **Beta bug reporter** — floating "report a bug/idea" form, app-wide. Sends
   the message + auto context (route, env, recent JS/network errors) + optional
