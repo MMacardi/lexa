@@ -35,6 +35,7 @@ import {
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { useIsPro } from "@/lib/useIsPro";
+import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
   // learner prefs (example difficulty + register)
   const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
+  const upsell = useUpsell();
   const style = useExampleStyle();
   const exSource = useExampleSource();
   const exCount = useExampleCount();
@@ -457,13 +459,12 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   <button
                     key={m}
                     type="button"
-                    disabled={locked}
                     title={locked ? t("pro.locked") : undefined}
-                    onClick={() => setExMode(m)}
+                    onClick={() => (locked ? upsell() : setExMode(m))}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
                       exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                      locked && "cursor-not-allowed opacity-50",
+                      locked && "opacity-60",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
@@ -502,10 +503,14 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   />
                 </>
               )}
-              <span className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {t("count.label")}
-                {!pro && <ProTag />}
-              </span>
+              {pro ? (
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+              ) : (
+                <button type="button" onClick={upsell} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
+                  {t("count.label")}
+                  <ProTag />
+                </button>
+              )}
               <Select
                 value={String(pro ? exCount : 1)}
                 onChange={(v) => setExampleCount(Number(v))}

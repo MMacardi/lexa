@@ -134,7 +134,7 @@ export default function ProPage() {
             </span>
             <div className="text-[13px] font-semibold uppercase tracking-wide text-sage-deep">{t("pro.annual")}</div>
             <div className="mt-2 font-serif text-[34px] font-semibold text-ink">
-              1 990 ₽<span className="text-[15px] font-medium text-ink-faint">{t("pro.perYearSuffix")}</span>
+              3 990 ₽<span className="text-[15px] font-medium text-ink-faint">{t("pro.perYearSuffix")}</span>
             </div>
             <p className="mt-1 text-[13px] text-ink-soft">{t("pro.annualHint")}</p>
             <button
