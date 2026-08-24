@@ -57,6 +57,7 @@ let counter = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { accountId } = useAccount();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [toasts, setToasts] = useState<(Toast & { leaving?: boolean })[]>([]);
   // Several imports can run at once (e.g. add 3 cards, then add 1 more while they
@@ -306,7 +307,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     </div>
                     {tracker.errors.length > 0 && (
                       <div className="mt-2 text-[12px] text-warn-text">
-                        {tracker.errors.length} words skipped
+                        {t("import.enrichFailed", { n: tracker.errors.length })}
                       </div>
                     )}
                     {tracker.errorMessage && (

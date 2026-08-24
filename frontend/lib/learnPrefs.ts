@@ -574,3 +574,32 @@ export function useShowTextLevel(): boolean {
 export function hasTranscription(lang: string): boolean {
   return lang === "zh" || lang === "zh-Hant" || lang === "ja" || lang === "ko";
 }
+
+// --- Word-family graph: how a tapped synonym/antonym is added ---
+// "ask" (default) pops the AI-vs-manual chooser each time; "ai"/"manual" skip it
+// (set via the chooser's "remember my choice" checkbox; reset in Account).
+export type GraphAddMethod = "ask" | "ai" | "manual";
+const GRAPH_ADD_KEY = "lexa.graphAddMethod";
+export function getGraphAddMethod(): GraphAddMethod {
+  if (typeof window === "undefined") return "ask";
+  const v = localStorage.getItem(GRAPH_ADD_KEY);
+  return v === "ai" || v === "manual" ? v : "ask";
+}
+export function setGraphAddMethod(m: GraphAddMethod) {
+  localStorage.setItem(GRAPH_ADD_KEY, m);
+  window.dispatchEvent(new Event(EVT));
+}
+export function useGraphAddMethod(): GraphAddMethod {
+  const [m, setM] = useState<GraphAddMethod>("ask");
+  useEffect(() => {
+    const sync = () => setM(getGraphAddMethod());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return m;
+}

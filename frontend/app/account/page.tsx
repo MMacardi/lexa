@@ -20,6 +20,7 @@ import {
   setShowTextLevel,
   setMeaningMode,
   setMeaningCustom,
+  setGraphAddMethod,
   useMeaningMode,
   useMeaningCustom,
   useShowTextLevel,
@@ -28,9 +29,11 @@ import {
   useHanLang,
   useRetention,
   useShowTranscription,
+  useGraphAddMethod,
   type CefrLevel,
   type ExampleSource,
   type MeaningMode,
+  type GraphAddMethod,
 } from "@/lib/learnPrefs";
 import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
@@ -224,6 +227,47 @@ function TextLevelSection() {
   );
 }
 
+// Default method for adding a synonym/antonym from the word-family graph — the
+// "remember my choice" checkbox in that chooser writes here, and this lets the
+// user change it back. (The chooser's note points here.)
+function GraphAddSection() {
+  const { t } = useI18n();
+  const method = useGraphAddMethod();
+  const opts: { id: GraphAddMethod; label: string }[] = [
+    { id: "ask", label: t("graphadd.ask") },
+    { id: "ai", label: t("add.auto") },
+    { id: "manual", label: t("add.manual") },
+  ];
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("graphadd.title")}</h2>
+      <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("graphadd.hint")}</p>
+      <div className="mt-3 inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+        {opts.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => setGraphAddMethod(o.id)}
+            className={cn(
+              "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
+              method === o.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// A small label that visually groups the setting cards below it.
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="px-1 pt-2 font-serif text-[19px] font-semibold text-ink">{children}</h2>
+  );
+}
+
 function MeaningStyleSection() {
   const { t } = useI18n();
   const pro = useIsPro();
@@ -408,21 +452,27 @@ export default function AccountPage() {
         </div>
       </Section>
 
-      {/* review scheduling (FSRS desired retention) */}
-      <RetentionSection />
-
+      {/* ── Adding words: how new cards are created ── */}
+      <GroupHeading>{t("settings.groupAdding")}</GroupHeading>
       {/* where example sentences come from (AI vs web) */}
       <ExampleSourceSection />
-
       {/* how card meanings are written (learner-editable prompt) */}
       <MeaningStyleSection />
+      {/* default method when adding a synonym/antonym from the graph */}
+      <GraphAddSection />
 
+      {/* ── Study: scheduling + levels ── */}
+      <GroupHeading>{t("settings.groupStudy")}</GroupHeading>
+      {/* review scheduling (FSRS desired retention) */}
+      <RetentionSection />
+      {/* language levels */}
+      <LevelsSection />
+
+      {/* ── Reading: how words/texts are shown ── */}
+      <GroupHeading>{t("settings.groupReading")}</GroupHeading>
       {/* transcription (pinyin/romaji) in quick tap lookups */}
       <TranscriptionSection />
       <TextLevelSection />
-
-      {/* language levels */}
-      <LevelsSection />
     </div>
   );
 }

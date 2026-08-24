@@ -85,6 +85,7 @@ async function processOneImportJob() {
       if (!word || word.userId !== job.userId) {
         errors.push(`${card.word}: card no longer exists`);
       } else {
+        let failed = false;
         try {
           const wantAiExample = job.generateExamples && job.exampleSource !== "web";
           if (job.generateDetails && wantAiExample) {
@@ -166,7 +167,26 @@ async function processOneImportJob() {
           }
         } catch (error) {
           console.error(`Import enrichment failed for ${card.word}`, error);
-          errors.push(card.word);
+          failed = true;
+        }
+        // Never leave a blank card. If enrichment threw or produced no meaning,
+        // fall back to a plain translation so the card is at least usable. Only a
+        // card that is STILL blank afterwards counts as skipped — a card that got
+        // its meaning (just missing example/synonyms) is fine and isn't reported.
+        const fresh = await prisma.word.findUnique({ where: { id: word.id }, select: { meaningZh: true } });
+        if (!fresh?.meaningZh?.trim()) {
+          try {
+            const { translation } = await translateText({
+              text: word.word,
+              sourceLang: word.sourceLang,
+              targetLang: word.targetLang,
+            });
+            const meaning = translation.trim();
+            if (meaning) await prisma.word.update({ where: { id: word.id }, data: { meaningZh: meaning } });
+            else if (failed) errors.push(card.word);
+          } catch {
+            if (failed) errors.push(card.word);
+          }
         }
       }
 

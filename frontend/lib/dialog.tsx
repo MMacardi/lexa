@@ -41,6 +41,10 @@ interface ChooseOptions {
   message?: string;
   options: ChooseOption[];
   cancelLabel?: string;
+  // Optional "remember this / don't ask again" checkbox; its state is reported
+  // via onResult alongside the chosen value.
+  checkboxLabel?: string;
+  onResult?: (checked: boolean) => void;
 }
 
 type Pending =
@@ -87,7 +91,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
   const choose = useCallback(
     (opts: ChooseOptions) =>
-      new Promise<string | null>((resolve) => setPending({ kind: "choose", opts, resolve })),
+      new Promise<string | null>((resolve) => {
+        setChecked(false);
+        setPending({ kind: "choose", opts, resolve });
+      }),
     [],
   );
 
@@ -97,6 +104,11 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       if (pending.kind === "confirm") {
         pending.opts.onResult?.(checked);
         pending.resolve(result === true);
+      } else if (pending.kind === "choose") {
+        // Report the checkbox only when the user actually picked an option (a
+        // string result), not when they cancelled / dismissed.
+        if (typeof result === "string") pending.opts.onResult?.(checked);
+        pending.resolve(typeof result === "string" ? result : null);
       } else {
         pending.resolve(typeof result === "string" ? result : null);
       }
@@ -174,7 +186,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
 
-                {pending.kind === "confirm" && pending.opts.checkboxLabel && (
+                {pending.kind !== "prompt" && pending.opts.checkboxLabel && (
                   <label className="mt-4 flex cursor-pointer items-center gap-2 text-[13px] font-medium text-ink-muted">
                     <input
                       type="checkbox"
