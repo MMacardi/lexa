@@ -8,6 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Check } from "lucide-react";
 import { useToast } from "@/lib/toast";
+import { errText } from "@/lib/errText";
 import { langLabel } from "@/lib/langs";
 import {
   CEFR_LEVELS,
@@ -34,7 +35,7 @@ type ImportDirection = "en-ru" | "ru-en" | "custom";
 export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId?: string }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
-  const { trackImport } = useToast();
+  const { trackImport, show } = useToast();
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -189,6 +190,27 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
       setText(await file.text());
       return;
     }
+    // A photo (incl. a handwritten notebook page): OCR it with the vision model,
+    // then let the normal parser turn the recognised text into cards.
+    if (file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/.test(name)) {
+      setExtracting(true);
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        const { text: recognised } = await api.ocr({ image: dataUrl, sourceLang });
+        if (recognised.trim()) setText((cur) => (cur.trim() ? cur + "\n" + recognised : recognised));
+        else show({ icon: "⚠️", title: t("import.ocrEmpty") });
+      } catch (e) {
+        show({ icon: "⚠️", title: errText(e, t) });
+      } finally {
+        setExtracting(false);
+      }
+      return;
+    }
     preview.reset();
   };
 
@@ -333,7 +355,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
-                  <input ref={inputRef} type="file" accept=".txt,.pdf,text/plain,application/pdf" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
+                  <input ref={inputRef} type="file" accept=".txt,.pdf,text/plain,application/pdf,image/*" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
                   <Button type="button" variant="ghost" size="sm" disabled={extracting} onClick={() => inputRef.current?.click()}>
                     {extracting ? t("import.extracting") : `▣ ${t("import.file")}`}
                   </Button>
