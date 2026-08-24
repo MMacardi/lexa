@@ -61,6 +61,7 @@ export function GlobalTutor() {
     return { x: 0, y: 0 };
   });
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     try {
       localStorage.setItem("lexa.tutorPos", JSON.stringify(offset));
@@ -68,6 +69,23 @@ export function GlobalTutor() {
       /* ignore */
     }
   }, [offset]);
+  // Keep the panel fully on screen — so it can never be dragged off and lost, and
+  // a stored position from a bigger window is pulled back in.
+  function clampToViewport() {
+    const el = panelRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    setOffset((o) => {
+      let x = o.x;
+      let y = o.y;
+      if (r.left < pad) x += pad - r.left;
+      else if (r.right > window.innerWidth - pad) x -= r.right - (window.innerWidth - pad);
+      if (r.top < pad) y += pad - r.top;
+      else if (r.bottom > window.innerHeight - pad) y -= r.bottom - (window.innerHeight - pad);
+      return x === o.x && y === o.y ? o : { x, y };
+    });
+  }
   function startDrag(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("button, a, input, select, [role='button']")) return;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -80,7 +98,20 @@ export function GlobalTutor() {
   }
   function endDrag() {
     dragRef.current = null;
+    clampToViewport();
   }
+  // Re-clamp when the panel opens or the window resizes (never leave the viewport).
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => clampToViewport();
+    // A tick after open so the panel has laid out.
+    const id = window.setTimeout(clampToViewport, 0);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
   const moved = offset.x !== 0 || offset.y !== 0;
 
   const { data: collections } = useQuery({
@@ -230,6 +261,7 @@ export function GlobalTutor() {
       {/* chat panel */}
       {open && (
         <div
+          ref={panelRef}
           className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]"
           style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
         >
