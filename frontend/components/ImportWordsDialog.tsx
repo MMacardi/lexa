@@ -99,7 +99,14 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
 
   const preview = useMutation({
     mutationFn: () => api.previewImport({ text, sourceLang, targetLang }),
-    onSuccess: ({ items }) => setCards(items.map((item) => ({ ...item, selected: true }))),
+    onSuccess: ({ items }) => {
+      setCards(items.map((item) => ({ ...item, selected: true })));
+      // If the list carried synonyms/examples, keep them by default — otherwise
+      // the parse would recognise them only to silently drop them on import.
+      if (items.some((it) => it.example?.trim() || (it.synonyms?.length ?? 0) > 0)) {
+        setKeepProvidedExtras(true);
+      }
+    },
   });
 
   const commit = useMutation({
@@ -318,6 +325,13 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   placeholder={`hello — ${targetLang === "ru" ? "привет" : targetLang === "zh" ? "你好" : "meaning"}\ngoodbye — ${targetLang === "ru" ? "пока" : targetLang === "zh" ? "再见" : "meaning"}`}
                   className="min-h-56 w-full resize-y rounded-[18px] border border-black/[0.08] bg-surface p-4 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
+                <div className="rounded-[14px] border border-black/[0.06] bg-surface/70 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft">
+                  <span className="font-semibold text-ink-muted">{t("import.fmtTitle")}: </span>
+                  <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtPair")}</code>
+                  <span className="mx-1.5 text-ink-faint">·</span>
+                  <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtSyn")}</code>
+                  <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
                   <input ref={inputRef} type="file" accept=".txt,.pdf,text/plain,application/pdf" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
                   <Button type="button" variant="ghost" size="sm" disabled={extracting} onClick={() => inputRef.current?.click()}>

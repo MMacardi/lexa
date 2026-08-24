@@ -676,6 +676,18 @@ const DICT: Record<string, Entry> = {
   "import.dir.ruEn": { en: "Russian → English", ru: "Russian → English", zh: "Russian → English" },
   "import.dir.custom": { en: "Custom", ru: "Другое", zh: "自定义" },
   "import.pair": { en: "Selected pair:", ru: "Выбранная пара:", zh: "当前语言对：" },
+  "import.fmtTitle": { en: "How to write", ru: "Как писать", zh: "书写格式" },
+  "import.fmtPair": { en: "word — translation", ru: "слово — перевод", zh: "单词 — 翻译" },
+  "import.fmtSyn": {
+    en: "word — synonym, synonym (same language = synonyms)",
+    ru: "слово — синоним, синоним (тот же язык = синонимы)",
+    zh: "单词 — 同义词, 同义词（同种语言 = 同义词）",
+  },
+  "import.fmtFree": {
+    en: "…or just paste any text, a photo's words or a messy list — Lexa sorts it out.",
+    ru: "…или просто вставьте любой текст, слова с фото или сырой список — Lexa разберётся.",
+    zh: "……或直接粘贴任意文本、照片里的词或杂乱列表，Lexa 会自动整理。",
+  },
   "import.paste": { en: "Paste your list here…", ru: "Вставьте список сюда…", zh: "在此粘贴词表…" },
   "import.file": { en: "Choose .txt / .pdf", ru: "Выбрать .txt / .pdf", zh: "选择 .txt / .pdf" },
   "import.extracting": { en: "Reading PDF…", ru: "Читаю PDF…", zh: "正在读取 PDF…" },

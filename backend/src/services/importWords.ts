@@ -27,20 +27,26 @@ export async function previewImportedWords(params: {
   const targetName = langName(params.targetLang);
   const parsed = await chatJson({
     system:
-      `You turn ${sourceName} input into flashcards for a learner of ${targetName}. The input can be in ` +
-      `ANY of these forms — handle all:\n` +
-      `1) "word — meaning" / "word: meaning" / "word, meaning" lines → keep the given ${targetName} meaning ` +
-      `(fix it only if clearly wrong), preserve any example/translation/synonyms.\n` +
-      `2) a plain list of ${sourceName} words/phrases (no translations) → make one card per item and ` +
+      `You turn ${sourceName} input into flashcards for a learner of ${targetName}. The headword is in ` +
+      `${sourceName}; "meaning" must be in ${targetName}. A separator between the two sides may be a dash ` +
+      `(-, –, —), colon, equals, pipe, tab or comma. The input can be in ANY of these forms — handle all:\n` +
+      `1) "word <sep> ${targetName} translation" → keep the given ${targetName} meaning (fix it only if ` +
+      `clearly wrong), preserve any example/translation/synonyms.\n` +
+      `2) "word <sep> more ${sourceName} words" (the right side is in ${sourceName}, the SAME language as ` +
+      `the headword — e.g. "awesome - cool, astonishing") → those right-side words are SYNONYMS, not a ` +
+      `meaning. Put every one of them (split on commas/semicolons/slashes) into "synonyms", and generate ` +
+      `the ${targetName} meaning yourself. Decide by language, not punctuation: if the right side is ` +
+      `${targetName} it's the meaning (form 1); if it's ${sourceName} it's synonyms (this form).\n` +
+      `3) a plain list of ${sourceName} words/phrases (no translations) → make one card per item and ` +
       `generate a concise, natural ${targetName} meaning yourself.\n` +
-      `3) free-form ${sourceName} text / a sentence with no translations → split it into its distinct ` +
+      `4) free-form ${sourceName} text / a sentence with no translations → split it into its distinct ` +
       `words (and obvious phrases) and make one card per word, generating each ${targetName} meaning. ` +
       `Keep the words the user actually wrote; only skip pure punctuation/numbers.\n` +
       `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
       `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
-      `CRITICAL: NEVER invent an example, its translation, or synonyms. Fill "example", ` +
-      `"exampleTranslation" and "synonyms" ONLY with values the user explicitly wrote in the input; ` +
-      `if the input has none for an item, return "" for example/exampleTranslation and [] for synonyms. ` +
+      `CRITICAL: NEVER invent an example or its translation. Fill "example" and "exampleTranslation" ONLY ` +
+      `with values the user explicitly wrote; if none, return "". For "synonyms", use ONLY ${sourceName} ` +
+      `words the user actually wrote (as in form 2) — never invent synonyms; if none, return []. ` +
       scriptNote(params.sourceLang) +
       scriptNote(params.targetLang) +
       " " +
