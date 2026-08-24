@@ -116,7 +116,7 @@ export default function ProPage() {
           <div className="flex flex-col rounded-[20px] border border-black/[0.08] bg-surface p-6">
             <div className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("pro.monthly")}</div>
             <div className="mt-2 font-serif text-[34px] font-semibold text-ink">
-              299 ₽<span className="text-[15px] font-medium text-ink-faint">{t("pro.perMonthSuffix")}</span>
+              499 ₽<span className="text-[15px] font-medium text-ink-faint">{t("pro.perMonthSuffix")}</span>
             </div>
             <p className="mt-1 text-[13px] text-ink-soft">{t("pro.monthlyHint")}</p>
             <button
