@@ -33,6 +33,7 @@ import {
   type MeaningMode,
 } from "@/lib/learnPrefs";
 import { useIsPro } from "@/lib/useIsPro";
+import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
 import { Sun, Moon, X } from "lucide-react";
@@ -226,6 +227,7 @@ function TextLevelSection() {
 function MeaningStyleSection() {
   const { t } = useI18n();
   const pro = useIsPro();
+  const upsell = useUpsell();
   const mode = useMeaningMode();
   const custom = useMeaningCustom();
   const modes: { id: MeaningMode; label: string; hint: string; proOnly: boolean }[] = [
@@ -247,13 +249,12 @@ function MeaningStyleSection() {
             <button
               key={m.id}
               type="button"
-              disabled={locked}
               title={locked ? t("pro.locked") : undefined}
-              onClick={() => setMeaningMode(m.id)}
+              onClick={() => (locked ? upsell() : setMeaningMode(m.id))}
               className={cn(
                 "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
                 effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                locked && "cursor-not-allowed opacity-50",
+                locked && "opacity-60",
               )}
             >
               {m.label}

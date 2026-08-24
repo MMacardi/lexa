@@ -8,6 +8,7 @@ import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { UsagePill } from "@/components/UsagePill";
 import { Home, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, type LucideIcon } from "lucide-react";
 
 const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
@@ -86,6 +87,9 @@ export function Sidebar() {
           </div>
           <div className="mt-2.5 text-xs font-medium text-taupe-dim">{t("side.collectedDue", { total, due })}</div>
         </div>
+
+        {/* daily AI-usage meter (free tier only) */}
+        <UsagePill />
 
         {/* account entry */}
         <Link

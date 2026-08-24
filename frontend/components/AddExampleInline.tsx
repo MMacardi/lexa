@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import { useIsPro } from "@/lib/useIsPro";
+import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { Plus, Sparkles, Globe, X } from "lucide-react";
 
@@ -39,6 +40,7 @@ export function AddExampleInline({ word }: { word: Word }) {
 
   // AI-example knobs (local: tweaking here doesn't change the add-word default).
   const pro = useIsPro();
+  const upsell = useUpsell();
   const [src, setSrc] = useState<"ai" | "web">(() => getExampleSource());
   const [style, setStyle] = useState<ExampleStyle>(() => {
     const s = getExampleStyle();
@@ -139,13 +141,12 @@ export function AddExampleInline({ word }: { word: Word }) {
             <button
               key={m}
               type="button"
-              disabled={locked}
               title={locked ? t("pro.locked") : undefined}
-              onClick={() => setSrc(m)}
+              onClick={() => (locked ? upsell() : setSrc(m))}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
                 (pro ? src : "ai") === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                locked && "cursor-not-allowed opacity-50",
+                locked && "opacity-60",
               )}
             >
               <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
