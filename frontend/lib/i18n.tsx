@@ -394,6 +394,7 @@ const DICT: Record<string, Entry> = {
   "coach.pWeak": { en: "weak spots", ru: "слабые", zh: "薄弱" },
   "coach.pNew": { en: "new goal", ru: "новых", zh: "新词目标" },
   "coach.pReview": { en: "Start review", ru: "Повторять", zh: "开始复习" },
+  "coach.drillWeak": { en: "Drill your weak words", ru: "Тренировать слабые слова", zh: "训练你的薄弱词" },
   "coach.pAddNew": { en: "Add new words", ru: "Новые слова", zh: "添加新词" },
   "coach.planFoot": {
     en: "≈{mins} min · {total} words total, {mastered} mastered.",
