@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
@@ -12,7 +13,7 @@ import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout } from "lucide-react";
 
 type Pick = { word: string; reason: string };
 
@@ -34,6 +35,19 @@ export default function CoachPage() {
   const { t } = useI18n();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
+
+  const { data: words } = useQuery({
+    queryKey: ["words", accountId],
+    queryFn: () => api.listWords(accountId),
+    enabled: !!accountId,
+  });
+  const deck = words ?? [];
+  // Today's plan — computed from the deck (no AI, no tokens).
+  const due = deck.filter(isDue).length;
+  const weak = deck.filter((w) => (w.lapses ?? 0) >= 2).length; // words you keep forgetting
+  const mastered = deck.filter((w) => w.reviewCount >= 5).length;
+  const NEW_TARGET = 5;
+  const mins = Math.max(1, Math.round((due + weak) * 0.4 + NEW_TARGET * 0.8)); // rough estimate
 
   const [pair, setPair] = useState(() => readPair());
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -130,7 +144,54 @@ export default function CoachPage() {
         <p className="mt-1.5 text-ink-soft">{t("coach.subtitle")}</p>
       </div>
 
-      <section className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      {/* Today's plan — deterministic, no AI */}
+      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+        <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.planTitle")}</h2>
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          <div className="rounded-[14px] bg-sage-tint/50 p-3.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-sage-deep">
+              <RotateCcw className="h-4 w-4" />
+              <span className="font-serif text-[26px] font-bold leading-none">{due}</span>
+            </div>
+            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pDue")}</div>
+          </div>
+          <div className="rounded-[14px] bg-warn-bg p-3.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-warn-text">
+              <Dumbbell className="h-4 w-4" />
+              <span className="font-serif text-[26px] font-bold leading-none">{weak}</span>
+            </div>
+            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pWeak")}</div>
+          </div>
+          <div className="rounded-[14px] bg-black/[0.04] p-3.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-ink-muted">
+              <Sprout className="h-4 w-4 text-sage" />
+              <span className="font-serif text-[26px] font-bold leading-none">{NEW_TARGET}</span>
+            </div>
+            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pNew")}</div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/review"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+              due + weak > 0 ? "bg-sage text-white hover:bg-sage-deep" : "pointer-events-none bg-black/[0.05] text-ink-faint",
+            )}
+          >
+            <RotateCcw className="h-4 w-4" /> {t("coach.pReview")}
+          </Link>
+          <button
+            type="button"
+            onClick={() => document.getElementById("coach-picks")?.scrollIntoView({ behavior: "smooth" })}
+            className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+          >
+            <Plus className="h-4 w-4" /> {t("coach.pAddNew")}
+          </button>
+        </div>
+        <p className="mt-3 text-[12px] text-ink-faint">{t("coach.planFoot", { mins, total: deck.length, mastered })}</p>
+      </section>
+
+      <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>

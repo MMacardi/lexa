@@ -389,6 +389,17 @@ const DICT: Record<string, Entry> = {
   "coach.loading": { en: "Picking words for you…", ru: "Подбираю слова для тебя…", zh: "正在为你挑选…" },
   "coach.empty": { en: "No suggestions right now — try refreshing.", ru: "Сейчас нет предложений — попробуй обновить.", zh: "暂无推荐——请刷新试试。" },
   "coach.addN": { en: "Add {n} to my words", ru: "Добавить {n} в мои слова", zh: "把 {n} 个加入我的单词" },
+  "coach.planTitle": { en: "Today's plan", ru: "План на сегодня", zh: "今日计划" },
+  "coach.pDue": { en: "to review", ru: "повторить", zh: "待复习" },
+  "coach.pWeak": { en: "weak spots", ru: "слабые", zh: "薄弱" },
+  "coach.pNew": { en: "new goal", ru: "новых", zh: "新词目标" },
+  "coach.pReview": { en: "Start review", ru: "Повторять", zh: "开始复习" },
+  "coach.pAddNew": { en: "Add new words", ru: "Новые слова", zh: "添加新词" },
+  "coach.planFoot": {
+    en: "≈{mins} min · {total} words total, {mastered} mastered.",
+    ru: "≈{mins} мин · всего {total} слов, освоено {mastered}.",
+    zh: "≈{mins} 分钟 · 共 {total} 词，已掌握 {mastered}。",
+  },
   "pro.soon": {
     en: "Payments are coming soon — thanks for your patience! Pro is free for all beta testers meanwhile.",
     ru: "Оплата скоро появится — спасибо за терпение! Пока Pro бесплатен для всех бета-тестеров.",
