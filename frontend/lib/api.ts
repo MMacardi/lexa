@@ -429,6 +429,19 @@ export const api = {
   coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number }) =>
     http<{ picks: { word: string; reason: string }[] }>(`/api/coach/picks`, { method: "POST", body: JSON.stringify(payload) }),
 
+  // Adaptive Coach practice: one drill turn (the client keeps the message thread).
+  coachDrill: (payload: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    words: { word: string; meaning: string }[];
+    sourceLang?: string;
+    targetLang?: string;
+    level?: string;
+  }) =>
+    http<{ say: string; drillWord: string; grade: "none" | "correct" | "partial" | "wrong"; gradedWord: string; done: boolean }>(
+      `/api/coach/drill`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+
   // Beta bug/idea report (message + auto-collected context + optional screenshot).
   sendFeedback: (payload: FeedbackPayload) =>
     http<{ ok: true; delivered: { email: boolean; telegram: boolean; logged: boolean } }>(`/api/feedback`, {

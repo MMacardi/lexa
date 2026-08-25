@@ -1,0 +1,75 @@
+import { chatJsonConversation, type ChatMessage } from "./llm.js";
+import { coachDrillSchema, type CoachDrillResult } from "../lib/schemas.js";
+import { langName, scriptNote } from "../lib/langs.js";
+
+/**
+ * The adaptive Coach "practice" drill. Unlike the free-form tutor chat, this runs
+ * a focused spoken/typed workout over a SPECIFIC set of the learner's words: the
+ * coach asks the learner to USE each word, grades the answer, corrects, adapts the
+ * difficulty, and moves on. The per-word grade is returned so the client can feed
+ * it back into the SRS. This is the differentiator vs a plain flashcard app.
+ */
+export async function coachDrill(params: {
+  messages: { role: "user" | "assistant"; content: string }[];
+  words: { word: string; meaning: string }[];
+  sourceLang?: string;
+  targetLang?: string;
+  level?: string;
+}): Promise<CoachDrillResult> {
+  const source = langName(params.sourceLang ?? "en");
+  const target = langName(params.targetLang ?? "zh");
+  const level = params.level ? ` The learner's level is about ${params.level} (CEFR).` : "";
+  const wordList = params.words
+    .slice(0, 12)
+    .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
+    .join("\n");
+
+  const clipped = params.messages.slice(-16).map((m) => ({
+    role: m.role,
+    content: m.content.slice(0, 1500),
+  })) as ChatMessage[];
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        `You are an adaptive, warm ${source} practice coach. The learner's own language is ${target}.` +
+        level +
+        `\n\nYour job: run a short, lively workout over EXACTLY these words the learner is studying:\n` +
+        `${wordList}\n\n` +
+        `How the session goes:\n` +
+        `1) Open with one short friendly line, then immediately start with the FIRST word.\n` +
+        `2) Drill ONE word at a time. Ask the learner to USE it — compose a natural ${source} sentence ` +
+        `with it, answer a small question using it, or translate a short phrase. Vary the task.\n` +
+        `3) When the learner replies, GRADE their previous answer: set "grade" to "correct", "partial" ` +
+        `or "wrong", and "gradedWord" to that word. Give brief, specific feedback in "say" — praise what ` +
+        `was right, fix mistakes, and show the corrected ${source} form when needed. Then ask about the ` +
+        `NEXT word.\n` +
+        `4) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance). If ` +
+        `they struggle, simplify and give a small hint.\n` +
+        `5) When every word has been practised (or the learner asks to stop), set "done" to true and end ` +
+        `with a short, encouraging wrap-up naming what improved.\n\n` +
+        `Write "say" ENTIRELY in ${target} (the learner's language), warm and concise — at most ~3 short ` +
+        `sentences. The ${source} words/sentences you quote stay in ${source}. "drillWord" is the word you ` +
+        `are asking about in THIS message (use "" only for the intro line or the final wrap-up).` +
+        scriptNote(params.sourceLang ?? "en") +
+        ` Respond as JSON: {"say": string, "drillWord": string, "grade": "none"|"correct"|"partial"|"wrong", ` +
+        `"gradedWord": string, "done": boolean}.`,
+    },
+    ...clipped,
+  ];
+
+  const result = await chatJsonConversation({
+    messages,
+    schema: coachDrillSchema,
+    timeoutMs: 60000,
+    label: "coachDrill",
+  });
+  return {
+    say: result.say.trim(),
+    drillWord: (result.drillWord ?? "").trim(),
+    grade: result.grade ?? "none",
+    gradedWord: (result.gradedWord ?? "").trim(),
+    done: result.done ?? false,
+  };
+}
