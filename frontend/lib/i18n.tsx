@@ -113,6 +113,8 @@ const DICT: Record<string, Entry> = {
   "reader.filterColl": { en: "Filter by collection", ru: "Фильтр по коллекции", zh: "按合集筛选" },
   "reader.allLangs": { en: "All languages", ru: "Все языки", zh: "所有语言" },
   "reader.allColls": { en: "All collections", ru: "Все коллекции", zh: "所有合集" },
+  "reader.filterLevel": { en: "Filter by level", ru: "Фильтр по уровню", zh: "按等级筛选" },
+  "reader.allLevels": { en: "All levels", ru: "Все уровни", zh: "所有等级" },
   "reader.noTextMatches": { en: "No texts match these filters.", ru: "Нет текстов по этим фильтрам.", zh: "没有符合筛选的文本。" },
   "reader.generate": { en: "AI text", ru: "Текст от ИИ", zh: "AI 文本" },
   "reader.genTopic": { en: "Topic (e.g. space travel, a café)", ru: "Тема (напр. космос, кафе)", zh: "主题（如太空、咖啡馆）" },

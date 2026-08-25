@@ -219,12 +219,16 @@ async function generateOne(params: GenParams): Promise<{ title: string; content:
 export async function startGeneration(telegramId: string, params: GenParams) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
+  // A level the learner picked is stored straight away (no tokens); otherwise we
+  // estimate it from the finished text below.
+  const chosenLevel = params.level?.trim().toUpperCase() || null;
   const row = await prisma.readerText.create({
     data: {
       userId: uid,
       title: params.topic.slice(0, 60),
       content: "",
       status: "generating",
+      level: chosenLevel,
       sourceLang: params.sourceLang ?? null,
       targetLang: params.targetLang ?? null,
     },
@@ -234,7 +238,9 @@ export async function startGeneration(telegramId: string, params: GenParams) {
   void (async () => {
     try {
       const { title, content } = await generateOne(params);
-      await prisma.readerText.update({ where: { id: row.id }, data: { title, content, status: "ready" } });
+      // If the learner didn't pick a level, estimate it from the generated text.
+      const level = chosenLevel ?? (await estimateLevel(content, params.sourceLang));
+      await prisma.readerText.update({ where: { id: row.id }, data: { title, content, status: "ready", level } });
     } catch (err) {
       console.error("reader generation failed:", err);
       await prisma.readerText.update({ where: { id: row.id }, data: { status: "failed" } }).catch(() => {});
