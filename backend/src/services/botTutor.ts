@@ -91,6 +91,35 @@ export async function ownedWord(telegramId: string, wordId: string) {
   });
 }
 
+/** How many of the learner's cards are "weak" (keep getting forgotten). */
+export async function weakCountForUser(telegramId: string, pair: Pair): Promise<number> {
+  return prisma.word.count({
+    where: { user: { telegramId }, sourceLang: pair.source, targetLang: pair.target, lapses: { gte: 2 } },
+  });
+}
+
+/**
+ * Words to run a Coach practice drill over: weak spots first, then due, then any —
+ * from the learner's active pair. Returns the id (for SRS grading) + word + meaning.
+ */
+export async function drillWordsForUser(
+  telegramId: string,
+  pair: Pair,
+  limit = 6,
+): Promise<{ id: string; word: string; meaning: string }[]> {
+  const words = await prisma.word.findMany({
+    where: { user: { telegramId }, sourceLang: pair.source, targetLang: pair.target },
+    select: { id: true, word: true, meaningZh: true, lapses: true, nextReviewAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 300,
+  });
+  const now = Date.now();
+  const weak = words.filter((w) => (w.lapses ?? 0) >= 2);
+  const due = words.filter((w) => !w.nextReviewAt || new Date(w.nextReviewAt).getTime() <= now);
+  const ordered = [...new Map([...weak, ...due, ...words].map((w) => [w.id, w])).values()];
+  return ordered.slice(0, limit).map((w) => ({ id: w.id, word: w.word, meaning: w.meaningZh ?? "" }));
+}
+
 /** The learner's chosen reminder hour (0–23), or null if reminders are off. */
 export async function getReminderHour(telegramId: string): Promise<number | null> {
   const u = await prisma.user.findUnique({ where: { telegramId }, select: { reminderHour: true } });

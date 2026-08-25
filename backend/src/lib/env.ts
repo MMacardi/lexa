@@ -10,6 +10,8 @@ const schema = z.object({
   CORS_ORIGIN: z.string().default(""),
   BAILIAN_API_KEY: z.string().default(""),
   BAILIAN_BASE_URL: z.string().url(),
+  // Qwen audio model for transcribing Telegram voice answers in bot practice.
+  BAILIAN_AUDIO_MODEL: z.string().default("qwen-audio-asr"),
   TAVILY_API_KEY: z.string().default(""),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   // "true" starts the in-process Telegram tutor bot (long polling). Keep it off

@@ -2,6 +2,8 @@ import { Telegraf, Markup, type Context } from "telegraf";
 import { env } from "../lib/env.js";
 import { addWordForUser, listWordsForUser, recordReview } from "../services/vocab.js";
 import { tutorChat } from "../services/tutorChat.js";
+import { coachDrill } from "../services/coachDrill.js";
+import { transcribeAudio } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
 import { take } from "../lib/rateLimit.js";
@@ -11,6 +13,8 @@ import {
   setUserPair,
   dueWordsForUser,
   dueCountForUser,
+  drillWordsForUser,
+  weakCountForUser,
   ownedWord,
   getReminderHour,
   setReminderHour,
@@ -25,7 +29,19 @@ function esc(s: string): string {
 
 // Per-chat scratch state (single instance): last words the tutor suggested (for
 // the one-tap "add" button) and a short rolling chat history for context.
-type ChatState = { suggested: string[]; history: { role: "user" | "assistant"; content: string }[] };
+// An in-chat Coach practice session: the words being drilled + the rolling thread.
+type PracticeState = {
+  words: { id: string; word: string; meaning: string }[];
+  pair: Pair;
+  messages: { role: "user" | "assistant"; content: string }[];
+  graded: Set<string>; // wordKeys already graded this session
+  correct: number;
+};
+type ChatState = {
+  suggested: string[];
+  history: { role: "user" | "assistant"; content: string }[];
+  practice?: PracticeState;
+};
 const chatState = new Map<string, ChatState>();
 const stateFor = (id: string): ChatState => {
   let s = chatState.get(id);
@@ -85,6 +101,7 @@ const siteButton = () => Markup.button.url("🌐 Открыть сайт Lexa", 
 // under the input. Tapping one sends its label, caught by bot.hears below.
 const BTN = {
   review: "▶️ Повторить",
+  practice: "🎯 Практика",
   due: "⏰ Сколько ждёт",
   list: "📚 Мои слова",
   remind: "🔔 Напоминания",
@@ -93,9 +110,10 @@ const BTN = {
 } as const;
 const mainKeyboard = () =>
   Markup.keyboard([
-    [BTN.review, BTN.due],
-    [BTN.list, BTN.remind],
-    [BTN.add, BTN.site],
+    [BTN.review, BTN.practice],
+    [BTN.due, BTN.list],
+    [BTN.remind, BTN.add],
+    [BTN.site],
   ]).resize();
 
 const showKeyboard = (id: string) =>
@@ -177,6 +195,88 @@ async function replyAddHelp(ctx: Context): Promise<void> {
   await ctx.replyWithHTML(
     "➕ Чтобы добавить слово, просто отправь: <code>add слово</code>\nНапример: <code>add resilient</code>",
   );
+}
+
+// ---- Coach practice (adaptive drill over the learner's own words) ----
+const practiceStopKeyboard = () =>
+  Markup.inlineKeyboard([[Markup.button.callback("⏹ Закончить практику", "pr:stop")]]);
+
+async function startPractice(ctx: Context): Promise<void> {
+  if (!ctx.from || !ctx.chat) return;
+  const telegramId = String(ctx.from.id);
+  const chatId = String(ctx.chat.id);
+  await ensureBotUser(telegramId, chatId);
+  const pair = await resolveUserPair(telegramId);
+  const words = await drillWordsForUser(telegramId, pair, 6);
+  if (words.length === 0) {
+    await ctx.reply("Сначала добавь несколько слов — потом попрактикуем. Напиши, например: add resilient");
+    return;
+  }
+  const st = stateFor(chatId);
+  st.practice = { words, pair, messages: [], graded: new Set(), correct: 0 };
+  await ctx.replyWithHTML(
+    `🎯 <b>Практика</b> — отработаем ${words.length} ${words.length === 1 ? "слово" : "слов"}. ` +
+      "Отвечай текстом или голосовым 🎙",
+  );
+  await ctx.replyWithChatAction("typing");
+  await runPracticeTurn(ctx, st);
+}
+
+/** One coach turn: ask the model, grade the previous answer into the SRS, reply. */
+async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
+  const p = st.practice;
+  if (!p) return;
+  let res;
+  try {
+    res = await coachDrill({
+      messages: p.messages,
+      words: p.words.map((w) => ({ word: w.word, meaning: w.meaning })),
+      sourceLang: p.pair.source,
+      targetLang: p.pair.target,
+    });
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("⚠️ Наставник не ответил. Попробуй ещё раз или начни заново: /practice");
+    return;
+  }
+  p.messages.push({ role: "assistant", content: res.say });
+  p.messages = p.messages.slice(-16);
+  // Feed the grade of the previous answer back into the scheduler (once per word).
+  if (res.grade !== "none" && res.gradedWord) {
+    const key = res.gradedWord.trim().toLowerCase();
+    const card = p.words.find((w) => w.word.trim().toLowerCase() === key);
+    if (card && !p.graded.has(key)) {
+      p.graded.add(key);
+      if (res.grade === "correct") p.correct++;
+      const rating = res.grade === "correct" ? 3 : res.grade === "partial" ? 2 : 1;
+      try {
+        await recordReview(card.id, rating);
+      } catch (err) {
+        console.error("practice grade failed:", (err as Error).message);
+      }
+    }
+  }
+  const mark = res.grade === "correct" ? "🟢 " : res.grade === "partial" ? "🟠 " : res.grade === "wrong" ? "🔴 " : "";
+  if (res.done) {
+    st.practice = undefined;
+    await ctx.replyWithHTML(
+      `${mark}${esc(res.say)}\n\n🎉 <b>Готово</b> — верно ${p.correct}/${p.graded.size}. Ещё раз: /practice`,
+      { link_preview_options: { is_disabled: true } },
+    );
+    return;
+  }
+  await ctx.replyWithHTML(`${mark}${esc(res.say)}`, {
+    link_preview_options: { is_disabled: true },
+    ...practiceStopKeyboard(),
+  });
+}
+
+/** The learner answered (typed or transcribed) during an active practice. */
+async function handlePracticeAnswer(ctx: Context, st: ChatState, text: string): Promise<void> {
+  if (!st.practice) return;
+  st.practice.messages.push({ role: "user", content: text.slice(0, 1500) });
+  await ctx.replyWithChatAction("typing");
+  await runPracticeTurn(ctx, st);
 }
 
 /** Build the bot. Not launched here — see launchBot(). */
@@ -290,8 +390,12 @@ export function createBot(): Telegraf {
   // /review — start an in-chat review session.
   bot.command("review", (ctx) => replyReview(ctx));
 
+  // /practice — start an adaptive Coach drill over your own words.
+  bot.command("practice", (ctx) => startPractice(ctx));
+
   // ---- reply-keyboard buttons: the popular functions, no typing needed ----
   bot.hears(BTN.review, (ctx) => replyReview(ctx));
+  bot.hears(BTN.practice, (ctx) => startPractice(ctx));
   bot.hears(BTN.due, (ctx) => replyDue(ctx));
   bot.hears(BTN.list, (ctx) => replyList(ctx));
   bot.hears(BTN.remind, (ctx) => replyRemindStatus(ctx));
@@ -343,6 +447,53 @@ export function createBot(): Telegraf {
     await ctx.reply("⏹ Сессия завершена. Хорошая работа!");
   });
 
+  // ---- practice: start from an inline button (e.g. the daily nudge) ----
+  bot.action("pr:start", async (ctx) => {
+    await ctx.answerCbQuery();
+    await startPractice(ctx);
+  });
+
+  // ---- practice: stop the drill ----
+  bot.action("pr:stop", async (ctx) => {
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const p = st.practice;
+    st.practice = undefined;
+    await ctx.answerCbQuery("Готово");
+    await ctx.editMessageReplyMarkup(undefined);
+    await ctx.reply(p ? `⏹ Практика остановлена — верно ${p.correct}/${p.graded.size}. Хорошая работа!` : "⏹ Готово.");
+  });
+
+  // ---- practice: a voice answer (transcribe → grade) ----
+  bot.on("voice", async (ctx) => {
+    const telegramId = String(ctx.from.id);
+    const chatId = String(ctx.chat.id);
+    const st = stateFor(chatId);
+    if (!st.practice) {
+      await ctx.reply("🎙 Голосовые я слушаю во время практики. Нажми «🎯 Практика», чтобы начать.");
+      return;
+    }
+    if (!take(`bot:practice:${telegramId}`, 20, 60_000)) {
+      await ctx.reply("Слишком часто — подожди минутку.");
+      return;
+    }
+    await ctx.replyWithChatAction("typing");
+    try {
+      const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
+      const resp = await fetch(link.href);
+      const b64 = Buffer.from(await resp.arrayBuffer()).toString("base64");
+      const text = await transcribeAudio({ base64: b64, format: "ogg", sourceLang: st.practice.pair.source });
+      if (!text) {
+        await ctx.reply("🎙 Не разобрал запись — попробуй ещё раз или напиши ответ текстом.");
+        return;
+      }
+      await ctx.replyWithHTML(`🎙 <i>${esc(text)}</i>`, { link_preview_options: { is_disabled: true } });
+      await handlePracticeAnswer(ctx, st, text);
+    } catch (err) {
+      console.error("voice practice failed:", (err as Error).message);
+      await ctx.reply("🎙 Не смог обработать голос — напиши ответ текстом.");
+    }
+  });
+
   // ---- add a tutor-suggested word ----
   bot.action("tut:addall", async (ctx) => {
     const telegramId = String(ctx.from.id);
@@ -372,6 +523,17 @@ export function createBot(): Telegraf {
     if (!text || text.startsWith("/")) return; // commands handled above
     const telegramId = String(ctx.from.id);
     const chatId = String(ctx.chat.id);
+    // While a practice drill is active, plain text is the learner's answer — route
+    // it to the coach instead of the free-form tutor.
+    const active = stateFor(chatId);
+    if (active.practice) {
+      if (!take(`bot:practice:${telegramId}`, 20, 60_000)) {
+        await ctx.reply("Слишком часто — подожди минутку.");
+        return;
+      }
+      await handlePracticeAnswer(ctx, active, text);
+      return;
+    }
     if (!take(`bot:tutor:${telegramId}`, 20, 60_000)) {
       await ctx.reply("Слишком часто — подожди минутку.");
       return;
@@ -431,11 +593,15 @@ function startReminderLoop(bot: Telegraf): void {
         const pair = await resolveUserPair(u.telegramId);
         const n = await dueCountForUser(u.telegramId, pair);
         if (n === 0) continue;
+        const weak = await weakCountForUser(u.telegramId, pair);
         lastSent.set(u.telegramId, day);
+        const weakLine = weak > 0 ? `\n🎯 И ${weak} ${weak === 1 ? "слово ускользает" : "слов ускользают"} — можно отработать с наставником.` : "";
+        const buttons = [[Markup.button.callback("▶️ Повторить", "rv:next")]];
+        if (weak > 0) buttons.push([Markup.button.callback("🎯 Практика со слабыми", "pr:start")]);
         try {
-          await bot.telegram.sendMessage(u.botChatId, `⏰ Пора повторить: <b>${n}</b> ${n === 1 ? "карточка" : "карточек"} ждёт.`, {
+          await bot.telegram.sendMessage(u.botChatId, `⏰ Пора повторить: <b>${n}</b> ${n === 1 ? "карточка" : "карточек"} ждёт.${weakLine}`, {
             parse_mode: "HTML",
-            ...Markup.inlineKeyboard([[Markup.button.callback("▶️ Повторить", "rv:next")]]),
+            ...Markup.inlineKeyboard(buttons),
           });
         } catch (err) {
           // A user may have blocked the bot — skip and continue.
@@ -466,6 +632,7 @@ export function launchBot(): void {
   void bot.telegram
     .setMyCommands([
       { command: "review", description: "Повторить карточки" },
+      { command: "practice", description: "Практика с наставником" },
       { command: "due", description: "Сколько ждёт повторения" },
       { command: "remind", description: "Напоминания о повторении" },
       { command: "list", description: "Мои слова" },
