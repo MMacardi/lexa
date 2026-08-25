@@ -71,6 +71,7 @@ export default function CoachPage() {
   const [pair, setPair] = useState(() => readPair());
   const [picks, setPicks] = useState<Pick[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [theme, setTheme] = useState("");
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -98,7 +99,7 @@ export default function CoachPage() {
     if (loading) return;
     setLoading(true);
     try {
-      const r = await api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLevel(pair.source) ?? undefined, count: 8 });
+      const r = await api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLevel(pair.source) ?? undefined, count: 8, theme: theme.trim() || undefined });
       setPicks(r.picks);
       setSel(new Set(r.picks.map((p) => p.word)));
       setLoaded(true);
@@ -295,6 +296,18 @@ export default function CoachPage() {
           <span className="text-ink-faint">→</span>
           <LangSelect value={pair.target} onChange={setTarget} />
         </div>
+
+        {/* optional theme — otherwise picks follow what you've recently studied */}
+        <input
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") loadPicks();
+          }}
+          placeholder={t("coach.themePlaceholder")}
+          maxLength={60}
+          className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+        />
 
         {/* picks */}
         {loading && picks.length === 0 ? (

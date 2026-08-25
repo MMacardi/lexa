@@ -426,7 +426,7 @@ export const api = {
   removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
 
   // Coach "Daily picks": level-appropriate words the learner doesn't have yet.
-  coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number }) =>
+  coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number; theme?: string }) =>
     http<{ picks: { word: string; reason: string }[] }>(`/api/coach/picks`, { method: "POST", body: JSON.stringify(payload) }),
 
   // Adaptive Coach practice: one drill turn (the client keeps the message thread).

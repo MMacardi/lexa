@@ -22,6 +22,7 @@ export async function suggestDailyPicks(params: {
   targetLang: string;
   level?: string;
   count?: number;
+  theme?: string;
 }): Promise<{ picks: { word: string; reason: string }[] }> {
   const source = langName(params.sourceLang);
   const target = langName(params.targetLang);
@@ -29,19 +30,34 @@ export async function suggestDailyPicks(params: {
 
   const user = await prisma.user.findUnique({ where: { telegramId: params.telegramId }, select: { id: true } });
   const owned = user
-    ? await prisma.word.findMany({ where: { userId: user.id, sourceLang: params.sourceLang }, select: { word: true } })
+    ? await prisma.word.findMany({
+        where: { userId: user.id, sourceLang: params.sourceLang },
+        select: { word: true },
+        orderBy: { createdAt: "desc" },
+      })
     : [];
   const known = owned.map((w) => w.word.trim().toLowerCase());
   const knownSet = new Set(known);
   // Cap the list we put in the prompt (a huge deck would bloat it); the post-filter
   // below still catches anything the model repeats beyond the cap.
   const knownForPrompt = known.slice(0, 400);
+  // The most recent additions signal what the learner is into right now — use them
+  // so the picks feel like a continuation, not a random word list (a real mentor
+  // notices your current topic). An explicit theme, when given, takes priority.
+  const recent = owned.slice(0, 15).map((w) => w.word);
 
   const levelLine = params.level ? `The learner's level is ${params.level}. Match it — not too easy, not too advanced. ` : "";
+  const theme = params.theme?.trim();
+  const focusLine = theme
+    ? `Focus the picks on this topic the learner asked for: "${theme}". `
+    : recent.length
+      ? `The learner has recently been studying: ${recent.join(", ")}. Prefer words that connect to those ` +
+        `topics/domains (natural next words, common collocations, same themes), while staying varied. `
+      : "";
 
   const result = await chatJson({
     system:
-      `You are a ${source} tutor for a ${target} speaker. ${levelLine}` +
+      `You are a ${source} tutor for a ${target} speaker. ${levelLine}${focusLine}` +
       `Suggest ${count} genuinely useful ${source} words or short phrases the learner should know at their level — ` +
       `high-frequency and practical, a natural mix of parts of speech (not obscure or repetitive). ` +
       `Do NOT suggest anything already in the learner's list. For EACH, give a very short reason it's worth learning, ` +
