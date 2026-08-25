@@ -60,6 +60,17 @@ export async function setUserPair(telegramId: string, source: string, target: st
   await prisma.user.update({ where: { telegramId }, data: { preferredSource: source, preferredTarget: target } });
 }
 
+/** Distinct language pairs the learner actually has cards in (for a button picker). */
+export async function distinctPairsForUser(telegramId: string): Promise<Pair[]> {
+  const rows = await prisma.word.findMany({
+    where: { user: { telegramId } },
+    select: { sourceLang: true, targetLang: true },
+    distinct: ["sourceLang", "targetLang"],
+    take: 12,
+  });
+  return rows.map((r) => ({ source: r.sourceLang, target: r.targetLang }));
+}
+
 const dueWhere = (telegramId: string, pair: Pair, now: Date) => ({
   user: { telegramId },
   sourceLang: pair.source,
