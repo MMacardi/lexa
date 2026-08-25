@@ -435,6 +435,31 @@ const DICT: Record<string, Entry> = {
   "coach.gradeCorrect": { en: "Correct", ru: "Верно", zh: "正确" },
   "coach.gradePartial": { en: "Almost", ru: "Почти", zh: "接近" },
   "coach.gradeWrong": { en: "Not quite", ru: "Мимо", zh: "不对" },
+  // Coach's daily voice on Today (adaptive, no AI)
+  "coach.briefWeak": {
+    en: "{n} words keep slipping — let's lock them in together first.",
+    ru: "{n} слов всё ускользают — давай сперва закрепим их вместе.",
+    zh: "有 {n} 个词老是记不牢——我们先一起把它们攻克。",
+  },
+  "coach.briefWeakCta": { en: "Practice", ru: "Отработать", zh: "练习" },
+  "coach.briefDue": {
+    en: "{n} words are due. Five focused minutes keeps you on track.",
+    ru: "{n} слов пора повторить. Пять минут — и ты в графике.",
+    zh: "{n} 个词到期了。专注五分钟就能跟上进度。",
+  },
+  "coach.briefDueCta": { en: "Review", ru: "Повторить", zh: "复习" },
+  "coach.briefNew": {
+    en: "All reviewed! Ready to meet {n} new words today?",
+    ru: "Всё повторено! Готов познакомиться с {n} новыми словами сегодня?",
+    zh: "全部复习完啦！今天准备认识 {n} 个新词吗？",
+  },
+  "coach.briefNewCta": { en: "Learn new", ru: "Учить новые", zh: "学新词" },
+  "coach.briefIdle": {
+    en: "You're all caught up. Add words or read something — I'll pick what to learn next.",
+    ru: "Ты всё разобрал. Добавь слов или почитай — я подберу, что учить дальше.",
+    zh: "你已全部跟上。添加单词或读点东西——我来挑下一步学什么。",
+  },
+  "coach.briefIdleCta": { en: "Open Coach", ru: "К наставнику", zh: "打开导师" },
   // Review plan (new-word pacing)
   "coach.planReviewTitle": { en: "Your review plan", ru: "Твой план повторения", zh: "你的复习计划" },
   "coach.planReviewLine": {
