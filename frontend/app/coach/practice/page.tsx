@@ -31,17 +31,44 @@ export default function CoachPracticePage() {
   });
   const deck = words ?? [];
 
-  // Pick the words to drill: weak spots first, then due, then anything — all from a
-  // single language pair (the drill runs in one pair) so the coach stays coherent.
+  // A caller (a collection, an imported deck) can hand us specific words to drill
+  // via sessionStorage; otherwise we pick the learner's weak/due words.
+  const [focusIds, setFocusIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("lexa.coachFocusIds");
+      if (raw) {
+        setFocusIds(JSON.parse(raw) as string[]);
+        sessionStorage.removeItem("lexa.coachFocusIds");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Pick the words to drill: if a caller handed us specific words (a collection /
+  // imported deck) use those; otherwise weak spots first, then due, then anything.
+  // All from a single language pair so the coach stays coherent.
   const drill = useMemo(() => {
-    if (deck.length === 0) return { words: [] as Word[], source: "en", target: "zh" };
-    const weak = deck.filter((w) => (w.lapses ?? 0) >= 2);
-    const due = deck.filter(isDue);
-    const ordered = [...new Map([...weak, ...due, ...deck].map((w) => [w.id, w])).values()];
+    if (deck.length === 0) return { words: [] as Word[], source: "en", target: "zh", focused: false };
+    let ordered: Word[];
+    let focused = false;
+    if (focusIds && focusIds.length) {
+      const byId = new Map(deck.map((w) => [w.id, w]));
+      ordered = focusIds.map((id) => byId.get(id)).filter(Boolean) as Word[];
+      focused = ordered.length > 0;
+    } else {
+      ordered = [];
+    }
+    if (!focused) {
+      const weak = deck.filter((w) => (w.lapses ?? 0) >= 2);
+      const due = deck.filter(isDue);
+      ordered = [...new Map([...weak, ...due, ...deck].map((w) => [w.id, w])).values()];
+    }
     const pair = `${ordered[0].sourceLang}|${ordered[0].targetLang}`;
     const same = ordered.filter((w) => `${w.sourceLang}|${w.targetLang}` === pair).slice(0, 8);
-    return { words: same, source: ordered[0].sourceLang, target: ordered[0].targetLang };
-  }, [deck]);
+    return { words: same, source: ordered[0].sourceLang, target: ordered[0].targetLang, focused };
+  }, [deck, focusIds]);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");

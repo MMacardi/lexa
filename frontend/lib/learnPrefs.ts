@@ -575,6 +575,37 @@ export function hasTranscription(lang: string): boolean {
   return lang === "zh" || lang === "zh-Hant" || lang === "ja" || lang === "ko";
 }
 
+// --- Study pacing: how many brand-new words to introduce per review session ---
+// A big import (e.g. 500 HSK words) shouldn't dump every new card on you at once.
+// The review queue serves all due cards + at most this many new ones, so learning
+// is paced into a plan instead of an avalanche.
+export const NEW_PER_DAY_OPTIONS = [5, 10, 15, 20, 30, 50] as const;
+export const DEFAULT_NEW_PER_DAY = 15;
+const NEW_PER_DAY_KEY = "lexa.newPerDay";
+export function getNewPerDay(): number {
+  if (typeof window === "undefined") return DEFAULT_NEW_PER_DAY;
+  const v = Number(localStorage.getItem(NEW_PER_DAY_KEY));
+  return Number.isFinite(v) && v >= 1 && v <= 200 ? Math.round(v) : DEFAULT_NEW_PER_DAY;
+}
+export function setNewPerDay(n: number) {
+  localStorage.setItem(NEW_PER_DAY_KEY, String(Math.max(1, Math.min(200, Math.round(n)))));
+  window.dispatchEvent(new Event(EVT));
+}
+export function useNewPerDay(): number {
+  const [n, setN] = useState(DEFAULT_NEW_PER_DAY);
+  useEffect(() => {
+    const sync = () => setN(getNewPerDay());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return n;
+}
+
 // --- Word-family graph: how a tapped synonym/antonym is added ---
 // "ask" (default) pops the AI-vs-manual chooser each time; "ai"/"manual" skip it
 // (set via the chooser's "remember my choice" checkbox; reset in Account).

@@ -435,6 +435,20 @@ const DICT: Record<string, Entry> = {
   "coach.gradeCorrect": { en: "Correct", ru: "Верно", zh: "正确" },
   "coach.gradePartial": { en: "Almost", ru: "Почти", zh: "接近" },
   "coach.gradeWrong": { en: "Not quite", ru: "Мимо", zh: "不对" },
+  // Review plan (new-word pacing)
+  "coach.planReviewTitle": { en: "Your review plan", ru: "Твой план повторения", zh: "你的复习计划" },
+  "coach.planReviewLine": {
+    en: "{n} new words ahead. At {per}/day you'll have them all in ~{days} days — about {mins} min/day.",
+    ru: "Впереди {n} новых слов. По {per}/день ты пройдёшь все за ~{days} дн. — примерно {mins} мин/день.",
+    zh: "还有 {n} 个新词。按每天 {per} 个，约 {days} 天全部学完——每天约 {mins} 分钟。",
+  },
+  "coach.planPace": { en: "Pace", ru: "Темп", zh: "节奏" },
+  "coach.planPerDay": { en: "new words / day", ru: "новых слов / день", zh: "新词 / 天" },
+  "coach.planAllCaught": {
+    en: "All caught up on new words — it's review-only from here. Add or import more anytime.",
+    ru: "Все новые слова введены — дальше только повторения. Добавляй или импортируй ещё в любой момент.",
+    zh: "新词已全部引入——接下来只做复习。随时可添加或导入更多。",
+  },
   "coach.importTitle": { en: "Anything → deck", ru: "Из чего угодно → дек", zh: "任何内容 → 卡组" },
   "coach.importHint": {
     en: "Paste a word list or drop a PDF (textbook, article) — Lexa turns it into a reviewable deck.",
@@ -1047,6 +1061,7 @@ const DICT: Record<string, Entry> = {
   "col.more": { en: "+{n} more", ru: "+{n} ещё", zh: "+{n} 个" },
   "col.study": { en: "Study", ru: "Учить", zh: "学习" },
   "col.quiz": { en: "Quiz", ru: "Квиз", zh: "测验" },
+  "col.practice": { en: "Practice", ru: "Практика", zh: "练习" },
   "col.viewWords": { en: "View words →", ru: "Открыть слова →", zh: "查看单词 →" },
   "col.needWords": { en: "Add words to this set first", ru: "Сначала добавьте слова в набор", zh: "请先向该合集添加单词" },
   "col.needFour": { en: "Needs at least 4 words for a quiz", ru: "Для квиза нужно минимум 4 слова", zh: "测验至少需要 4 个单词" },

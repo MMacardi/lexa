@@ -10,6 +10,7 @@ import {
   useCardLayout,
   setCardLayout,
   getRecentPairs,
+  getNewPerDay,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -156,10 +157,21 @@ export default function FlashcardsPage() {
     if (synced) qc.invalidateQueries({ queryKey: ["stats"] });
   }
 
+  // Pace new words: serve all due-for-review cards + at most newPerDay brand-new
+  // ones, so a huge import doesn't dump every new card at once. Only applies in the
+  // default "due" mode — "review all" deliberately ignores pacing.
+  function capNewCards(list: Word[]) {
+    const cap = getNewPerDay();
+    const reviewed = list.filter((w) => w.reviewCount > 0);
+    const fresh = list.filter((w) => w.reviewCount === 0);
+    return [...reviewed, ...fresh.slice(0, cap)];
+  }
+
   function buildDeck() {
-    return words.filter(
+    const filtered = words.filter(
       (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
     );
+    return onlyDue ? capNewCards(filtered) : filtered;
   }
 
   function start() {
@@ -207,9 +219,10 @@ export default function FlashcardsPage() {
 
   // ---------------- Setup screen ----------------
   if (!started) {
-    const candidate = words.filter(
+    const candidateAll = words.filter(
       (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
     );
+    const candidate = onlyDue ? capNewCards(candidateAll) : candidateAll;
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
