@@ -9,7 +9,7 @@ import { langLabel } from "@/lib/langs";
 import { getShowTextLevel } from "@/lib/learnPrefs";
 import { Select } from "@/components/ui/Select";
 import { SaveModal } from "@/components/ReaderTextTools";
-import { LayoutGrid, List, Clock, TriangleAlert, Trash2, Pencil } from "lucide-react";
+import { LayoutGrid, List, Clock, TriangleAlert, Trash2, Pencil, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Inline "My texts" library on the reader's input page: browse saved texts as
@@ -23,6 +23,8 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [fPair, setFPair] = useState(""); // "sourceLang|targetLang" filter, "" = all
   const [fColl, setFColl] = useState(""); // collection filter, "" = all
+  const [fLevel, setFLevel] = useState(""); // CEFR level filter, "" = all
+  const [query, setQuery] = useState(""); // title/snippet search
   const [editing, setEditing] = useState<ReaderTextFull | null>(null);
   const showLevel = getShowTextLevel();
 
@@ -31,22 +33,38 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
     queryFn: () => api.readerTexts(accountId),
   });
 
-  // Distinct language pairs + collections present, for the filter dropdowns.
+  // Distinct language pairs + collections + levels present, each with a count of
+  // how many texts match, shown next to the option (e.g. "English → Russian · 3").
   const pairOptions = useMemo(() => {
-    const m = new Map<string, string>();
+    const label = new Map<string, string>();
+    const count = new Map<string, number>();
     for (const it of items ?? []) {
-      if (it.sourceLang && it.targetLang) m.set(`${it.sourceLang}|${it.targetLang}`, `${langLabel(it.sourceLang)} → ${langLabel(it.targetLang)}`);
+      if (it.sourceLang && it.targetLang) {
+        const key = `${it.sourceLang}|${it.targetLang}`;
+        label.set(key, `${langLabel(it.sourceLang)} → ${langLabel(it.targetLang)}`);
+        count.set(key, (count.get(key) ?? 0) + 1);
+      }
     }
-    return [...m].map(([value, label]) => ({ value, label }));
+    return [...label].map(([value, l]) => ({ value, label: `${l} · ${count.get(value)}` }));
   }, [items]);
   const collOptions = useMemo(() => {
-    const s = new Set<string>();
-    for (const it of items ?? []) if (it.collection) s.add(it.collection);
-    return [...s].map((c) => ({ value: c, label: c }));
+    const count = new Map<string, number>();
+    for (const it of items ?? []) if (it.collection) count.set(it.collection, (count.get(it.collection) ?? 0) + 1);
+    return [...count].map(([value, n]) => ({ value, label: `${value} · ${n}` }));
+  }, [items]);
+  const levelOptions = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const it of items ?? []) if (it.level) count.set(it.level, (count.get(it.level) ?? 0) + 1);
+    return [...count.keys()].sort().map((lvl) => ({ value: lvl, label: `${lvl} · ${count.get(lvl)}` }));
   }, [items]);
 
+  const q = query.trim().toLowerCase();
   const shown = (items ?? []).filter(
-    (it) => (!fPair || `${it.sourceLang}|${it.targetLang}` === fPair) && (!fColl || it.collection === fColl),
+    (it) =>
+      (!fPair || `${it.sourceLang}|${it.targetLang}` === fPair) &&
+      (!fColl || it.collection === fColl) &&
+      (!fLevel || it.level === fLevel) &&
+      (!q || it.title.toLowerCase().includes(q) || (it.snippet ?? "").toLowerCase().includes(q)),
   );
 
   async function open(id: string) {
@@ -79,6 +97,18 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="mr-auto font-serif text-[20px] font-medium text-ink">{t("reader.myTexts")}</h2>
+        {items.length > 3 && (
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("reader.searchTexts")}
+              aria-label={t("reader.searchTexts")}
+              className="h-9 w-[150px] rounded-full border border-black/[0.08] bg-surface pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+            />
+          </div>
+        )}
         {pairOptions.length > 1 && (
           <Select
             value={fPair}
@@ -97,6 +127,16 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
             placeholder={t("reader.allColls")}
             className="w-[150px]"
             options={[{ value: "", label: t("reader.allColls") }, ...collOptions]}
+          />
+        )}
+        {showLevel && levelOptions.length > 1 && (
+          <Select
+            value={fLevel}
+            onChange={setFLevel}
+            ariaLabel={t("reader.filterLevel")}
+            placeholder={t("reader.allLevels")}
+            className="w-[120px]"
+            options={[{ value: "", label: t("reader.allLevels") }, ...levelOptions]}
           />
         )}
         <div className="flex items-center gap-1 rounded-full border border-black/[0.08] p-0.5">
