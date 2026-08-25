@@ -1031,6 +1031,27 @@ const DICT: Record<string, Entry> = {
     ru: "Запомнить мой выбор (изменить в Настройках → Добавление слов)",
     zh: "记住我的选择（可在 设置 → 添加单词 中更改）",
   },
+  // Coach memory (what the personal mentor remembers about you)
+  "coachmem.title": { en: "What your coach knows about you", ru: "Что наставник знает о тебе", zh: "导师对你的了解" },
+  "coachmem.hint": {
+    en: "Your coach remembers this between sessions and tailors practice, tips and word picks to you.",
+    ru: "Наставник помнит это между сессиями и подстраивает практику, подсказки и подбор слов под тебя.",
+    zh: "导师会跨会话记住这些，并据此调整练习、提示和选词。",
+  },
+  "coachmem.goal": { en: "Your goal", ru: "Твоя цель", zh: "你的目标" },
+  "coachmem.goalPh": { en: "e.g. IELTS 7.0, a trip to Japan", ru: "напр. IELTS 7.0, поездка в Японию", zh: "如 雅思 7.0、日本旅行" },
+  "coachmem.interests": { en: "Interests / topics", ru: "Интересы / темы", zh: "兴趣 / 主题" },
+  "coachmem.interestsPh": { en: "e.g. tech, cooking, travel", ru: "напр. технологии, кулинария, путешествия", zh: "如 科技、烹饪、旅行" },
+  "coachmem.notes": { en: "Coach's observations", ru: "Наблюдения наставника", zh: "导师的观察" },
+  "coachmem.notesEmpty": { en: "The coach fills this in as it gets to know you.", ru: "Наставник заполнит это, узнавая тебя.", zh: "导师会在了解你的过程中填写。" },
+  "coachmem.notesHint": {
+    en: "The coach updates this after your sessions — you can edit or clear it anytime.",
+    ru: "Наставник дописывает это после практик — можешь редактировать или очистить в любой момент.",
+    zh: "导师会在练习后更新——你随时可以编辑或清除。",
+  },
+  "coachmem.save": { en: "Save", ru: "Сохранить", zh: "保存" },
+  "coachmem.saved": { en: "Saved", ru: "Сохранено", zh: "已保存" },
+  "coachmem.clear": { en: "Clear", ru: "Очистить", zh: "清除" },
   // Settings group headings + the graph "adding method" control
   "settings.groupAdding": { en: "Adding words", ru: "Добавление слов", zh: "添加单词" },
   "settings.groupStudy": { en: "Study", ru: "Обучение", zh: "学习" },

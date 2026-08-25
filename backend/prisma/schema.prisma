@@ -29,6 +29,13 @@ model User {
   // Hour of day (0–23, server time) the learner wants their daily review nudge,
   // or null for no reminders. Chosen in-chat via /remind.
   reminderHour Int?
+  // Coach memory — what the personal mentor remembers about the learner across
+  // sessions, so it acts like a real agent, not a stateless chat. `goal` and
+  // `interests` are learner-set; `notes` is a short, model-maintained summary of
+  // recurring mistakes / preferences, capped in length.
+  coachGoal      String    @default("")
+  coachInterests String    @default("")
+  coachNotes     String    @default("")
   // Social: a short code others use to add you as a friend, and who referred you.
   referralCode String?     @unique
   referredById String?

@@ -11,6 +11,7 @@ export async function tutorChat(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   sourceLang?: string;
   targetLang?: string;
+  profileNote?: string; // "about this learner" memory, prepended to the prompt
 }): Promise<TutorChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
@@ -23,6 +24,7 @@ export async function tutorChat(params: {
     {
       role: "system",
       content:
+        (params.profileNote ?? "") +
         `You are a friendly, encouraging ${source} tutor for a learner whose language is ${target}. ` +
         `Answer in the "answer" field ENTIRELY in ${target}, concise and practical. Help them learn ` +
         `${source}: meanings, usage, grammar, example sentences, and picking vocabulary. ` +

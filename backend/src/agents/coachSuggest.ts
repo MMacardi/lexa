@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "../services/db.js";
 import { chatJson } from "../services/llm.js";
+import { getProfile, profilePreamble } from "../services/coachMemory.js";
 import { langName, scriptNote } from "../lib/langs.js";
 
 // Coach "Daily picks": suggest useful, level-appropriate words the learner does
@@ -55,8 +56,11 @@ export async function suggestDailyPicks(params: {
         `topics/domains (natural next words, common collocations, same themes), while staying varied. `
       : "";
 
+  const memory = profilePreamble(await getProfile(params.telegramId));
+
   const result = await chatJson({
     system:
+      memory +
       `You are a ${source} tutor for a ${target} speaker. ${levelLine}${focusLine}` +
       `Suggest ${count} genuinely useful ${source} words or short phrases the learner should know at their level — ` +
       `high-frequency and practical, a natural mix of parts of speech (not obscure or repetitive). ` +
