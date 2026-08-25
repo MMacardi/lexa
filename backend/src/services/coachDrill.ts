@@ -38,9 +38,14 @@ export async function coachDrill(params: {
         `\n\nYour job: run a short, lively workout over EXACTLY these words the learner is studying:\n` +
         `${wordList}\n\n` +
         `How the session goes:\n` +
-        `1) Open with one short friendly line, then immediately start with the FIRST word.\n` +
+        `1) Your VERY FIRST message must already contain the first task — a short friendly clause AND the ` +
+        `first word with a concrete request. NAME the word explicitly, and ask the learner to DO something ` +
+        `with it. NEVER send a vague opener like "let's start with the first word" without actually naming ` +
+        `it. Example shape: "Привет! Начнём со слова «resilient» — составь с ним короткое предложение." ` +
+        `Always set "drillWord" to the word you are asking about.\n` +
         `2) Drill ONE word at a time. Ask the learner to USE it — compose a natural ${source} sentence ` +
-        `with it, answer a small question using it, or translate a short phrase. Vary the task.\n` +
+        `with it, answer a small question using it, or translate a short phrase. Always name the specific ` +
+        `word you're asking about in the message. Vary the task.\n` +
         `3) When the learner replies, GRADE their previous answer: set "grade" to "correct", "partial" ` +
         `or "wrong", and "gradedWord" to that word. Give brief, specific feedback in "say" — praise what ` +
         `was right, fix mistakes, and show the corrected ${source} form when needed. Then ask about the ` +
