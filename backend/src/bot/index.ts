@@ -12,6 +12,7 @@ import {
   ensureBotUser,
   resolveUserPair,
   setUserPair,
+  distinctPairsForUser,
   dueWordsForUser,
   dueCountForUser,
   drillWordsForUser,
@@ -107,6 +108,7 @@ const BTN = {
   list: "📚 Мои слова",
   remind: "🔔 Напоминания",
   add: "➕ Добавить слово",
+  lang: "🗣 Язык",
   site: "🌐 Сайт",
 } as const;
 const mainKeyboard = () =>
@@ -114,7 +116,7 @@ const mainKeyboard = () =>
     [BTN.review, BTN.practice],
     [BTN.due, BTN.list],
     [BTN.remind, BTN.add],
-    [BTN.site],
+    [BTN.lang, BTN.site],
   ]).resize();
 
 const showKeyboard = (id: string) =>
@@ -156,6 +158,24 @@ async function replyDue(ctx: Context): Promise<void> {
   );
 }
 
+const WORDS_PER_PAGE = 10;
+
+// Render one page of the vocabulary + prev/next inline buttons. Paginating avoids
+// Telegram's 4096-char message cap, which silently dropped big lists (looked hung).
+function wordsPage(words: { word: string; meaningZh: string | null }[], page: number) {
+  const pages = Math.max(1, Math.ceil(words.length / WORDS_PER_PAGE));
+  const p = Math.min(Math.max(0, page), pages - 1);
+  const slice = words.slice(p * WORDS_PER_PAGE, p * WORDS_PER_PAGE + WORDS_PER_PAGE);
+  const body = slice
+    .map((w, i) => `${p * WORDS_PER_PAGE + i + 1}. <b>${esc(w.word)}</b>${w.meaningZh ? " — " + esc(w.meaningZh) : ""}`)
+    .join("\n");
+  const text = `📚 <b>Твои слова (${words.length})</b> · стр. ${p + 1}/${pages}\n${body}`;
+  const nav = [];
+  if (p > 0) nav.push(Markup.button.callback("◀ Назад", `wl:${p - 1}`));
+  if (p < pages - 1) nav.push(Markup.button.callback("Дальше ▶", `wl:${p + 1}`));
+  return { text, markup: nav.length ? Markup.inlineKeyboard([nav]) : undefined };
+}
+
 async function replyList(ctx: Context): Promise<void> {
   if (!ctx.from) return;
   const words = await listWordsForUser(String(ctx.from.id));
@@ -163,11 +183,32 @@ async function replyList(ctx: Context): Promise<void> {
     await ctx.reply("Пока пусто. Добавь слово: отправь «add sanction».");
     return;
   }
-  const body = words
-    .slice(0, 50)
-    .map((w) => `• <b>${esc(w.word)}</b>${w.meaningZh ? " — " + esc(w.meaningZh) : ""}`)
-    .join("\n");
-  await ctx.replyWithHTML(`📚 <b>Твои слова (${words.length})</b>\n${body}`);
+  const { text, markup } = wordsPage(words, 0);
+  await ctx.replyWithHTML(text, markup ? { link_preview_options: { is_disabled: true }, ...markup } : undefined);
+}
+
+// Inline picker of common reminder times (whole hours; Telegram has no time input).
+const REMIND_HOURS = [6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 23];
+function remindKeyboard(current: number | null) {
+  const rows = [];
+  for (let i = 0; i < REMIND_HOURS.length; i += 4) {
+    rows.push(
+      REMIND_HOURS.slice(i, i + 4).map((h) =>
+        Markup.button.callback(`${current === h ? "✅ " : ""}${String(h).padStart(2, "0")}:00`, `rm:${h}`),
+      ),
+    );
+  }
+  rows.push([Markup.button.callback(current === null ? "✅ 🔕 Выключено" : "🔕 Выключить", "rm:off")]);
+  return Markup.inlineKeyboard(rows);
+}
+
+function remindText(cur: number | null): string {
+  return (
+    (cur === null
+      ? "🔕 Напоминания выключены."
+      : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
+    "\n\nВыбери время кнопкой ниже 👇"
+  );
 }
 
 async function replyRemindStatus(ctx: Context): Promise<void> {
@@ -175,11 +216,44 @@ async function replyRemindStatus(ctx: Context): Promise<void> {
   const telegramId = String(ctx.from.id);
   await ensureBotUser(telegramId, String(ctx.chat.id));
   const cur = await getReminderHour(telegramId);
+  await ctx.replyWithHTML(remindText(cur), remindKeyboard(cur));
+}
+
+// Inline picker for the learner's language pair — the pairs they already have
+// cards in, plus a few common presets, so it never needs the /lang command.
+async function replyLangPicker(ctx: Context): Promise<void> {
+  if (!ctx.from || !ctx.chat) return;
+  const telegramId = String(ctx.from.id);
+  await ensureBotUser(telegramId, String(ctx.chat.id));
+  const cur = await resolveUserPair(telegramId);
+  const seen = new Set<string>();
+  const pairs: { source: string; target: string }[] = [];
+  for (const p of await distinctPairsForUser(telegramId)) {
+    const k = `${p.source}|${p.target}`;
+    if (!seen.has(k)) {
+      seen.add(k);
+      pairs.push(p);
+    }
+  }
+  for (const [source, target] of [
+    ["en", "ru"],
+    ["ru", "en"],
+    ["en", "zh"],
+    ["zh", "en"],
+  ] as const) {
+    const k = `${source}|${target}`;
+    if (!seen.has(k)) {
+      seen.add(k);
+      pairs.push({ source, target });
+    }
+  }
+  const rows = pairs.slice(0, 8).map((p) => {
+    const on = p.source === cur.source && p.target === cur.target;
+    return [Markup.button.callback(`${on ? "✅ " : ""}${langName(p.source)} → ${langName(p.target)}`, `lp:${p.source}:${p.target}`)];
+  });
   await ctx.replyWithHTML(
-    (cur === null
-      ? "🔕 Напоминания выключены."
-      : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
-      "\n\nЗадать время: <code>/remind 9</code> (час 0–23)\nВыключить: <code>/remind off</code>",
+    `🗣 Текущая пара: <b>${esc(langName(cur.source))} → ${esc(langName(cur.target))}</b>\nВыбери ниже или задай свою: <code>/lang en ru</code>`,
+    Markup.inlineKeyboard(rows),
   );
 }
 
@@ -404,7 +478,37 @@ export function createBot(): Telegraf {
   bot.hears(BTN.list, (ctx) => replyList(ctx));
   bot.hears(BTN.remind, (ctx) => replyRemindStatus(ctx));
   bot.hears(BTN.add, (ctx) => replyAddHelp(ctx));
+  bot.hears(BTN.lang, (ctx) => replyLangPicker(ctx));
   bot.hears(BTN.site, (ctx) => replySite(ctx));
+
+  // ---- inline pagination for "Мои слова" ----
+  bot.action(/^wl:(\d+)$/, async (ctx) => {
+    const words = await listWordsForUser(String(ctx.from.id));
+    const { text, markup } = wordsPage(words, Number(ctx.match[1]));
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(text, { parse_mode: "HTML", link_preview_options: { is_disabled: true }, ...(markup ?? {}) });
+  });
+
+  // ---- reminder time picker ----
+  bot.action(/^rm:(off|\d{1,2})$/, async (ctx) => {
+    const telegramId = String(ctx.from.id);
+    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const hour = ctx.match[1] === "off" ? null : Number(ctx.match[1]);
+    await setReminderHour(telegramId, hour);
+    await ctx.answerCbQuery(hour === null ? "🔕 Выключено" : `🔔 ${String(hour).padStart(2, "0")}:00`);
+    await ctx.editMessageText(remindText(hour), { parse_mode: "HTML", ...remindKeyboard(hour) });
+  });
+
+  // ---- language pair picker ----
+  bot.action(/^lp:([a-zA-Z-]+):([a-zA-Z-]+)$/, async (ctx) => {
+    const telegramId = String(ctx.from.id);
+    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const source = ctx.match[1].toLowerCase();
+    const target = ctx.match[2].toLowerCase();
+    await setUserPair(telegramId, source, target);
+    await ctx.answerCbQuery(`${langName(source)} → ${langName(target)}`);
+    await ctx.editMessageText(`✅ Пара: <b>${esc(langName(source))} → ${esc(langName(target))}</b>`, { parse_mode: "HTML" });
+  });
 
   // ---- review callbacks ----
   bot.action("rv:next", async (ctx) => {
