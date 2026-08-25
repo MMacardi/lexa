@@ -10,6 +10,7 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
+import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
 import { Compass, ArrowLeft, Loader2, Check, Minus, X as XIcon, Send, RotateCcw, Mic, Square, Lightbulb, SkipForward, User } from "lucide-react";
 
@@ -116,6 +117,7 @@ export default function CoachPracticePage() {
   const [done, setDone] = useState(false);
   const [scores, setScores] = useState<Record<string, Grade>>({});
   const [idleHint, setIdleHint] = useState(false);
+  const [currentWord, setCurrentWord] = useState(""); // the word being drilled now
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -145,6 +147,7 @@ export default function CoachPracticePage() {
         level: getLevel(pair.source) ?? undefined,
       });
       setTurns((cur) => [...cur, { role: "assistant", content: res.say, grade: res.grade }]);
+      if (res.drillWord) setCurrentWord(res.drillWord);
       if (res.done) setDone(true);
       if (res.grade !== "none" && res.gradedWord) {
         const key = res.gradedWord.trim().toLowerCase();
@@ -173,6 +176,7 @@ export default function CoachPracticePage() {
     setTurns([]);
     setScores({});
     setDone(false);
+    setCurrentWord("");
     await sendTurn([]);
   }
 
@@ -242,6 +246,8 @@ export default function CoachPracticePage() {
 
   const gradedCount = Object.keys(scores).length;
   const correct = Object.values(scores).filter((g) => g === "correct").length;
+  const currentCard = drill.find((w) => w.word.trim().toLowerCase() === currentWord.trim().toLowerCase());
+  const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
 
   return (
     <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
@@ -332,6 +338,20 @@ export default function CoachPracticePage() {
         </div>
       ) : (
         <>
+          {/* the word being drilled — big, animated, tappable to hear it */}
+          {currentWord && !done && (
+            <div
+              key={currentWord}
+              className="anim-pop mb-3 flex items-center justify-center gap-3 rounded-[18px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface px-5 py-3.5"
+            >
+              <div className="text-center">
+                <div className={cn("font-serif text-[28px] font-semibold leading-none text-ink", srcFontCls)}>{currentWord}</div>
+                {currentCard?.meaningZh && <div className="mt-1.5 text-[13px] font-medium text-sage-deep">{currentCard.meaningZh}</div>}
+              </div>
+              <SpeakButton text={currentWord} lang={pair?.source ?? "en"} />
+            </div>
+          )}
+
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
               <Bubble key={i} turn={turn} t={t} />
