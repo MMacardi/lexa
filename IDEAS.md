@@ -108,6 +108,15 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ✅ **Practice over Telegram** — /practice runs the adaptive drill in chat
   (text or a voice answer, transcribed via Qwen audio best-effort), grading into
   the SRS. Voice pronunciation scoring itself is still a later idea.
+- ✅ **Coach memory (personal agent)** — persistent per-learner memory (goal,
+  interests, model-maintained notes of recurring mistakes) injected into the
+  drill, tutor and picks on web + Telegram, updated after each session. Editable
+  in Account. Verified: the drill tailors tasks to the learner's interests.
+  Direction: ONE mentor, two modes (ambient tutor + focused practice) sharing this
+  memory — not merged into one UI. Web practice also got a proper chat UI (pair &
+  scope pickers, live-preview voice via browser SpeechRecognition, hints, avatars,
+  animated word card with TTS).
+- ⏭ **Weekly recap / coaching**.
 - 🧊 **Anki .apkg export** — deprioritized: we're a full Anki replacement, so an
   export mostly undercuts positioning; keep only as a migration/marketing checkbox.
 - ⏭ Gate the Coach behind a real **Pro Plus** tier (add plan tier + /pro column).
