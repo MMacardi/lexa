@@ -92,6 +92,11 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   the answer (correct/partial/wrong), adapts difficulty, and feeds the grade back
   into FSRS (correct=Good, partial=Hard, wrong=Again). Reads in your language.
   Next: pronunciation input, and run the same drill over Telegram.
+- ✅ **Practice any deck** — the drill accepts a specific word set; collection
+  pages have a "Practice" action, so an imported deck → coach drill in one tap.
+- ✅ **Review plan / pacing** — a "new words per day" cap phases a big import
+  (500 HSK words) into a schedule instead of dumping every new card as due; the
+  Coach shows the plan (N new · X/day → ~Y days · ~Z min/day) with a pace picker.
 - ⏭ **Weekly recap / coaching**; proactive Telegram nudges.
 - 💡 **Coach voice on Home** — a one-line natural-language daily briefing on the
   Today screen ("12 to review, 3 weak — start there; 5 new B1 words on yesterday's
