@@ -6,6 +6,7 @@ import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
+import { coachDrill } from "../services/coachDrill.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
@@ -44,7 +45,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/picks|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -671,6 +672,34 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
   }
   try {
     res.json(await tutorChat(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/drill -> adaptive Coach practice: quiz the learner on their own
+// words, grade each answer, adapt. One turn per request (client keeps the thread).
+const coachDrillBody = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(3000) }))
+    .max(24),
+  words: z
+    .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
+    .min(1)
+    .max(12),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+  level: z.string().optional(),
+});
+wordsRouter.post("/coach/drill", async (req, res) => {
+  const parsed = coachDrillBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await coachDrill(parsed.data));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

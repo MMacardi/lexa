@@ -48,6 +48,18 @@ export const tutorChatSchema = z.object({
 });
 export type TutorChatResult = z.infer<typeof tutorChatSchema>;
 
+// Adaptive coach "practice" drill: the coach quizzes the learner on a specific
+// set of THEIR words, grades each spoken/typed answer, and adapts. The grade
+// feeds back into the SRS on the client.
+export const coachDrillSchema = z.object({
+  say: z.string().min(1), // the coach's message (in the learner's language)
+  drillWord: z.string().default(""), // the word being practised now ("" = intro/wrap-up)
+  grade: z.enum(["none", "correct", "partial", "wrong"]).default("none"), // grade of the PREVIOUS answer
+  gradedWord: z.string().default(""), // which word that grade applies to ("" = none)
+  done: z.boolean().default(false), // the session is complete
+});
+export type CoachDrillResult = z.infer<typeof coachDrillSchema>;
+
 // Actionable tutor chat: a prose reply plus optional suggested edits to the card
 // (synonyms/antonyms to add), which the UI offers as one-tap actions.
 export const wordChatSchema = z.object({

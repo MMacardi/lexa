@@ -158,6 +158,25 @@ export default function CoachPage() {
         <p className="mt-1.5 text-ink-soft">{t("coach.subtitle")}</p>
       </div>
 
+      {/* Practice with your coach — the hero: an adaptive drill on your own words */}
+      <Link
+        href="/coach/practice"
+        className="group block rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 via-surface to-surface p-6 transition-shadow hover:shadow-[0_16px_40px_rgba(46,42,38,0.10)]"
+      >
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sage text-white">
+            <Compass className="h-6 w-6" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-serif text-[21px] font-semibold text-ink">{t("coach.practiceHeroTitle")}</h2>
+            <p className="mt-1 text-[13.5px] leading-snug text-ink-soft">{t("coach.practiceCard")}</p>
+            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-sage-deep">
+              <Compass className="h-4 w-4" /> {due + weak > 0 ? t("coach.practiceOpen") : t("coach.practiceStart")}
+            </span>
+          </div>
+        </div>
+      </Link>
+
       {/* Today's plan — deterministic, no AI */}
       <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.planTitle")}</h2>
