@@ -85,10 +85,17 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   against the deck server-side). One call, verified relevant + zero dups.
 - ✅ **Today's plan** — due / weak spots / new goal + actions (pure data, no AI).
 - ✅ **Drill weak words** — focused review session of high-lapse cards.
-- ⏭ **PDF/text → deck** — the landing "wow": upload → structured deck + plan.
-- ⏭ **Adaptive conversational tutor** (this one is genuinely agentic) — chats at
-  your level, drills your words, corrects; web + Telegram; pronunciation.
+- ✅ **PDF/text/photo → deck** — upload a list, PDF, or a photo (incl. a
+  handwritten page, via Qwen-VL OCR) → parsed into a reviewable deck.
+- ✅ **Adaptive practice drill** (the wedge — genuinely agentic) — `/coach/practice`:
+  the coach quizzes you on your OWN weak/due words, asks you to use each, grades
+  the answer (correct/partial/wrong), adapts difficulty, and feeds the grade back
+  into FSRS (correct=Good, partial=Hard, wrong=Again). Reads in your language.
+  Next: pronunciation input, and run the same drill over Telegram.
 - ⏭ **Weekly recap / coaching**; proactive Telegram nudges.
+- 💡 **Coach voice on Home** — a one-line natural-language daily briefing on the
+  Today screen ("12 to review, 3 weak — start there; 5 new B1 words on yesterday's
+  topic"), so the mentor is a presence, not just a page.
 - ⏭ Gate the Coach behind a real **Pro Plus** tier (add plan tier + /pro column).
 
 ## Monetization / paywall
@@ -108,8 +115,10 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ⏭ **Flip `BETA_ALL_PRO=false`** at public launch (new users default to free).
 
 ## Token-cost follow-ups (combined-enrich already cut single-add 3→1)
-- ⏭ **Batch import (importWorker)** — still 2 calls/card (tutor + example);
-  route the AI path through `enrichWordEntry` to make it 1.
+- ✅ **Batch import (importWorker)** — already 1 call/card for the normal AI path
+  (routes through `enrichWordEntry`). The only 2-call cases left are Reader-context
+  (details + a cheap translate) and web examples (Pro; needs a separate web
+  search) — not worth merging. Note was stale.
 - ⏭ **Extra "+ add example"** — merge compose+translate into one call (2→1).
 
 ## Pre-launch checklist
