@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { X, GraduationCap, Target } from "lucide-react";
+import { X, GraduationCap, Target, Compass } from "lucide-react";
 import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,20 @@ const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "fon
 
 export default function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { accountId } = useAccount();
   const { t } = useI18n();
+
+  // Hand this set's words to the Coach practice drill.
+  function practiceSet(ids: string[]) {
+    if (!ids.length) return;
+    try {
+      sessionStorage.setItem("lexa.coachFocusIds", JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+    router.push("/coach/practice");
+  }
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [pairFilter, setPairFilter] = useState("all");
@@ -97,6 +109,19 @@ export default function CollectionDetailPage() {
             >
               <Target className="h-4 w-4" /> {t("col.quiz")}
             </Link>
+            <button
+              type="button"
+              onClick={() => practiceSet(inSet.map((w) => w.id))}
+              disabled={inSet.length < 1}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                inSet.length >= 1
+                  ? "border border-sage/50 bg-sage-tint/40 text-sage-deep hover:bg-sage-tint"
+                  : "pointer-events-none border border-black/[0.05] text-ink-faint/50",
+              )}
+            >
+              <Compass className="h-4 w-4" /> {t("col.practice")}
+            </button>
           </div>
         </div>
       </div>

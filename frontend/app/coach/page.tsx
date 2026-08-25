@@ -9,13 +9,13 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel, getExampleStyle } from "@/lib/learnPrefs";
+import { getLevel, getExampleStyle, useNewPerDay, setNewPerDay, NEW_PER_DAY_OPTIONS } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays } from "lucide-react";
 
 type Pick = { word: string; reason: string };
 
@@ -62,6 +62,11 @@ export default function CoachPage() {
   const mastered = deck.filter((w) => w.reviewCount >= 5).length;
   const NEW_TARGET = 5;
   const mins = Math.max(1, Math.round((due + weak) * 0.4 + NEW_TARGET * 0.8)); // rough estimate
+  // Review-plan pacing: how the deck's still-new words get phased in over days.
+  const newPerDay = useNewPerDay();
+  const newLeft = deck.filter((w) => w.reviewCount === 0).length;
+  const planDays = newLeft > 0 ? Math.ceil(newLeft / newPerDay) : 0;
+  const planMins = Math.max(1, Math.round(newPerDay * 0.5 + due * 0.3));
 
   const [pair, setPair] = useState(() => readPair());
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -228,6 +233,41 @@ export default function CoachPage() {
           </button>
         </div>
         <p className="mt-3 text-[12px] text-ink-faint">{t("coach.planFoot", { mins, total: deck.length, mastered })}</p>
+      </section>
+
+      {/* Review plan — pace the deck's still-new words into a daily schedule */}
+      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+        <h2 className="flex items-center gap-2 font-serif text-[20px] font-medium text-ink">
+          <CalendarDays className="h-5 w-5 text-sage-deep" /> {t("coach.planReviewTitle")}
+        </h2>
+        {newLeft > 0 ? (
+          <>
+            <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
+              {t("coach.planReviewLine", { n: newLeft, per: newPerDay, days: planDays, mins: planMins })}
+            </p>
+            <div className="mt-4">
+              <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.planPace")}</div>
+              <div className="inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+                {NEW_PER_DAY_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setNewPerDay(n)}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 transition-colors",
+                      newPerDay === n ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <span className="ml-2 text-[13px] text-ink-soft">{t("coach.planPerDay")}</span>
+            </div>
+          </>
+        ) : (
+          <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">{t("coach.planAllCaught")}</p>
+        )}
       </section>
 
       <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
