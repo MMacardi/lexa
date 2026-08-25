@@ -7,6 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { AddWordForm } from "@/components/AddWordForm";
+import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { ErrorState } from "@/components/ErrorState";
@@ -126,6 +127,9 @@ export default function TodayPage() {
           )}
         </div>
       </div>
+
+      {/* coach's daily voice — one adaptive line + next step */}
+      <CoachBriefing />
 
       {/* stats */}
       <div
