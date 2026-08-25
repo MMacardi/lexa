@@ -170,8 +170,8 @@ async function replyList(ctx: Context): Promise<void> {
   await ctx.replyWithHTML(`📚 <b>Твои слова (${words.length})</b>\n${body}`);
 }
 
-// Beta "rofl" feature: dump the learner's ENTIRE vocabulary into the chat (the
-// /list command only shows the first 50). Chunked to stay under Telegram's limit.
+// Export the learner's ENTIRE vocabulary into the chat (the /list command only
+// shows the first 50). Chunked to stay under Telegram's message-length limit.
 async function replyAllWords(ctx: Context): Promise<void> {
   if (!ctx.from) return;
   const words = await listWordsForUser(String(ctx.from.id));
@@ -179,7 +179,7 @@ async function replyAllWords(ctx: Context): Promise<void> {
     await ctx.reply("Пока пусто — добавь слово: «add resilient».");
     return;
   }
-  await ctx.replyWithHTML(`🗿 <b>ВСЕ твои слова (${words.length}).</b> Держи, наслаждайся 👇`);
+  await ctx.replyWithHTML(`📄 <b>Все твои слова (${words.length})</b>`);
   let buf = "";
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
