@@ -150,6 +150,7 @@ export function GlobalTutor() {
         messages: msgs.map((m) => ({ role: m.role, content: m.content })),
         sourceLang: pair.source,
         targetLang: pair.target,
+        level: getLevel(pair.source) ?? undefined,
         telegramId: accountId,
       }),
     onSuccess: (r) => setMessages((m) => [...m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }]),

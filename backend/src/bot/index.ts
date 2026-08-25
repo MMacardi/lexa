@@ -170,6 +170,29 @@ async function replyList(ctx: Context): Promise<void> {
   await ctx.replyWithHTML(`📚 <b>Твои слова (${words.length})</b>\n${body}`);
 }
 
+// Beta "rofl" feature: dump the learner's ENTIRE vocabulary into the chat (the
+// /list command only shows the first 50). Chunked to stay under Telegram's limit.
+async function replyAllWords(ctx: Context): Promise<void> {
+  if (!ctx.from) return;
+  const words = await listWordsForUser(String(ctx.from.id));
+  if (words.length === 0) {
+    await ctx.reply("Пока пусто — добавь слово: «add resilient».");
+    return;
+  }
+  await ctx.replyWithHTML(`🗿 <b>ВСЕ твои слова (${words.length}).</b> Держи, наслаждайся 👇`);
+  let buf = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const line = `${i + 1}. <b>${esc(w.word)}</b>${w.meaningZh ? " — " + esc(w.meaningZh) : ""}\n`;
+    if (buf.length + line.length > 3500) {
+      await ctx.replyWithHTML(buf);
+      buf = "";
+    }
+    buf += line;
+  }
+  if (buf) await ctx.replyWithHTML(buf);
+}
+
 async function replyRemindStatus(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
   const telegramId = String(ctx.from.id);
@@ -385,8 +408,11 @@ export function createBot(): Telegraf {
     }
   });
 
-  // /list — saved words.
+  // /list — saved words (first 50).
   bot.command("list", (ctx) => replyList(ctx));
+
+  // /allwords — the whole vocabulary, dumped into the chat (beta rofl feature).
+  bot.command("allwords", (ctx) => replyAllWords(ctx));
 
   // /due — how many cards are waiting.
   bot.command("due", (ctx) => replyDue(ctx));

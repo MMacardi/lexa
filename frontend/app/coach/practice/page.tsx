@@ -434,7 +434,7 @@ export default function CoachPracticePage() {
 
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
-              <Bubble key={i} turn={turn} t={t} />
+              <Bubble key={i} turn={turn} t={t} speakLang={pair?.target ?? "en"} />
             ))}
             {busy && (
               <div className="flex items-center gap-2.5">
@@ -572,7 +572,7 @@ function GradeBadge({ grade, t }: { grade: Grade; t: (k: string) => string }) {
   );
 }
 
-function Bubble({ turn, t }: { turn: Turn; t: (k: string) => string }) {
+function Bubble({ turn, t, speakLang }: { turn: Turn; t: (k: string) => string; speakLang: string }) {
   if (turn.role === "user") {
     return (
       <div className="flex items-end justify-end gap-2.5">
@@ -590,8 +590,12 @@ function Bubble({ turn, t }: { turn: Turn; t: (k: string) => string }) {
       <CoachAvatar />
       <div className="max-w-[82%]">
         {turn.grade && turn.grade !== "none" && <GradeBadge grade={turn.grade} t={t} />}
-        <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-          <Rich text={turn.content} />
+        <div className="group flex items-end gap-1.5">
+          <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
+            <Rich text={turn.content} />
+          </div>
+          {/* hear the coach's line (free browser TTS; renders nothing if no engine) */}
+          <SpeakButton text={turn.content.replace(/[*]/g, "")} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
     </div>
