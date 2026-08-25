@@ -67,6 +67,15 @@ export default function CoachPage() {
   const newLeft = deck.filter((w) => w.reviewCount === 0).length;
   const planDays = newLeft > 0 ? Math.ceil(newLeft / newPerDay) : 0;
   const planMins = Math.max(1, Math.round(newPerDay * 0.5 + due * 0.3));
+  // "This week" recap — progress tracking from the deck (no AI, no tokens).
+  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  const addedThisWeek = deck.filter((w) => new Date(w.createdAt).getTime() >= weekAgo).length;
+  const reviewedThisWeek = deck.filter((w) => w.lastReview && new Date(w.lastReview).getTime() >= weekAgo).length;
+  const weakTop = deck
+    .filter((w) => (w.lapses ?? 0) >= 2)
+    .sort((a, b) => (b.lapses ?? 0) - (a.lapses ?? 0))
+    .slice(0, 4);
+  const showRecap = addedThisWeek + reviewedThisWeek > 0;
 
   const [pair, setPair] = useState(() => readPair());
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -270,6 +279,39 @@ export default function CoachPage() {
           <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">{t("coach.planAllCaught")}</p>
         )}
       </section>
+
+      {/* This week — a short coaching recap of progress */}
+      {showRecap && (
+        <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+          <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.weekTitle")}</h2>
+          <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
+            {t("coach.weekLine", { added: addedThisWeek, reviewed: reviewedThisWeek, mastered })}
+          </p>
+          {weakTop.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.weekWatch")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {weakTop.map((w) => (
+                  <Link
+                    key={w.id}
+                    href={`/word/${w.id}`}
+                    className="rounded-full border border-warn/40 bg-warn-bg px-2.5 py-0.5 text-[13px] font-medium text-warn-text hover:opacity-80"
+                  >
+                    {w.word}
+                  </Link>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
+                  className="rounded-full border border-sage/50 bg-sage-tint/40 px-2.5 py-0.5 text-[13px] font-semibold text-sage-deep hover:bg-sage-tint"
+                >
+                  {t("coach.weekDrill")}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
