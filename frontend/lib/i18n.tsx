@@ -465,6 +465,15 @@ const DICT: Record<string, Entry> = {
     zh: "你已全部跟上。添加单词或读点东西——我来挑下一步学什么。",
   },
   "coach.briefIdleCta": { en: "Open Coach", ru: "К наставнику", zh: "打开导师" },
+  // This-week coaching recap
+  "coach.weekTitle": { en: "This week", ru: "На этой неделе", zh: "本周" },
+  "coach.weekLine": {
+    en: "{added} new words added, {reviewed} reviewed. {mastered} mastered so far — nice momentum.",
+    ru: "Добавлено {added} новых слов, повторено {reviewed}. Освоено уже {mastered} — хороший темп.",
+    zh: "新增 {added} 个词，复习 {reviewed} 个。已掌握 {mastered} 个——势头不错。",
+  },
+  "coach.weekWatch": { en: "Keep an eye on", ru: "Обрати внимание на", zh: "多留意" },
+  "coach.weekDrill": { en: "Drill these", ru: "Отработать", zh: "训练这些" },
   // Review plan (new-word pacing)
   "coach.planReviewTitle": { en: "Your review plan", ru: "Твой план повторения", zh: "你的复习计划" },
   "coach.planReviewLine": {
