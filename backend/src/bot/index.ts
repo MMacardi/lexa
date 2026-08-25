@@ -20,6 +20,8 @@ import {
   ownedWord,
   getReminderHour,
   setReminderHour,
+  getReminderDays,
+  setReminderDays,
   usersToRemindAt,
   type Pair,
 } from "../services/botTutor.js";
@@ -187,27 +189,49 @@ async function replyList(ctx: Context): Promise<void> {
   await ctx.replyWithHTML(text, markup ? { link_preview_options: { is_disabled: true }, ...markup } : undefined);
 }
 
-// Inline picker of common reminder times (whole hours; Telegram has no time input).
+// Reminder picker: whole hours (Telegram has no time input) + weekday multi-select.
 const REMIND_HOURS = [6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 23];
-function remindKeyboard(current: number | null) {
-  const rows = [];
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun (getDay(): 0=Sun)
+const DAY_LABEL: Record<number, string> = { 1: "Пн", 2: "Вт", 3: "Ср", 4: "Чт", 5: "Пт", 6: "Сб", 0: "Вс" };
+
+function parseDays(csv: string): Set<number> {
+  if (!csv.trim()) return new Set(DAY_ORDER); // "" = every day
+  return new Set(csv.split(",").map(Number).filter((n) => n >= 0 && n <= 6));
+}
+function daysToStore(set: Set<number>): string {
+  if (set.size >= 7) return ""; // all = every day (stored as empty)
+  return DAY_ORDER.filter((d) => set.has(d)).join(",");
+}
+function daysLabel(set: Set<number>): string {
+  if (set.size >= 7) return "каждый день";
+  const picked = DAY_ORDER.filter((d) => set.has(d));
+  return picked.length ? picked.map((d) => DAY_LABEL[d]).join(", ") : "—";
+}
+
+function remindKeyboard(hour: number | null, daysCsv: string) {
+  const days = parseDays(daysCsv);
+  const dayBtn = (d: number) => Markup.button.callback(`${days.has(d) ? "✅ " : ""}${DAY_LABEL[d]}`, `rd:${d}`);
+  const rows = [
+    DAY_ORDER.slice(0, 4).map(dayBtn),
+    DAY_ORDER.slice(4).map(dayBtn),
+    [Markup.button.callback(days.size >= 7 ? "✅ Каждый день" : "Каждый день", "rd:all")],
+  ];
   for (let i = 0; i < REMIND_HOURS.length; i += 4) {
     rows.push(
       REMIND_HOURS.slice(i, i + 4).map((h) =>
-        Markup.button.callback(`${current === h ? "✅ " : ""}${String(h).padStart(2, "0")}:00`, `rm:${h}`),
+        Markup.button.callback(`${hour === h ? "✅ " : ""}${String(h).padStart(2, "0")}:00`, `rm:${h}`),
       ),
     );
   }
-  rows.push([Markup.button.callback(current === null ? "✅ 🔕 Выключено" : "🔕 Выключить", "rm:off")]);
+  rows.push([Markup.button.callback(hour === null ? "✅ 🔕 Выключено" : "🔕 Выключить", "rm:off")]);
   return Markup.inlineKeyboard(rows);
 }
 
-function remindText(cur: number | null): string {
+function remindText(hour: number | null, daysCsv: string): string {
+  if (hour === null) return "🔕 Напоминания выключены.\n\nВыбери дни и время ниже 👇";
   return (
-    (cur === null
-      ? "🔕 Напоминания выключены."
-      : `🔔 Напоминаю каждый день в <b>${String(cur).padStart(2, "0")}:00</b>.`) +
-    "\n\nВыбери время кнопкой ниже 👇"
+    `🔔 Напоминаю <b>${daysLabel(parseDays(daysCsv))}</b> в <b>${String(hour).padStart(2, "0")}:00</b>.` +
+    "\n\nМеняй дни и время кнопками 👇"
   );
 }
 
@@ -215,8 +239,8 @@ async function replyRemindStatus(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
   const telegramId = String(ctx.from.id);
   await ensureBotUser(telegramId, String(ctx.chat.id));
-  const cur = await getReminderHour(telegramId);
-  await ctx.replyWithHTML(remindText(cur), remindKeyboard(cur));
+  const [hour, days] = await Promise.all([getReminderHour(telegramId), getReminderDays(telegramId)]);
+  await ctx.replyWithHTML(remindText(hour, days), remindKeyboard(hour, days));
 }
 
 // Inline picker for the learner's language pair — the pairs they already have
@@ -495,8 +519,30 @@ export function createBot(): Telegraf {
     await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
     const hour = ctx.match[1] === "off" ? null : Number(ctx.match[1]);
     await setReminderHour(telegramId, hour);
+    const days = await getReminderDays(telegramId);
     await ctx.answerCbQuery(hour === null ? "🔕 Выключено" : `🔔 ${String(hour).padStart(2, "0")}:00`);
-    await ctx.editMessageText(remindText(hour), { parse_mode: "HTML", ...remindKeyboard(hour) });
+    await ctx.editMessageText(remindText(hour, days), { parse_mode: "HTML", ...remindKeyboard(hour, days) });
+  });
+
+  // ---- reminder weekday multi-select ----
+  bot.action(/^rd:(all|[0-6])$/, async (ctx) => {
+    const telegramId = String(ctx.from.id);
+    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const hour = await getReminderHour(telegramId);
+    let store: string;
+    if (ctx.match[1] === "all") {
+      store = ""; // every day
+    } else {
+      const d = Number(ctx.match[1]);
+      const set = parseDays(await getReminderDays(telegramId));
+      if (set.has(d)) set.delete(d);
+      else set.add(d);
+      if (set.size === 0) set.add(d); // never allow zero days — keep the last one
+      store = daysToStore(set);
+    }
+    await setReminderDays(telegramId, store);
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(remindText(hour, store), { parse_mode: "HTML", ...remindKeyboard(hour, store) });
   });
 
   // ---- language pair picker ----
@@ -700,8 +746,11 @@ function startReminderLoop(bot: Telegraf): void {
     const hour = now.getHours();
     const day = now.toISOString().slice(0, 10);
     try {
+      const weekday = now.getDay(); // 0=Sun..6=Sat
       const users = await usersToRemindAt(hour);
       for (const u of users) {
+        // Respect the chosen weekdays ("" = every day).
+        if (u.reminderDays.trim() && !parseDays(u.reminderDays).has(weekday)) continue;
         if (lastSent.get(u.telegramId) === day) continue;
         const pair = await resolveUserPair(u.telegramId);
         const n = await dueCountForUser(u.telegramId, pair);

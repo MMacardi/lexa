@@ -141,11 +141,21 @@ export async function setReminderHour(telegramId: string, hour: number | null): 
   await prisma.user.update({ where: { telegramId }, data: { reminderHour: hour } });
 }
 
+/** Which weekdays the nudge fires on (CSV of getDay() ints); "" = every day. */
+export async function getReminderDays(telegramId: string): Promise<string> {
+  const u = await prisma.user.findUnique({ where: { telegramId }, select: { reminderDays: true } });
+  return u?.reminderDays ?? "";
+}
+
+export async function setReminderDays(telegramId: string, days: string): Promise<void> {
+  await prisma.user.update({ where: { telegramId }, data: { reminderDays: days } });
+}
+
 /**
  * Users who asked to be reminded at this hour, have a chat id, and have cards
  * due — for the per-user daily reminder sweep.
  */
-export async function usersToRemindAt(hour: number): Promise<{ telegramId: string; botChatId: string }[]> {
+export async function usersToRemindAt(hour: number): Promise<{ telegramId: string; botChatId: string; reminderDays: string }[]> {
   const now = new Date();
   const rows = await prisma.user.findMany({
     where: {
@@ -153,7 +163,7 @@ export async function usersToRemindAt(hour: number): Promise<{ telegramId: strin
       botChatId: { not: null },
       words: { some: { OR: [{ nextReviewAt: null }, { nextReviewAt: { lte: now } }] } },
     },
-    select: { telegramId: true, botChatId: true },
+    select: { telegramId: true, botChatId: true, reminderDays: true },
   });
-  return rows.filter((r): r is { telegramId: string; botChatId: string } => Boolean(r.botChatId));
+  return rows.filter((r): r is { telegramId: string; botChatId: string; reminderDays: string } => Boolean(r.botChatId));
 }
