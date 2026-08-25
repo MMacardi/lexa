@@ -83,6 +83,7 @@ const coachPicksBody = z.object({
   targetLang: z.string().min(2),
   level: z.string().max(4).optional(),
   count: z.number().int().min(3).max(20).optional(),
+  theme: z.string().max(60).optional(),
 });
 wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
   const parsed = coachPicksBody.safeParse(req.body);

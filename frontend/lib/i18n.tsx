@@ -398,6 +398,11 @@ const DICT: Record<string, Entry> = {
     zh: "适合你水平（{level}）、你还没有的{lang}实用词。",
   },
   "coach.refresh": { en: "New picks", ru: "Обновить", zh: "换一批" },
+  "coach.themePlaceholder": {
+    en: "Topic (optional) — e.g. travel, cooking. Empty = follows your recent words.",
+    ru: "Тема (необязательно) — напр. путешествия, кухня. Пусто = по недавним словам.",
+    zh: "主题（可选）——如旅行、烹饪。留空 = 跟随你最近的单词。",
+  },
   "coach.loading": { en: "Picking words for you…", ru: "Подбираю слова для тебя…", zh: "正在为你挑选…" },
   "coach.empty": { en: "No suggestions right now — try refreshing.", ru: "Сейчас нет предложений — попробуй обновить.", zh: "暂无推荐——请刷新试试。" },
   "coach.addN": { en: "Add {n} to my words", ru: "Добавить {n} в мои слова", zh: "把 {n} 个加入我的单词" },
