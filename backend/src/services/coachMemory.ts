@@ -27,13 +27,21 @@ export async function updateProfile(
   telegramId: string,
   data: Partial<CoachProfile>,
 ): Promise<CoachProfile> {
-  const u = await prisma.user.update({
+  const update = {
+    ...(data.goal !== undefined ? { coachGoal: data.goal.trim().slice(0, 300) } : {}),
+    ...(data.interests !== undefined ? { coachInterests: data.interests.trim().slice(0, 300) } : {}),
+    ...(data.notes !== undefined ? { coachNotes: data.notes.trim().slice(0, NOTES_CAP) } : {}),
+  };
+  // Upsert: a learner may edit their profile before any other write created the row.
+  const u = await prisma.user.upsert({
     where: { telegramId },
-    data: {
-      ...(data.goal !== undefined ? { coachGoal: data.goal.trim().slice(0, 300) } : {}),
-      ...(data.interests !== undefined ? { coachInterests: data.interests.trim().slice(0, 300) } : {}),
-      ...(data.notes !== undefined ? { coachNotes: data.notes.trim().slice(0, NOTES_CAP) } : {}),
+    create: {
+      telegramId,
+      coachGoal: (data.goal ?? "").trim().slice(0, 300),
+      coachInterests: (data.interests ?? "").trim().slice(0, 300),
+      coachNotes: (data.notes ?? "").trim().slice(0, NOTES_CAP),
     },
+    update,
     select: { coachGoal: true, coachInterests: true, coachNotes: true },
   });
   return { goal: u.coachGoal, interests: u.coachInterests, notes: u.coachNotes };
