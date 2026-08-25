@@ -665,6 +665,7 @@ const tutorBody = z.object({
     .max(20),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  level: z.string().max(4).optional(),
   telegramId: z.string().optional(),
 });
 wordsRouter.post("/tutor/ask", async (req, res) => {

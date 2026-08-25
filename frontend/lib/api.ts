@@ -318,7 +318,7 @@ export const api = {
       body: JSON.stringify({ sentenceEn, sentenceZh }),
     }),
   // Global AI tutor chat (not tied to a card).
-  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string; telegramId?: string }) =>
+  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string; level?: string; telegramId?: string }) =>
     http<{ answer: string; addWords: string[]; addCards?: TutorCard[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
   translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
     http<{ translation: string }>(`/api/translate`, {

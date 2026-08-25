@@ -11,10 +11,12 @@ export async function tutorChat(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   sourceLang?: string;
   targetLang?: string;
+  level?: string;
   profileNote?: string; // "about this learner" memory, prepended to the prompt
 }): Promise<TutorChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
+  const levelLine = params.level ? ` The learner's level is about ${params.level} (CEFR) — pitch your ${source}, examples and explanations to it.` : "";
   const clipped = params.messages.slice(-12).map((m) => ({
     role: m.role,
     content: m.content.slice(0, 2000),
@@ -25,8 +27,9 @@ export async function tutorChat(params: {
       role: "system",
       content:
         (params.profileNote ?? "") +
-        `You are a friendly, encouraging ${source} tutor for a learner whose language is ${target}. ` +
-        `Answer in the "answer" field ENTIRELY in ${target}, concise and practical. Help them learn ` +
+        `You are a friendly, encouraging ${source} tutor for a learner whose language is ${target}.` +
+        levelLine +
+        ` Answer in the "answer" field ENTIRELY in ${target}, concise and practical. Help them learn ` +
         `${source}: meanings, usage, grammar, example sentences, and picking vocabulary. ` +
         `Stay focused on ${source} language learning; politely decline unrelated general-knowledge questions.\n\n` +
         `ACTIONS — you can add words to the learner's deck: whenever they ask to save/add words, OR ask ` +
