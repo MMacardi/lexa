@@ -26,9 +26,12 @@ model User {
   preferredTarget String?
   // Telegram chat id for proactive messages (review reminders). Set on /start.
   botChatId   String?
-  // Hour of day (0–23, server time) the learner wants their daily review nudge,
-  // or null for no reminders. Chosen in-chat via /remind.
+  // Hour of day (0–23, server time) the learner wants their review nudge, or null
+  // for no reminders. Chosen in-chat via the Reminders button.
   reminderHour Int?
+  // Which weekdays the nudge fires on: CSV of getDay() ints (0=Sun..6=Sat). Empty
+  // string means every day (the default).
+  reminderDays String @default("")
   // Coach memory — what the personal mentor remembers about the learner across
   // sessions, so it acts like a real agent, not a stateless chat. `goal` and
   // `interests` are learner-set; `notes` is a short, model-maintained summary of
