@@ -429,6 +429,10 @@ export const api = {
   coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number; theme?: string }) =>
     http<{ picks: { word: string; meaning: string; reason: string }[] }>(`/api/coach/picks`, { method: "POST", body: JSON.stringify(payload) }),
 
+  // Transcribe a recorded voice answer to text (Coach practice).
+  stt: (payload: { audio: string; format?: string; sourceLang?: string }) =>
+    http<{ text: string }>(`/api/coach/stt`, { method: "POST", body: JSON.stringify(payload) }),
+
   // Adaptive Coach practice: one drill turn (the client keeps the message thread).
   coachDrill: (payload: {
     messages: { role: "user" | "assistant"; content: string }[];

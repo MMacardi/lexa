@@ -7,7 +7,7 @@ import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
-import { ocrImage } from "../services/llm.js";
+import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { getImportJobForUser } from "../services/importWorker.js";
@@ -45,7 +45,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|stt)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -673,6 +673,31 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
   }
   try {
     res.json(await tutorChat(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/stt -> transcribe a short voice clip to text (practice answers).
+const sttBody = z.object({
+  audio: z.string().min(1).max(8_000_000), // base64 (no data: prefix)
+  format: z.string().max(16).optional(),
+  sourceLang: z.string().optional(),
+});
+wordsRouter.post("/coach/stt", async (req, res) => {
+  const parsed = sttBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const text = await transcribeAudio({
+      base64: parsed.data.audio,
+      format: parsed.data.format ?? "webm",
+      sourceLang: parsed.data.sourceLang,
+    });
+    res.json({ text });
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
