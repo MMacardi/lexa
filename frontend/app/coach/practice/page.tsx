@@ -12,13 +12,23 @@ import { getLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
-import { Compass, ArrowLeft, Loader2, Check, Minus, X as XIcon, Send, RotateCcw, Mic, Square, Lightbulb, SkipForward, User } from "lucide-react";
+import { Compass, ArrowLeft, Check, Minus, X as XIcon, Send, RotateCcw, Mic, Square, Lightbulb, SkipForward, User } from "lucide-react";
 
 type Grade = "none" | "correct" | "partial" | "wrong";
 type Turn = { role: "user" | "assistant"; content: string; grade?: Grade };
 type PairKey = { source: string; target: string };
 
 const GRADE_RATING: Record<Exclude<Grade, "none">, number> = { correct: 3, partial: 2, wrong: 1 };
+
+// Map our language code to a BCP-47 tag for the browser's speech recogniser.
+function speechLang(src?: string): string {
+  const map: Record<string, string> = {
+    en: "en-US", ru: "ru-RU", zh: "zh-CN", "zh-Hant": "zh-TW", ja: "ja-JP", ko: "ko-KR",
+    es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT", pt: "pt-PT", nl: "nl-NL",
+    pl: "pl-PL", tr: "tr-TR", uk: "uk-UA", hi: "hi-IN", ar: "ar-SA",
+  };
+  return map[src ?? "en"] ?? src ?? "en-US";
+}
 
 // Render the coach's light markdown (*word* / **word**) as clean highlights so the
 // target word reads as a chip instead of literal asterisks.
@@ -189,58 +199,60 @@ export default function CoachPracticePage() {
     await sendTurn(next);
   }
 
-  // ---- voice answer (record → transcribe → fill the box) ----
+  // ---- voice answer via the browser's SpeechRecognition (free, on-device, with
+  // LIVE interim results so the learner sees what they're saying as they speak). ----
   const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const [interim, setInterim] = useState(""); // live preview of the current speech
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const baseInputRef = useRef("");
 
-  async function toggleRecord() {
+  function toggleRecord() {
     if (recording) {
-      recorderRef.current?.stop();
+      recognitionRef.current?.stop();
       return;
     }
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = typeof window !== "undefined" ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null;
+    if (!SR) {
       show({ icon: "⚠️", title: t("coach.practiceMicUnsupported") });
       return;
     }
+    const rec = new SR();
+    rec.lang = speechLang(pair?.source);
+    rec.interimResults = true;
+    rec.continuous = true;
+    baseInputRef.current = input.trim();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      let finalTxt = "";
+      let interimTxt = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalTxt += r[0].transcript;
+        else interimTxt += r[0].transcript;
+      }
+      setInterim(interimTxt);
+      const base = baseInputRef.current;
+      const combined = [base, (finalTxt + interimTxt).trim()].filter(Boolean).join(" ");
+      setInput(combined);
+    };
+    rec.onerror = () => {
+      setRecording(false);
+      setInterim("");
+      show({ icon: "⚠️", title: t("coach.practiceSttFail") });
+    };
+    rec.onend = () => {
+      setRecording(false);
+      setInterim("");
+    };
+    recognitionRef.current = rec;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => {
-        if (e.data.size) chunksRef.current.push(e.data);
-      };
-      mr.onstop = async () => {
-        stream.getTracks().forEach((tr) => tr.stop());
-        setRecording(false);
-        await transcribeBlob(new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" }));
-      };
-      recorderRef.current = mr;
-      mr.start();
+      rec.start();
       setRecording(true);
     } catch {
+      setRecording(false);
       show({ icon: "⚠️", title: t("coach.practiceMicUnsupported") });
-    }
-  }
-
-  async function transcribeBlob(blob: Blob) {
-    setTranscribing(true);
-    try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-      const fmt = (blob.type.split("/")[1] || "webm").split(";")[0];
-      const { text } = await api.stt({ audio: b64, format: fmt, sourceLang: pair?.source });
-      if (text.trim()) setInput((cur) => (cur.trim() ? cur + " " + text.trim() : text.trim()));
-      else show({ icon: "⚠️", title: t("coach.practiceSttFail") });
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setTranscribing(false);
     }
   }
 
@@ -407,6 +419,19 @@ export default function CoachPracticePage() {
                 {idleHint && <span className="text-[12px] text-ink-faint">{t("coach.practiceIdle")}</span>}
               </div>
 
+              {/* live speech preview (like the phone dictation bar) */}
+              {recording && (
+                <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2.5">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warn-text opacity-60" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warn-text" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
+                    {interim ? interim : <span className="text-ink-faint">{t("coach.practiceRec")}</span>}
+                  </span>
+                </div>
+              )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -424,14 +449,14 @@ export default function CoachPracticePage() {
                     }
                   }}
                   rows={1}
-                  placeholder={transcribing ? t("coach.practiceTranscribing") : recording ? t("coach.practiceRec") : t("coach.practiceInput")}
+                  placeholder={t("coach.practiceInput")}
                   disabled={busy}
                   className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[16px] border border-black/[0.08] bg-surface px-4 py-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={toggleRecord}
-                  disabled={busy || transcribing}
+                  disabled={busy}
                   aria-label={t("coach.practiceMic")}
                   title={t("coach.practiceMic")}
                   className={cn(
@@ -439,7 +464,7 @@ export default function CoachPracticePage() {
                     recording ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
                   )}
                 >
-                  {transcribing ? <Loader2 className="h-5 w-5 animate-spin" /> : recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                  {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
                 </button>
                 <button
                   type="submit"
