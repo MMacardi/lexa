@@ -97,10 +97,16 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ✅ **Review plan / pacing** — a "new words per day" cap phases a big import
   (500 HSK words) into a schedule instead of dumping every new card as due; the
   Coach shows the plan (N new · X/day → ~Y days · ~Z min/day) with a pace picker.
-- ⏭ **Weekly recap / coaching**; proactive Telegram nudges.
-- 💡 **Coach voice on Home** — a one-line natural-language daily briefing on the
-  Today screen ("12 to review, 3 weak — start there; 5 new B1 words on yesterday's
-  topic"), so the mentor is a presence, not just a page.
+- ✅ **Coach voice on Home** — an adaptive one-liner + next step on Today (weak →
+  due → new → idle), computed from the deck. The mentor is now a presence.
+- ✅ **Personalized "Words for you"** — picks follow the learner's recent words
+  (topic continuity) or an explicit theme they type. One AI call, post-filtered.
+- ✅ **"This week" recap** — token-free progress card (added/reviewed/mastered +
+  trickiest words to watch, with a one-tap drill).
+- ⏭ **Proactive Telegram nudges** — daily "N due / your weak words" push via the bot.
+- ⏭ **Practice over Telegram** + pronunciation (voice) input for the drill.
+- 🧊 **Anki .apkg export** — deprioritized: we're a full Anki replacement, so an
+  export mostly undercuts positioning; keep only as a migration/marketing checkbox.
 - ⏭ Gate the Coach behind a real **Pro Plus** tier (add plan tier + /pro column).
 
 ## Monetization / paywall
