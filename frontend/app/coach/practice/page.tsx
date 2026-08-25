@@ -85,6 +85,7 @@ export default function CoachPracticePage() {
   }, [deck]);
 
   const [pair, setPair] = useState<PairKey | null>(null);
+  const [scope, setScope] = useState<string>("smart"); // "smart" | "all" | "coll:<id>"
   // Default the pair: the focus words' pair, else the deck's most common one.
   useEffect(() => {
     if (pair || deck.length === 0) return;
@@ -107,18 +108,40 @@ export default function CoachPracticePage() {
     }
   }, [deck, focusIds, pair]);
 
-  // The words to drill for the chosen pair: weak → due → any, capped at 8.
+  // Collections present in the chosen pair, for the scope picker.
+  const collections = useMemo(() => {
+    if (!pair) return [] as { id: string; name: string; count: number }[];
+    const m = new Map<string, { id: string; name: string; count: number }>();
+    for (const w of deck) {
+      if (w.sourceLang !== pair.source || w.targetLang !== pair.target) continue;
+      for (const c of w.collections ?? []) {
+        const e = m.get(c.id) ?? { id: c.id, name: c.name, count: 0 };
+        e.count++;
+        m.set(c.id, e);
+      }
+    }
+    return [...m.values()];
+  }, [deck, pair]);
+
+  // The words to drill: scope decides the pool (weak+due / all / one collection),
+  // then weak → due → any ordering (except "all", which is a broad shuffle), cap 8.
   const drill = useMemo(() => {
     if (!pair) return [] as Word[];
     let pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
     if (focusIds && focusIds.length) {
       const set = new Set(focusIds);
       pool = pool.filter((w) => set.has(w.id));
+    } else if (scope.startsWith("coll:")) {
+      const cid = scope.slice(5);
+      pool = pool.filter((w) => (w.collections ?? []).some((c) => c.id === cid));
+    }
+    if (!focusIds?.length && scope === "all") {
+      return [...pool].sort(() => Math.random() - 0.5).slice(0, 8);
     }
     const weak = pool.filter((w) => (w.lapses ?? 0) >= 2);
     const due = pool.filter(isDue);
     return [...new Map([...weak, ...due, ...pool].map((w) => [w.id, w])).values()].slice(0, 8);
-  }, [deck, pair, focusIds]);
+  }, [deck, pair, focusIds, scope]);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -193,6 +216,16 @@ export default function CoachPracticePage() {
   async function sendText(text: string) {
     const v = text.trim();
     if (!v || busy || done) return;
+    // Stop any live recording and clear its preview when the answer is sent.
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+    setRecording(false);
+    setInterim("");
     const next: Turn[] = [...turns, { role: "user", content: v }];
     setTurns(next);
     setInput("");
@@ -309,7 +342,10 @@ export default function CoachPracticePage() {
                         <button
                           key={`${p.source}|${p.target}`}
                           type="button"
-                          onClick={() => setPair(p)}
+                          onClick={() => {
+                            setPair(p);
+                            setScope("smart");
+                          }}
                           className={cn(
                             "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
                             on ? "border-sage bg-sage text-white" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
@@ -319,6 +355,32 @@ export default function CoachPracticePage() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* scope: weak+due / all / a specific collection */}
+              {(!focusIds || focusIds.length === 0) && (
+                <div className="mt-5 w-full max-w-[440px]">
+                  <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.practiceScope")}</div>
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    {[
+                      { id: "smart", label: t("coach.scopeSmart") },
+                      { id: "all", label: t("coach.scopeAll") },
+                      ...collections.map((c) => ({ id: `coll:${c.id}`, label: `${c.name} · ${c.count}` })),
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setScope(s.id)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
+                          scope === s.id ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
