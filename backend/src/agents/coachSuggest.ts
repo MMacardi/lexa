@@ -12,7 +12,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 
 const picksSchema = z.object({
   picks: z
-    .array(z.object({ word: z.string(), reason: z.string().default("") }))
+    .array(z.object({ word: z.string(), meaning: z.string().default(""), reason: z.string().default("") }))
     .default([]),
 });
 
@@ -23,7 +23,7 @@ export async function suggestDailyPicks(params: {
   level?: string;
   count?: number;
   theme?: string;
-}): Promise<{ picks: { word: string; reason: string }[] }> {
+}): Promise<{ picks: { word: string; meaning: string; reason: string }[] }> {
   const source = langName(params.sourceLang);
   const target = langName(params.targetLang);
   const count = Math.min(20, Math.max(3, params.count ?? 8));
@@ -60,17 +60,18 @@ export async function suggestDailyPicks(params: {
       `You are a ${source} tutor for a ${target} speaker. ${levelLine}${focusLine}` +
       `Suggest ${count} genuinely useful ${source} words or short phrases the learner should know at their level — ` +
       `high-frequency and practical, a natural mix of parts of speech (not obscure or repetitive). ` +
-      `Do NOT suggest anything already in the learner's list. For EACH, give a very short reason it's worth learning, ` +
-      `written in ${target}. ` +
+      `Do NOT suggest anything already in the learner's list. For EACH word give: "meaning" — its short ` +
+      `${target} translation/definition (a few words); and "reason" — a very short note on why it's worth ` +
+      `learning, also in ${target}. ` +
       scriptNote(params.sourceLang) +
-      'Respond as JSON: {"picks":[{"word": string, "reason": string}]}.',
+      'Respond as JSON: {"picks":[{"word": string, "meaning": string, "reason": string}]}.',
     user: `Already known (do not suggest any of these): ${knownForPrompt.join(", ") || "(none yet)"}`,
     schema: picksSchema,
     label: "coach.picks",
   });
 
   const picks = (result.picks ?? [])
-    .map((p) => ({ word: p.word.trim(), reason: (p.reason ?? "").trim() }))
+    .map((p) => ({ word: p.word.trim(), meaning: (p.meaning ?? "").trim(), reason: (p.reason ?? "").trim() }))
     .filter((p) => p.word && !knownSet.has(p.word.toLowerCase()))
     .slice(0, count);
   return { picks };

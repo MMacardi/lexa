@@ -12,12 +12,11 @@ import { errText } from "@/lib/errText";
 import { getLevel, getExampleStyle, useNewPerDay, setNewPerDay, NEW_PER_DAY_OPTIONS } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
-import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays } from "lucide-react";
 
-type Pick = { word: string; reason: string };
+type Pick = { word: string; meaning: string; reason: string };
 
 function readPair(): { source: string; target: string } {
   if (typeof window === "undefined") return { source: "en", target: "zh" };
@@ -78,12 +77,30 @@ export default function CoachPage() {
   const showRecap = addedThisWeek + reviewedThisWeek > 0;
 
   const [pair, setPair] = useState(() => readPair());
-  const [picks, setPicks] = useState<Pick[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [theme, setTheme] = useState("");
-  const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+
+  // Cache the picks in the query client so they SURVIVE navigating away and back
+  // (they used to be local state re-fetched — and re-charged — on every mount).
+  const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
+  const picksQuery = useQuery({
+    queryKey: picksKey,
+    queryFn: () =>
+      api.coachPicks({
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        level: getLevel(pair.source) ?? undefined,
+        count: 8,
+        theme: theme.trim() || undefined,
+      }),
+    enabled: !!accountId,
+    staleTime: Infinity, // keep until the user asks for new picks
+    gcTime: 30 * 60_000,
+  });
+  const picks = picksQuery.data?.picks ?? [];
+  const loading = picksQuery.isFetching;
+  const loaded = picksQuery.isSuccess;
 
   function setSource(source: string) {
     const next = { ...pair, source };
@@ -104,26 +121,17 @@ export default function CoachPage() {
     }
   }
 
-  async function loadPicks() {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const r = await api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLevel(pair.source) ?? undefined, count: 8, theme: theme.trim() || undefined });
-      setPicks(r.picks);
-      setSel(new Set(r.picks.map((p) => p.word)));
-      setLoaded(true);
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadPicks = () => void picksQuery.refetch();
 
-  // Fetch a first batch on mount.
+  // Select all freshly-loaded picks by default; surface fetch errors as a toast.
   useEffect(() => {
-    void loadPicks();
+    setSel(new Set(picks.map((p) => p.word)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [picksQuery.data]);
+  useEffect(() => {
+    if (picksQuery.isError) show({ icon: "⚠️", title: errText(picksQuery.error, t) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picksQuery.isError]);
 
   const toggle = (w: string) =>
     setSel((prev) => {
@@ -151,9 +159,9 @@ export default function CoachPage() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
-      // Drop the added ones from the list.
+      // Drop the added ones from the cached picks.
       const added = new Set(words);
-      setPicks((p) => p.filter((x) => !added.has(x.word)));
+      qc.setQueryData<{ picks: Pick[] }>(picksKey, (old) => (old ? { picks: old.picks.filter((x) => !added.has(x.word)) } : old));
       setSel(new Set());
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -379,8 +387,15 @@ export default function CoachPage() {
                     {on && <Check className="h-3.5 w-3.5" />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block text-[19px] font-semibold leading-tight text-ink", srcFont(pair.source))}>{p.word}</span>
-                    {p.reason && <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft">{p.reason}</span>}
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span className={cn("text-[19px] font-semibold leading-tight text-ink", srcFont(pair.source))}>{p.word}</span>
+                      {p.meaning && (
+                        <span className={cn("text-[15px] font-medium text-sage", (pair.target === "zh" || pair.target === "zh-Hant") && "font-zh")}>
+                          {p.meaning}
+                        </span>
+                      )}
+                    </span>
+                    {p.reason && <span className="mt-1 block text-[13px] leading-snug text-ink-soft">{p.reason}</span>}
                   </span>
                 </button>
               );
@@ -403,12 +418,6 @@ export default function CoachPage() {
         )}
       </section>
 
-      {/* Anything → deck: paste a list or drop a PDF, get a reviewable deck */}
-      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-        <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.importTitle")}</h2>
-        <p className="mt-0.5 mb-4 text-[13px] text-ink-soft">{t("coach.importHint")}</p>
-        <ImportWordsDialog />
-      </section>
     </div>
   );
 }
