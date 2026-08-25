@@ -178,10 +178,16 @@ export default function CoachPracticePage() {
         sourceLang: pair.source,
         targetLang: pair.target,
         level: getLevel(pair.source) ?? undefined,
+        telegramId: accountId,
       });
+      const thread = [...history, { role: "assistant" as const, content: res.say }];
       setTurns((cur) => [...cur, { role: "assistant", content: res.say, grade: res.grade }]);
       if (res.drillWord) setCurrentWord(res.drillWord);
-      if (res.done) setDone(true);
+      if (res.done) {
+        setDone(true);
+        // Fold what happened into the coach's long-term memory of this learner.
+        api.coachRemember({ telegramId: accountId, messages: thread }).catch(() => {});
+      }
       if (res.grade !== "none" && res.gradedWord) {
         const key = res.gradedWord.trim().toLowerCase();
         const card = drill.find((w) => w.word.trim().toLowerCase() === key);

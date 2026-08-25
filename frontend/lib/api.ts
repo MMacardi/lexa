@@ -318,7 +318,7 @@ export const api = {
       body: JSON.stringify({ sentenceEn, sentenceZh }),
     }),
   // Global AI tutor chat (not tied to a card).
-  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string }) =>
+  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string; telegramId?: string }) =>
     http<{ answer: string; addWords: string[]; addCards?: TutorCard[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
   translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
     http<{ translation: string }>(`/api/translate`, {
@@ -433,6 +433,14 @@ export const api = {
   stt: (payload: { audio: string; format?: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/coach/stt`, { method: "POST", body: JSON.stringify(payload) }),
 
+  // What the coach remembers about the learner (goal / interests / notes).
+  coachProfile: (telegramId: string) =>
+    http<{ goal: string; interests: string; notes: string }>(`/api/coach/profile?telegramId=${encodeURIComponent(telegramId)}`),
+  updateCoachProfile: (payload: { telegramId: string; goal?: string; interests?: string; notes?: string }) =>
+    http<{ goal: string; interests: string; notes: string }>(`/api/coach/profile`, { method: "PUT", body: JSON.stringify(payload) }),
+  coachRemember: (payload: { telegramId: string; messages: { role: "user" | "assistant"; content: string }[] }) =>
+    http<{ ok: true }>(`/api/coach/remember`, { method: "POST", body: JSON.stringify(payload) }),
+
   // Adaptive Coach practice: one drill turn (the client keeps the message thread).
   coachDrill: (payload: {
     messages: { role: "user" | "assistant"; content: string }[];
@@ -440,6 +448,7 @@ export const api = {
     sourceLang?: string;
     targetLang?: string;
     level?: string;
+    telegramId?: string;
   }) =>
     http<{ say: string; drillWord: string; grade: "none" | "correct" | "partial" | "wrong"; gradedWord: string; done: boolean }>(
       `/api/coach/drill`,

@@ -3,6 +3,7 @@ import { env } from "../lib/env.js";
 import { addWordForUser, listWordsForUser, recordReview } from "../services/vocab.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
+import { getProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { transcribeAudio } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
@@ -226,6 +227,7 @@ async function startPractice(ctx: Context): Promise<void> {
 async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
   const p = st.practice;
   if (!p) return;
+  const telegramId = String(ctx.from?.id ?? "");
   let res;
   try {
     res = await coachDrill({
@@ -233,6 +235,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
       words: p.words.map((w) => ({ word: w.word, meaning: w.meaning })),
       sourceLang: p.pair.source,
       targetLang: p.pair.target,
+      profileNote: telegramId ? profilePreamble(await getProfile(telegramId)) : "",
     });
   } catch (err) {
     console.error(err);
@@ -258,6 +261,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
   }
   const mark = res.grade === "correct" ? "🟢 " : res.grade === "partial" ? "🟠 " : res.grade === "wrong" ? "🔴 " : "";
   if (res.done) {
+    if (telegramId) void rememberFromSession({ telegramId, messages: p.messages });
     st.practice = undefined;
     await ctx.replyWithHTML(
       `${mark}${esc(res.say)}\n\n🎉 <b>Готово</b> — верно ${p.correct}/${p.graded.size}. Ещё раз: /practice`,
@@ -545,7 +549,12 @@ export function createBot(): Telegraf {
     st.history = st.history.slice(-8);
     await ctx.replyWithChatAction("typing");
     try {
-      const r = await tutorChat({ messages: st.history, sourceLang: pair.source, targetLang: pair.target });
+      const r = await tutorChat({
+        messages: st.history,
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        profileNote: profilePreamble(await getProfile(telegramId)),
+      });
       st.history.push({ role: "assistant", content: r.answer });
       st.suggested = r.addWords ?? [];
       const extra = st.suggested.length

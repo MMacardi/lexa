@@ -43,6 +43,7 @@ import { Sun, Moon, X } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
+import { CoachMemorySection } from "@/components/CoachMemorySection";
 
 function LevelsSection() {
   const { t } = useI18n();
@@ -451,6 +452,10 @@ export default function AccountPage() {
           </div>
         </div>
       </Section>
+
+      {/* ── Coach: your personal mentor's memory ── */}
+      <GroupHeading>{t("coach.title")}</GroupHeading>
+      <CoachMemorySection />
 
       {/* ── Adding words: how new cards are created ── */}
       <GroupHeading>{t("settings.groupAdding")}</GroupHeading>

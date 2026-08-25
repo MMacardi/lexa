@@ -7,6 +7,7 @@ import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
+import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
@@ -45,7 +46,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|stt)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|stt|remember)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -664,6 +665,7 @@ const tutorBody = z.object({
     .max(20),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  telegramId: z.string().optional(),
 });
 wordsRouter.post("/tutor/ask", async (req, res) => {
   const parsed = tutorBody.safeParse(req.body);
@@ -671,12 +673,77 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    res.json(await tutorChat(parsed.data));
+    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    res.json(await tutorChat({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
   }
+});
+
+// GET /api/coach/profile -> what the coach remembers about the learner.
+wordsRouter.get("/coach/profile", async (req, res) => {
+  const telegramId = readSession(req) ?? String(req.query.telegramId ?? "");
+  if (!telegramId) {
+    res.json({ goal: "", interests: "", notes: "" });
+    return;
+  }
+  try {
+    res.json(await getProfile(telegramId));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// PUT /api/coach/profile -> the learner edits their goal / interests / notes.
+const profileBody = z.object({
+  telegramId: z.string().optional(),
+  goal: z.string().max(300).optional(),
+  interests: z.string().max(300).optional(),
+  notes: z.string().max(1000).optional(),
+});
+wordsRouter.put("/coach/profile", async (req, res) => {
+  const parsed = profileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  if (!telegramId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
+  try {
+    res.json(await updateProfile(telegramId, parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/remember -> fold a finished session's transcript into the
+// learner's durable coach notes (best-effort; runs one cheap call).
+const rememberBody = z.object({
+  telegramId: z.string().optional(),
+  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(3000) })).max(30),
+});
+wordsRouter.post("/coach/remember", async (req, res) => {
+  const parsed = rememberBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  if (!telegramId) {
+    res.json({ ok: true }); // nothing to remember for an anon caller
+    return;
+  }
+  // Fire-and-forget so the client isn't blocked on the summary call.
+  void rememberFromSession({ telegramId, messages: parsed.data.messages });
+  res.json({ ok: true });
 });
 
 // POST /api/coach/stt -> transcribe a short voice clip to text (practice answers).
@@ -717,6 +784,7 @@ const coachDrillBody = z.object({
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   level: z.string().optional(),
+  telegramId: z.string().optional(),
 });
 wordsRouter.post("/coach/drill", async (req, res) => {
   const parsed = coachDrillBody.safeParse(req.body);
@@ -724,8 +792,10 @@ wordsRouter.post("/coach/drill", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    res.json(await coachDrill(parsed.data));
+    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    res.json(await coachDrill({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

@@ -15,6 +15,7 @@ export async function coachDrill(params: {
   sourceLang?: string;
   targetLang?: string;
   level?: string;
+  profileNote?: string; // "about this learner" memory, prepended to the prompt
 }): Promise<CoachDrillResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
@@ -33,6 +34,7 @@ export async function coachDrill(params: {
     {
       role: "system",
       content:
+        (params.profileNote ?? "") +
         `You are an adaptive, warm ${source} practice coach. The learner's own language is ${target}.` +
         level +
         `\n\nYour job: run a short, lively workout over EXACTLY these words the learner is studying:\n` +
