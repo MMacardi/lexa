@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
-import { LoginScreen } from "@/components/LoginScreen";
+import { GuestExperience } from "@/components/GuestExperience";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 
 // Routes that render without the auth gate (session-establishing or public legal).
@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
     );
 
-  if (!authed) return <LoginScreen />;
+  if (!authed) return <GuestExperience />;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
