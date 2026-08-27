@@ -47,6 +47,15 @@ const copy = {
       { title: "Small talk на немецком", coach: "Планы на выходные? Одну фразу по-немецки.", user: "Ich gehe wandern." },
       { title: "Возвращаемся к китайскому", coach: "Вчера 的 подвело — повторим 慢慢来.", user: "我们今天做什么？" },
     ],
+    faqTitle: "Частые вопросы",
+    faq: [
+      { q: "Чем это отличается от обычного приложения с карточками?", a: "Вместо простого перелистывания наставник заставляет вспоминать каждое слово — ты его употребляешь, он проверяет ответ, исправляет и подстраивается. Карточки, интервальные повторения и читалка уже внутри; закрепляет именно коучинг." },
+      { q: "Подойдёт, если я совсем новичок?", a: "Да. Скажи наставнику свой уровень и цель — он построит план под тебя: начнёт с посильных слов и будет дозировать новые, чтобы не заваливать." },
+      { q: "А для продвинутых полезно?", a: "Конечно. Поставь уровень выше — наставник гоняет по нюансам, регистру и сложным словам и повышает сложность по мере прогресса." },
+      { q: "Это ИИ — что с моими данными и голосом?", a: "Голосовые ответы в вебе распознаёт сам браузер — для этого ничего не загружается на сервер. Твои слова и прогресс принадлежат тебе; мы обрабатываем их только чтобы приложение работало. Подробнее —", link: { text: "Политика конфиденциальности", href: "/privacy" } },
+      { q: "Это бесплатно? Что такое Pro?", a: "На время беты — бесплатно. Позже план Pro снимет дневные лимиты ИИ и добавит бонусы, но твои слова и прогресс всегда можно оставить и выгрузить бесплатно." },
+      { q: "Какие языки поддерживаются и можно ли перенести свои слова?", a: "Много языковых пар, включая китайский, японский и корейский. Свои слова можно перенести: вставить список, загрузить PDF, сфотографировать тетрадь или импортировать экспорт из другого приложения." },
+    ],
   },
   en: {
     signIn: "Sign in",
@@ -83,6 +92,15 @@ const copy = {
       { title: "Ordering coffee in French", coach: "At the café — how do you ask for a coffee?", user: "Un café, s'il vous plaît." },
       { title: "Small talk in German", coach: "Weekend plans? Say one thing in German.", user: "Ich gehe wandern." },
       { title: "Picking Chinese back up", coach: "Yesterday 的 tripped you — let's redo it 慢慢来.", user: "我们今天做什么？" },
+    ],
+    faqTitle: "Frequently asked questions",
+    faq: [
+      { q: "How is this different from a normal flashcard app?", a: "Instead of just flipping cards, a coach makes you recall each word — you use it, it checks your answer, corrects you and adapts. Cards, spaced repetition and a reader are built in; the coaching is what makes it stick." },
+      { q: "Can I use it as a complete beginner?", a: "Yes. Tell the coach your level and goal and it builds a plan around you — starting with words you can handle and pacing new ones so you're never overwhelmed." },
+      { q: "Is it useful for advanced learners?", a: "Absolutely. Set a higher level and the coach drills nuance, register and tricky words, adapting the difficulty as you improve." },
+      { q: "It's AI — what about my data and voice?", a: "Voice answers on the web are transcribed by your own browser — nothing is uploaded for that. Your words and progress are yours; we only process them to run the app. See the", link: { text: "Privacy Policy", href: "/privacy" } },
+      { q: "Is it free? What's Pro?", a: "It's free during the beta. Later a Pro plan will lift the daily AI limits and add extras — but your saved words and progress are always free to keep and export." },
+      { q: "Which languages are supported, and can I import my existing words?", a: "Many language pairs, including Chinese, Japanese and Korean. Bring your words by pasting a list, dropping a PDF, snapping a photo of your notebook, or importing an export from another app." },
     ],
   },
 };
@@ -467,6 +485,34 @@ function FeatureRow({ title, text, demo, flip }: { title: string; text: string; 
   );
 }
 
+// Accordion FAQ item — expands smoothly, the + rotates into an ×.
+function FaqItem({ q, a, link }: { q: string; a: string; link?: { text: string; href: string } }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-black/[0.07]">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-4 py-5 text-left">
+        <span className="font-serif text-[18px] font-semibold text-ink sm:text-[20px]">{q}</span>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-ink-muted transition-transform duration-300 ${open ? "rotate-45 border-sage/50 text-sage-deep" : "border-black/[0.1]"}`}>
+          <Plus className="h-4 w-4" />
+        </span>
+      </button>
+      <div className={`grid transition-all duration-300 ease-out ${open ? "grid-rows-[1fr] pb-5 opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <div className="overflow-hidden">
+          <p className="max-w-[680px] text-[15px] leading-relaxed text-ink-soft">
+            {a}
+            {link && (
+              <>
+                {" "}
+                <a href={link.href} className="font-semibold text-sage-deep hover:underline">{link.text}</a>.
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LandingScreen({ onStart }: { onStart: () => void }) {
   const { locale } = useI18n();
   const L = locale === "ru" ? copy.ru : copy.en;
@@ -551,6 +597,20 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
                 <h3 className="mt-3 font-serif text-[18px] font-semibold">{s.title}</h3>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{s.text}</p>
               </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-[820px] px-5 py-10 sm:px-8 sm:py-16">
+        <Reveal>
+          <h2 className="text-center font-serif text-[27px] font-medium tracking-[-0.01em] sm:text-[34px]">{L.faqTitle}</h2>
+        </Reveal>
+        <div className="mt-8">
+          {L.faq.map((item) => (
+            <Reveal key={item.q}>
+              <FaqItem q={item.q} a={item.a} link={"link" in item ? item.link : undefined} />
             </Reveal>
           ))}
         </div>
