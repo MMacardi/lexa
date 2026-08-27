@@ -239,27 +239,33 @@ authRouter.get("/auth/me", async (req, res) => {
       photoUrl: true,
       email: true,
       authVia: true,
+      hideEmail: true,
+      hideTag: true,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
   res.json(user ?? { telegramId, identities: [] });
 });
 
-// PATCH /api/auth/me — update the learner's own display name.
+// PATCH /api/auth/me — update the learner's own display name / privacy flags.
 authRouter.patch("/auth/me", async (req, res) => {
   const telegramId = readSession(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  const raw = typeof req.body?.displayName === "string" ? req.body.displayName.trim().slice(0, 60) : "";
+  const b = req.body ?? {};
+  const data: { displayName?: string | null; hideEmail?: boolean; hideTag?: boolean } = {};
+  if (typeof b.displayName === "string") data.displayName = b.displayName.trim().slice(0, 60) || null;
+  if (typeof b.hideEmail === "boolean") data.hideEmail = b.hideEmail;
+  if (typeof b.hideTag === "boolean") data.hideTag = b.hideTag;
   try {
     const user = await prisma.user.update({
       where: { telegramId },
-      data: { displayName: raw || null },
-      select: { displayName: true },
+      data,
+      select: { displayName: true, hideEmail: true, hideTag: true },
     });
-    res.json({ displayName: user.displayName });
+    res.json(user);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

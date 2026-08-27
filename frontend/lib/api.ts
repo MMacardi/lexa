@@ -105,6 +105,8 @@ export interface Profile {
   photoUrl?: string | null;
   email?: string | null;
   authVia?: string; // "telegram" | "google" | "email" | "dev"
+  hideEmail?: boolean;
+  hideTag?: boolean;
   identities?: AuthIdentity[];
 }
 
@@ -382,6 +384,8 @@ export const api = {
   me: () => http<Profile>(`/api/auth/me`),
   updateName: (displayName: string) =>
     http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
+  updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean }) =>
+    http<{ hideEmail: boolean; hideTag: boolean }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
   loginTelegram: (data: Record<string, unknown>) =>
     http<Profile>(`/api/auth/telegram`, {
       method: "POST",

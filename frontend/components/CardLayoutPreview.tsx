@@ -97,7 +97,7 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
       </button>
 
       {open && (
-        <div className="anim-popover absolute left-0 top-full z-30 mt-2 w-[264px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_20px_50px_rgba(46,42,38,0.2)]">
+        <div className="anim-popover absolute left-0 top-full z-30 mt-2 w-[264px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_20px_50px_rgba(46,42,38,0.2)] sm:left-full sm:top-0 sm:ml-3 sm:mt-0">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</span>
             <button

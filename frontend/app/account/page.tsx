@@ -41,7 +41,7 @@ import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, X, Pencil, Check } from "lucide-react";
+import { Sun, Moon, X, Pencil, Check, Eye, EyeOff } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -333,6 +333,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// A small eye toggle next to email / @tag: hide it from what friends can see.
+function PrivacyEye({ hidden, onClick, t }: { hidden: boolean; onClick: () => void; t: (k: string) => string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hidden ? t("account.hiddenFromFriends") : t("account.visibleToFriends")}
+      className="shrink-0 rounded p-0.5 text-ink-faint transition-colors hover:text-ink"
+    >
+      {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
 export default function AccountPage() {
   const { accountId, profile, logout, refresh } = useAccount();
   const { theme, toggle } = useTheme();
@@ -364,6 +378,14 @@ export default function AccountPage() {
       /* ignore */
     } finally {
       setSavingName(false);
+    }
+  }
+  async function togglePrivacy(patch: { hideEmail?: boolean; hideTag?: boolean }) {
+    try {
+      await api.updatePrivacy(patch);
+      await refresh();
+    } catch {
+      /* ignore */
     }
   }
   const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();
@@ -440,14 +462,20 @@ export default function AccountPage() {
                 </div>
               )}
               {profile?.email && (
-                <div className="mt-0.5 truncate text-[13px] text-ink-soft">{profile.email}</div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[13px]">
+                  <span className={cn("truncate", profile.hideEmail ? "text-ink-faint" : "text-ink-soft")}>{profile.email}</span>
+                  <PrivacyEye hidden={!!profile.hideEmail} onClick={() => togglePrivacy({ hideEmail: !profile.hideEmail })} t={t} />
+                </div>
               )}
               <div className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium">
                 <span className={cn("h-2 w-2 rounded-full", method.dot)} />
                 <span className="text-ink-soft">{method.label}</span>
               </div>
               {profile?.username && (
-                <div className="mt-0.5 text-[11px] text-ink-faint">@{profile.username}</div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
+                  <span>@{profile.username}</span>
+                  <PrivacyEye hidden={!!profile.hideTag} onClick={() => togglePrivacy({ hideTag: !profile.hideTag })} t={t} />
+                </div>
               )}
             </div>
           </div>

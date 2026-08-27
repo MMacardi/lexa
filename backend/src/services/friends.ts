@@ -16,9 +16,14 @@ async function userByTelegramId(telegramId: string) {
   return prisma.user.findUnique({ where: { telegramId } });
 }
 
-function displayName(u: { firstName: string | null; lastName: string | null; username: string | null; telegramId: string }): string {
+function displayName(u: { firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean }): string {
+  const custom = (u.displayName ?? "").trim();
+  if (custom) return custom;
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
-  return name || u.username || "Lexa student";
+  if (name) return name;
+  // Fall back to the @username only if the learner hasn't hidden their tag.
+  if (!u.hideTag && u.username) return u.username;
+  return "Lexa student";
 }
 
 // Compact public stats for a friend card: totals, streak, and languages studied.
