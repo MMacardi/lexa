@@ -235,35 +235,69 @@ function PracticeScene({ locale }: { locale: string }) {
   );
 }
 
+// Interactive: really tap the highlighted words to see a gloss + add them.
 function ReaderScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
-  const step = useStepper(3, 1300);
-  const tapped = step >= 1;
-  const showGloss = step >= 2;
-  const added = step >= 3;
+  const glosses: Record<string, string> = {
+    proved: ru ? "оказался, проявил себя" : "proved · turned out",
+    remarkably: ru ? "удивительно, поразительно" : "remarkably",
+    resilient: ru ? "устойчивый, стойкий" : "resilient · стойкий",
+    flood: ru ? "наводнение" : "flood · наводнение",
+  };
+  const [open, setOpen] = useState<string | null>(null);
+  const [added, setAdded] = useState<string[]>([]);
+
+  const W = (word: string) => {
+    const isAdded = added.includes(word);
+    const isOpen = open === word;
+    return (
+      <span className="relative inline-block">
+        <button
+          type="button"
+          onClick={() => setOpen(isOpen ? null : word)}
+          className={`rounded px-1 transition-colors ${
+            isAdded
+              ? "bg-sage-tint text-sage-deep"
+              : isOpen
+                ? "bg-news-hl text-sage-deep"
+                : "underline decoration-dotted decoration-sage/50 underline-offset-[5px] hover:bg-news-hl hover:text-sage-deep"
+          }`}
+        >
+          {word}
+        </button>
+        {isOpen && !isAdded && (
+          <span className="anim-popover absolute left-1/2 top-full z-20 mt-2 w-[190px] -translate-x-1/2 rounded-[12px] border border-black/[0.08] bg-surface p-2.5 text-left font-sans shadow-[0_14px_36px_rgba(46,42,38,0.18)]">
+            <span className="block text-[13px] font-semibold text-ink">{word}</span>
+            <span className="mt-0.5 block text-[13px] text-sage-deep">{glosses[word]}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setAdded((a) => [...a, word]);
+                setOpen(null);
+              }}
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-full bg-sage px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-sage-deep"
+            >
+              <Plus className="h-3 w-3" /> {ru ? "Добавить" : "Add"}
+            </button>
+          </span>
+        )}
+      </span>
+    );
+  };
+
   return (
     <DemoCard>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни слово" : "Reader · tap a word"}</div>
-      <p className="min-h-[132px] rounded-[16px] border border-black/[0.06] bg-paper p-4 font-serif text-[17px] leading-relaxed text-ink">
-        The city proved remarkably{" "}
-        <span className="relative inline-block">
-          <span className={`rounded px-1 transition-colors ${added ? "bg-sage-tint text-sage-deep" : tapped ? "bg-news-hl text-sage-deep" : ""}`}>resilient</span>
-          {showGloss && !added && (
-            <span className="anim-popover absolute left-1/2 top-full z-10 mt-2 w-[188px] -translate-x-1/2 rounded-[12px] border border-black/[0.08] bg-surface p-2.5 text-left font-sans shadow-[0_14px_36px_rgba(46,42,38,0.18)]">
-              <span className="block text-[13px] font-semibold text-ink">resilient</span>
-              <span className="mt-0.5 block text-[13px] text-sage-deep">устойчивый, стойкий</span>
-              <span className="mt-2 flex items-center justify-center gap-1 rounded-full bg-sage px-2 py-1 text-[11px] font-semibold text-white">
-                <Plus className="h-3 w-3" /> {ru ? "Добавить" : "Add"}
-              </span>
-            </span>
-          )}
-        </span>{" "}
-        after the flood.
-      </p>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни подчёркнутое слово" : "Reader · tap an underlined word"}</div>
+      <div className="relative">
+        {open && <button type="button" aria-hidden className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(null)} />}
+        <p className="relative z-0 min-h-[132px] rounded-[16px] border border-black/[0.06] bg-paper p-4 font-serif text-[17px] leading-relaxed text-ink">
+          The city {W("proved")} {W("remarkably")} {W("resilient")} after the {W("flood")}.
+        </p>
+      </div>
       <div className="mt-3 h-8">
-        {added && (
+        {added.length > 0 && (
           <div className="anim-fade-up inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint px-3 py-1.5 text-[12px] font-semibold text-sage-deep">
-            <Check className="h-3.5 w-3.5" strokeWidth={3} /> {ru ? "Добавлено в колоду" : "Added to your deck"}
+            <Check className="h-3.5 w-3.5" strokeWidth={3} /> {ru ? `Добавлено в колоду: ${added.length}` : `Added to your deck: ${added.length}`}
           </div>
         )}
       </div>
@@ -311,7 +345,7 @@ function FlashcardScene({ locale }: { locale: string }) {
   return (
     <DemoCard>
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Карточки · нажми, чтобы перевернуть" : "Flashcards · tap to flip"}</div>
-      <div className="flip-scene">
+      <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
         <div className={`flip-card ${flipped ? "is-flipped" : ""}`}>
           <div className="flip-face flex min-h-[204px] flex-col items-center justify-center rounded-[16px] border border-black/[0.06] bg-paper p-6 text-center">
             <div className="font-serif text-[30px] font-semibold text-ink">resilient</div>
