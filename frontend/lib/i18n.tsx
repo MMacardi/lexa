@@ -357,7 +357,7 @@ const DICT: Record<string, Entry> = {
   "pro.b5": { en: "Up to 3 examples", ru: "До 3 примеров", zh: "最多 3 个例句" },
   "pro.b5d": { en: "More context on every card, in one tap.", ru: "Больше контекста на каждой карточке одним нажатием.", zh: "一键为每张卡片增加更多语境。" },
   "pro.b6": { en: "Big imports", ru: "Большой импорт", zh: "批量导入" },
-  "pro.b6d": { en: "Bring in long word lists all at once.", ru: "Загружай длинные списки слов одним махом.", zh: "一次导入长长的词表。" },
+  "pro.b6d": { en: "Bring in long word lists all at once.", ru: "Загружай длинные списки слов за один раз.", zh: "一次导入长长的词表。" },
   "pro.compareTitle": { en: "Free vs Pro", ru: "Free и Pro", zh: "免费版对比 Pro" },
   "pro.feature": { en: "Feature", ru: "Возможность", zh: "功能" },
   "pro.free": { en: "Free", ru: "Free", zh: "免费" },
