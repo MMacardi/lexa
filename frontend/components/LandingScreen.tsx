@@ -148,6 +148,129 @@ function ThemeToggle() {
   );
 }
 
+// A looping, animated preview of the coach practice — honest (shows the real
+// feature) and gives the hero a "living product" feel like modern AI landings.
+const mockScript = {
+  en: {
+    word: "unless",
+    meaning: "if not · except if",
+    task: "Compose a short sentence",
+    turns: [
+      { role: "coach" as const, text: "Let's start with *unless* — use it in a short sentence." },
+      { role: "user" as const, text: "I won't go unless you come with me." },
+      { role: "coach" as const, grade: true, text: "Perfect — natural and correct. On to the next word!" },
+    ],
+  },
+  ru: {
+    word: "unless",
+    meaning: "если только не",
+    task: "Составь короткое предложение",
+    turns: [
+      { role: "coach" as const, text: "Начнём со слова *unless* — составь короткое предложение." },
+      { role: "user" as const, text: "I won't go unless you come with me." },
+      { role: "coach" as const, grade: true, text: "Отлично — естественно и верно. Дальше следующее слово!" },
+    ],
+  },
+};
+
+function MockRich({ text }: { text: string }) {
+  const parts = text.split(/(\*[^*]+\*)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        /^\*[^*]+\*$/.test(p) ? (
+          <span key={i} className="rounded bg-sage-tint px-1 font-semibold text-sage-deep">
+            {p.slice(1, -1)}
+          </span>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function CoachChatMock({ locale }: { locale: string }) {
+  const S = locale === "ru" ? mockScript.ru : mockScript.en;
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+    function step(i: number) {
+      if (cancelled) return;
+      if (i > S.turns.length) {
+        timer = setTimeout(() => {
+          if (cancelled) return;
+          setCount(0);
+          step(1);
+        }, 2800);
+        return;
+      }
+      setCount(i);
+      const nextIsCoach = i < S.turns.length && S.turns[i].role === "coach";
+      timer = setTimeout(() => step(i + 1), i === 0 ? 600 : nextIsCoach ? 1500 : 1000);
+    }
+    step(0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [S]);
+
+  const typing = count < S.turns.length && S.turns[count].role === "coach";
+
+  return (
+    <div className="mx-auto w-full max-w-[380px] rounded-[24px] border border-black/[0.08] bg-surface p-4 shadow-[0_30px_70px_rgba(46,42,38,0.16)]">
+      {/* word being drilled */}
+      <div className="mb-3 flex items-center justify-center gap-3 rounded-[16px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 to-surface px-4 py-3 text-center">
+        <div>
+          <div className="font-serif text-[24px] font-semibold leading-none text-ink">{S.word}</div>
+          <div className="mt-1 text-[12px] font-medium text-sage-deep">{S.meaning}</div>
+        </div>
+      </div>
+      {/* messages */}
+      <div className="flex min-h-[188px] flex-col gap-2.5">
+        {S.turns.slice(0, count).map((turn, i) =>
+          turn.role === "user" ? (
+            <div key={i} className="anim-fade-up flex justify-end">
+              <div className="max-w-[80%] rounded-[14px] rounded-br-sm bg-sage px-3 py-2 text-[13.5px] leading-snug text-white">{turn.text}</div>
+            </div>
+          ) : (
+            <div key={i} className="anim-fade-up flex items-end gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage text-white">
+                <Compass className="h-4 w-4" />
+              </span>
+              <div className="max-w-[82%]">
+                {"grade" in turn && turn.grade && (
+                  <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} /> {locale === "ru" ? "Верно" : "Correct"}
+                  </span>
+                )}
+                <div className="rounded-[14px] rounded-bl-sm border border-black/[0.06] bg-paper px-3 py-2 text-[13.5px] leading-snug text-ink">
+                  <MockRich text={turn.text} />
+                </div>
+              </div>
+            </div>
+          ),
+        )}
+        {typing && (
+          <div className="anim-fade-in flex items-end gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage text-white">
+              <Compass className="h-4 w-4" />
+            </span>
+            <div className="flex items-center gap-1 rounded-[14px] rounded-bl-sm border border-black/[0.06] bg-paper px-3 py-2.5">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.2s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.1s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint" />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LandingScreen({ onStart }: { onStart: () => void }) {
   const { locale } = useI18n();
   const L = locale === "ru" ? copy.ru : copy.en;
@@ -157,7 +280,7 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
       {/* top bar */}
       <header className="sticky top-0 z-30 border-b border-black/[0.05] bg-paper/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-3.5 sm:px-8">
-          <span className="font-serif text-[22px] font-semibold tracking-[-0.01em]">Lexa</span>
+          <span className="bg-gradient-to-r from-sage-deep via-sage to-taupe bg-clip-text font-serif text-[22px] font-semibold tracking-[-0.01em] text-transparent">Lexa</span>
           <div className="flex items-center gap-2">
             <LangMenu />
             <ThemeToggle />
@@ -178,26 +301,31 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
           <div className="aurora-blob absolute -top-32 left-[15%] h-[420px] w-[420px] rounded-full bg-sage/25 blur-[120px]" />
           <div className="aurora-blob slow absolute -top-10 right-[12%] h-[380px] w-[380px] rounded-full bg-taupe/25 blur-[120px]" />
         </div>
-        <div className="relative mx-auto max-w-[1080px] px-5 pb-16 pt-14 text-center sm:px-8 sm:pb-24 sm:pt-20">
-          <span className="anim-fade-up inline-flex items-center gap-1.5 rounded-full border border-sage/25 bg-sage-tint/60 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5" /> {L.eyebrow}
-          </span>
-          <h1 className="anim-fade-up mx-auto mt-6 max-w-[840px] font-serif text-[36px] font-medium leading-[1.06] tracking-[-0.02em] sm:text-[56px]" style={{ animationDelay: "60ms" }}>
-            {L.heroTitle}
-          </h1>
-          <p className="anim-fade-up mx-auto mt-6 max-w-[620px] text-[16px] leading-relaxed text-ink-soft sm:text-[20px]" style={{ animationDelay: "120ms" }}>
-            {L.heroSub}
-          </p>
-          <div className="anim-fade-up mt-9 flex flex-col items-center gap-3" style={{ animationDelay: "180ms" }}>
-            <button
-              type="button"
-              onClick={onStart}
-              className="group inline-flex items-center gap-2 rounded-full bg-sage px-8 py-4 text-[17px] font-semibold text-white shadow-[0_16px_40px_rgba(124,152,133,0.4)] transition-all hover:bg-sage-deep hover:shadow-[0_20px_50px_rgba(124,152,133,0.5)] active:scale-[0.98]"
-            >
-              {L.ctaMain}
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-            </button>
-            <span className="text-[13px] text-ink-faint">{L.ctaHint}</span>
+        <div className="relative mx-auto grid max-w-[1080px] items-center gap-10 px-5 pb-16 pt-14 sm:px-8 sm:pb-24 sm:pt-20 lg:grid-cols-2">
+          <div className="text-center lg:text-left">
+            <span className="anim-fade-up inline-flex items-center gap-1.5 rounded-full border border-sage/25 bg-sage-tint/60 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" /> {L.eyebrow}
+            </span>
+            <h1 className="anim-fade-up mx-auto mt-6 max-w-[560px] font-serif text-[36px] font-medium leading-[1.06] tracking-[-0.02em] sm:text-[52px] lg:mx-0 lg:max-w-none" style={{ animationDelay: "60ms" }}>
+              {L.heroTitle}
+            </h1>
+            <p className="anim-fade-up mx-auto mt-6 max-w-[480px] text-[16px] leading-relaxed text-ink-soft sm:text-[19px] lg:mx-0" style={{ animationDelay: "120ms" }}>
+              {L.heroSub}
+            </p>
+            <div className="anim-fade-up mt-9 flex flex-col items-center gap-3 lg:items-start" style={{ animationDelay: "180ms" }}>
+              <button
+                type="button"
+                onClick={onStart}
+                className="group inline-flex items-center gap-2 rounded-full bg-sage px-8 py-4 text-[17px] font-semibold text-white shadow-[0_16px_40px_rgba(124,152,133,0.4)] transition-all hover:bg-sage-deep hover:shadow-[0_20px_50px_rgba(124,152,133,0.5)] active:scale-[0.98]"
+              >
+                {L.ctaMain}
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              </button>
+              <span className="text-[13px] text-ink-faint">{L.ctaHint}</span>
+            </div>
+          </div>
+          <div className="anim-fade-up" style={{ animationDelay: "240ms" }}>
+            <CoachChatMock locale={locale} />
           </div>
         </div>
       </section>
