@@ -543,9 +543,9 @@ export default function FlashcardsPage() {
           </button>
           <button
             onClick={() => setStarted(false)}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
-            {t("review.setup")}
+            ← {t("review.backToSetup")}
           </button>
         </div>
         <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
