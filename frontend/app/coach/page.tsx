@@ -95,6 +95,26 @@ export default function CoachPage() {
     queryFn: () => api.stats(accountId),
     enabled: !!accountId,
   });
+  // Best streak BEFORE this session, frozen — so a new record is celebrated all day
+  // and quietly retired tomorrow. Persisted below when the current streak beats it.
+  const [bestStreak] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      return Number(localStorage.getItem("lexa.bestStreak") ?? 0) || 0;
+    } catch {
+      return 0;
+    }
+  });
+  useEffect(() => {
+    const s = stats?.streak ?? 0;
+    if (s > bestStreak) {
+      try {
+        localStorage.setItem("lexa.bestStreak", String(s));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [stats?.streak, bestStreak]);
 
   // Cache the picks in the query client so they SURVIVE navigating away and back
   // (they used to be local state re-fetched — and re-charged — on every mount).
@@ -233,23 +253,33 @@ export default function CoachPage() {
     const yStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const practicedYesterday = (stats?.days ?? []).some((d) => d.date === yStr && d.reviews > 0);
 
+    // Seed changes each 6-hour block, so the line refreshes across a single day.
+    const seed = Math.floor(Date.now() / 86_400_000) * 4 + Math.floor(hour / 6);
+
+    // A brand-new personal-best streak trumps everything — celebrate it all day.
+    if (streak >= 2 && streak > bestStreak) return `${greeting} ${t("coach.sayRecord", { n: streak })}`;
+
     // Situational remarks, most-personal first; we rotate among whichever apply.
     const opts: string[] = [];
     if (trainedToday) opts.push(t("coach.sayDoneToday"));
     if (streak >= 3) opts.push(t("coach.sayStreak", { n: streak }));
     if (!trainedToday && practicedYesterday) opts.push(t("coach.sayKeepPace"));
     if (!trainedToday && !practicedYesterday && streak === 0) opts.push(t("coach.sayComeback"));
-    if (weak > 0) opts.push(t("coach.sayWeak", { n: weak }));
+    // Name the single word that keeps tripping you up — concrete beats a count.
+    if (weakTop[0]) opts.push(t("coach.sayStumble", { word: weakTop[0].word }));
+    if (weak > 1) opts.push(t("coach.sayWeak", { n: weak }));
     if (due >= 15) opts.push(t("coach.sayDue", { n: due }));
     if (goal) opts.push(t("coach.sayGoal", { goal }));
     else opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
     opts.push(t("coach.sayWarm"));
+    // A rare "thought of the day" — one micro-tip joins the rotation, so it surfaces
+    // occasionally and feels like a real remark rather than noise.
+    const tips = [t("coach.tip1"), t("coach.tip2"), t("coach.tip3"), t("coach.tip4"), t("coach.tip5")];
+    opts.push(tips[seed % tips.length]);
 
-    // Seed changes each 6-hour block, so the line refreshes across a single day.
-    const seed = Math.floor(Date.now() / 86_400_000) * 4 + Math.floor(hour / 6);
     const remark = opts[seed % opts.length];
     return `${greeting} ${remark}`;
-  }, [weak, due, profile?.goal, pair.source, stats, t]);
+  }, [weak, due, weakTop, profile?.goal, pair.source, stats, bestStreak, t]);
 
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">
