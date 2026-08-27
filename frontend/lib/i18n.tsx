@@ -419,6 +419,30 @@ const DICT: Record<string, Entry> = {
     ru: "Наставник помнит это и подбирает слова под цель.",
     zh: "导师会记住这一点，并据此为你挑词。",
   },
+  "coach.gMorning": { en: "Good morning!", ru: "Доброе утро!", zh: "早上好！" },
+  "coach.gDay": { en: "Good afternoon!", ru: "Добрый день!", zh: "下午好！" },
+  "coach.gEve": { en: "Good evening!", ru: "Добрый вечер!", zh: "晚上好！" },
+  "coach.gLate": { en: "Still up?", ru: "Ещё не спишь?", zh: "还没睡？" },
+  "coach.sayDoneToday": {
+    en: "You've already practised today — nicely done.",
+    ru: "Сегодня ты уже позанимался — красота.",
+    zh: "你今天已经练过了——干得漂亮。",
+  },
+  "coach.sayStreak": {
+    en: "{n} days in a row — keep the streak alive!",
+    ru: "{n} дней подряд — не рви серию!",
+    zh: "连续 {n} 天——别断了！",
+  },
+  "coach.sayKeepPace": {
+    en: "You put in good work yesterday — let's keep the pace.",
+    ru: "Вчера ты хорошо поработал — держим темп.",
+    zh: "你昨天表现不错——保持节奏。",
+  },
+  "coach.sayComeback": {
+    en: "Been a little while — shall we ease back in with a few words?",
+    ru: "Давно не виделись — вернёмся в ритм на паре слов?",
+    zh: "有段时间没见了——先用几个词找回状态？",
+  },
   "coach.sayWeak": {
     en: "{n} of your words are slipping — want to nail them in practice?",
     ru: "{n} слов у тебя буксуют — разберём их в практике?",

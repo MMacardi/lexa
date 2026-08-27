@@ -89,6 +89,13 @@ export default function CoachPage() {
   });
   const [savingGoal, setSavingGoal] = useState(false);
 
+  // Stats power the "living" greeting: streak, whether you trained today, yesterday's activity.
+  const { data: stats } = useQuery({
+    queryKey: ["stats", accountId],
+    queryFn: () => api.stats(accountId),
+    enabled: !!accountId,
+  });
+
   // Cache the picks in the query client so they SURVIVE navigating away and back
   // (they used to be local state re-fetched — and re-charged — on every mount).
   const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
@@ -212,19 +219,37 @@ export default function CoachPage() {
 
   const selectedCount = picks.filter((p) => sel.has(p.word)).length;
 
-  // A living one-liner from the coach: contextual to your day, rotates so it feels
-  // alive, and gently nudges the goal when it doesn't know one — no nagging form.
+  // A living one-liner from the coach: a time-of-day greeting plus a remark drawn
+  // from your streak, today's/yesterday's activity, due & weak words, and goal.
+  // Rotates through the day (morning/afternoon/evening) so it feels alive. No tokens.
   const coachLine = useMemo(() => {
+    const hour = new Date().getHours();
+    const greeting =
+      hour < 5 ? t("coach.gLate") : hour < 12 ? t("coach.gMorning") : hour < 18 ? t("coach.gDay") : t("coach.gEve");
+
     const goal = profile?.goal?.trim();
+    const streak = stats?.streak ?? 0;
+    const trainedToday = (stats?.trainedToday ?? 0) > 0;
+    const yStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const practicedYesterday = (stats?.days ?? []).some((d) => d.date === yStr && d.reviews > 0);
+
+    // Situational remarks, most-personal first; we rotate among whichever apply.
     const opts: string[] = [];
+    if (trainedToday) opts.push(t("coach.sayDoneToday"));
+    if (streak >= 3) opts.push(t("coach.sayStreak", { n: streak }));
+    if (!trainedToday && practicedYesterday) opts.push(t("coach.sayKeepPace"));
+    if (!trainedToday && !practicedYesterday && streak === 0) opts.push(t("coach.sayComeback"));
     if (weak > 0) opts.push(t("coach.sayWeak", { n: weak }));
     if (due >= 15) opts.push(t("coach.sayDue", { n: due }));
     if (goal) opts.push(t("coach.sayGoal", { goal }));
     else opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
     opts.push(t("coach.sayWarm"));
-    const day = Math.floor(Date.now() / 86_400_000);
-    return opts[day % opts.length];
-  }, [weak, due, profile?.goal, pair.source, t]);
+
+    // Seed changes each 6-hour block, so the line refreshes across a single day.
+    const seed = Math.floor(Date.now() / 86_400_000) * 4 + Math.floor(hour / 6);
+    const remark = opts[seed % opts.length];
+    return `${greeting} ${remark}`;
+  }, [weak, due, profile?.goal, pair.source, stats, t]);
 
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">
