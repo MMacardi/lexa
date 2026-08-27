@@ -28,9 +28,45 @@ import { Select } from "@/components/ui/Select";
 import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
+import { HoverPreview } from "@/components/HoverPreview";
 
 type PreviewCard = ImportedCard & { selected: boolean };
 type ImportDirection = "en-ru" | "ru-en" | "custom";
+
+// A little flip-card preview of what the FIRST typed line will become, so the
+// learner sees the shape of a card while composing the list. Client-only, no AI.
+function ImportCardPreview({ text }: { text: string }) {
+  const { t, locale } = useI18n();
+  const ru = locale === "ru";
+  const line = text.split("\n").map((s) => s.trim()).find((s) => s && !s.startsWith("#")) ?? "";
+  const parts = line.split(/\s*[—–:=|]\s*|\t| - /);
+  const word = (parts[0] ?? "").trim();
+  const meaning = parts.slice(1).join(", ").replace(/\s+/g, " ").trim();
+  const [flipped, setFlipped] = useState(false);
+  useEffect(() => {
+    const id = setInterval(() => setFlipped((f) => !f), 2200);
+    return () => clearInterval(id);
+  }, []);
+  const body = !word ? (
+    <p className="py-3 text-center text-[13px] text-ink-soft">{ru ? "Начните печатать — покажу карточку" : "Start typing — I'll show a card"}</p>
+  ) : (
+    <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
+      <div className={cn("flip-card", flipped && "is-flipped")}>
+        <div className="flip-face flex min-h-[104px] items-center justify-center rounded-[14px] border border-black/[0.06] bg-paper p-4 text-center">
+          <div className="font-serif text-[22px] font-semibold leading-tight text-ink">{word}</div>
+        </div>
+        <div className="flip-face flip-back flex min-h-[104px] items-center justify-center rounded-[14px] border border-sage/25 bg-sage-tint/25 p-4 text-center">
+          <div className="text-[15px] font-medium leading-snug text-sage-deep">{meaning || (ru ? "значение подберёт ИИ" : "AI will fill the meaning")}</div>
+        </div>
+      </div>
+    </div>
+  );
+  return (
+    <HoverPreview label={ru ? "Как будет выглядеть карточка?" : "Preview the card?"} title={t("preview.title")} width={230}>
+      {body}
+    </HoverPreview>
+  );
+}
 
 export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId?: string }) {
   const { accountId } = useAccount();
@@ -353,6 +389,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   <span className="mx-1.5 text-ink-faint">·</span>
                   <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtSyn")}</code>
                   <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
+                  <ImportCardPreview text={text} />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
                   <input ref={inputRef} type="file" accept=".txt,.pdf,text/plain,application/pdf,image/*" className="hidden" onChange={(event) => readFile(event.target.files?.[0])} />
