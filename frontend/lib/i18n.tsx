@@ -405,9 +405,44 @@ const DICT: Record<string, Entry> = {
   },
   "coach.refresh": { en: "New picks", ru: "Обновить", zh: "换一批" },
   "coach.themePlaceholder": {
-    en: "Topic (optional) — e.g. travel, cooking. Empty = follows your recent words.",
-    ru: "Тема (необязательно) — напр. путешествия, кухня. Пусто = по недавним словам.",
-    zh: "主题（可选）——如旅行、烹饪。留空 = 跟随你最近的单词。",
+    en: "Why are you learning? e.g. work in Japan, IELTS, cooking",
+    ru: "Зачем учишь? напр. работа в Японии, IELTS, готовка",
+    zh: "你为什么学？如：去日本工作、雅思、烹饪",
+  },
+  "coach.themeHint": {
+    en: "Tell the coach your goal and it picks words for it — or leave blank for your recent words.",
+    ru: "Скажи наставнику цель — он подберёт слова под неё. Пусто = по недавним словам.",
+    zh: "告诉导师你的目标，它就按目标选词——留空则跟随你最近的单词。",
+  },
+  "coach.themeRemembers": {
+    en: "The coach remembers this and tailors your words to it.",
+    ru: "Наставник помнит это и подбирает слова под цель.",
+    zh: "导师会记住这一点，并据此为你挑词。",
+  },
+  "coach.sayWeak": {
+    en: "{n} of your words are slipping — want to nail them in practice?",
+    ru: "{n} слов у тебя буксуют — разберём их в практике?",
+    zh: "你有 {n} 个词在打滑——要不要在练习里搞定它们？",
+  },
+  "coach.sayDue": {
+    en: "{n} words are due today. Shall we start with those?",
+    ru: "Сегодня {n} слов пора повторить. Начнём с них?",
+    zh: "今天有 {n} 个词到期了，先从它们开始？",
+  },
+  "coach.sayGoal": {
+    en: "I remember — your goal is “{goal}”. I've picked words for it below.",
+    ru: "Помню — твоя цель «{goal}». Подобрал слова под неё ниже.",
+    zh: "我记得——你的目标是「{goal}」。下面是我为它挑的词。",
+  },
+  "coach.sayAskGoal": {
+    en: "Tell me why you're learning {lang} and I'll pick words that actually help.",
+    ru: "Скажи, зачем тебе {lang} — и я подберу слова, которые реально пригодятся.",
+    zh: "告诉我你为什么学{lang}，我就挑真正有用的词给你。",
+  },
+  "coach.sayWarm": {
+    en: "A couple of minutes today and these words will stick. Ready?",
+    ru: "Пара минут сегодня — и слова закрепятся. Готов?",
+    zh: "今天花两分钟，这些词就能记牢。准备好了吗？",
   },
   "coach.loading": { en: "Picking words for you…", ru: "Подбираю слова для тебя…", zh: "正在为你挑选…" },
   "coach.empty": { en: "No suggestions right now — try refreshing.", ru: "Сейчас нет предложений — попробуй обновить.", zh: "暂无推荐——请刷新试试。" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,6 +81,14 @@ export default function CoachPage() {
   const [theme, setTheme] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Coach memory: the learner's goal powers a "get to know you" prompt + tailored picks.
+  const { data: profile } = useQuery({
+    queryKey: ["coach-profile", accountId],
+    queryFn: () => api.coachProfile(accountId),
+    enabled: !!accountId,
+  });
+  const [savingGoal, setSavingGoal] = useState(false);
+
   // Cache the picks in the query client so they SURVIVE navigating away and back
   // (they used to be local state re-fetched — and re-charged — on every mount).
   const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
@@ -121,7 +129,39 @@ export default function CoachPage() {
     }
   }
 
-  const loadPicks = () => void picksQuery.refetch();
+  // Prefill the "what to learn" box with the saved goal, so it's remembered but not nagged.
+  useEffect(() => {
+    const g = profile?.goal?.trim();
+    if (g) setTheme((cur) => cur || g);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.goal]);
+
+  // Gentle personalization: whatever you type in "what to learn" IS your goal — it's
+  // quietly remembered and tailors the picks. No forced onboarding.
+  async function saveThemeAndPicks() {
+    if (savingGoal) return;
+    const g = theme.trim();
+    setSavingGoal(true);
+    try {
+      if (g) {
+        await api.updateCoachProfile({ telegramId: accountId, goal: g });
+        qc.invalidateQueries({ queryKey: ["coach-profile", accountId] });
+      }
+      const r = await api.coachPicks({
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        level: getLevel(pair.source) ?? undefined,
+        count: 8,
+        theme: g || undefined,
+      });
+      qc.setQueryData(picksKey, r);
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+  const loadPicks = () => void saveThemeAndPicks();
 
   // Select all freshly-loaded picks by default; surface fetch errors as a toast.
   useEffect(() => {
@@ -172,13 +212,35 @@ export default function CoachPage() {
 
   const selectedCount = picks.filter((p) => sel.has(p.word)).length;
 
+  // A living one-liner from the coach: contextual to your day, rotates so it feels
+  // alive, and gently nudges the goal when it doesn't know one — no nagging form.
+  const coachLine = useMemo(() => {
+    const goal = profile?.goal?.trim();
+    const opts: string[] = [];
+    if (weak > 0) opts.push(t("coach.sayWeak", { n: weak }));
+    if (due >= 15) opts.push(t("coach.sayDue", { n: due }));
+    if (goal) opts.push(t("coach.sayGoal", { goal }));
+    else opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
+    opts.push(t("coach.sayWarm"));
+    const day = Math.floor(Date.now() / 86_400_000);
+    return opts[day % opts.length];
+  }, [weak, due, profile?.goal, pair.source, t]);
+
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">
       <div>
         <h1 className="flex items-center gap-2 font-serif text-[30px] font-medium tracking-[-0.01em] text-ink">
           <Compass className="h-7 w-7 text-sage-deep" /> {t("coach.title")}
         </h1>
-        <p className="mt-1.5 text-ink-soft">{t("coach.subtitle")}</p>
+        {/* Living greeting — a friendly, context-aware line instead of a static subtitle */}
+        <div className="mt-3 flex items-start gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage text-white">
+            <Compass className="h-[17px] w-[17px]" />
+          </span>
+          <p className="rounded-[16px] rounded-tl-[4px] bg-sage-tint/45 px-3.5 py-2 text-[14.5px] leading-snug text-ink">
+            {coachLine}
+          </p>
+        </div>
       </div>
 
       {/* Practice with your coach — the hero: an adaptive drill on your own words */}
@@ -227,17 +289,24 @@ export default function CoachPage() {
           <LangSelect value={pair.target} onChange={setTarget} />
         </div>
 
-        {/* optional theme — otherwise picks follow what you've recently studied */}
-        <input
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") loadPicks();
-          }}
-          placeholder={t("coach.themePlaceholder")}
-          maxLength={60}
-          className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-        />
+        {/* Your goal, in-context: type why you're learning → picks follow it and it's
+            quietly remembered. No separate onboarding, no nagging. */}
+        <div>
+          <input
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") loadPicks();
+            }}
+            placeholder={t("coach.themePlaceholder")}
+            maxLength={80}
+            className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+          />
+          <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+            <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
+            {theme.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
+          </p>
+        </div>
 
         {/* picks */}
         {loading && picks.length === 0 ? (
@@ -245,7 +314,7 @@ export default function CoachPage() {
         ) : picks.length === 0 && loaded ? (
           <p className="py-8 text-center text-sm text-ink-soft">{t("coach.empty")}</p>
         ) : (
-          <div className="space-y-2">
+          <div className="max-h-[336px] space-y-2 overflow-y-auto pr-1">
             {picks.map((p) => {
               const on = sel.has(p.word);
               return (
