@@ -238,7 +238,7 @@ const DICT: Record<string, Entry> = {
   "account.devSession": { en: "Local dev session", ru: "Локальная сессия (dev)", zh: "本地会话" },
 
   // --- login ---
-  "login.tagline": { en: "Learn English through the news. Sign in to start.", ru: "Учите языки по новостям. Войдите, чтобы начать.", zh: "通过新闻学语言。登录开始。" },
+  "login.tagline": { en: "Your personal AI language tutor. Sign in to start.", ru: "Личный AI-наставник по языкам. Войдите, чтобы начать.", zh: "你的个人 AI 语言导师。登录开始。" },
   "login.dev": { en: "dev sign-in", ru: "вход для разработки", zh: "开发登录" },
   "login.idPlaceholder": { en: "Telegram ID (e.g. 865277762)", ru: "Telegram ID (напр. 865277762)", zh: "Telegram ID（如 865277762）" },
   "login.enter": { en: "Enter", ru: "Войти", zh: "进入" },
@@ -466,9 +466,9 @@ const DICT: Record<string, Entry> = {
   },
   "coach.briefWeakCta": { en: "Practice", ru: "Отработать", zh: "练习" },
   "coach.briefDue": {
-    en: "{n} words are due. Five focused minutes keeps you on track.",
-    ru: "{n} слов пора повторить. Пять минут — и ты в графике.",
-    zh: "{n} 个词到期了。专注五分钟就能跟上进度。",
+    en: "{n} words are due. Five focused minutes and you're all caught up.",
+    ru: "{n} слов пора повторить — пять минут, и всё под контролем.",
+    zh: "{n} 个词到期了。专注五分钟就能全部跟上。",
   },
   "coach.briefDueCta": { en: "Review", ru: "Повторить", zh: "复习" },
   "coach.briefNew": {
@@ -642,7 +642,7 @@ const DICT: Record<string, Entry> = {
 
   // --- today ---
   "today.emptyTitle": { en: "Start your collection", ru: "Соберите свою коллекцию", zh: "开始你的单词库" },
-  "today.emptyText": { en: "Add your first word — I'll find a real news sentence and translate it.", ru: "Добавьте первое слово — я найду живой пример из новостей и переведу его.", zh: "添加第一个单词——我会找到真实的新闻例句并翻译。" },
+  "today.emptyText": { en: "Add your first word — I'll add its meaning and a natural example.", ru: "Добавьте первое слово — я подберу значение и естественный пример.", zh: "添加第一个单词——我会补上释义和自然例句。" },
   "today.greeting": { en: "Good day — ready for today's words?", ru: "Добрый день! Повторим слова?", zh: "你好——准备好今天的单词了吗？" },
   "today.startReview": { en: "Start review →", ru: "Начать повтор →", zh: "开始复习 →" },
   "today.dueForReview": { en: "due for review", ru: "к повторению", zh: "待复习" },
@@ -654,7 +654,7 @@ const DICT: Record<string, Entry> = {
   "today.dueBlurb": { en: "A quick flashcard session keeps your memory fresh — just a few minutes.", ru: "Короткая тренировка с карточками поможет закрепить слова.", zh: "快速闪卡练习让记忆常新——只需几分钟。" },
   "today.openFlashcards": { en: "Open flashcards →", ru: "Открыть карточки →", zh: "打开闪卡 →" },
   "today.wotd": { en: "Word of the day", ru: "Слово дня", zh: "每日单词" },
-  "today.recent": { en: "Recently · from the news", ru: "Недавние · из новостей", zh: "最近 · 来自新闻" },
+  "today.recent": { en: "Recently added", ru: "Недавно добавленные", zh: "最近添加" },
   "today.viewAll": { en: "View all →", ru: "Все слова →", zh: "查看全部 →" },
   "today.dueToday": { en: "Due for review today", ru: "К повторению сегодня", zh: "今天待复习" },
   "today.reviewAll": { en: "Review all →", ru: "Повторить всё →", zh: "全部复习 →" },
