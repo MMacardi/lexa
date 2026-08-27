@@ -100,6 +100,7 @@ export interface Profile {
   telegramId: string;
   firstName?: string | null;
   lastName?: string | null;
+  displayName?: string | null;
   username?: string | null;
   photoUrl?: string | null;
   email?: string | null;
@@ -379,6 +380,8 @@ export const api = {
 
   // --- auth ---
   me: () => http<Profile>(`/api/auth/me`),
+  updateName: (displayName: string) =>
+    http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
   loginTelegram: (data: Record<string, unknown>) =>
     http<Profile>(`/api/auth/telegram`, {
       method: "POST",

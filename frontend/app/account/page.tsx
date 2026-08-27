@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n, LOCALES } from "@/lib/i18n";
@@ -39,7 +41,7 @@ import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, X } from "lucide-react";
+import { Sun, Moon, X, Pencil, Check } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -332,19 +334,38 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function AccountPage() {
-  const { accountId, profile, logout } = useAccount();
+  const { accountId, profile, logout, refresh } = useAccount();
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
 
   const via = profile?.authVia ?? "";
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const emailLocal = profile?.email ? profile.email.split("@")[0] : "";
-  // A friendly name that never falls back to the raw "email:…" account key.
+  // A friendly name that never falls back to the raw "email:…" account key. A
+  // display name the learner set themselves wins over the Telegram first name.
   const displayName =
+    profile?.displayName ||
     fullName ||
     (profile?.username ? `@${profile.username}` : "") ||
     profile?.email ||
     (accountId.startsWith("email:") ? accountId.slice(6) : accountId);
+
+  // Inline "edit my display name".
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  async function saveName() {
+    setSavingName(true);
+    try {
+      await api.updateName(nameInput.trim());
+      await refresh();
+      setEditingName(false);
+    } catch {
+      /* ignore */
+    } finally {
+      setSavingName(false);
+    }
+  }
   const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();
 
   // Sign-in method → label + status-dot colour.
@@ -381,7 +402,43 @@ export default function AccountPage() {
               </div>
             )}
             <div className="min-w-0">
-              <div className="truncate font-serif text-[20px] font-semibold text-ink">{displayName}</div>
+              {editingName ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveName();
+                      if (e.key === "Escape") setEditingName(false);
+                    }}
+                    maxLength={60}
+                    placeholder={t("account.namePlaceholder")}
+                    className="h-9 w-[180px] rounded-[10px] border border-black/[0.1] bg-surface px-2.5 text-[15px] font-semibold text-ink focus:border-sage focus:outline-none"
+                  />
+                  <button type="button" onClick={saveName} disabled={savingName} aria-label={t("common.save")} className="flex h-8 w-8 items-center justify-center rounded-full bg-sage text-white hover:bg-sage-deep disabled:opacity-50">
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => setEditingName(false)} aria-label={t("common.cancel")} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.05]">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-serif text-[20px] font-semibold text-ink">{displayName}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNameInput(profile?.displayName || fullName || "");
+                      setEditingName(true);
+                    }}
+                    aria-label={t("account.editName")}
+                    className="shrink-0 rounded-full p-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {profile?.email && (
                 <div className="mt-0.5 truncate text-[13px] text-ink-soft">{profile.email}</div>
               )}
@@ -389,8 +446,8 @@ export default function AccountPage() {
                 <span className={cn("h-2 w-2 rounded-full", method.dot)} />
                 <span className="text-ink-soft">{method.label}</span>
               </div>
-              {!accountId.startsWith("email:") && (
-                <div className="mt-0.5 text-[11px] text-ink-faint">ID: {accountId}</div>
+              {profile?.username && (
+                <div className="mt-0.5 text-[11px] text-ink-faint">@{profile.username}</div>
               )}
             </div>
           </div>

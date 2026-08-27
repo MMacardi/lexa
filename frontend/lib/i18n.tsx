@@ -197,6 +197,8 @@ const DICT: Record<string, Entry> = {
   "account.title": { en: "My account", ru: "Мой аккаунт", zh: "我的账户" },
   "account.subtitle": { en: "Appearance, language and your connection.", ru: "Оформление, язык и подключение.", zh: "外观、语言与连接。" },
   "account.signedInAs": { en: "Signed in as", ru: "Вы вошли как", zh: "已登录为" },
+  "account.editName": { en: "Edit name", ru: "Изменить имя", zh: "修改名称" },
+  "account.namePlaceholder": { en: "Your name", ru: "Ваше имя", zh: "你的名字" },
   "account.appearance": { en: "Appearance", ru: "Оформление", zh: "外观" },
   "account.theme": { en: "Theme", ru: "Тема", zh: "主题" },
   "account.themeLight": { en: "Light", ru: "Светлая", zh: "浅色" },

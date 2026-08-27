@@ -234,6 +234,7 @@ authRouter.get("/auth/me", async (req, res) => {
       telegramId: true,
       firstName: true,
       lastName: true,
+      displayName: true,
       username: true,
       photoUrl: true,
       email: true,
@@ -242,6 +243,26 @@ authRouter.get("/auth/me", async (req, res) => {
     },
   });
   res.json(user ?? { telegramId, identities: [] });
+});
+
+// PATCH /api/auth/me — update the learner's own display name.
+authRouter.patch("/auth/me", async (req, res) => {
+  const telegramId = readSession(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const raw = typeof req.body?.displayName === "string" ? req.body.displayName.trim().slice(0, 60) : "";
+  try {
+    const user = await prisma.user.update({
+      where: { telegramId },
+      data: { displayName: raw || null },
+      select: { displayName: true },
+    });
+    res.json({ displayName: user.displayName });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 // DELETE /api/auth/identity/:provider — unlink a sign-in method from the account.
