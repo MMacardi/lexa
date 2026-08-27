@@ -15,9 +15,14 @@ const copy = {
     signIn: "Войти",
     eyebrow: "Твой личный ИИ-наставник по языкам",
     heroTitle: "Превращай всё, что изучаешь, в личную систему памяти",
-    heroSub: "Не просто карточки. Наставник, который заставляет вспоминать слова, строит план под твой уровень и помнит твой прогресс.",
+    heroSub: "Умные карточки и интервальные повторения — плюс личный ИИ-наставник: подсказывает, что учить, тренирует на практике и помнит твой прогресс.",
     ctaMain: "Начать бесплатно",
     ctaHint: "Карта не нужна. Вход через Telegram, Google или email.",
+    pillars: [
+      { t: "Умные карточки", s: "интервальные повторения (FSRS)" },
+      { t: "ИИ-наставник", s: "тренирует и подстраивается" },
+      { t: "Помнит тебя", s: "цель, интересы, слабые места" },
+    ],
     rowReaderTitle: "Читай что угодно — тапни, чтобы выучить",
     rowReaderText: "Вставь любой текст, тапни незнакомое слово — увидишь перевод и добавишь в колоду одним нажатием. CJK-сегментация из коробки.",
     rowCardsTitle: "Карточки под твой стиль",
@@ -31,7 +36,7 @@ const copy = {
     howTitle: "Как это работает",
     how: [
       { n: "01", title: "Загрузи слова", text: "Импортируй список, PDF или фото — или добавляй по одному." },
-      { n: "02", title: "Практикуйся с наставником", text: "Он гоняет тебя по слабым словам и оценивает ответы." },
+      { n: "02", title: "Практикуйся с наставником", text: "Он тренирует тебя на слабых словах и оценивает ответы." },
       { n: "03", title: "Запоминай надолго", text: "Повторения по FSRS закрепляют слова в долговременную память." },
     ],
     finalTitle: "Начни учиться умнее уже сегодня",
@@ -51,7 +56,7 @@ const copy = {
     faq: [
       { q: "Чем это отличается от обычного приложения с карточками?", a: "Вместо простого перелистывания наставник заставляет вспоминать каждое слово — ты его употребляешь, он проверяет ответ, исправляет и подстраивается. Карточки, интервальные повторения и читалка уже внутри; закрепляет именно коучинг." },
       { q: "Подойдёт, если я совсем новичок?", a: "Да. Скажи наставнику свой уровень и цель — он построит план: какие слова учить и по сколько новых в день. А карточки и интервальные повторения закрепят их в памяти." },
-      { q: "А для продвинутых полезно?", a: "Конечно. Поставь уровень выше — наставник гоняет по нюансам, регистру и сложным словам и повышает сложность по мере прогресса." },
+      { q: "А для продвинутых полезно?", a: "Конечно. Поставь уровень выше — наставник разбирает нюансы, регистр и сложные слова и повышает сложность по мере прогресса." },
       { q: "Это ИИ — что с моими данными и голосом?", a: "Голосовые ответы в вебе распознаёт сам браузер — для этого ничего не загружается на сервер. Твои слова и прогресс принадлежат тебе; мы обрабатываем их только чтобы приложение работало. Подробнее —", link: { text: "Политика конфиденциальности", href: "/privacy" } },
       { q: "Это бесплатно? Что такое Pro?", a: "На время беты — бесплатно. Позже план Pro снимет дневные лимиты ИИ и добавит бонусы, но твои слова и прогресс всегда можно оставить и выгрузить бесплатно." },
       { q: "Какие языки поддерживаются и можно ли перенести свои слова?", a: "Много языковых пар, включая китайский, японский и корейский. Свои слова можно перенести: вставить список, загрузить PDF, сфотографировать тетрадь или импортировать экспорт из другого приложения." },
@@ -61,9 +66,14 @@ const copy = {
     signIn: "Sign in",
     eyebrow: "Your personal AI language tutor",
     heroTitle: "Turn everything you study into a personal memory system",
-    heroSub: "Not just flashcards. A coach that makes you recall words, builds a plan for your level, and remembers your progress.",
+    heroSub: "Smart flashcards and spaced repetition — plus a personal AI coach that picks what to learn, drills you, and remembers your progress.",
     ctaMain: "Start free",
     ctaHint: "No card. Sign in with Telegram, Google or email.",
+    pillars: [
+      { t: "Smart flashcards", s: "spaced repetition (FSRS)" },
+      { t: "AI coach", s: "drills you and adapts" },
+      { t: "Remembers you", s: "goal, interests, weak spots" },
+    ],
     rowReaderTitle: "Read anything — tap to learn",
     rowReaderText: "Paste any text, tap an unknown word to see its meaning, and add it to your deck in one tap. CJK segmentation built in.",
     rowCardsTitle: "Flashcards that fit how you learn",
@@ -559,6 +569,28 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
             <PracticeScene locale={locale} />
           </div>
         </div>
+      </section>
+
+      {/* three pillars — cards + coach + memory, at a glance */}
+      <section className="mx-auto max-w-[1080px] px-5 sm:px-8">
+        <Reveal>
+          <div className="grid gap-4 rounded-[22px] border border-black/[0.06] bg-surface p-5 sm:grid-cols-3 sm:p-6">
+            {L.pillars.map((p, i) => {
+              const Icon = [Layers, Compass, Brain][i] ?? Layers;
+              return (
+                <div key={p.t} className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-sage-tint text-sage-deep">
+                    <Icon className="h-[22px] w-[22px]" />
+                  </span>
+                  <div>
+                    <div className="font-serif text-[16px] font-semibold text-ink">{p.t}</div>
+                    <div className="text-[12.5px] leading-snug text-ink-soft">{p.s}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
       </section>
 
       {/* feature rows — each with its own animated demo */}
