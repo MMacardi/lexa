@@ -50,7 +50,7 @@ const copy = {
     faqTitle: "Частые вопросы",
     faq: [
       { q: "Чем это отличается от обычного приложения с карточками?", a: "Вместо простого перелистывания наставник заставляет вспоминать каждое слово — ты его употребляешь, он проверяет ответ, исправляет и подстраивается. Карточки, интервальные повторения и читалка уже внутри; закрепляет именно коучинг." },
-      { q: "Подойдёт, если я совсем новичок?", a: "Да. Скажи наставнику свой уровень и цель — он построит план под тебя: начнёт с посильных слов и будет дозировать новые, чтобы не заваливать." },
+      { q: "Подойдёт, если я совсем новичок?", a: "Да. Скажи наставнику свой уровень и цель — он построит план: какие слова учить и по сколько новых в день. А карточки и интервальные повторения закрепят их в памяти." },
       { q: "А для продвинутых полезно?", a: "Конечно. Поставь уровень выше — наставник гоняет по нюансам, регистру и сложным словам и повышает сложность по мере прогресса." },
       { q: "Это ИИ — что с моими данными и голосом?", a: "Голосовые ответы в вебе распознаёт сам браузер — для этого ничего не загружается на сервер. Твои слова и прогресс принадлежат тебе; мы обрабатываем их только чтобы приложение работало. Подробнее —", link: { text: "Политика конфиденциальности", href: "/privacy" } },
       { q: "Это бесплатно? Что такое Pro?", a: "На время беты — бесплатно. Позже план Pro снимет дневные лимиты ИИ и добавит бонусы, но твои слова и прогресс всегда можно оставить и выгрузить бесплатно." },
@@ -96,7 +96,7 @@ const copy = {
     faqTitle: "Frequently asked questions",
     faq: [
       { q: "How is this different from a normal flashcard app?", a: "Instead of just flipping cards, a coach makes you recall each word — you use it, it checks your answer, corrects you and adapts. Cards, spaced repetition and a reader are built in; the coaching is what makes it stick." },
-      { q: "Can I use it as a complete beginner?", a: "Yes. Tell the coach your level and goal and it builds a plan around you — starting with words you can handle and pacing new ones so you're never overwhelmed." },
+      { q: "Can I use it as a complete beginner?", a: "Yes. Tell the coach your level and goal and it builds a plan — which words to learn and how many new ones a day. Cards and spaced repetition then lock them into memory." },
       { q: "Is it useful for advanced learners?", a: "Absolutely. Set a higher level and the coach drills nuance, register and tricky words, adapting the difficulty as you improve." },
       { q: "It's AI — what about my data and voice?", a: "Voice answers on the web are transcribed by your own browser — nothing is uploaded for that. Your words and progress are yours; we only process them to run the app. See the", link: { text: "Privacy Policy", href: "/privacy" } },
       { q: "Is it free? What's Pro?", a: "It's free during the beta. Later a Pro plan will lift the daily AI limits and add extras — but your saved words and progress are always free to keep and export." },
