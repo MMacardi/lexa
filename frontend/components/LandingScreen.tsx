@@ -1,11 +1,13 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
-import { Compass, Sparkles, BookOpen, Brain, Send, ArrowRight, Camera, Repeat } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useI18n, LOCALES } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
+import { Compass, Sparkles, BookOpen, Brain, Send, ArrowRight, Camera, Repeat, Sun, Moon, Globe, Check, ChevronDown } from "lucide-react";
 
 // Public marketing landing shown to signed-out visitors. `onStart` reveals the
-// login screen. Bilingual (ru default / en); zh falls back to en. Kept self-
-// contained so it's easy to restyle without touching the app i18n catalogue.
+// login screen. Bilingual (en default / ru); zh falls back to en. Self-contained,
+// with a language + theme switcher, an animated aurora hero and scroll-reveal.
 const copy = {
   ru: {
     signIn: "Войти",
@@ -67,43 +69,133 @@ const copy = {
   },
 };
 
+// Fade + rise into view as the section scrolls in.
+function Reveal({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            el.classList.add("reveal-in");
+            io.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.12 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`reveal ${className}`} style={delay ? { transitionDelay: `${delay}ms` } : undefined}>
+      {children}
+    </div>
+  );
+}
+
+function LangMenu() {
+  const { locale, setLocale } = useI18n();
+  const [open, setOpen] = useState(false);
+  const cur = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] px-3 py-2 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-ink"
+      >
+        <Globe className="h-4 w-4" /> {cur.label} <ChevronDown className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <>
+          <button type="button" aria-hidden className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1.5 min-w-[120px] overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface p-1 shadow-[0_16px_40px_rgba(46,42,38,0.18)]">
+            {LOCALES.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => {
+                  setLocale(l.code);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-sm font-semibold text-ink-muted transition-colors hover:bg-sage-tint hover:text-sage-deep"
+              >
+                {l.label}
+                {l.code === locale && <Check className="h-4 w-4 text-sage-deep" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label="Toggle theme"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.1] text-ink-muted transition-colors hover:border-sage/60 hover:text-ink"
+    >
+      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
+
 export function LandingScreen({ onStart }: { onStart: () => void }) {
   const { locale } = useI18n();
-  const L = locale === "en" ? copy.en : locale === "zh" ? copy.en : copy.ru;
+  const L = locale === "ru" ? copy.ru : copy.en;
 
   return (
     <main className="min-h-screen bg-paper text-ink">
       {/* top bar */}
-      <header className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-5 sm:px-8">
-        <span className="font-serif text-[22px] font-semibold tracking-[-0.01em]">Lexa</span>
-        <button
-          type="button"
-          onClick={onStart}
-          className="rounded-full border border-black/[0.1] px-4 py-2 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
-        >
-          {L.signIn}
-        </button>
-      </header>
-
-      {/* hero */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-[1080px] px-5 pb-14 pt-10 text-center sm:px-8 sm:pb-20 sm:pt-16">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1 text-[13px] font-semibold text-sage-deep">
-            <Sparkles className="h-3.5 w-3.5" /> {L.eyebrow}
-          </span>
-          <h1 className="anim-fade-up mx-auto mt-5 max-w-[820px] font-serif text-[34px] font-medium leading-[1.08] tracking-[-0.02em] sm:text-[52px]">
-            {L.heroTitle}
-          </h1>
-          <p className="anim-fade-up mx-auto mt-5 max-w-[600px] text-[16px] leading-relaxed text-ink-soft sm:text-[19px]" style={{ animationDelay: "60ms" }}>
-            {L.heroSub}
-          </p>
-          <div className="anim-fade-up mt-8 flex flex-col items-center gap-3" style={{ animationDelay: "120ms" }}>
+      <header className="sticky top-0 z-30 border-b border-black/[0.05] bg-paper/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-3.5 sm:px-8">
+          <span className="font-serif text-[22px] font-semibold tracking-[-0.01em]">Lexa</span>
+          <div className="flex items-center gap-2">
+            <LangMenu />
+            <ThemeToggle />
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex items-center gap-2 rounded-full bg-sage px-7 py-3.5 text-[16px] font-semibold text-white shadow-[0_12px_30px_rgba(124,152,133,0.35)] transition-all hover:bg-sage-deep active:scale-[0.98]"
+              className="rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
             >
-              {L.ctaMain} <ArrowRight className="h-5 w-5" />
+              {L.signIn}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* hero with drifting aurora */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="aurora-blob absolute -top-32 left-[15%] h-[420px] w-[420px] rounded-full bg-sage/25 blur-[120px]" />
+          <div className="aurora-blob slow absolute -top-10 right-[12%] h-[380px] w-[380px] rounded-full bg-taupe/25 blur-[120px]" />
+        </div>
+        <div className="relative mx-auto max-w-[1080px] px-5 pb-16 pt-14 text-center sm:px-8 sm:pb-24 sm:pt-20">
+          <span className="anim-fade-up inline-flex items-center gap-1.5 rounded-full border border-sage/25 bg-sage-tint/60 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5" /> {L.eyebrow}
+          </span>
+          <h1 className="anim-fade-up mx-auto mt-6 max-w-[840px] font-serif text-[36px] font-medium leading-[1.06] tracking-[-0.02em] sm:text-[56px]" style={{ animationDelay: "60ms" }}>
+            {L.heroTitle}
+          </h1>
+          <p className="anim-fade-up mx-auto mt-6 max-w-[620px] text-[16px] leading-relaxed text-ink-soft sm:text-[20px]" style={{ animationDelay: "120ms" }}>
+            {L.heroSub}
+          </p>
+          <div className="anim-fade-up mt-9 flex flex-col items-center gap-3" style={{ animationDelay: "180ms" }}>
+            <button
+              type="button"
+              onClick={onStart}
+              className="group inline-flex items-center gap-2 rounded-full bg-sage px-8 py-4 text-[17px] font-semibold text-white shadow-[0_16px_40px_rgba(124,152,133,0.4)] transition-all hover:bg-sage-deep hover:shadow-[0_20px_50px_rgba(124,152,133,0.5)] active:scale-[0.98]"
+            >
+              {L.ctaMain}
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
             </button>
             <span className="text-[13px] text-ink-faint">{L.ctaHint}</span>
           </div>
@@ -111,48 +203,64 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
       </section>
 
       {/* features */}
-      <section className="mx-auto max-w-[1080px] px-5 py-8 sm:px-8 sm:py-14">
-        <h2 className="text-center font-serif text-[26px] font-medium tracking-[-0.01em] sm:text-[32px]">{L.featuresTitle}</h2>
-        <div className="mt-8 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {L.features.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-[20px] border border-black/[0.07] bg-surface p-6 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.08)]">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-[13px] bg-sage-tint text-sage-deep">
-                <Icon className="h-[22px] w-[22px]" />
-              </span>
-              <h3 className="mt-4 font-serif text-[19px] font-semibold">{title}</h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{text}</p>
-            </div>
+      <section className="mx-auto max-w-[1080px] px-5 py-10 sm:px-8 sm:py-16">
+        <Reveal>
+          <h2 className="text-center font-serif text-[27px] font-medium tracking-[-0.01em] sm:text-[34px]">{L.featuresTitle}</h2>
+        </Reveal>
+        <div className="mt-9 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {L.features.map(({ icon: Icon, title, text }, i) => (
+            <Reveal key={title} delay={(i % 3) * 90}>
+              <div className="h-full rounded-[22px] border border-black/[0.07] bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:border-sage/30 hover:shadow-[0_18px_44px_rgba(46,42,38,0.1)]">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-sage-tint text-sage-deep">
+                  <Icon className="h-[23px] w-[23px]" />
+                </span>
+                <h3 className="mt-4 font-serif text-[19px] font-semibold">{title}</h3>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{text}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* how it works */}
-      <section className="mx-auto max-w-[1080px] px-5 py-8 sm:px-8 sm:py-14">
-        <h2 className="text-center font-serif text-[26px] font-medium tracking-[-0.01em] sm:text-[32px]">{L.howTitle}</h2>
-        <div className="mt-8 grid gap-3.5 sm:grid-cols-3">
-          {L.how.map((s) => (
-            <div key={s.n} className="rounded-[20px] border border-black/[0.07] bg-surface p-6">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sage font-serif text-[17px] font-bold text-white">{s.n}</span>
-              <h3 className="mt-3.5 font-serif text-[18px] font-semibold">{s.title}</h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{s.text}</p>
-            </div>
+      <section className="mx-auto max-w-[1080px] px-5 py-10 sm:px-8 sm:py-16">
+        <Reveal>
+          <h2 className="text-center font-serif text-[27px] font-medium tracking-[-0.01em] sm:text-[34px]">{L.howTitle}</h2>
+        </Reveal>
+        <div className="mt-9 grid gap-3.5 sm:grid-cols-3">
+          {L.how.map((s, i) => (
+            <Reveal key={s.n} delay={i * 110}>
+              <div className="h-full rounded-[22px] border border-black/[0.07] bg-surface p-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sage font-serif text-[18px] font-bold text-white">{s.n}</span>
+                <h3 className="mt-4 font-serif text-[18px] font-semibold">{s.title}</h3>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{s.text}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* final CTA */}
-      <section className="mx-auto max-w-[1080px] px-5 py-10 sm:px-8 sm:py-16">
-        <div className="relative overflow-hidden rounded-[26px] border border-sage/25 bg-gradient-to-br from-sage-tint/70 via-surface to-surface p-8 text-center sm:p-14">
-          <h2 className="font-serif text-[28px] font-medium tracking-[-0.01em] sm:text-[40px]">{L.finalTitle}</h2>
-          <p className="mt-2 text-[15px] text-ink-soft sm:text-[17px]">{L.finalSub}</p>
-          <button
-            type="button"
-            onClick={onStart}
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-sage px-7 py-3.5 text-[16px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
-          >
-            {L.ctaMain} <ArrowRight className="h-5 w-5" />
-          </button>
-        </div>
+      <section className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8 sm:py-20">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-[28px] border border-sage/25 bg-gradient-to-br from-sage-tint/70 via-surface to-surface p-8 text-center sm:p-16">
+            <div className="pointer-events-none absolute inset-0">
+              <div className="aurora-blob absolute -bottom-24 left-1/3 h-[300px] w-[300px] rounded-full bg-sage/20 blur-[110px]" />
+            </div>
+            <div className="relative">
+              <h2 className="font-serif text-[30px] font-medium tracking-[-0.01em] sm:text-[42px]">{L.finalTitle}</h2>
+              <p className="mt-2 text-[15px] text-ink-soft sm:text-[18px]">{L.finalSub}</p>
+              <button
+                type="button"
+                onClick={onStart}
+                className="group mt-7 inline-flex items-center gap-2 rounded-full bg-sage px-8 py-4 text-[17px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
+              >
+                {L.ctaMain}
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+          </div>
+        </Reveal>
       </section>
 
       {/* footer */}

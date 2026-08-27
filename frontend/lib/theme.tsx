@@ -22,8 +22,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // layout already set the class to avoid a flash; this just syncs React state.
   useEffect(() => {
     const stored = localStorage.getItem(KEY) as Theme | null;
-    const initial =
-      stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    // Default to light for new visitors (ignore the OS preference); only an
+    // explicit earlier choice switches to dark.
+    const initial = stored ?? "light";
     setTheme(initial);
     apply(initial);
   }, []);
@@ -47,7 +48,6 @@ export const useTheme = () => useContext(ThemeCtx);
 export const themeBootScript = `
 (function(){try{
   var s=localStorage.getItem('${KEY}');
-  var d=s? s==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  if(d) document.documentElement.classList.add('dark');
+  if(s==='dark') document.documentElement.classList.add('dark');
 }catch(e){}})();
 `;
