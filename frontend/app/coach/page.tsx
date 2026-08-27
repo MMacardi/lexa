@@ -200,6 +200,104 @@ export default function CoachPage() {
         </div>
       </Link>
 
+      {/* Words for you — level-appropriate picks, near the top so it's front-and-centre */}
+      <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
+            <p className="mt-0.5 text-[13px] text-ink-soft">
+              {t("coach.picksHint", { level: getLevel(pair.source) ?? "—", lang: langLabel(pair.source) })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadPicks}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {t("coach.refresh")}
+          </button>
+        </div>
+
+        {/* language pair */}
+        <div className="flex flex-wrap items-center gap-2">
+          <LangSelect value={pair.source} onChange={setSource} />
+          <span className="text-ink-faint">→</span>
+          <LangSelect value={pair.target} onChange={setTarget} />
+        </div>
+
+        {/* optional theme — otherwise picks follow what you've recently studied */}
+        <input
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") loadPicks();
+          }}
+          placeholder={t("coach.themePlaceholder")}
+          maxLength={60}
+          className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+        />
+
+        {/* picks */}
+        {loading && picks.length === 0 ? (
+          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.loading")}</p>
+        ) : picks.length === 0 && loaded ? (
+          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.empty")}</p>
+        ) : (
+          <div className="space-y-2">
+            {picks.map((p) => {
+              const on = sel.has(p.word);
+              return (
+                <button
+                  key={p.word}
+                  type="button"
+                  onClick={() => toggle(p.word)}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-[14px] border p-3.5 text-left transition-colors",
+                    on ? "border-sage/40 bg-sage-tint/45" : "border-black/[0.08] bg-surface opacity-80 hover:opacity-100",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                      on ? "border-sage bg-sage text-white" : "border-black/20 bg-surface",
+                    )}
+                  >
+                    {on && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span className={cn("text-[19px] font-semibold leading-tight text-ink", srcFont(pair.source))}>{p.word}</span>
+                      {p.meaning && (
+                        <span className={cn("text-[15px] font-medium text-sage", (pair.target === "zh" || pair.target === "zh-Hant") && "font-zh")}>
+                          {p.meaning}
+                        </span>
+                      )}
+                    </span>
+                    {p.reason && <span className="mt-1 block text-[13px] leading-snug text-ink-soft">{p.reason}</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {picks.length > 0 && (
+          <Button onClick={addSelected} disabled={adding || selectedCount === 0} className="w-full">
+            {adding ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("reader.queueing")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> {t("coach.addN", { n: selectedCount })}
+              </span>
+            )}
+          </Button>
+        )}
+      </section>
+
       {/* Today's plan — deterministic, no AI */}
       <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.planTitle")}</h2>
@@ -320,103 +418,6 @@ export default function CoachPage() {
           )}
         </section>
       )}
-
-      <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
-            <p className="mt-0.5 text-[13px] text-ink-soft">
-              {t("coach.picksHint", { level: getLevel(pair.source) ?? "—", lang: langLabel(pair.source) })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={loadPicks}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            {t("coach.refresh")}
-          </button>
-        </div>
-
-        {/* language pair */}
-        <div className="flex flex-wrap items-center gap-2">
-          <LangSelect value={pair.source} onChange={setSource} />
-          <span className="text-ink-faint">→</span>
-          <LangSelect value={pair.target} onChange={setTarget} />
-        </div>
-
-        {/* optional theme — otherwise picks follow what you've recently studied */}
-        <input
-          value={theme}
-          onChange={(e) => setTheme(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") loadPicks();
-          }}
-          placeholder={t("coach.themePlaceholder")}
-          maxLength={60}
-          className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-        />
-
-        {/* picks */}
-        {loading && picks.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.loading")}</p>
-        ) : picks.length === 0 && loaded ? (
-          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.empty")}</p>
-        ) : (
-          <div className="space-y-2">
-            {picks.map((p) => {
-              const on = sel.has(p.word);
-              return (
-                <button
-                  key={p.word}
-                  type="button"
-                  onClick={() => toggle(p.word)}
-                  className={cn(
-                    "flex w-full items-start gap-3 rounded-[14px] border p-3.5 text-left transition-colors",
-                    on ? "border-sage/40 bg-sage-tint/45" : "border-black/[0.08] bg-surface opacity-80 hover:opacity-100",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
-                      on ? "border-sage bg-sage text-white" : "border-black/20 bg-surface",
-                    )}
-                  >
-                    {on && <Check className="h-3.5 w-3.5" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-baseline gap-x-2">
-                      <span className={cn("text-[19px] font-semibold leading-tight text-ink", srcFont(pair.source))}>{p.word}</span>
-                      {p.meaning && (
-                        <span className={cn("text-[15px] font-medium text-sage", (pair.target === "zh" || pair.target === "zh-Hant") && "font-zh")}>
-                          {p.meaning}
-                        </span>
-                      )}
-                    </span>
-                    {p.reason && <span className="mt-1 block text-[13px] leading-snug text-ink-soft">{p.reason}</span>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {picks.length > 0 && (
-          <Button onClick={addSelected} disabled={adding || selectedCount === 0} className="w-full">
-            {adding ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("reader.queueing")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Plus className="h-4 w-4" /> {t("coach.addN", { n: selectedCount })}
-              </span>
-            )}
-          </Button>
-        )}
-      </section>
 
     </div>
   );

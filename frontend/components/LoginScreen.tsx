@@ -30,6 +30,7 @@ export function LoginScreen() {
   // Telegram deep-link login state.
   const [waiting, setWaiting] = useState(false);
   const [tgUrl, setTgUrl] = useState<string | null>(null);
+  const [tgToken, setTgToken] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Email magic-link state.
@@ -69,6 +70,31 @@ export function LoginScreen() {
   };
   useEffect(() => () => stopPolling(), []);
 
+  // Re-check the moment the learner returns to this tab (e.g. right after they
+  // confirmed in Telegram) so the redirect is instant, not up to a poll away.
+  useEffect(() => {
+    if (!waiting || !tgToken) return;
+    const check = async () => {
+      try {
+        const profile = await api.pollTelegramLogin(tgToken);
+        if (profile) {
+          stopPolling();
+          await finishLogin();
+        }
+      } catch {
+        /* still pending */
+      }
+    };
+    const onVis = () => document.visibilityState === "visible" && check();
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, tgToken]);
+
   async function telegramLogin() {
     if (!BOT_USERNAME || busy) return;
     setErr(null);
@@ -80,6 +106,7 @@ export function LoginScreen() {
       const { token } = await api.startTelegramLogin();
       const url = `https://t.me/${BOT_USERNAME}?start=login_${token}`;
       setTgUrl(url);
+      setTgToken(token);
       if (win) win.location.href = url;
       setWaiting(true);
       // Poll until the bot confirms (poll sets the session cookie on success).
@@ -106,6 +133,7 @@ export function LoginScreen() {
     stopPolling();
     setWaiting(false);
     setTgUrl(null);
+    setTgToken(null);
   }
 
   async function dev() {
