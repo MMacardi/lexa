@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n, LOCALES } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
-import { Compass, Sparkles, BookOpen, Brain, Send, ArrowRight, Camera, Repeat, Sun, Moon, Globe, Check, ChevronDown } from "lucide-react";
+import { Compass, Sparkles, BookOpen, Brain, Send, ArrowRight, Camera, Repeat, Sun, Moon, Globe, Check, ChevronDown, Plus, FileText, Layers } from "lucide-react";
 
 // Public marketing landing shown to signed-out visitors. `onStart` reveals the
 // login screen. Bilingual (en default / ru); zh falls back to en. Self-contained,
@@ -148,30 +148,20 @@ function ThemeToggle() {
   );
 }
 
-// A looping, animated preview of the coach practice — honest (shows the real
-// feature) and gives the hero a "living product" feel like modern AI landings.
-const mockScript = {
-  en: {
-    word: "unless",
-    meaning: "if not · except if",
-    task: "Compose a short sentence",
-    turns: [
-      { role: "coach" as const, text: "Let's start with *unless* — use it in a short sentence." },
-      { role: "user" as const, text: "I won't go unless you come with me." },
-      { role: "coach" as const, grade: true, text: "Perfect — natural and correct. On to the next word!" },
-    ],
-  },
-  ru: {
-    word: "unless",
-    meaning: "если только не",
-    task: "Составь короткое предложение",
-    turns: [
-      { role: "coach" as const, text: "Начнём со слова *unless* — составь короткое предложение." },
-      { role: "user" as const, text: "I won't go unless you come with me." },
-      { role: "coach" as const, grade: true, text: "Отлично — естественно и верно. Дальше следующее слово!" },
-    ],
-  },
-};
+// Rotating, animated previews of the REAL features (practice + hint, tap-in-
+// reader, anything→deck). Purely client-side — no requests, no tokens. Honest
+// "living product" demos like modern AI landings. Localized (en/ru).
+
+// Advance a step counter 0..steps once (no loop; the parent cycles scenes).
+function useStepper(steps: number, delay = 1000) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (i >= steps) return;
+    const t = setTimeout(() => setI((v) => v + 1), delay);
+    return () => clearTimeout(t);
+  }, [i, steps, delay]);
+  return i;
+}
 
 function MockRich({ text }: { text: string }) {
   const parts = text.split(/(\*[^*]+\*)/g);
@@ -190,82 +180,184 @@ function MockRich({ text }: { text: string }) {
   );
 }
 
-function CoachChatMock({ locale }: { locale: string }) {
-  const S = locale === "ru" ? mockScript.ru : mockScript.en;
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    let cancelled = false;
-    function step(i: number) {
-      if (cancelled) return;
-      if (i > S.turns.length) {
-        timer = setTimeout(() => {
-          if (cancelled) return;
-          setCount(0);
-          step(1);
-        }, 2800);
-        return;
-      }
-      setCount(i);
-      const nextIsCoach = i < S.turns.length && S.turns[i].role === "coach";
-      timer = setTimeout(() => step(i + 1), i === 0 ? 600 : nextIsCoach ? 1500 : 1000);
-    }
-    step(0);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [S]);
-
-  const typing = count < S.turns.length && S.turns[count].role === "coach";
-
+function CoachDot() {
   return (
-    <div className="mx-auto w-full max-w-[380px] rounded-[24px] border border-black/[0.08] bg-surface p-4 shadow-[0_30px_70px_rgba(46,42,38,0.16)]">
-      {/* word being drilled */}
-      <div className="mb-3 flex items-center justify-center gap-3 rounded-[16px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 to-surface px-4 py-3 text-center">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage text-white">
+      <Compass className="h-4 w-4" />
+    </span>
+  );
+}
+
+function TypingBubble() {
+  return (
+    <div className="anim-fade-in flex items-end gap-2">
+      <CoachDot />
+      <div className="flex items-center gap-1 rounded-[14px] rounded-bl-sm border border-black/[0.06] bg-paper px-3 py-2.5">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.2s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.1s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint" />
+      </div>
+    </div>
+  );
+}
+
+// --- Scene 1: AI practice, including a hint ---
+function PracticeScene({ locale }: { locale: string }) {
+  const ru = locale === "ru";
+  const word = "unless";
+  const meaning = ru ? "если только не" : "if not · except if";
+  const turns = ru
+    ? [
+        { role: "coach", text: "Начнём со слова *unless* — составь короткое предложение." },
+        { role: "hint", text: "💡 Подсказка: I won't … *unless* …" },
+        { role: "user", text: "I won't go unless you come with me." },
+        { role: "grade", text: "Отлично — естественно и верно!" },
+      ]
+    : [
+        { role: "coach", text: "Let's start with *unless* — make a short sentence." },
+        { role: "hint", text: "💡 Hint: I won't … *unless* …" },
+        { role: "user", text: "I won't go unless you come with me." },
+        { role: "grade", text: "Perfect — natural and correct!" },
+      ];
+  const step = useStepper(turns.length, 1200);
+  const typing = step < turns.length && turns[step].role !== "user";
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-center rounded-[16px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 to-surface px-4 py-3 text-center">
         <div>
-          <div className="font-serif text-[24px] font-semibold leading-none text-ink">{S.word}</div>
-          <div className="mt-1 text-[12px] font-medium text-sage-deep">{S.meaning}</div>
+          <div className="font-serif text-[24px] font-semibold leading-none text-ink">{word}</div>
+          <div className="mt-1 text-[12px] font-medium text-sage-deep">{meaning}</div>
         </div>
       </div>
-      {/* messages */}
-      <div className="flex min-h-[188px] flex-col gap-2.5">
-        {S.turns.slice(0, count).map((turn, i) =>
-          turn.role === "user" ? (
+      <div className="flex min-h-[210px] flex-col gap-2.5">
+        {turns.slice(0, step).map((t, i) =>
+          t.role === "user" ? (
             <div key={i} className="anim-fade-up flex justify-end">
-              <div className="max-w-[80%] rounded-[14px] rounded-br-sm bg-sage px-3 py-2 text-[13.5px] leading-snug text-white">{turn.text}</div>
+              <div className="max-w-[80%] rounded-[14px] rounded-br-sm bg-sage px-3 py-2 text-[13.5px] leading-snug text-white">{t.text}</div>
             </div>
           ) : (
             <div key={i} className="anim-fade-up flex items-end gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage text-white">
-                <Compass className="h-4 w-4" />
-              </span>
+              <CoachDot />
               <div className="max-w-[82%]">
-                {"grade" in turn && turn.grade && (
+                {t.role === "grade" && (
                   <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">
-                    <Check className="h-2.5 w-2.5" strokeWidth={3} /> {locale === "ru" ? "Верно" : "Correct"}
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} /> {ru ? "Верно" : "Correct"}
                   </span>
                 )}
-                <div className="rounded-[14px] rounded-bl-sm border border-black/[0.06] bg-paper px-3 py-2 text-[13.5px] leading-snug text-ink">
-                  <MockRich text={turn.text} />
+                <div className={`rounded-[14px] rounded-bl-sm border px-3 py-2 text-[13.5px] leading-snug ${t.role === "hint" ? "border-sage/30 bg-sage-tint/40 text-sage-deep" : "border-black/[0.06] bg-paper text-ink"}`}>
+                  <MockRich text={t.text} />
                 </div>
               </div>
             </div>
           ),
         )}
-        {typing && (
-          <div className="anim-fade-in flex items-end gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage text-white">
-              <Compass className="h-4 w-4" />
+        {typing && <TypingBubble />}
+      </div>
+    </div>
+  );
+}
+
+// --- Scene 2: Reader — tap a word to add it ---
+function ReaderScene({ locale }: { locale: string }) {
+  const ru = locale === "ru";
+  const step = useStepper(3, 1300);
+  const tapped = step >= 1;
+  const showGloss = step >= 2;
+  const added = step >= 3;
+  return (
+    <div className="min-h-[258px]">
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни слово" : "Reader · tap a word"}</div>
+      <p className="rounded-[16px] border border-black/[0.06] bg-paper p-4 font-serif text-[17px] leading-relaxed text-ink">
+        The city proved remarkably{" "}
+        <span className="relative inline-block">
+          <span className={`rounded px-1 transition-colors ${added ? "bg-sage-tint text-sage-deep" : tapped ? "bg-news-hl text-sage-deep" : ""}`}>resilient</span>
+          {showGloss && !added && (
+            <span className="anim-popover absolute left-1/2 top-full z-10 mt-2 w-[188px] -translate-x-1/2 rounded-[12px] border border-black/[0.08] bg-surface p-2.5 text-left font-sans shadow-[0_14px_36px_rgba(46,42,38,0.18)]">
+              <span className="block text-[13px] font-semibold text-ink">resilient</span>
+              <span className="mt-0.5 block text-[13px] text-sage-deep">устойчивый, стойкий</span>
+              <span className="mt-2 flex items-center justify-center gap-1 rounded-full bg-sage px-2 py-1 text-[11px] font-semibold text-white">
+                <Plus className="h-3 w-3" /> {ru ? "Добавить" : "Add"}
+              </span>
             </span>
-            <div className="flex items-center gap-1 rounded-[14px] rounded-bl-sm border border-black/[0.06] bg-paper px-3 py-2.5">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.2s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint [animation-delay:-0.1s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint" />
-            </div>
+          )}
+        </span>{" "}
+        after the flood.
+      </p>
+      {added && (
+        <div className="anim-fade-up mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint px-3 py-1.5 text-[12px] font-semibold text-sage-deep">
+          <Check className="h-3.5 w-3.5" strokeWidth={3} /> {ru ? "Добавлено в колоду" : "Added to your deck"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Scene 3: Anything → deck ---
+function DeckScene({ locale }: { locale: string }) {
+  const ru = locale === "ru";
+  const step = useStepper(4, 850);
+  const cards: [string, string][] = [
+    ["ubiquitous", ru ? "вездесущий" : "вездесущий"],
+    ["curb", ru ? "сдерживать" : "сдерживать"],
+    ["scalable", ru ? "масштабируемый" : "масштабируемый"],
+  ];
+  return (
+    <div className="min-h-[258px]">
+      <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-ink-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-paper px-2.5 py-1">
+          <FileText className="h-3.5 w-3.5" /> PDF
+        </span>
+        <ArrowRight className="h-4 w-4 text-ink-faint" />
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-tint px-2.5 py-1 text-sage-deep">
+          <Layers className="h-3.5 w-3.5" /> {ru ? "Колода" : "Deck"}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {cards.slice(0, step).map(([w, m], i) => (
+          <div key={i} className="anim-fade-up flex items-center justify-between rounded-[12px] border border-black/[0.07] bg-paper px-3 py-2.5">
+            <span className="text-[15px] font-semibold text-ink">{w}</span>
+            <span className="text-[13px] text-sage-deep">{m}</span>
           </div>
-        )}
+        ))}
+      </div>
+      {step >= cards.length && (
+        <div className="anim-fade-up mt-3 text-[12px] font-semibold text-sage-deep">{ru ? "12 карточек готовы к повторению" : "12 cards ready to review"}</div>
+      )}
+    </div>
+  );
+}
+
+// Rotating carousel of the feature scenes, with tappable tabs.
+function HeroDemo({ locale }: { locale: string }) {
+  const ru = locale === "ru";
+  const scenes = [
+    { id: "practice", label: ru ? "AI-практика" : "AI practice", C: PracticeScene },
+    { id: "reader", label: ru ? "Чтение" : "Reader", C: ReaderScene },
+    { id: "deck", label: ru ? "Из чего угодно" : "Anything → deck", C: DeckScene },
+  ];
+  const [si, setSi] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setSi((v) => (v + 1) % scenes.length), 7000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [si]);
+  const Scene = scenes[si].C;
+  return (
+    <div className="mx-auto w-full max-w-[400px] rounded-[24px] border border-black/[0.08] bg-surface p-4 shadow-[0_30px_70px_rgba(46,42,38,0.16)]">
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {scenes.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setSi(i)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${i === si ? "bg-sage text-white" : "bg-black/[0.04] text-ink-muted hover:text-ink"}`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div key={si} className="anim-fade-in">
+        <Scene locale={locale} />
       </div>
     </div>
   );
@@ -325,7 +417,7 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
             </div>
           </div>
           <div className="anim-fade-up" style={{ animationDelay: "240ms" }}>
-            <CoachChatMock locale={locale} />
+            <HeroDemo locale={locale} />
           </div>
         </div>
       </section>
