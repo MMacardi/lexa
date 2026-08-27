@@ -1,4 +1,4 @@
-import { fsrs, generatorParameters, createEmptyCard, Rating, type Card, type State } from "ts-fsrs";
+import { fsrs, generatorParameters, createEmptyCard, Rating, type Card, type Grade, type State } from "ts-fsrs";
 import type { Word } from "./api";
 import { getRetention } from "./learnPrefs";
 
@@ -7,6 +7,47 @@ import { getRetention } from "./learnPrefs";
 // tracks the learner's current desired-retention setting.
 function makeScheduler() {
   return fsrs(generatorParameters({ request_retention: getRetention(), enable_fuzz: false }));
+}
+
+// Reconstruct an FSRS card from a Word's stored state (or a fresh one).
+function cardFor(word: Word, now: Date): Card {
+  return word.stability == null
+    ? createEmptyCard(now)
+    : {
+        due: word.due ? new Date(word.due) : now,
+        stability: word.stability,
+        difficulty: word.difficulty ?? 0,
+        elapsed_days: 0,
+        scheduled_days: 0,
+        learning_steps: word.learningSteps ?? 0,
+        reps: word.reps ?? 0,
+        lapses: word.lapses ?? 0,
+        state: (word.state ?? 0) as State,
+        last_review: word.lastReview ? new Date(word.lastReview) : undefined,
+      };
+}
+
+/**
+ * Apply a grade locally (offline), mirroring the backend recordReview: returns
+ * the updated Word so the review UI can optimistically drop the card from the
+ * due list. The server recomputes authoritatively when the queued grade syncs.
+ */
+export function applyGradeLocally(word: Word, grade: 1 | 2 | 3 | 4): Word {
+  const now = new Date();
+  const { card: next } = makeScheduler().next(cardFor(word, now), now, grade as Grade);
+  return {
+    ...word,
+    stability: next.stability,
+    difficulty: next.difficulty,
+    due: next.due.toISOString(),
+    reps: next.reps,
+    lapses: next.lapses,
+    state: next.state,
+    learningSteps: next.learning_steps ?? 0,
+    lastReview: now.toISOString(),
+    nextReviewAt: next.due.toISOString(),
+    reviewCount: grade >= 3 ? word.reviewCount + 1 : word.reviewCount,
+  };
 }
 
 // Minutes-from-now until the card is next due for each grade (1=Again..4=Easy).

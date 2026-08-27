@@ -5,12 +5,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
+import { Lightbulb, RotateCcw, PenLine } from "lucide-react";
 
 type Msg = {
   role: "user" | "assistant";
@@ -111,7 +113,7 @@ export function ExplainChat({ word }: { word: Word }) {
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
       setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addWords: [] } : msg)));
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setCreating(false);
     }
@@ -149,7 +151,7 @@ export function ExplainChat({ word }: { word: Word }) {
         onClick={() => explain.mutate()}
         className="inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
       >
-        🤔 {t("word.explain")}
+        <Lightbulb className="h-4 w-4" /> {t("word.explain")}
       </button>
     );
   }
@@ -166,9 +168,9 @@ export function ExplainChat({ word }: { word: Word }) {
               explain.reset();
               ask.reset();
             }}
-            className="text-xs font-semibold text-sage hover:text-sage-deep"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-sage hover:text-sage-deep"
           >
-            ↻ {t("word.restart")}
+            <RotateCcw className="h-3.5 w-3.5" /> {t("word.restart")}
           </button>
         )}
       </div>
@@ -247,7 +249,7 @@ export function ExplainChat({ word }: { word: Word }) {
           onClick={testMe}
           className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-surface px-3 py-1.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint/60"
         >
-          ✍️ {t("word.testMe")}
+          <PenLine className="h-3.5 w-3.5" /> {t("word.testMe")}
         </button>
       )}
 

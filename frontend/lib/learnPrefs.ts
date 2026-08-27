@@ -311,7 +311,33 @@ export function useRetention(): number {
 }
 
 // --- Example source style (register), a single global default ---
-export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary"] as const;
+// How many examples to auto-generate per word (1–3). Default 1.
+const EX_COUNT_KEY = "lexa.exampleCount";
+export function getExampleCount(): number {
+  if (typeof window === "undefined") return 1;
+  const v = Number(localStorage.getItem(EX_COUNT_KEY));
+  return v >= 1 && v <= 3 ? Math.round(v) : 1;
+}
+export function setExampleCount(n: number) {
+  localStorage.setItem(EX_COUNT_KEY, String(Math.max(1, Math.min(3, Math.round(n)))));
+  window.dispatchEvent(new Event(EVT));
+}
+export function useExampleCount(): number {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    const sync = () => setN(getExampleCount());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return n;
+}
+
+export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
 
 export function getExampleStyle(): ExampleStyle {
@@ -388,6 +414,57 @@ export function useShowTranscription(): boolean {
   const [on, setState] = useState(true);
   useEffect(() => {
     const sync = () => setState(getShowTranscription());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
+// Auto-translate a word when you select it in the Reader (a per-tap model call).
+// Off = tapping just selects it, no request — handy for batch-adding.
+const AUTOGLOSS_KEY = "lexa.autoGloss";
+export function getAutoGloss(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(AUTOGLOSS_KEY) !== "0"; // default on
+}
+export function setAutoGloss(on: boolean) {
+  localStorage.setItem(AUTOGLOSS_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useAutoGloss(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getAutoGloss());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
+// Show an estimated CEFR level on saved texts (and estimate it at save time).
+const LEVEL_BADGE_KEY = "lexa.showTextLevel";
+export function getShowTextLevel(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(LEVEL_BADGE_KEY) !== "0"; // default on
+}
+export function setShowTextLevel(on: boolean) {
+  localStorage.setItem(LEVEL_BADGE_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useShowTextLevel(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getShowTextLevel());
     sync();
     window.addEventListener(EVT, sync);
     window.addEventListener("storage", sync);

@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
+import { useDialog } from "@/lib/dialog";
+import { useToast } from "@/lib/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
@@ -16,6 +19,8 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
 import { TapGlossPills } from "@/components/TapGlossPills";
+import { AddExampleInline } from "@/components/AddExampleInline";
+import { Link as LinkIcon, BookOpen, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -33,9 +38,9 @@ const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "fon
 
 // Hand a sentence off to the Reader (full tap-to-look-up), pre-filling its text
 // and language pair via sessionStorage so it survives the navigation.
-function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string) {
+function openInReader(router: ReturnType<typeof useRouter>, text: string, sourceLang: string, targetLang: string, word?: string) {
   try {
-    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang }));
+    sessionStorage.setItem("lexa.readerPrefill", JSON.stringify({ text, sourceLang, targetLang, word }));
   } catch {
     /* ignore storage errors */
   }
@@ -46,12 +51,38 @@ export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useI18n();
+  const qc = useQueryClient();
+  const { confirm } = useDialog();
+  const { show } = useToast();
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const { data: word, isLoading, isError, error, refetch } = useQuery({
+  const [deleting, setDeleting] = useState(false);
+  const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
   });
+
+  async function removeCard() {
+    if (!word || deleting) return;
+    const ok = await confirm({
+      title: t("word.deleteTitle"),
+      message: t("word.deleteConfirm", { word: word.word }),
+      confirmLabel: t("word.delete"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await api.deleteWord(word.id);
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      show({ icon: "🗑", title: t("word.deleted") });
+      router.push("/words");
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+      setDeleting(false);
+    }
+  }
   if (isLoading)
     return (
       <div className="space-y-6">
@@ -70,7 +101,7 @@ export default function WordDetailPage() {
           {t("word.back")}
         </Link>
         <ErrorState
-          message={(error as Error)?.message ?? t("word.notFound")}
+          message={t("word.notFound")}
           onRetry={() => refetch()}
         />
       </div>
@@ -97,6 +128,15 @@ export default function WordDetailPage() {
               className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
             >
               {t("word.edit")}
+            </button>
+            <button
+              onClick={removeCard}
+              disabled={deleting}
+              aria-label={t("word.delete")}
+              title={t("word.delete")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-warn-text/30 px-3 py-1.5 text-xs font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
@@ -183,27 +223,30 @@ export default function WordDetailPage() {
                 {ex.sentenceZh}
               </p>
             )}
-            {safeHttpUrl(ex.sourceUrl) && ex.sourceName.trim() !== "Manual entry" ? (
-              <a
-                href={safeHttpUrl(ex.sourceUrl)!}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+              {safeHttpUrl(ex.sourceUrl) && ex.sourceName.trim() !== "Manual entry" ? (
+                <a
+                  href={safeHttpUrl(ex.sourceUrl)!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-sage hover:text-sage-deep hover:underline"
+                >
+                  <LinkIcon className="h-3.5 w-3.5" /> {ex.sourceName}
+                </a>
+              ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
+                <div className="text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang, word.word)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
               >
-                🔗 {ex.sourceName}
-              </a>
-            ) : ex.sourceName.trim() && ex.sourceName.trim() !== "Manual entry" ? (
-              <div className="mt-3 text-[13px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => openInReader(router, ex.sentenceEn, word.sourceLang, word.targetLang)}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
-            >
-              📖 {t("word.openInReader")}
-            </button>
+                <BookOpen className="h-3.5 w-3.5" /> {t("word.openInReader")}
+              </button>
+            </div>
           </div>
         ))}
+        <AddExampleInline word={word} />
       </div>
     </div>
   );

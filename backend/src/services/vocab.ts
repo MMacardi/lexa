@@ -64,6 +64,7 @@ export async function addWordForUser(params: {
   level?: string;
   exampleStyle?: string;
   exampleSource?: string;
+  exampleCount?: number; // how many examples to generate (1–3); default 1
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
@@ -82,6 +83,21 @@ export async function addWordForUser(params: {
     sourceLang: params.sourceLang,
     targetLang: params.targetLang,
   });
+
+  // Extra examples: compose N-1 more, each avoiding the ones already there. Skipped
+  // for the "no example" style.
+  const count = Math.max(1, Math.min(3, Math.round(params.exampleCount ?? 1)));
+  if (count > 1 && params.exampleStyle !== "none") {
+    for (let i = 1; i < count; i++) {
+      await addExampleToWord(example.wordId, {
+        exampleStyle: params.exampleStyle,
+        exampleSource: params.exampleSource,
+        level: params.level,
+      }).catch(() => {
+        /* one extra example failing shouldn't fail the whole add */
+      });
+    }
+  }
 
   return prisma.word.findUniqueOrThrow({
     where: { id: example.wordId },
@@ -508,6 +524,8 @@ export async function getStats(telegramId: string) {
     due: 0,
     trainedToday: 0,
     streak: 0,
+    reviews: 0,
+    languages: [] as string[],
     days: [] as { date: string; added: number; reviews: number }[],
     heat: [] as { date: string; count: number }[],
   };
@@ -516,8 +534,12 @@ export async function getStats(telegramId: string) {
   const now = Date.now();
   const words = await prisma.word.findMany({
     where: { userId: user.id },
-    select: { reviewCount: true, nextReviewAt: true, createdAt: true },
+    select: { reviewCount: true, nextReviewAt: true, createdAt: true, sourceLang: true },
   });
+  // Lifetime review count (every graded review logs an event) + the distinct
+  // source languages the learner studies — both feed achievements & friend cards.
+  const reviews = await prisma.reviewEvent.count({ where: { userId: user.id } });
+  const languages = Array.from(new Set(words.map((w) => w.sourceLang))).sort();
   // Pull a wide window (for the heatmap); the 14-day chart is a subset of it.
   const HEAT_DAYS = 119; // 17 weeks
   const since = new Date(now - (HEAT_DAYS - 1) * 86400_000);
@@ -570,7 +592,7 @@ export async function getStats(telegramId: string) {
     else break;
   }
 
-  return { total, mastered, learning: total - mastered, due, trainedToday, streak, days, heat };
+  return { total, mastered, learning: total - mastered, due, trainedToday, streak, reviews, languages, days, heat };
 }
 
 // ---------------- Collections (word sets like "IELTS", "adjectives") ----------------

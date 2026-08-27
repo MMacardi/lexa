@@ -15,6 +15,7 @@ const PUBLIC_ROUTES = ["/login/verify", "/privacy", "/terms"];
 // chunks so the first page paints without their JS.
 const CommandPalette = dynamic(() => import("@/components/CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 const GlobalTutor = dynamic(() => import("@/components/GlobalTutor").then((m) => m.GlobalTutor), { ssr: false });
+const SyncStatus = dynamic(() => import("@/components/SyncStatus").then((m) => m.SyncStatus), { ssr: false });
 
 // Gates the app behind login. Until the session check finishes we show a light
 // loading state; signed-out users get the login screen; signed-in users get the
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <AchievementWatcher />
       <GlobalTutor />
+      <SyncStatus />
     </div>
   );
 }

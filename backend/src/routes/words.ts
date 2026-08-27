@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { aiQuotaGuard, usageStatus } from "../lib/entitlements.js";
 import { suggestWord } from "../services/suggest.js";
-import { translateText, glossInContext } from "../services/translate.js";
+import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { ocrImage } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
@@ -42,7 +42,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -210,8 +210,9 @@ const addBody = z.object({
   mode: z.enum(["auto", "manual"]).default("auto"),
   // auto-mode example tuning (ignored in manual mode)
   level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
+  exampleCount: z.number().int().min(1).max(3).optional(),
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),
@@ -250,7 +251,7 @@ const importCommitBody = z.object({
   generateDetails: z.boolean().default(false),
   generateExamples: z.boolean().default(false),
   level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
 });
 
@@ -408,7 +409,7 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
 
 // POST /api/words/:id/example -> fetch a fresh AI example (add or regenerate).
 const exampleBody = z.object({
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
@@ -504,7 +505,7 @@ const batchBody = z
       .optional(),
     source: z.string().max(120).optional(), // attribution for the provided example
     level: z.string().max(4).optional(),
-    exampleStyle: z.enum(["news", "casual", "dialogue", "literary"]).optional(),
+    exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
     exampleSource: z.enum(["ai", "web"]).optional(),
     collectionIds: z.array(z.string()).optional(),
     enrich: z.boolean().default(true),
@@ -633,6 +634,26 @@ wordsRouter.post("/translate", async (req, res) => {
   }
 });
 
+// POST /api/transcribe -> batch transcription of many words in one call (Reader
+// "pinyin over characters"). Returns { items: string[] } aligned to the input.
+const transcribeBody = z.object({
+  words: z.array(z.string().max(120)).min(1).max(400),
+  sourceLang: z.string().max(12).optional(),
+});
+wordsRouter.post("/transcribe", async (req, res) => {
+  const parsed = transcribeBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json({ items: await transcribeWords(parsed.data) });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
 // ---------------- Reader: saved texts ----------------
 const callerId = (req: Request) => readSession(req) ?? String((req.body?.telegramId ?? req.query.telegramId ?? "dev-user"));
 
@@ -668,6 +689,9 @@ const readerCreateBody = z.object({
   content: z.string().min(1).max(20_000),
   collection: z.string().max(60).optional(),
   autoName: z.boolean().optional(),
+  translation: z.string().max(20_000).optional(),
+  clickedWords: z.array(z.string().max(120)).max(2000).optional(),
+  estimateLevel: z.boolean().optional(),
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
 });

@@ -6,6 +6,7 @@ import { useAccount } from "@/lib/account";
 import { useDailyGoal } from "@/lib/goal";
 import { useI18n } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/HoverTip";
+import { PartyPopper, Target } from "lucide-react";
 
 // A standalone, prominent daily-goal panel: a big progress ring, encouragement,
 // a 7-day "goal met" strip, and +/- to tune the target.
@@ -60,7 +61,7 @@ export function DailyGoalCard() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-serif text-[22px] font-medium text-ink">{t("stats.goal")}</h3>
-            <span className="text-[20px]">{hit ? "🎉" : "🎯"}</span>
+            {hit ? <PartyPopper className="h-5 w-5 text-sage" /> : <Target className="h-5 w-5 text-ink-faint" />}
           </div>
           <p className="mt-1 text-[15px] text-ink-soft">
             {hit ? t("stats.goalGreat") : t("stats.goalToGo", { n: Math.max(0, goal - done) })}

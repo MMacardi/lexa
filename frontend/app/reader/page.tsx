@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
+import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
@@ -17,12 +19,15 @@ import {
   setReaderSource,
   useReaderSource,
   useRecentPairs,
+  useAutoGloss,
+  setAutoGloss,
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
+import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -73,6 +78,7 @@ export default function ReaderPage() {
   const { show, trackImport } = useToast();
   const recentPairs = useRecentPairs();
   const readerSource = useReaderSource();
+  const autoGloss = useAutoGloss();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
@@ -100,16 +106,27 @@ export default function ReaderPage() {
   const [glossLoading, setGlossLoading] = useState(false);
   const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const glossKeyRef = useRef<string>("");
+  const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
+  const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
+  const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [cardPanel, setCardPanel] = useState<{ wordId: string; sentence: string } | null>(null);
   const [addingExample, setAddingExample] = useState(false);
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
+  const [rubyOn, setRubyOn] = useState(false);
+  const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
+  const [rubyBusy, setRubyBusy] = useState(false);
+  const rubyCache = useRef<Map<string, string>>(new Map());
+  // Draggable word-card panel: offset from its docked position (reset per card).
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
+  const cardDrag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -145,6 +162,24 @@ export default function ReaderPage() {
     show({ icon: "✨", title: t("reader.genStarted") });
   }
 
+  // Reset the card-panel drag offset whenever a different card opens.
+  useEffect(() => {
+    setCardOffset({ x: 0, y: 0 });
+  }, [cardPanel?.wordId]);
+
+  function startCardDrag(e: React.PointerEvent) {
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    cardDrag.current = { sx: e.clientX, sy: e.clientY, ox: cardOffset.x, oy: cardOffset.y };
+  }
+  function moveCardDrag(e: React.PointerEvent) {
+    const d = cardDrag.current;
+    if (!d) return;
+    setCardOffset({ x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) });
+  }
+  function endCardDrag() {
+    cardDrag.current = null;
+  }
+
   // Restore the shared pair (Reader needs a concrete source language, not auto).
   useEffect(() => {
     try {
@@ -158,11 +193,17 @@ export default function ReaderPage() {
       const pre = sessionStorage.getItem("lexa.readerPrefill");
       if (pre) {
         sessionStorage.removeItem("lexa.readerPrefill");
-        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string };
+        const p = JSON.parse(pre) as { text?: string; sourceLang?: string; targetLang?: string; word?: string };
         if (p.text?.trim()) {
           setText(p.text);
           if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
           if (p.targetLang) setTargetLang(p.targetLang);
+          // Opened for a specific word (from a card's example) → jump straight into
+          // reading with that word highlighted.
+          if (p.word?.trim()) {
+            setReading(true);
+            setSelected(new Set([wordKey(p.word.trim())]));
+          }
         }
       }
     } catch {
@@ -208,6 +249,68 @@ export default function ReaderPage() {
 
   const busy = queueing;
 
+  // "Pinyin over characters" (ruby). Chinese is transcribed LOCALLY with pinyin-pro
+  // (instant, offline, zero tokens); Japanese/Korean use one batched model call,
+  // cached per word. Results are cached so re-toggling and repeats are free.
+  useEffect(() => {
+    if (!rubyOn || !reading || !hasTranscription(sourceLang)) {
+      setRubyMap({});
+      setRubyBusy(false);
+      return;
+    }
+    const key = (w: string) => `${sourceLang}:${w}`;
+    const distinct = Array.from(new Set(tokens.filter((tk) => tk.wordLike).map((tk) => tk.text)));
+    const build = () => {
+      const m: Record<string, string> = {};
+      for (const w of distinct) {
+        const v = rubyCache.current.get(key(w));
+        if (v) m[w] = v;
+      }
+      setRubyMap(m);
+    };
+    let cancel = false;
+
+    // Chinese / Korean → local, instant, no tokens.
+    if (isLocalTr(sourceLang)) {
+      (async () => {
+        for (const w of distinct) {
+          if (!rubyCache.current.has(key(w))) await localTranscribe(w);
+        }
+        if (!cancel) build();
+      })();
+      return () => {
+        cancel = true;
+      };
+    }
+
+    // Japanese → one batched model call for the missing words.
+    build();
+    const missing = distinct.filter((w) => !rubyCache.current.has(key(w)));
+    if (missing.length === 0) return;
+    setRubyBusy(true);
+    api
+      .transcribe(missing, sourceLang)
+      .then((items) => {
+        if (cancel) return;
+        missing.forEach((w, i) => {
+          const v = items[i]?.trim();
+          if (v) rubyCache.current.set(key(w), v);
+        });
+        build();
+      })
+      .catch(() => {
+        /* best-effort */
+      })
+      .finally(() => {
+        if (!cancel) setRubyBusy(false);
+      });
+    return () => {
+      cancel = true;
+    };
+    // localTranscribe is stable w.r.t. these deps (reads sourceLang + a ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rubyOn, reading, sourceLang, tokens]);
+
   function startReading() {
     if (!text.trim()) {
       show({ icon: "📖", title: t("reader.emptyText") });
@@ -215,6 +318,26 @@ export default function ReaderPage() {
     }
     setSelected(new Set());
     setShowTr(false);
+    setReading(true);
+  }
+
+  // Open a saved text: restore its content, pair, translation and the words the
+  // reader had engaged with, then jump straight into the reading view.
+  function openSavedText(full: ReaderTextFull) {
+    setText(full.content);
+    // Attribute words added from this text to its title (falls back to "Reader").
+    if (full.title?.trim()) setReaderSource(full.title.trim());
+    if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
+    if (full.targetLang) setTargetLang(full.targetLang);
+    if (full.translation) {
+      setTranslation(full.translation);
+      translatedFor.current = full.content;
+    } else {
+      setTranslation(null);
+    }
+    setShowTr(false);
+    setAdded(new Set(full.clickedWords ?? []));
+    setSelected(new Set());
     setReading(true);
   }
 
@@ -227,12 +350,34 @@ export default function ReaderPage() {
     });
   }
 
+  // Languages we can transcribe LOCALLY (offline, no model call): Chinese via
+  // pinyin-pro, Korean via es-hangul. Japanese still needs the model (kanji).
+  const isLocalTr = (lang: string) => lang === "zh" || lang === "zh-Hant" || lang === "ko";
+
+  // Local transcription for one word, cached alongside ruby (offline, no tokens).
+  async function localTranscribe(word: string): Promise<string> {
+    const ck = `${sourceLang}:${word}`;
+    const hit = rubyCache.current.get(ck);
+    if (hit !== undefined) return hit;
+    let v = "";
+    if (sourceLang === "zh" || sourceLang === "zh-Hant") {
+      const { pinyin } = await import("pinyin-pro");
+      v = pinyin(word, { toneType: "symbol", type: "string" });
+    } else if (sourceLang === "ko") {
+      const { romanize } = await import("es-hangul");
+      v = romanize(word);
+    }
+    rubyCache.current.set(ck, v);
+    return v;
+  }
+
   // Show a quick translation of a single word, anchored under the tapped token.
   function openGloss(key: string, wordText: string, el: HTMLElement) {
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setGloss({ key, word: wordText, x, y: rect.bottom });
     glossKeyRef.current = key;
+    glossElRef.current = el;
     const cached = glossCache.current.get(key);
     if (cached != null) {
       setGlossText(cached.gloss);
@@ -243,15 +388,25 @@ export default function ReaderPage() {
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
-    const wantTr = getShowTranscription() && hasTranscription(sourceLang);
+    const local = isLocalTr(sourceLang);
+    const showTr = getShowTranscription() && hasTranscription(sourceLang);
+    // Chinese/Korean transcription: computed locally (instant, no model call).
+    if (local && showTr) {
+      localTranscribe(wordText).then((p) => {
+        if (glossKeyRef.current === key) setGlossTr(p);
+      });
+    }
+    // Only ask the model for a transcription for Japanese.
+    const wantTr = showTr && !local;
     api
       .gloss({ word: wordText, sentence: wordText, sourceLang, targetLang, withTranscription: wantTr })
       .then((r) => {
-        const entry = { gloss: r.gloss, tr: r.transcription ?? "" };
+        const tr = local ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
+        const entry = { gloss: r.gloss, tr };
         glossCache.current.set(key, entry);
         if (glossKeyRef.current === key) {
           setGlossText(entry.gloss);
-          setGlossTr(entry.tr);
+          if (tr) setGlossTr(tr);
           setGlossLoading(false);
         }
       })
@@ -263,23 +418,35 @@ export default function ReaderPage() {
       });
   }
 
-  // Dismiss the gloss on scroll / resize / Escape / a tap anywhere. Tapping a
-  // word re-opens it (that happens on pointer-up, after this pointer-down clears).
+  // Keep the gloss anchored to its word while scrolling/resizing (instead of
+  // vanishing); dismiss on Escape or a tap elsewhere. Off-screen → close.
+  const glossOpen = gloss !== null;
   useEffect(() => {
-    if (!gloss) return;
+    if (!glossOpen) return;
     const close = () => setGloss(null);
+    const reposition = () => {
+      const el = glossElRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        close();
+        return;
+      }
+      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+      setGloss((g) => (g ? { ...g, x, y: rect.bottom } : g));
+    };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
     document.addEventListener("pointerdown", close);
     return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
       document.removeEventListener("pointerdown", close);
     };
-  }, [gloss]);
+  }, [glossOpen]);
 
   // Escape closes the known-word popup / card panel.
   useEffect(() => {
@@ -291,12 +458,37 @@ export default function ReaderPage() {
       }
     };
     window.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", () => setKnownPop(null), true);
-    return () => {
-      window.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", () => setKnownPop(null), true);
-    };
+    return () => window.removeEventListener("keydown", onEsc);
   }, [knownPop, cardPanel]);
+
+  // Known-word popup: follow its word while scrolling (don't vanish), and close
+  // on a tap anywhere outside the popup itself (its buttons stay clickable).
+  const knownOpen = knownPop !== null;
+  useEffect(() => {
+    if (!knownOpen) return;
+    const reposition = () => {
+      const el = knownElRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setKnownPop(null);
+        return;
+      }
+      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
+      setKnownPop((p) => (p ? { ...p, x, y: rect.bottom } : p));
+    };
+    const onDown = (e: PointerEvent) => {
+      if (!knownPopRef.current?.contains(e.target as Node)) setKnownPop(null);
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [knownOpen]);
 
   // The sentence a token belongs to (for provided example / context).
   function sentenceAround(index: number): string {
@@ -321,6 +513,7 @@ export default function ReaderPage() {
   // Short tap on a saved word → small popup with its meaning + "add example".
   function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
     const w = (words ?? []).find((x) => x.id === wordId);
+    knownElRef.current = el;
     const rect = el.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setKnownPop({
@@ -355,7 +548,7 @@ export default function ReaderPage() {
       qc.invalidateQueries({ queryKey: ["word", wordId] });
       show({ icon: "📝", title: t("reader.exampleAdded", { word: w.word }) });
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setAddingExample(false);
       setKnownPop(null);
@@ -420,7 +613,7 @@ export default function ReaderPage() {
       show({ icon: "📖", title: t("reader.addedToast", { n: r.created }) });
       if (r.skipped > 0) show({ icon: "⚠️", title: t("reader.someFailed", { n: r.skipped }) });
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.someFailed", { n: keys.length }), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.someFailed", { n: keys.length }), subtitle: errText(e, t) });
     } finally {
       setQueueing(false);
     }
@@ -440,13 +633,28 @@ export default function ReaderPage() {
       translatedFor.current = text;
       setShowTr(true);
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: errText(e, t) });
     } finally {
       setTranslating(false);
     }
   }
 
   const trReady = translation !== null && translatedFor.current === text;
+
+  // Render a word: the highlight (selection/known tint) goes on the base character
+  // only, and the transcription floats ABOVE it on the clean page background — so
+  // ruby and the green selection never overlap.
+  const wordNode = (txt: string, highlight: string) => {
+    const base = <span className={highlight}>{txt}</span>;
+    return rubyOn && rubyMap[txt] ? (
+      <ruby className="leading-none">
+        {base}
+        <rt className="pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint">{rubyMap[txt]}</rt>
+      </ruby>
+    ) : (
+      base
+    );
+  };
 
   async function scanPhoto(file: File) {
     if (scanning) return;
@@ -457,7 +665,7 @@ export default function ReaderPage() {
       const found = r.text.trim();
       if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
     } catch (e) {
-      show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: (e as Error).message });
+      show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: errText(e, t) });
     } finally {
       setScanning(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -483,7 +691,7 @@ export default function ReaderPage() {
               title={t("add.swap")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
             >
-              <span className={cn("text-[15px] transition-transform duration-300", swapSpin && "rotate-180")}>⇄</span>
+              <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
             </button>
             <LangSelect value={targetLang} onChange={setTargetLang} />
           </div>
@@ -547,14 +755,14 @@ export default function ReaderPage() {
           </Button>
           {/* secondary tools — one compact chip row */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <ReaderTextTools text={text} sourceLang={sourceLang} targetLang={targetLang} onLoad={(c) => setText(c)} onStartGen={startGen} />
+            <ReaderTextTools sourceLang={sourceLang} targetLang={targetLang} onStartGen={startGen} />
             <button
               type="button"
               disabled={scanning}
               onClick={() => fileRef.current?.click()}
-              className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50"
             >
-              {scanning ? t("reader.scanning") : `📷 ${t("reader.scan")}`}
+              <Camera className="h-3.5 w-3.5" /> {scanning ? t("reader.scanning") : t("reader.scan")}
             </button>
             <button
               type="button"
@@ -574,6 +782,8 @@ export default function ReaderPage() {
             )}
           </div>
         </div>
+
+        <SavedTexts onOpen={openSavedText} />
       </div>
     );
   }
@@ -606,25 +816,54 @@ export default function ReaderPage() {
         <button
           type="button"
           onClick={() => setShowSave(true)}
-          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
         >
-          💾 {t("reader.save")}
+          <Save className="h-3.5 w-3.5" /> {t("reader.save")}
         </button>
+
+        {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
+        <button
+          type="button"
+          onClick={() => setAutoGloss(!autoGloss)}
+          title={t("reader.autoGlossHint")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+            autoGloss ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+          )}
+        >
+          <Languages className="h-3.5 w-3.5" /> {t("reader.autoGloss")}
+        </button>
+
+        {/* pinyin/romaji over the characters (CJK only) */}
+        {hasTranscription(sourceLang) && (
+          <button
+            type="button"
+            onClick={() => setRubyOn((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              rubyOn ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            {rubyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Baseline className="h-3.5 w-3.5" />}
+            {rubyBusy ? t("reader.rubyLoading") : t("reader.ruby")}
+          </button>
+        )}
 
         {/* translate whole text */}
         <button
           type="button"
           onClick={translateAll}
           disabled={translating}
-          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
         >
+          {!translating && !trReady && <Languages className="h-3.5 w-3.5" />}
           {translating
             ? t("reader.translating")
             : trReady && showTr
               ? t("reader.hideTranslation")
               : trReady
                 ? t("reader.showTranslation")
-                : `🌐 ${t("reader.translate")}`}
+                : t("reader.translate")}
         </button>
 
         {newKeys.size > 0 && selected.size < newKeys.size && (
@@ -654,9 +893,9 @@ export default function ReaderPage() {
             <button
               type="button"
               onClick={swapLangs}
-              className="rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white"
             >
-              ⇄ {t("add.swap")}
+              <ArrowRightLeft className="h-3.5 w-3.5" /> {t("add.swap")}
             </button>
           ) : (
             <button
@@ -678,7 +917,8 @@ export default function ReaderPage() {
       <div className={cn("grid gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
           className={cn(
-            "select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] leading-[1.9] text-ink sm:p-7 sm:text-[21px]",
+            "select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
+            rubyOn ? "leading-[2.7]" : "leading-[1.9]",
             sourceFont(sourceLang),
           )}
         >
@@ -688,16 +928,10 @@ export default function ReaderPage() {
             const knownId = knownMap.get(key);
             const isAdded = added.has(key);
             const isSel = selected.has(key);
-            if (isAdded) {
-              return (
-                <span key={i} className="rounded-[5px] bg-sage-tint px-0.5 text-sage-deep">
-                  {tk.text}
-                </span>
-              );
-            }
+            // A saved word (including one just added this session) stays clickable:
+            // tap = meaning popup, press-and-hold = the card panel. Freshly-added
+            // ones keep the green tint so you can see what you just added.
             if (knownId) {
-              // Already saved → tap shows a small popup (meaning + add example);
-              // press-and-hold opens the card in a panel (no page switch).
               return (
                 <span
                   key={i}
@@ -709,17 +943,29 @@ export default function ReaderPage() {
                     const el = e.currentTarget;
                     endPress(() => openKnownPop(knownId, tk.text, i, el));
                   }}
-                  className="cursor-pointer rounded-[4px] text-ink-faint underline decoration-ink-faint/30 underline-offset-4 hover:text-sage-deep"
+                  className="cursor-pointer"
                 >
-                  {tk.text}
+                  {wordNode(
+                    tk.text,
+                    cn(
+                      "rounded-[5px] underline-offset-4",
+                      isAdded
+                        ? "bg-sage-tint px-0.5 text-sage-deep"
+                        : "text-ink-faint underline decoration-ink-faint/30",
+                    ),
+                  )}
                 </span>
               );
+            }
+            // Added but its card id hasn't resolved yet (enrichment lag) → green.
+            if (isAdded) {
+              return <span key={i}>{wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}</span>;
             }
             const onPick = (el: HTMLElement) => {
               const wasSelected = selected.has(key);
               toggle(key);
               if (wasSelected) setGloss(null); // deselecting → hide gloss
-              else openGloss(key, tk.text, el); // selecting → show quick translation
+              else if (autoGloss) openGloss(key, tk.text, el); // selecting → quick translation (opt-in)
             };
             return (
               <span
@@ -738,12 +984,12 @@ export default function ReaderPage() {
                     onPick(e.currentTarget);
                   }
                 }}
-                className={cn(
-                  "cursor-pointer rounded-[5px] px-0.5 transition-colors",
-                  isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
-                )}
+                className="cursor-pointer"
               >
-                {tk.text}
+                {wordNode(
+                  tk.text,
+                  cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60"),
+                )}
               </span>
             );
           })}
@@ -808,7 +1054,7 @@ export default function ReaderPage() {
       {knownPop &&
         createPortal(
           <div className="anim-fade-up fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
-            <div className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
+            <div ref={knownPopRef} className="w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]">
               <div className={cn("text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
               {knownPop.meaning && (
                 <div className={cn("mt-0.5 text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
@@ -844,18 +1090,44 @@ export default function ReaderPage() {
           const w = (words ?? []).find((x) => x.id === cardPanel.wordId);
           if (!w) return null;
           return createPortal(
-            <div className="anim-fade-up fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]">
-              {/* close button pinned to the panel corner — always reachable while scrolling */}
-              <button
-                type="button"
-                onClick={() => setCardPanel(null)}
-                aria-label={t("common.cancel")}
-                className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-surface/90 text-ink-faint shadow-sm backdrop-blur transition-colors hover:bg-black/[0.05] hover:text-ink"
-              >
-                ✕
-              </button>
-              <div className="max-h-[70vh] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface p-5 shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
-                <div className="min-w-0 pr-9">
+            <div
+              className="fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]"
+              style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
+            >
+              <div className="anim-fade-up overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+                {/* title bar: reset (left) · grip drag handle (center) · close (right) */}
+                <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
+                  {(cardOffset.x !== 0 || cardOffset.y !== 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setCardOffset({ x: 0, y: 0 })}
+                      aria-label={t("tutor.resetPos")}
+                      title={t("tutor.resetPos")}
+                      className="rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                    >
+                      <LocateFixed className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <div
+                    onPointerDown={startCardDrag}
+                    onPointerMove={moveCardDrag}
+                    onPointerUp={endCardDrag}
+                    aria-label={t("common.drag")}
+                    className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
+                  >
+                    <GripHorizontal className="h-4 w-4" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCardPanel(null)}
+                    aria-label={t("common.cancel")}
+                    className="ml-auto rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="max-h-[calc(70vh-2.75rem)] overflow-y-auto p-5">
+                <div className="min-w-0">
                   <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
@@ -936,6 +1208,7 @@ export default function ReaderPage() {
                     {t("review.openCard")} ↗
                   </a>
                 </div>
+                </div>
               </div>
             </div>,
             document.body,
@@ -945,6 +1218,8 @@ export default function ReaderPage() {
       {showSave && (
         <SaveModal
           text={text}
+          translation={trReady ? translation ?? undefined : undefined}
+          clickedWords={Array.from(new Set([...added, ...selected]))}
           sourceLang={sourceLang}
           targetLang={targetLang}
           onClose={() => setShowSave(false)}

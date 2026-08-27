@@ -60,6 +60,7 @@ export interface ReaderTextSummary {
   snippet: string;
   status: string; // ready | generating | failed
   collection?: string | null;
+  level?: string | null;
   sourceLang?: string | null;
   targetLang?: string | null;
   updatedAt: string;
@@ -69,8 +70,28 @@ export interface ReaderTextFull {
   title: string;
   content: string;
   status: string;
+  collection?: string | null;
+  translation?: string | null;
+  clickedWords?: string[];
+  level?: string | null;
   sourceLang?: string | null;
   targetLang?: string | null;
+}
+
+export interface Friend {
+  friendshipId: string;
+  telegramId: string;
+  name: string;
+  total: number;
+  mastered: number;
+  reviews: number;
+  languages: string[];
+  streak: number;
+}
+export interface FriendRequest {
+  friendshipId: string;
+  telegramId: string;
+  name: string;
 }
 
 export interface Profile {
@@ -91,6 +112,8 @@ export interface Stats {
   due: number;
   trainedToday: number;
   streak: number;
+  reviews: number; // lifetime graded reviews
+  languages: string[]; // distinct source languages studied
   days: { date: string; added: number; reviews: number }[];
   heat: { date: string; count: number }[];
 }
@@ -111,7 +134,9 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    const err = new Error(body.error ?? `Request failed: ${res.status}`);
+    if (body.code) (err as Error & { code?: string }).code = body.code;
+    throw err;
   }
   return res.json() as Promise<T>;
 }
@@ -122,8 +147,9 @@ export interface AddAuto {
   sourceLang: string;
   targetLang: string;
   level?: string; // learner CEFR level for example difficulty
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
+  exampleCount?: number; // how many examples to generate (1–3)
 }
 
 export interface AddManual extends AddAuto {
@@ -159,7 +185,7 @@ export interface ImportOptions {
   generateDetails: boolean;
   generateExamples: boolean;
   level?: string;
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
 }
 
@@ -232,7 +258,7 @@ export const api = {
   ) => http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   addExample: (
     id: string,
-    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
+    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
@@ -261,6 +287,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  // Batch transcription of many words in one call (Reader "pinyin over characters").
+  transcribe: (words: string[], sourceLang: string) =>
+    http<{ items: string[] }>(`/api/transcribe`, { method: "POST", body: JSON.stringify({ words, sourceLang }) }).then((r) => r.items),
   // OCR: extract text from a photo (base64 data URL) for the Reader.
   ocr: (payload: { image: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/ocr`, { method: "POST", body: JSON.stringify(payload) }),
@@ -277,7 +306,7 @@ export const api = {
     items?: { word: string; sentence?: string }[];
     source?: string; // attribution for the provided example
     level?: string;
-    exampleStyle?: "news" | "casual" | "dialogue" | "literary";
+    exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
     exampleSource?: "ai" | "web";
     collectionIds?: string[];
     enrich?: boolean;
@@ -349,6 +378,14 @@ export const api = {
   unlinkIdentity: (provider: string) =>
     http<{ identities: AuthIdentity[] }>(`/api/auth/identity/${encodeURIComponent(provider)}`, { method: "DELETE" }),
 
+  // Friends + referral (session-authenticated).
+  friends: () => http<Friend[]>(`/api/friends`),
+  friendRequests: () => http<FriendRequest[]>(`/api/friends/requests`),
+  referral: () => http<{ code: string; link: string }>(`/api/friends/referral`),
+  addFriend: (code: string) => http<{ status: "pending" | "accepted" }>(`/api/friends/add`, { method: "POST", body: JSON.stringify({ code }) }),
+  acceptFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}/accept`, { method: "POST" }),
+  removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
+
   // Billing: current plan + today's AI-action usage.
   aiUsage: (telegramId: string) =>
     http<{ pro: boolean; plan: string; used: number; limit: number; remaining: number }>(
@@ -363,8 +400,18 @@ export const api = {
     http<string[]>(`/api/reader/collections?telegramId=${encodeURIComponent(telegramId)}`),
   readerText: (id: string, telegramId: string) =>
     http<ReaderTextFull>(`/api/reader/texts/${id}?telegramId=${encodeURIComponent(telegramId)}`),
-  saveReaderText: (payload: { telegramId: string; title: string; content: string; collection?: string; autoName?: boolean; sourceLang?: string; targetLang?: string }) =>
-    http<{ id: string; title: string }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
+  saveReaderText: (payload: {
+    telegramId: string;
+    title: string;
+    content: string;
+    collection?: string;
+    autoName?: boolean;
+    translation?: string;
+    clickedWords?: string[];
+    estimateLevel?: boolean;
+    sourceLang?: string;
+    targetLang?: string;
+  }) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
   updateReaderText: (id: string, payload: { telegramId: string; title?: string; content?: string }) =>
     http<{ id: string; title: string }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteReaderText: (id: string, telegramId: string) =>

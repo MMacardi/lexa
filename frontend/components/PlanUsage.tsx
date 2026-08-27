@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { Star } from "lucide-react";
 
 // Shows the account's plan and today's AI-action usage. During the closed beta
 // everyone is Pro, so this reads "Pro · unlimited"; on the free plan it shows a
@@ -29,11 +30,17 @@ export function PlanUsage() {
       <div className="mt-3 flex items-center gap-2">
         <span
           className={
-            "inline-flex items-center rounded-full px-3 py-1 text-[13px] font-semibold " +
+            "inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px] font-semibold " +
             (pro ? "bg-sage text-white" : "bg-black/[0.06] text-ink-muted")
           }
         >
-          {pro ? "★ Pro" : t("plan.free")}
+          {pro ? (
+            <>
+              <Star className="h-3.5 w-3.5 fill-current" /> Pro
+            </>
+          ) : (
+            t("plan.free")
+          )}
         </span>
         <span className="text-[13px] text-ink-soft">
           {pro ? t("plan.proHint") : t("plan.usedToday", { used, limit })}

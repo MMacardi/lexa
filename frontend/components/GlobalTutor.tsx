@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
@@ -13,6 +14,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
 import { cn } from "@/lib/utils";
+import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string; addWords?: string[] };
 
@@ -44,6 +46,42 @@ export function GlobalTutor() {
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Draggable panel: offset from its docked corner, remembered across opens and
+  // page reloads (localStorage). The "reset position" button clears it.
+  const [offset, setOffset] = useState<{ x: number; y: number }>(() => {
+    try {
+      const r = localStorage.getItem("lexa.tutorPos");
+      if (r) {
+        const p = JSON.parse(r);
+        if (typeof p?.x === "number" && typeof p?.y === "number") return p;
+      }
+    } catch {
+      /* ignore */
+    }
+    return { x: 0, y: 0 };
+  });
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  useEffect(() => {
+    try {
+      localStorage.setItem("lexa.tutorPos", JSON.stringify(offset));
+    } catch {
+      /* ignore */
+    }
+  }, [offset]);
+  function startDrag(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest("button, a, input, select, [role='button']")) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: offset.x, oy: offset.y };
+  }
+  function moveDrag(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    setOffset({ x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) });
+  }
+  function endDrag() {
+    dragRef.current = null;
+  }
+  const moved = offset.x !== 0 || offset.y !== 0;
 
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -129,7 +167,7 @@ export function GlobalTutor() {
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
       setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addWords: [] } : msg)));
     } catch (e) {
-      show({ icon: "⚠️", title: (e as Error).message });
+      show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setCreating(false);
     }
@@ -143,23 +181,46 @@ export function GlobalTutor() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={t("tutor.open")}
-          className="fixed bottom-[calc(64px_+_env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-[24px] text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:bottom-6"
+          className="fixed bottom-[calc(64px_+_env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:bottom-6"
         >
-          ✨
+          <Sparkles className="h-6 w-6" />
         </button>
       )}
 
       {/* chat panel */}
       {open && (
-        <div className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]">
-          {/* header — title, clickable language pair, actions */}
+        <div
+          className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        >
+          {/* header — title, centered drag handle, clickable language pair, actions */}
           <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="relative flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
-                <span>✨</span>
+                <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
                 {t("tutor.title")}
               </div>
+              <div
+                onPointerDown={startDrag}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                aria-label={t("common.drag")}
+                className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
+              >
+                <GripHorizontal className="h-4 w-4" />
+              </div>
               <div className="flex items-center gap-1.5">
+                {moved && (
+                  <button
+                    type="button"
+                    onClick={() => setOffset({ x: 0, y: 0 })}
+                    aria-label={t("tutor.resetPos")}
+                    title={t("tutor.resetPos")}
+                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    <LocateFixed className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     type="button"
@@ -167,18 +228,18 @@ export function GlobalTutor() {
                       setMessages([]);
                       ask.reset();
                     }}
-                    className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
                   >
-                    ↻
+                    <RotateCcw className="h-3.5 w-3.5" />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label={t("common.cancel")}
-                  className="rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>

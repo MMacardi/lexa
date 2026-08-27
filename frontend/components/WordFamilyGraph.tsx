@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
+import { X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
@@ -105,7 +107,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       );
       if (found) setAddedIds((m) => new Map(m).set(key, found.id));
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Add a synonym/antonym to the word itself (grows the graph), edited right here.
@@ -121,7 +123,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       qc.invalidateQueries({ queryKey: ["word", word.id] });
       qc.invalidateQueries({ queryKey: ["words"] });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Create a bare manual card (no AI) — safe for unusual/unknown terms.
@@ -135,7 +137,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       setAddedIds((m) => new Map(m).set(term.trim().toLowerCase(), created.id));
       show({ icon: "🌱", title: t("word.addedRelated", { word: term }) });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   // Remove a synonym/antonym from the word (edited from the graph, with confirm).
@@ -151,7 +153,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       qc.invalidateQueries({ queryKey: ["word", word.id] });
       qc.invalidateQueries({ queryKey: ["words"] });
     },
-    onError: (e) => show({ icon: "⚠️", title: (e as Error).message }),
+    onError: (e) => show({ icon: "⚠️", title: errText(e, t) }),
   });
 
   async function confirmRemove(node: SimNode) {
@@ -541,9 +543,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                   e.stopPropagation();
                   confirmRemove(n);
                 }}
-                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-[9px] font-bold text-white shadow group-hover:flex"
+                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-white shadow group-hover:flex"
               >
-                ✕
+                <X className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
             </div>
           );

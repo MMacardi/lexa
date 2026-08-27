@@ -29,12 +29,33 @@ model User {
   // Hour of day (0–23, server time) the learner wants their daily review nudge,
   // or null for no reminders. Chosen in-chat via /remind.
   reminderHour Int?
+  // Social: a short code others use to add you as a friend, and who referred you.
+  referralCode String?     @unique
+  referredById String?
   createdAt   DateTime     @default(now())
   words       Word[]
   collections Collection[]
   importJobs  ImportJob[]
   identities  AuthIdentity[]
   readerTexts ReaderText[]
+  sentFriendships Friendship[] @relation("SentFriendships")
+  recvFriendships Friendship[] @relation("RecvFriendships")
+}
+
+// A friend link between two users. `requester` sent it; `addressee` accepts. Once
+// accepted, either side can see the other's public profile (languages + badges).
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   @default("pending") // pending | accepted
+  createdAt   DateTime @default(now())
+  requester   User     @relation("SentFriendships", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User     @relation("RecvFriendships", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
 }
 
 // A sign-in method linked to an account. One user can have several (telegram +
@@ -109,6 +130,9 @@ model ReaderText {
   content    String
   status     String   @default("ready") // ready | generating | failed
   collection String? // optional "read later"-style folder name
+  translation String? // cached whole-text translation, saved with the text
+  clickedWords String[] @default([]) // normalized keys of words the reader engaged with
+  level      String? // estimated CEFR level of the text (e.g. "B2"), optional
   sourceLang String?
   targetLang String?
   createdAt  DateTime @default(now())

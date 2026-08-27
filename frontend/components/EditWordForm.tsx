@@ -6,6 +6,7 @@ import { api, type Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { EXAMPLE_STYLES, getExampleSource, getExampleStyle, getLevel, type ExampleStyle } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
+import { X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -173,9 +174,9 @@ export function EditWordForm({
                 type="button"
                 onClick={() => removeEx(i)}
                 aria-label={t("common.delete")}
-                className="mt-1 shrink-0 rounded-lg px-2 py-1 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
+                className="mt-1 shrink-0 rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -212,7 +213,13 @@ export function EditWordForm({
             if (ok) regen.mutate(true);
           }}
         >
-          {regen.isPending ? t("edit.fetching") : `🔄 ${t("edit.regenerate")}`}
+          {regen.isPending ? (
+            t("edit.fetching")
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <RefreshCw className="h-4 w-4" /> {t("edit.regenerate")}
+            </span>
+          )}
         </Button>
         <Button
           type="button"

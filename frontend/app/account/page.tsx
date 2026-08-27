@@ -17,6 +17,8 @@ import {
   setLevel,
   setRetention,
   setShowTranscription,
+  setShowTextLevel,
+  useShowTextLevel,
   useAllLevels,
   useExampleSource,
   useHanLang,
@@ -26,6 +28,7 @@ import {
   type ExampleSource,
 } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
+import { Sun, Moon, X } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -60,9 +63,9 @@ function LevelsSection() {
                   type="button"
                   onClick={() => removeLevel(lang)}
                   aria-label="Remove"
-                  className="rounded-lg px-2 py-1 text-sm text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
+                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-warn-text"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </li>
@@ -184,6 +187,35 @@ function TranscriptionSection() {
   );
 }
 
+function TextLevelSection() {
+  const { t } = useI18n();
+  const on = useShowTextLevel();
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("txtlvl.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("txtlvl.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              type="button"
+              onClick={() => setShowTextLevel(v)}
+              className={cn(
+                "rounded-full px-4 py-1.5 transition-colors",
+                on === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {v ? t("common.on") : t("common.off")}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("txtlvl.hint")}</p>
+    </section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
@@ -284,11 +316,12 @@ export default function AccountPage() {
                     if ((m === "dark") !== (theme === "dark")) toggle();
                   }}
                   className={cn(
-                    "rounded-full px-4 py-1.5 transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors",
                     theme === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
                   )}
                 >
-                  {m === "light" ? `☀️ ${t("account.themeLight")}` : `🌙 ${t("account.themeDark")}`}
+                  {m === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {m === "light" ? t("account.themeLight") : t("account.themeDark")}
                 </button>
               ))}
             </div>
@@ -322,6 +355,7 @@ export default function AccountPage() {
 
       {/* transcription (pinyin/romaji) in quick tap lookups */}
       <TranscriptionSection />
+      <TextLevelSection />
 
       {/* language levels */}
       <LevelsSection />

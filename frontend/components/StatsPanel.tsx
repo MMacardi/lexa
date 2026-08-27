@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { Achievements } from "@/components/Achievements";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { cn } from "@/lib/utils";
+import { Flame } from "lucide-react";
 
 const RANGES = [
   { key: "14", label: "14D", days: 14 },
@@ -319,7 +320,7 @@ export function StatsPanel() {
         <Tile value={data.total} label={t("stats.tile.collected")} />
         <Tile value={data.mastered} label={t("stats.tile.mastered")} accent="text-sage" />
         <Tile value={data.trainedToday} label={t("stats.tile.trainedToday")} />
-        <Tile value={<>🔥 {data.streak}</>} label={t("stats.tile.streak")} accent="text-orange-500" />
+        <Tile value={<span className="inline-flex items-center gap-1"><Flame className="h-5 w-5" /> {data.streak}</span>} label={t("stats.tile.streak")} accent="text-orange-500" />
       </div>
 
       {/* learning curve: metric toggle + date-range selector */}

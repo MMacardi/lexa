@@ -5,11 +5,13 @@ import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { errText } from "@/lib/errText";
 import { AddWordForm } from "@/components/AddWordForm";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BookOpen, PartyPopper } from "lucide-react";
 
 // Highlight the target word (and simple inflections) inside a news sentence.
 function Highlight({ text, word }: { text: string; word: string }) {
@@ -68,7 +70,7 @@ export default function TodayPage() {
     );
 
   if (isError)
-    return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
+    return <ErrorState message={errText(error, t)} onRetry={() => refetch()} />;
 
   const list = words ?? [];
   const collected = list.length;
@@ -112,7 +114,7 @@ export default function TodayPage() {
             href="/reader"
             className="inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-5 py-3.5 text-[15px] font-semibold text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
           >
-            📖 {t("nav.reader")}
+            <BookOpen className="h-4 w-4" /> {t("nav.reader")}
           </Link>
           {due > 0 && (
             <Link
@@ -215,8 +217,8 @@ export default function TodayPage() {
         </div>
         {dueList.length === 0 ? (
           <div className="anim-fade-up rounded-[18px] border border-black/[0.06] bg-surface p-6 text-center">
-            <div className="text-[26px]">🎉</div>
-            <p className="mt-1 font-serif text-[18px] font-medium text-ink">{t("today.allCaughtUp")}</p>
+            <PartyPopper className="mx-auto h-7 w-7 text-sage" />
+            <p className="mt-1.5 font-serif text-[18px] font-medium text-ink">{t("today.allCaughtUp")}</p>
             <p className="mt-1 text-sm text-ink-soft">{t("today.allCaughtUpHint")}</p>
           </div>
         ) : (
