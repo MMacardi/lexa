@@ -273,10 +273,8 @@ function ReaderScene({ locale }: { locale: string }) {
     flood: ru ? "наводнение" : "flood · наводнение",
   };
   const [open, setOpen] = useState<string | null>(null);
-  const [added, setAdded] = useState<string[]>([]);
 
   const W = (word: string) => {
-    const isAdded = added.includes(word);
     const isOpen = open === word;
     return (
       <span className="relative inline-block">
@@ -284,29 +282,17 @@ function ReaderScene({ locale }: { locale: string }) {
           type="button"
           onClick={() => setOpen(isOpen ? null : word)}
           className={`rounded px-1 transition-colors ${
-            isAdded
-              ? "bg-sage-tint text-sage-deep"
-              : isOpen
-                ? "bg-news-hl text-sage-deep"
-                : "underline decoration-dotted decoration-sage/50 underline-offset-[5px] hover:bg-news-hl hover:text-sage-deep"
+            isOpen
+              ? "bg-news-hl text-sage-deep"
+              : "underline decoration-dotted decoration-sage/50 underline-offset-[5px] hover:bg-news-hl hover:text-sage-deep"
           }`}
         >
           {word}
         </button>
-        {isOpen && !isAdded && (
+        {isOpen && (
           <span className="anim-popover absolute left-1/2 top-full z-20 mt-2 w-[190px] -translate-x-1/2 rounded-[12px] border border-black/[0.08] bg-surface p-2.5 text-left font-sans shadow-[0_14px_36px_rgba(46,42,38,0.18)]">
             <span className="block text-[13px] font-semibold text-ink">{word}</span>
             <span className="mt-0.5 block text-[13px] text-sage-deep">{glosses[word]}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setAdded((a) => [...a, word]);
-                setOpen(null);
-              }}
-              className="mt-2 flex w-full items-center justify-center gap-1 rounded-full bg-sage px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-sage-deep"
-            >
-              <Plus className="h-3 w-3" /> {ru ? "Добавить" : "Add"}
-            </button>
           </span>
         )}
       </span>
@@ -322,12 +308,8 @@ function ReaderScene({ locale }: { locale: string }) {
           The city {W("proved")} {W("remarkably")} {W("resilient")} after the {W("flood")}.
         </p>
       </div>
-      <div className="mt-3 h-8">
-        {added.length > 0 && (
-          <div className="anim-fade-up inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint px-3 py-1.5 text-[12px] font-semibold text-sage-deep">
-            <Check className="h-3.5 w-3.5" strokeWidth={3} /> {ru ? `Добавлено в колоду: ${added.length}` : `Added to your deck: ${added.length}`}
-          </div>
-        )}
+      <div className="mt-3 text-[12px] leading-snug text-ink-faint">
+        {ru ? "Перевод появляется прямо в тексте — не уходя со страницы." : "Meanings appear right in the text — without leaving the page."}
       </div>
     </DemoCard>
   );
