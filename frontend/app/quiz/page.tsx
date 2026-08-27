@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
@@ -18,6 +18,7 @@ import { CollectionSelect } from "@/components/CollectionSelect";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
+import { HoverPreview } from "@/components/HoverPreview";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 
@@ -158,6 +159,58 @@ function buildSession(pool: Word[], flip: boolean, mode: QuizMode): Question[] {
       if (kind === "cloze" && !isClozeEligible(w)) kind = "type";
       return makeQuestion(w, eligible, flip, kind);
     });
+}
+
+// A hover/pin preview of a REAL question built from the learner's own words, for
+// the currently selected answer mode.
+function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: QuizMode }) {
+  const { t } = useI18n();
+  // Keep the sample stable across re-renders (only rebuild when count/flip/mode change).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const q = useMemo(() => (pool.length ? buildSession(pool, flip, mode)[0] ?? null : null), [pool.length, flip, mode]);
+  const ansLang = q ? (q.kind === "cloze" ? q.word.sourceLang : q.optionsTarget ? q.word.targetLang : q.word.sourceLang) : "";
+
+  const content = !q ? (
+    <p className="py-3 text-center text-[13px] text-ink-soft">{t("quiz.previewNeedWords")}</p>
+  ) : (
+    <div>
+      <div className="mb-2 text-[12px] font-semibold text-ink-muted">
+        {q.kind === "cloze"
+          ? t("quiz.fillBlank")
+          : q.promptTarget
+            ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
+            : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) })}
+      </div>
+      {q.kind === "cloze" ? (
+        <p className="rounded-[12px] border border-black/[0.06] bg-paper p-3 font-serif text-[15px] italic leading-snug text-ink">{q.prompt}</p>
+      ) : (
+        <div className="rounded-[12px] border border-black/[0.06] bg-paper p-3 text-center font-serif text-[18px] font-semibold text-ink">{q.prompt}</div>
+      )}
+      {q.kind === "choice" ? (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {q.options.map((o) => (
+            <div key={o} className={cn("rounded-[10px] border px-3 py-1.5 text-[13px]", o === q.correct ? "border-sage bg-sage-tint font-semibold text-sage-deep" : "border-black/[0.08] text-ink-soft")}>
+              {o}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          <div className="rounded-[10px] border border-dashed border-black/[0.15] px-3 py-2 text-[13px] text-ink-faint">{t("quiz.typeAnswer", { lang: langLabel(ansLang) })}</div>
+          <div className="text-[13px] text-sage-deep">
+            <span className="font-semibold">{t("quiz.previewAnswer")}:</span> {q.correct}
+          </div>
+          {q.kind === "cloze" && q.clozeTranslation && <div className="text-[12px] text-ink-soft">{q.clozeTranslation}</div>}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <HoverPreview label={t("quiz.previewWant")} title={t("preview.title")} width={286}>
+      {content}
+    </HoverPreview>
+  );
 }
 
 export default function QuizPage() {
@@ -333,6 +386,7 @@ export default function QuizPage() {
             </div>
             {mode === "cloze" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.clozeHint")}</p>}
             {mode === "mixed" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.mixedHint")}</p>}
+            <QuizPreview pool={pool} flip={flip} mode={mode} />
           </div>
 
           {collections && collections.length > 0 && (

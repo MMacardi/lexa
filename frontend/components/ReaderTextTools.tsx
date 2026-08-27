@@ -11,6 +11,7 @@ import { getLevel, getShowTextLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { CollectionCombo } from "@/components/CollectionCombo";
 
 // Small pill button — the compact toolbar style shared with the reading view.
@@ -179,17 +180,25 @@ export function SaveModal({
 
         <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
         <Input
-          value={aiName ? "" : title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={aiName ? t("reader.aiName") : t("reader.titlePh")}
-          disabled={aiName}
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            if (aiName) setAiName(false);
+          }}
+          placeholder={t("reader.titlePh")}
           autoFocus
           className="h-11"
         />
-        <label className="mt-2 flex cursor-pointer select-none items-center gap-2 text-[13px] text-ink-soft">
-          <input type="checkbox" checked={aiName} onChange={(e) => setAiName(e.target.checked)} className="h-4 w-4 accent-sage" />
-          {t("reader.aiName")}
-        </label>
+        <button
+          type="button"
+          onClick={() => setAiName((a) => !a)}
+          className={cn(
+            "mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+            aiName ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50 hover:text-sage-deep",
+          )}
+        >
+          <Sparkles className="h-3.5 w-3.5" /> {t("reader.aiName")}
+        </button>
 
         {editId && (
           <>
@@ -198,7 +207,7 @@ export function SaveModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}
-              className="max-h-[40vh] w-full resize-y rounded-[12px] border border-black/[0.1] bg-paper px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none focus:border-sage/60"
+              className="max-h-[40vh] w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-[#b3aa9a] focus:border-sage"
             />
           </>
         )}
