@@ -468,6 +468,41 @@ const DICT: Record<string, Entry> = {
     ru: "Пара минут сегодня — и слова закрепятся. Готов?",
     zh: "今天花两分钟，这些词就能记牢。准备好了吗？",
   },
+  "coach.sayRecord": {
+    en: "New personal best — {n} days in a row! I'm impressed.",
+    ru: "Новый рекорд — {n} дней подряд! Горжусь тобой.",
+    zh: "个人新纪录——连续 {n} 天！厉害。",
+  },
+  "coach.sayStumble": {
+    en: "“{word}” still trips you up — let's finally nail it.",
+    ru: "Слово «{word}» всё ещё буксует — давай наконец добьём его.",
+    zh: "「{word}」还是老出错——这次把它彻底拿下。",
+  },
+  "coach.tip1": {
+    en: "Tip: learning a word in a sentence beats a bare list several times over.",
+    ru: "Мысль: слово в предложении запоминается в разы лучше, чем в голом списке.",
+    zh: "小提示：把词放进句子里记，比干背词表强好几倍。",
+  },
+  "coach.tip2": {
+    en: "Reviewing right before you forget is what actually builds long-term memory.",
+    ru: "Повторение прямо перед тем, как забыть, и строит долгую память.",
+    zh: "在快要忘记时复习，才真正建立长期记忆。",
+  },
+  "coach.tip3": {
+    en: "Saying a word out loud fixes it far better than reading it silently.",
+    ru: "Проговорить слово вслух — и оно закрепляется куда лучше, чем молча прочитать.",
+    zh: "把词大声读出来，比默读记得牢得多。",
+  },
+  "coach.tip4": {
+    en: "Short and daily beats long and rare — even five minutes counts.",
+    ru: "Понемногу, но каждый день — лучше, чем много и редко. Даже пять минут в счёт.",
+    zh: "少量而每天，胜过大量而偶尔——哪怕五分钟也算。",
+  },
+  "coach.tip5": {
+    en: "Tie a new word to something you already know and it sticks faster.",
+    ru: "Свяжи новое слово с тем, что уже знаешь, — запомнится быстрее.",
+    zh: "把新词和你已经会的东西联系起来，记得更快。",
+  },
   "coach.loading": { en: "Picking words for you…", ru: "Подбираю слова для тебя…", zh: "正在为你挑选…" },
   "coach.empty": { en: "No suggestions right now — try refreshing.", ru: "Сейчас нет предложений — попробуй обновить.", zh: "暂无推荐——请刷新试试。" },
   "coach.addN": { en: "Add {n} to my words", ru: "Добавить {n} в мои слова", zh: "把 {n} 个加入我的单词" },
