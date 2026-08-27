@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "hideEmail" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "hideTag" BOOLEAN NOT NULL DEFAULT false;

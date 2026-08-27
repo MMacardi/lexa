@@ -14,6 +14,9 @@ model User {
   lastName    String?
   // A display name the learner set themselves; overrides firstName/username in the UI.
   displayName String?
+  // Privacy: hide the email / @username from what friends can see.
+  hideEmail   Boolean   @default(false)
+  hideTag     Boolean   @default(false)
   username    String?
   photoUrl    String?
   email       String?      // set for Google / email-magic-link accounts

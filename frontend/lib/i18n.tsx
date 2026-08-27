@@ -199,6 +199,8 @@ const DICT: Record<string, Entry> = {
   "account.signedInAs": { en: "Signed in as", ru: "Вы вошли как", zh: "已登录为" },
   "account.editName": { en: "Edit name", ru: "Изменить имя", zh: "修改名称" },
   "account.namePlaceholder": { en: "Your name", ru: "Ваше имя", zh: "你的名字" },
+  "account.visibleToFriends": { en: "Visible to friends — tap to hide", ru: "Видно друзьям — нажмите, чтобы скрыть", zh: "对好友可见——点按隐藏" },
+  "account.hiddenFromFriends": { en: "Hidden from friends — tap to show", ru: "Скрыто от друзей — нажмите, чтобы показать", zh: "已对好友隐藏——点按显示" },
   "account.appearance": { en: "Appearance", ru: "Оформление", zh: "外观" },
   "account.theme": { en: "Theme", ru: "Тема", zh: "主题" },
   "account.themeLight": { en: "Light", ru: "Светлая", zh: "浅色" },
