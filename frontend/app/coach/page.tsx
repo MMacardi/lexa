@@ -250,27 +250,51 @@ export default function CoachPage() {
     const goal = profile?.goal?.trim();
     const streak = stats?.streak ?? 0;
     const trainedToday = (stats?.trainedToday ?? 0) > 0;
+    const lifetimeReviews = stats?.reviews ?? 0;
     const yStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    const practicedYesterday = (stats?.days ?? []).some((d) => d.date === yStr && d.reviews > 0);
+    const days = stats?.days ?? [];
+    const practicedYesterday = days.some((d) => d.date === yStr && d.reviews > 0);
+    // Days since your last review (0 if you trained today) — powers "welcome back".
+    let gap = 0;
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i].reviews > 0) break;
+      gap++;
+    }
+    // A word you actually reviewed yesterday and still found hard — the freshest, most
+    // specific thing the coach can bring up ("yesterday you stumbled on X").
+    const yWord = deck
+      .filter((w) => w.lastReview && new Date(w.lastReview).toISOString().slice(0, 10) === yStr)
+      .sort((a, b) => (b.difficulty ?? 0) - (a.difficulty ?? 0) || (b.lapses ?? 0) - (a.lapses ?? 0))[0];
+    const yWordHard = yWord && ((yWord.lapses ?? 0) >= 1 || (yWord.difficulty ?? 0) >= 6) ? yWord : undefined;
 
     // Seed changes each 6-hour block, so the line refreshes across a single day.
     const seed = Math.floor(Date.now() / 86_400_000) * 4 + Math.floor(hour / 6);
 
     // A brand-new personal-best streak trumps everything — celebrate it all day.
     if (streak >= 2 && streak > bestStreak) return `${greeting} ${t("coach.sayRecord", { n: streak })}`;
+    // Never practised yet, but there are words to practise — a warm first-time nudge.
+    if (lifetimeReviews === 0 && deck.length > 0) return `${greeting} ${t("coach.sayFirst")}`;
 
     // Situational remarks, most-personal first; we rotate among whichever apply.
     const opts: string[] = [];
     if (trainedToday) opts.push(t("coach.sayDoneToday"));
     if (streak >= 3) opts.push(t("coach.sayStreak", { n: streak }));
+    // Back after a real absence (had history, quiet for a while) — welcome them gently.
+    if (!trainedToday && gap >= 5 && lifetimeReviews > 0) opts.push(t("coach.sayBreak", { n: gap }));
     if (!trainedToday && practicedYesterday) opts.push(t("coach.sayKeepPace"));
-    if (!trainedToday && !practicedYesterday && streak === 0) opts.push(t("coach.sayComeback"));
+    if (!trainedToday && !practicedYesterday && gap < 5 && streak === 0) opts.push(t("coach.sayComeback"));
+    // Yesterday's specific slip beats a generic weak-word mention.
+    if (yWordHard) opts.push(t("coach.sayStumbleY", { word: yWordHard.word }));
     // Name the single word that keeps tripping you up — concrete beats a count.
     if (weakTop[0]) opts.push(t("coach.sayStumble", { word: weakTop[0].word }));
     if (weak > 1) opts.push(t("coach.sayWeak", { n: weak }));
     if (due >= 15) opts.push(t("coach.sayDue", { n: due }));
-    if (goal) opts.push(t("coach.sayGoal", { goal }));
-    else opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
+    if (goal) {
+      opts.push(t("coach.sayGoal", { goal }));
+      opts.push(t("coach.sayGoalPush", { goal })); // a second, goal-flavoured nudge
+    } else {
+      opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
+    }
     opts.push(t("coach.sayWarm"));
     // A rare "thought of the day" — one micro-tip joins the rotation, so it surfaces
     // occasionally and feels like a real remark rather than noise.
@@ -279,7 +303,7 @@ export default function CoachPage() {
 
     const remark = opts[seed % opts.length];
     return `${greeting} ${remark}`;
-  }, [weak, due, weakTop, profile?.goal, pair.source, stats, bestStreak, t]);
+  }, [weak, due, weakTop, deck, profile?.goal, pair.source, stats, bestStreak, t]);
 
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">

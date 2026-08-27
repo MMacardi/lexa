@@ -478,6 +478,26 @@ const DICT: Record<string, Entry> = {
     ru: "Слово «{word}» всё ещё буксует — давай наконец добьём его.",
     zh: "「{word}」还是老出错——这次把它彻底拿下。",
   },
+  "coach.sayStumbleY": {
+    en: "Yesterday “{word}” gave you trouble — want a quick rematch?",
+    ru: "Вчера ты запнулся на «{word}» — устроим реванш?",
+    zh: "昨天「{word}」让你卡住了——要不要再来一局？",
+  },
+  "coach.sayFirst": {
+    en: "Ready for your very first workout together? Let's try a couple of words.",
+    ru: "Готов к нашей первой тренировке? Давай разомнёмся на паре слов.",
+    zh: "准备好我们的第一次练习了吗？先来两个词试试。",
+  },
+  "coach.sayBreak": {
+    en: "Been {n} days — no worries, let's ease back in gently.",
+    ru: "Тебя не было {n} дней — ничего, начнём мягко и без спешки.",
+    zh: "有 {n} 天没见了——没关系，我们慢慢找回状态。",
+  },
+  "coach.sayGoalPush": {
+    en: "Every word toward “{goal}” is a step closer — shall we add a few?",
+    ru: "Каждое слово под «{goal}» — шаг ближе. Добавим ещё пару?",
+    zh: "每一个为「{goal}」学的词都更近一步——再加几个？",
+  },
   "coach.tip1": {
     en: "Tip: learning a word in a sentence beats a bare list several times over.",
     ru: "Мысль: слово в предложении запоминается в разы лучше, чем в голом списке.",
