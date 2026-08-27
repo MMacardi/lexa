@@ -23,6 +23,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
+import { CardLayoutPreview } from "@/components/CardLayoutPreview";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
@@ -277,6 +278,9 @@ export default function FlashcardsPage() {
                 </div>
               ))}
             </div>
+
+            {/* hover/pin preview of the card with these settings */}
+            <CardLayoutPreview layout={layout} />
           </div>
 
           {/* collection */}
