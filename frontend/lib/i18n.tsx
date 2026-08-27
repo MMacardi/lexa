@@ -1003,6 +1003,9 @@ const DICT: Record<string, Entry> = {
   "quiz.seeResults": { en: "See results", ru: "Результаты", zh: "查看结果" },
   "quiz.hotkeysPick": { en: "Tip: press 1–4 to answer", ru: "Подсказка: нажимайте 1–4 для ответа", zh: "提示：按 1–4 作答" },
   "quiz.hotkeysNext": { en: "Space / Enter to continue", ru: "Space / Enter — дальше", zh: "空格 / 回车 继续" },
+  "quiz.previewWant": { en: "Preview a question?", ru: "Показать пример задания?", zh: "预览一道题？" },
+  "quiz.previewNeedWords": { en: "Add a few words to preview a question.", ru: "Добавьте несколько слов, чтобы увидеть пример.", zh: "添加几个单词以预览题目。" },
+  "quiz.previewAnswer": { en: "Answer", ru: "Ответ", zh: "答案" },
 
   // --- word detail ---
   "print.title": { en: "Printable card", ru: "Печатная карточка", zh: "可打印卡片" },
