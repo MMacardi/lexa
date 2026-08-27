@@ -145,6 +145,10 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ⏭ **Extra "+ add example"** — merge compose+translate into one call (2→1).
 
 ## Pre-launch checklist
+- 💡 **Comparison table on the landing** (competitors vs us, checkmarks) — PARKED:
+  do it once the competitor set is clear. We sit between "flashcards/SRS" and
+  "AI conversation tutor", which have different competitors, so a table now would
+  be arbitrary. Revisit after positioning is settled (coach-forward vs cards).
 - ⏭ **Site email** — buy a domain + wire a transactional provider (Resend/
   Postmark) as `SMTP_URL`, sender `no-reply@<domain>`; point `FEEDBACK_EMAIL`
   at an inbox. Powers magic-links, retention mail, and bug reports.
