@@ -167,7 +167,7 @@ const DICT: Record<string, Entry> = {
   "reader.openCard": { en: "Open card", ru: "Открыть карточку", zh: "打开卡片" },
   "reader.langMismatch": {
     en: "This text looks like {detected}, but the source is {source}.",
-    ru: "Текст похоже на {detected}, а источник — {source}.",
+    ru: "Похоже, текст на языке {detected}, а источник — {source}.",
     zh: "这段文字看起来是{detected}，但源语言是{source}。",
   },
   "reader.useAsSource": { en: "Use {lang} as source", ru: "Источник — {lang}", zh: "以{lang}为源语言" },
@@ -238,7 +238,7 @@ const DICT: Record<string, Entry> = {
   "account.devSession": { en: "Local dev session", ru: "Локальная сессия (dev)", zh: "本地会话" },
 
   // --- login ---
-  "login.tagline": { en: "Your personal AI language tutor. Sign in to start.", ru: "Личный AI-наставник по языкам. Войдите, чтобы начать.", zh: "你的个人 AI 语言导师。登录开始。" },
+  "login.tagline": { en: "Your personal AI language tutor. Sign in to start.", ru: "Личный ИИ-наставник по языкам. Войдите, чтобы начать.", zh: "你的个人 AI 语言导师。登录开始。" },
   "login.dev": { en: "dev sign-in", ru: "вход для разработки", zh: "开发登录" },
   "login.idPlaceholder": { en: "Telegram ID (e.g. 865277762)", ru: "Telegram ID (напр. 865277762)", zh: "Telegram ID（如 865277762）" },
   "login.enter": { en: "Enter", ru: "Войти", zh: "进入" },
@@ -295,7 +295,7 @@ const DICT: Record<string, Entry> = {
   "plan.simTitle": { en: "Test the free tier", ru: "Тест: тариф Free", zh: "测试免费档" },
   "plan.simHint": {
     en: "Apply the free daily AI cap to your account so you can preview the limits.",
-    ru: "Применить дневной лимит AI как на Free — чтобы посмотреть, как это ощущается.",
+    ru: "Применить дневной лимит ИИ как на Free — чтобы посмотреть, как это ощущается.",
     zh: "对你的账户应用免费档的每日 AI 上限，以预览限制体验。",
   },
   "plan.free": { en: "Free", ru: "Бесплатный", zh: "免费" },
@@ -857,10 +857,10 @@ const DICT: Record<string, Entry> = {
   "import.adding": { en: "Creating your cards…", ru: "Создаю карточки…", zh: "正在创建卡片…" },
   "import.done": { en: "Added {created} cards{skipped}", ru: "Добавлено карточек: {created}{skipped}", zh: "已添加 {created} 张卡片{skipped}" },
   "import.skipped": { en: " · {n} already existed", ru: " · {n} уже были в словаре", zh: " · {n} 个已存在" },
-  "import.backgroundQueued": { en: "AI enrichment is queued and will continue in the background.", ru: "AI-обогащение поставлено в очередь и продолжится в фоне.", zh: "AI 增强已加入队列，将在后台继续。" },
-  "import.backgroundProgress": { en: "AI enrichment: {done} / {total}", ru: "AI-обогащение: {done} / {total}", zh: "AI 增强：{done} / {total}" },
-  "import.backgroundDone": { en: "AI enrichment complete.", ru: "AI-обогащение завершено.", zh: "AI 增强已完成。" },
-  "import.backgroundFailed": { en: "Some optional enrichment could not finish, but your cards were saved.", ru: "Часть дополнительного AI-обогащения не завершилась, но карточки сохранены.", zh: "部分可选 AI 增强未完成，但卡片已保存。" },
+  "import.backgroundQueued": { en: "AI enrichment is queued and will continue in the background.", ru: "ИИ-обогащение поставлено в очередь и продолжится в фоне.", zh: "AI 增强已加入队列，将在后台继续。" },
+  "import.backgroundProgress": { en: "AI enrichment: {done} / {total}", ru: "ИИ-обогащение: {done} / {total}", zh: "AI 增强：{done} / {total}" },
+  "import.backgroundDone": { en: "AI enrichment complete.", ru: "ИИ-обогащение завершено.", zh: "AI 增强已完成。" },
+  "import.backgroundFailed": { en: "Some optional enrichment could not finish, but your cards were saved.", ru: "Часть дополнительного ИИ-обогащения не завершилась, но карточки сохранены.", zh: "部分可选 AI 增强未完成，但卡片已保存。" },
   "import.noCards": { en: "Lexa could not find any word pairs. Try one per line, for example: hello — привет", ru: "Lexa не нашла пар «слово — перевод». Попробуйте по одной на строке, например: hello — привет", zh: "Lexa 未找到词语配对。请每行输入一个，例如：hello — 你好" },
   "import.back": { en: "← Edit list", ru: "← К списку", zh: "← 返回编辑" },
   "import.close": { en: "Done", ru: "Готово", zh: "完成" },
@@ -1017,7 +1017,7 @@ const DICT: Record<string, Entry> = {
   "word.openInReader": { en: "Open in Reader", ru: "Открыть в читалке", zh: "在阅读器中打开" },
   "word.fromReader": { en: "(reader)", ru: "(читалка)", zh: "（阅读器）" },
   "word.exampleAdded": { en: "Example added", ru: "Пример добавлен", zh: "已添加例句" },
-  "word.family": { en: "Word family", ru: "Семья слов", zh: "词族" },
+  "word.family": { en: "Word family", ru: "Родственные слова", zh: "词族" },
   "word.familyHint": {
     en: "Tap a saved word to open it, or a new one to add it as a card.",
     ru: "Нажми на сохранённое слово, чтобы открыть его, или на новое — чтобы добавить карточку.",
