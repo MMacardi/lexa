@@ -523,6 +523,23 @@ const DICT: Record<string, Entry> = {
     ru: "Свяжи новое слово с тем, что уже знаешь, — запомнится быстрее.",
     zh: "把新词和你已经会的东西联系起来，记得更快。",
   },
+  // Casual "learn by chatting" mode — the relaxed, gamified counterpart to the drill
+  "chat.title": { en: "Free chat", ru: "Свободная беседа", zh: "自由聊天" },
+  "chat.badge": { en: "Casual", ru: "Легко", zh: "轻松" },
+  "chat.card": {
+    en: "Just chat with your coach — your words slip into the talk and you score points for using them.",
+    ru: "Просто болтай с наставником — твои слова сами всплывают в разговоре, а за их использование капают очки.",
+    zh: "只管和导师聊天——你的单词会自然融入对话，用上它们还能得分。",
+  },
+  "chat.heroTitle": { en: "Learn by chatting", ru: "Учись, просто болтая", zh: "在聊天中学习" },
+  "chat.heroSub": {
+    en: "A relaxed conversation in the language you're learning. The coach weaves your words into the talk — use them back and rack up points. No grades, no pressure.",
+    ru: "Расслабленный разговор на языке, который ты учишь. Наставник вплетает твои слова в беседу — вверни их в ответ и набирай очки. Без оценок и давления.",
+    zh: "用你正在学的语言轻松聊天。导师会把你的单词编进对话——你用回来就能得分。没有评分，没有压力。",
+  },
+  "chat.start": { en: "Start chatting", ru: "Начать беседу", zh: "开始聊天" },
+  "chat.input": { en: "Say something…", ru: "Напиши что-нибудь…", zh: "说点什么……" },
+  "chat.scored": { en: "Nice — you used “{word}”! +1", ru: "Красиво — ты ввернул «{word}»! +1", zh: "漂亮——你用上了「{word}」！+1" },
   "coach.loading": { en: "Picking words for you…", ru: "Подбираю слова для тебя…", zh: "正在为你挑选…" },
   "coach.empty": { en: "No suggestions right now — try refreshing.", ru: "Сейчас нет предложений — попробуй обновить.", zh: "暂无推荐——请刷新试试。" },
   "coach.addN": { en: "Add {n} to my words", ru: "Добавить {n} в мои слова", zh: "把 {n} 个加入我的单词" },

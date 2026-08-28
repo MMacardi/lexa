@@ -7,6 +7,7 @@ import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
+import { coachChat } from "../services/coachChat.js";
 import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
@@ -797,6 +798,24 @@ wordsRouter.post("/coach/drill", async (req, res) => {
   try {
     const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
     res.json(await coachDrill({ ...parsed.data, profileNote }));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/chat -> casual "learn by chatting": a relaxed conversation that
+// seeds the learner's words and rewards them for using them. One turn per request.
+wordsRouter.post("/coach/chat", async (req, res) => {
+  const parsed = coachDrillBody.safeParse(req.body); // same shape (messages + words + langs)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  try {
+    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    res.json(await coachChat({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
