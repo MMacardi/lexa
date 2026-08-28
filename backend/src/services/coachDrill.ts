@@ -40,25 +40,32 @@ export async function coachDrill(params: {
         `\n\nYour job: run a short, lively workout over EXACTLY these words the learner is studying:\n` +
         `${wordList}\n\n` +
         `How the session goes:\n` +
-        `1) Your VERY FIRST message must already contain the first task — a short friendly clause AND the ` +
-        `first word with a concrete request. NAME the word explicitly, and ask the learner to DO something ` +
-        `with it. NEVER send a vague opener like "let's start with the first word" without actually naming ` +
-        `it. Example shape: "Привет! Начнём со слова «resilient» — составь с ним короткое предложение." ` +
-        `Always set "drillWord" to the word you are asking about.\n` +
-        `2) Drill ONE word at a time. Ask the learner to USE it — compose a natural ${source} sentence ` +
-        `with it, answer a small question using it, or translate a short phrase. Always name the specific ` +
-        `word you're asking about in the message. Vary the task.\n` +
-        `3) When the learner replies, GRADE their previous answer: set "grade" to "correct", "partial" ` +
-        `or "wrong", and "gradedWord" to that word. Give brief, specific feedback in "say" — praise what ` +
-        `was right, fix mistakes, and show the corrected ${source} form when needed. Then ask about the ` +
-        `NEXT word.\n` +
-        `4) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance). If ` +
-        `they struggle, simplify and give a small hint.\n` +
-        `5) When every word has been practised (or the learner asks to stop), set "done" to true and end ` +
+        `1) Work through the list STRICTLY IN THE GIVEN ORDER, top to bottom, ONE word per turn. Do NOT ` +
+        `skip a word, jump ahead, or reorder — the next word is always the one right after the last you ` +
+        `covered. Only skip a word if the learner explicitly asks to skip it.\n` +
+        `2) Your VERY FIRST message must already contain the first task — a short friendly clause AND the ` +
+        `FIRST word of the list with a concrete request. NAME the word explicitly and ask the learner to DO ` +
+        `something with it. NEVER send a vague opener like "let's start with the first word" without naming ` +
+        `it. Example shape: "Привет! Начнём со слова «resilient» — составь с ним короткое предложение."\n` +
+        `3) Drill by asking the learner to USE the word — compose a natural ${source} sentence with it, ` +
+        `answer a small question using it, or translate a short phrase. Vary the task.\n` +
+        `4) CONSISTENCY IS CRITICAL: "drillWord" MUST be the exact word your "say" is asking about in THIS ` +
+        `message — they can never disagree. If your "say" moves on to the next word, "drillWord" is that ` +
+        `next word. Never name one word in the text while setting a different "drillWord".\n` +
+        `5) When the learner replies, GRADE their previous answer: set "grade" to "correct", "partial" or ` +
+        `"wrong", and "gradedWord" to THAT word (the one they just attempted). Give brief, specific ` +
+        `feedback in "say" — praise what was right, fix mistakes, show the corrected ${source} form when ` +
+        `needed. Then move to the NEXT word in the list (set "drillWord" to it).\n` +
+        `6) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance). If ` +
+        `they struggle, simplify and give a small hint — but stay on the SAME word until it's attempted.\n` +
+        `7) When every word has been practised (or the learner asks to stop), set "done" to true and end ` +
         `with a short, encouraging wrap-up naming what improved.\n\n` +
-        `Write "say" ENTIRELY in ${target} (the learner's language), warm and concise — at most ~3 short ` +
-        `sentences. The ${source} words/sentences you quote stay in ${source}. "drillWord" is the word you ` +
-        `are asking about in THIS message (use "" only for the intro line or the final wrap-up).` +
+        `By default write "say" in ${target} (the learner's language). If the learner asks to communicate ` +
+        `in ${source}, DO switch: actually write more of your "say" in ${source} at their level (with a ` +
+        `short ${target} gloss only if truly needed) — never merely promise to switch and then keep using ` +
+        `${target}. Keep it warm and concise — at most ~3 short sentences. The ${source} words/sentences ` +
+        `you quote always stay in ${source}. "drillWord" is the word you are asking about in THIS message ` +
+        `(use "" only for the intro line before the first word, or the final wrap-up).` +
         scriptNote(params.sourceLang ?? "en") +
         ` Respond as JSON: {"say": string, "drillWord": string, "grade": "none"|"correct"|"partial"|"wrong", ` +
         `"gradedWord": string, "done": boolean}.`,

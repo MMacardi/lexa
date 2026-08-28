@@ -46,6 +46,7 @@ import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
 import { CoachMemorySection } from "@/components/CoachMemorySection";
+import { HoverTip } from "@/components/ui/HoverTip";
 
 function LevelsSection() {
   const { t } = useI18n();
@@ -336,14 +337,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // A small eye toggle next to email / @tag: hide it from what friends can see.
 function PrivacyEye({ hidden, onClick, t }: { hidden: boolean; onClick: () => void; t: (k: string) => string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={hidden ? t("account.hiddenFromFriends") : t("account.visibleToFriends")}
-      className="shrink-0 rounded p-0.5 text-ink-faint transition-colors hover:text-ink"
-    >
-      {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-    </button>
+    <HoverTip title={hidden ? t("account.hiddenFromFriends") : t("account.visibleToFriends")}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={hidden ? t("account.hiddenFromFriends") : t("account.visibleToFriends")}
+        className="shrink-0 rounded p-0.5 text-ink-faint transition-colors hover:text-ink"
+      >
+        {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </button>
+    </HoverTip>
   );
 }
 
