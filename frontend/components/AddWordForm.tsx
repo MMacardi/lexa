@@ -40,6 +40,7 @@ import { ProTag } from "@/components/ProTag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
@@ -407,16 +408,17 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       {/* language pair */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
         <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
-        <button
-          type="button"
-          onClick={swapLangs}
-          disabled={sourceLang === "auto"}
-          aria-label={t("add.swap")}
-          title={t("add.swap")}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
-        >
-          <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
-        </button>
+        <HoverTip title={t("add.swap")} className="inline-flex">
+          <button
+            type="button"
+            onClick={swapLangs}
+            disabled={sourceLang === "auto"}
+            aria-label={t("add.swap")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
+          >
+            <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
+          </button>
+        </HoverTip>
         <LangSelect value={targetLang} onChange={setTargetLang} />
       </div>
 
@@ -608,17 +610,18 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 {s}
               </button>
             ))}
-            <button
-              type="button"
-              disabled={mutation.isPending}
-              onClick={() =>
-                addWithChecks({ chosen: word.trim(), manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang })
-              }
-              title="The AI may not know this word — it's added as a blank card you can edit."
-              className="rounded-full border border-black/[0.1] bg-surface px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
-            >
-              {t("add.asTyped", { word: word.trim() })}
-            </button>
+            <HoverTip title={t("add.asTypedHint")} className="inline-flex">
+              <button
+                type="button"
+                disabled={mutation.isPending}
+                onClick={() =>
+                  addWithChecks({ chosen: word.trim(), manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang })
+                }
+                className="rounded-full border border-black/[0.1] bg-surface px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+              >
+                {t("add.asTyped", { word: word.trim() })}
+              </button>
+            </HoverTip>
             <button
               type="button"
               onClick={() => setSuggestions(null)}

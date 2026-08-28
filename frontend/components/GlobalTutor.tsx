@@ -13,6 +13,7 @@ import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { LangSelect } from "@/components/LangSelect";
 import { RichText } from "@/components/RichText";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Check } from "lucide-react";
 
@@ -285,15 +286,16 @@ export function GlobalTutor() {
               </div>
               <div className="flex items-center gap-1.5">
                 {moved && (
-                  <button
-                    type="button"
-                    onClick={() => setOffset({ x: 0, y: 0 })}
-                    aria-label={t("tutor.resetPos")}
-                    title={t("tutor.resetPos")}
-                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
-                  >
-                    <LocateFixed className="h-3.5 w-3.5" />
-                  </button>
+                  <HoverTip title={t("tutor.resetPos")} className="inline-flex">
+                    <button
+                      type="button"
+                      onClick={() => setOffset({ x: 0, y: 0 })}
+                      aria-label={t("tutor.resetPos")}
+                      className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                    >
+                      <LocateFixed className="h-3.5 w-3.5" />
+                    </button>
+                  </HoverTip>
                 )}
                 {messages.length > 0 && (
                   <button

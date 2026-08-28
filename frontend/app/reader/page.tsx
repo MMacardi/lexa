@@ -27,6 +27,7 @@ import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { getGloss as getCachedGloss, setGloss as setCachedGloss } from "@/lib/glossCache";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { cn } from "@/lib/utils";
 import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
@@ -803,15 +804,16 @@ export default function ReaderPage() {
         <div className="space-y-3 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
             <LangSelect value={sourceLang} onChange={setSourceLang} />
-            <button
-              type="button"
-              onClick={swapLangs}
-              aria-label={t("add.swap")}
-              title={t("add.swap")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
-            >
-              <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
-            </button>
+            <HoverTip title={t("add.swap")} className="inline-flex">
+              <button
+                type="button"
+                onClick={swapLangs}
+                aria-label={t("add.swap")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
+              >
+                <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
+              </button>
+            </HoverTip>
             <LangSelect value={targetLang} onChange={setTargetLang} />
           </div>
 
@@ -944,17 +946,18 @@ export default function ReaderPage() {
         </button>
 
         {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
-        <button
-          type="button"
-          onClick={() => setAutoGloss(!autoGloss)}
-          title={t("reader.autoGlossHint")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-            autoGloss ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
-          )}
-        >
-          <Languages className="h-3.5 w-3.5" /> {t("reader.autoGloss")}
-        </button>
+        <HoverTip title={t("reader.autoGlossHint")} className="inline-flex">
+          <button
+            type="button"
+            onClick={() => setAutoGloss(!autoGloss)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              autoGloss ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Languages className="h-3.5 w-3.5" /> {t("reader.autoGloss")}
+          </button>
+        </HoverTip>
 
         {/* pinyin/romaji over the characters (CJK only) */}
         {hasTranscription(sourceLang) && (
@@ -1229,15 +1232,16 @@ export default function ReaderPage() {
                 {/* title bar: reset (left) · grip drag handle (center) · close (right) */}
                 <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
                   {(cardOffset.x !== 0 || cardOffset.y !== 0) && (
-                    <button
-                      type="button"
-                      onClick={() => setCardOffset({ x: 0, y: 0 })}
-                      aria-label={t("tutor.resetPos")}
-                      title={t("tutor.resetPos")}
-                      className="rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
-                    >
-                      <LocateFixed className="h-3.5 w-3.5" />
-                    </button>
+                    <HoverTip title={t("tutor.resetPos")} className="inline-flex">
+                      <button
+                        type="button"
+                        onClick={() => setCardOffset({ x: 0, y: 0 })}
+                        aria-label={t("tutor.resetPos")}
+                        className="rounded-md p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                      >
+                        <LocateFixed className="h-3.5 w-3.5" />
+                      </button>
+                    </HoverTip>
                   )}
                   <div
                     onPointerDown={startCardDrag}

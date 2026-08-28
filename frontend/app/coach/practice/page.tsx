@@ -526,7 +526,6 @@ export default function CoachPracticePage() {
                   onClick={toggleRecord}
                   disabled={busy}
                   aria-label={t("coach.practiceMic")}
-                  title={t("coach.practiceMic")}
                   className={cn(
                     "flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] border transition-colors disabled:opacity-40",
                     recording ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
