@@ -462,6 +462,21 @@ export const api = {
       { method: "POST", body: JSON.stringify(payload) },
     ),
 
+  // Casual "learn by chatting": one conversational turn. Returns the coach's reply
+  // plus which words-in-play the learner used ("used") and which the coach seeded.
+  coachChat: (payload: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    words: { word: string; meaning: string }[];
+    sourceLang?: string;
+    targetLang?: string;
+    level?: string;
+    telegramId?: string;
+  }) =>
+    http<{ say: string; used: string[]; seeded: string[] }>(`/api/coach/chat`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   // Beta bug/idea report (message + auto-collected context + optional screenshot).
   sendFeedback: (payload: FeedbackPayload) =>
     http<{ ok: true; delivered: { email: boolean; telegram: boolean; logged: boolean } }>(`/api/feedback`, {

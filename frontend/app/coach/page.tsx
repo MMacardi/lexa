@@ -14,9 +14,34 @@ import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays, MessageCircle } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
+
+// Persist the coach's picks so they survive a full reload (F5) — the React Query
+// cache is memory-only, and re-fetching would silently spend tokens each time.
+function picksLSKey(account: string, source: string, target: string) {
+  return `lexa.coachPicks.${account}.${source}-${target}`;
+}
+function readPicksLS(account: string, source: string, target: string): { picks: Pick[] } | undefined {
+  if (typeof window === "undefined" || !account) return undefined;
+  try {
+    const raw = localStorage.getItem(picksLSKey(account, source, target));
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && Array.isArray(parsed.picks)) return parsed as { picks: Pick[] };
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+function writePicksLS(account: string, source: string, target: string, data: { picks: Pick[] }) {
+  if (typeof window === "undefined" || !account) return;
+  try {
+    localStorage.setItem(picksLSKey(account, source, target), JSON.stringify(data));
+  } catch {
+    /* ignore */
+  }
+}
 
 function readPair(): { source: string; target: string } {
   if (typeof window === "undefined") return { source: "en", target: "zh" };
@@ -132,6 +157,9 @@ export default function CoachPage() {
     enabled: !!accountId,
     staleTime: Infinity, // keep until the user asks for new picks
     gcTime: 30 * 60_000,
+    // Hydrate from localStorage on mount so a reload keeps the picks (no re-fetch,
+    // no token spend). Only the very first ever load hits the API.
+    initialData: () => readPicksLS(accountId, pair.source, pair.target),
   });
   const picks = picksQuery.data?.picks ?? [];
   const loading = picksQuery.isFetching;
@@ -190,9 +218,10 @@ export default function CoachPage() {
   }
   const loadPicks = () => void saveThemeAndPicks();
 
-  // Select all freshly-loaded picks by default; surface fetch errors as a toast.
+  // Select all freshly-loaded picks by default, and persist them for next reload.
   useEffect(() => {
     setSel(new Set(picks.map((p) => p.word)));
+    if (picksQuery.data && accountId) writePicksLS(accountId, pair.source, pair.target, picksQuery.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picksQuery.data]);
   useEffect(() => {
@@ -339,6 +368,26 @@ export default function CoachPage() {
             </span>
           </div>
         </div>
+      </Link>
+
+      {/* Casual "learn by chatting" — the relaxed, gamified counterpart to the drill */}
+      <Link
+        href="/coach/chat"
+        className="group flex items-center gap-4 rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sage-tint text-sage-deep">
+          <MessageCircle className="h-[22px] w-[22px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-2 font-serif text-[18px] font-semibold text-ink">
+            {t("chat.title")}
+            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">
+              {t("chat.badge")}
+            </span>
+          </h2>
+          <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{t("chat.card")}</p>
+        </div>
+        <span className="shrink-0 text-ink-faint transition-colors group-hover:text-sage-deep">→</span>
       </Link>
 
       {/* Words for you — level-appropriate picks, near the top so it's front-and-centre */}

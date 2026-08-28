@@ -60,6 +60,16 @@ export const coachDrillSchema = z.object({
 });
 export type CoachDrillResult = z.infer<typeof coachDrillSchema>;
 
+// Casual "learn by chatting" mode: a relaxed conversation partner that naturally
+// weaves the learner's own words into the talk, and rewards the learner for using
+// them. No grading, no drilling — the point is a fun, low-pressure conversation.
+export const coachChatSchema = z.object({
+  say: z.string().min(1), // the coach's conversational reply
+  used: z.array(z.string()).default([]), // the learner's target words the learner just used well (award points)
+  seeded: z.array(z.string()).default([]), // the learner's words the coach wove into THIS reply
+});
+export type CoachChatResult = z.infer<typeof coachChatSchema>;
+
 // Actionable tutor chat: a prose reply plus optional suggested edits to the card
 // (synonyms/antonyms to add), which the UI offers as one-tap actions.
 export const wordChatSchema = z.object({
