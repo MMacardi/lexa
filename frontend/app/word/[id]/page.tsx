@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
 import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
 import { TapGlossPills } from "@/components/TapGlossPills";
@@ -148,15 +149,16 @@ export default function WordDetailPage() {
             >
               {t("word.edit")}
             </button>
-            <button
-              onClick={removeCard}
-              disabled={deleting}
-              aria-label={t("word.delete")}
-              title={t("word.delete")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-warn-text/30 px-3 py-1.5 text-xs font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <HoverTip title={t("word.delete")} className="inline-flex">
+              <button
+                onClick={removeCard}
+                disabled={deleting}
+                aria-label={t("word.delete")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-warn-text/30 px-3 py-1.5 text-xs font-semibold text-warn-text transition-colors hover:bg-warn-bg disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </HoverTip>
           </div>
         )}
       </div>

@@ -156,7 +156,6 @@ export function LangSelect({
                       <button
                         type="button"
                         aria-label={t("col.removeLang")}
-                        title={t("col.removeLang")}
                         onClick={() => {
                           removeCustomLang(l.code);
                           if (l.code === value) onChange("en"); // reset if we deleted the selected one
