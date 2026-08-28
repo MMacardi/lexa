@@ -806,8 +806,12 @@ wordsRouter.post("/coach/drill", async (req, res) => {
 
 // POST /api/coach/chat -> casual "learn by chatting": a relaxed conversation that
 // seeds the learner's words and rewards them for using them. One turn per request.
+const coachChatBody = coachDrillBody.extend({
+  topic: z.string().max(200).optional(), // what to chat about (steers the conversation)
+  wrap: z.boolean().optional(), // the learner is finishing — give a warm sign-off
+});
 wordsRouter.post("/coach/chat", async (req, res) => {
-  const parsed = coachDrillBody.safeParse(req.body); // same shape (messages + words + langs)
+  const parsed = coachChatBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;

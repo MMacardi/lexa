@@ -470,6 +470,8 @@ export const api = {
     sourceLang?: string;
     targetLang?: string;
     level?: string;
+    topic?: string;
+    wrap?: boolean;
     telegramId?: string;
   }) =>
     http<{ say: string; used: string[]; seeded: string[] }>(`/api/coach/chat`, {

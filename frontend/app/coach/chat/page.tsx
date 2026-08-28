@@ -10,12 +10,16 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
+import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
-import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Trophy } from "lucide-react";
+import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Trophy, Flame, Star, Flag } from "lucide-react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 type PairKey = { source: string; target: string };
+
+const LIFETIME_KEY = "lexa.chatPoints";
+const levelFor = (pts: number) => Math.floor(pts / 100) + 1;
 
 function speechLang(src?: string): string {
   const map: Record<string, string> = {
@@ -26,31 +30,19 @@ function speechLang(src?: string): string {
   return map[src ?? "en"] ?? src ?? "en-US";
 }
 
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Highlight any of the learner's words-in-play wherever they appear in a message,
-// so the vocab visibly "lives" inside the conversation. Words already used glow green.
-function Highlighted({ text, pool, used }: { text: string; pool: string[]; used: Set<string> }) {
-  const re = useMemo(
-    () => (pool.length ? new RegExp(`\\b(${pool.map(esc).join("|")})\\b`, "gi") : null),
-    [pool],
-  );
-  if (!re) return <>{text}</>;
-  const parts = text.split(re);
+// Highlight any of the learner's words-in-play wherever they appear (inflections
+// included), so the vocab visibly "lives" in the talk. Used words glow green.
+function Highlighted({ text, matcher, used }: { text: string; matcher: WordMatcher; used: Set<string> }) {
+  if (!matcher.regex) return <>{text}</>;
+  const parts = text.split(matcher.regex);
   return (
     <>
       {parts.map((p, i) => {
-        const isWord = pool.some((w) => w.toLowerCase() === p.toLowerCase());
-        if (!isWord) return <span key={i}>{p}</span>;
-        const hit = used.has(p.toLowerCase());
+        const canon = p ? matcher.canonical(p) : null;
+        if (!canon) return <span key={i}>{p}</span>;
+        const hit = used.has(canon.toLowerCase());
         return (
-          <span
-            key={i}
-            className={cn(
-              "rounded-md px-1 py-0.5 font-semibold",
-              hit ? "bg-sage text-white" : "bg-sage-tint text-sage-deep",
-            )}
-          >
+          <span key={i} className={cn("rounded-md px-1 py-0.5 font-semibold", hit ? "bg-sage text-white" : "bg-sage-tint text-sage-deep")}>
             {p}
           </span>
         );
@@ -71,6 +63,12 @@ export default function CoachChatPage() {
   });
   const deck = useMemo(() => words ?? [], [words]);
 
+  const { data: profile } = useQuery({
+    queryKey: ["coach-profile", accountId],
+    queryFn: () => api.coachProfile(accountId),
+    enabled: !!accountId,
+  });
+
   const pairs = useMemo(() => {
     const m = new Map<string, PairKey>();
     for (const w of deck) m.set(`${w.sourceLang}|${w.targetLang}`, { source: w.sourceLang, target: w.targetLang });
@@ -79,6 +77,7 @@ export default function CoachChatPage() {
 
   const [pair, setPair] = useState<PairKey | null>(null);
   const [scope, setScope] = useState<string>("smart");
+  const [topic, setTopic] = useState("");
   useEffect(() => {
     if (pair || deck.length === 0) return;
     const counts = new Map<string, number>();
@@ -92,6 +91,11 @@ export default function CoachChatPage() {
       setPair({ source, target });
     }
   }, [deck, pair]);
+  // Prefill the topic with the learner's saved goal — a natural thing to chat about.
+  useEffect(() => {
+    const g = profile?.goal?.trim();
+    if (g) setTopic((cur) => cur || g);
+  }, [profile?.goal]);
 
   const collections = useMemo(() => {
     if (!pair) return [] as { id: string; name: string; count: number }[];
@@ -107,8 +111,6 @@ export default function CoachChatPage() {
     return [...m.values()];
   }, [deck, pair]);
 
-  // The pool of words in play — same idea as the drill: weak → due → any (or a chosen
-  // collection / a broad shuffle), capped so the conversation has room to breathe.
   const poolWords = useMemo(() => {
     if (!pair) return [] as Word[];
     let pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
@@ -123,20 +125,46 @@ export default function CoachChatPage() {
   }, [deck, pair, scope]);
 
   const poolStrings = useMemo(() => poolWords.map((w) => w.word), [poolWords]);
+  const matcher = useMemo(() => buildWordMatcher(poolStrings), [poolStrings]);
   const wordPayload = useMemo(() => poolWords.map((w) => ({ word: w.word, meaning: w.meaningZh ?? "" })), [poolWords]);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [used, setUsed] = useState<Set<string>>(new Set());
+  // Gamification: session points + combo, plus a persistent lifetime total → level.
+  const [points, setPoints] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [bestCombo, setBestCombo] = useState(0);
+  const [lifetime, setLifetime] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      return Number(localStorage.getItem(LIFETIME_KEY) ?? 0) || 0;
+    } catch {
+      return 0;
+    }
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [turns, busy]);
+  }, [turns, busy, finished]);
 
-  async function sendTurn(history: Turn[]) {
+  function addLifetime(delta: number) {
+    setLifetime((cur) => {
+      const next = cur + delta;
+      try {
+        localStorage.setItem(LIFETIME_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  async function sendTurn(history: Turn[], opts: { userTurn: boolean; wrap?: boolean } = { userTurn: true }) {
     if (!pair) return;
     setBusy(true);
     try {
@@ -146,18 +174,37 @@ export default function CoachChatPage() {
         sourceLang: pair.source,
         targetLang: pair.target,
         level: getLevel(pair.source) ?? undefined,
+        topic: topic.trim() || undefined,
+        wrap: opts.wrap,
         telegramId: accountId,
       });
       setTurns((cur) => [...cur, { role: "assistant", content: res.say }]);
-      // Reward: celebrate any word the learner just used for the first time.
-      if (res.used?.length) {
-        const fresh = res.used.map((w) => w.toLowerCase()).filter((w) => !used.has(w));
-        if (fresh.length) {
-          setUsed((s) => new Set([...s, ...fresh]));
-          const label = res.used.find((w) => fresh.includes(w.toLowerCase())) ?? "";
-          show({ icon: "🎯", title: t("chat.scored", { word: label }) });
+
+      if (opts.userTurn) {
+        const usedNow = (res.used ?? []).map((w) => w.toLowerCase());
+        const fresh = usedNow.filter((w) => !used.has(w));
+        if (usedNow.length > 0) {
+          const nextCombo = combo + 1;
+          setCombo(nextCombo);
+          setBestCombo((b) => Math.max(b, nextCombo));
+          if (fresh.length > 0) {
+            setUsed((s) => new Set([...s, ...fresh]));
+            const gained = fresh.length * 10 * nextCombo;
+            setPoints((p) => p + gained);
+            addLifetime(gained);
+            const first = (res.used ?? []).find((w) => fresh.includes(w.toLowerCase())) ?? "";
+            show({ icon: "🎯", title: t("chat.scored", { word: first, pts: String(gained) }) });
+            // Cleared the whole board? Big celebration.
+            if (used.size + fresh.length >= poolStrings.length && poolStrings.length > 0) {
+              show({ icon: "🏆", title: t("chat.allUsed") });
+            }
+          }
+        } else {
+          setCombo(0);
         }
       }
+
+      if (opts.wrap) setFinished(true);
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -168,14 +215,18 @@ export default function CoachChatPage() {
   async function start() {
     if (poolWords.length === 0 || busy) return;
     setStarted(true);
+    setFinished(false);
     setTurns([]);
     setUsed(new Set());
-    await sendTurn([]);
+    setPoints(0);
+    setCombo(0);
+    setBestCombo(0);
+    await sendTurn([], { userTurn: false });
   }
 
   async function sendText(text: string) {
     const v = text.trim();
-    if (!v || busy) return;
+    if (!v || busy || finished) return;
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -188,7 +239,12 @@ export default function CoachChatPage() {
     const next: Turn[] = [...turns, { role: "user", content: v }];
     setTurns(next);
     setInput("");
-    await sendTurn(next);
+    await sendTurn(next, { userTurn: true });
+  }
+
+  async function finish() {
+    if (busy || finished || turns.length === 0) return;
+    await sendTurn(turns, { userTurn: false, wrap: true });
   }
 
   // ---- voice answer via the browser's SpeechRecognition (free, on-device) ----
@@ -247,6 +303,8 @@ export default function CoachChatPage() {
   }
 
   const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
+  const level = levelFor(lifetime);
+  const levelProg = lifetime % 100;
 
   return (
     <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
@@ -259,20 +317,37 @@ export default function CoachChatPage() {
             <MessageCircle className="h-6 w-6 text-sage-deep" /> {t("chat.title")}
           </h1>
           {started && poolStrings.length > 0 && (
-            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1 text-[13px] font-semibold text-sage-deep">
-              <Trophy className="h-3.5 w-3.5" /> {used.size}/{poolStrings.length}
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-sage-tint px-2.5 py-1 text-[13px] font-semibold text-sage-deep">
+                <Trophy className="h-3.5 w-3.5" /> {used.size}/{poolStrings.length}
+              </span>
+              {points > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-sage px-2.5 py-1 text-[13px] font-semibold text-white">
+                  <Star className="h-3.5 w-3.5 fill-current" /> {points}
+                </span>
+              )}
+              {combo >= 2 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-[13px] font-semibold text-warn-text">
+                  <Flame className="h-3.5 w-3.5" /> x{combo}
+                </span>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {!started ? (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-[22px] border border-black/[0.06] bg-surface p-8 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-8 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage text-white">
             <MessageCircle className="h-7 w-7" />
           </span>
           <h2 className="mt-4 font-serif text-[22px] font-semibold text-ink">{t("chat.heroTitle")}</h2>
           <p className="mt-2 max-w-[460px] text-[14px] leading-relaxed text-ink-soft">{t("chat.heroSub")}</p>
+          {lifetime > 0 && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/30 bg-sage-tint/40 px-3 py-1 text-[12px] font-semibold text-sage-deep">
+              <Star className="h-3.5 w-3.5 fill-current" /> {t("chat.level", { n: String(level) })} · {lifetime} {t("chat.pts")}
+            </div>
+          )}
 
           {deck.length === 0 ? (
             <p className="mt-6 rounded-[12px] border border-dashed border-black/[0.12] bg-paper/50 px-4 py-3 text-[13px] text-ink-soft">
@@ -330,6 +405,18 @@ export default function CoachChatPage() {
                 </div>
               </div>
 
+              {/* what to chat about — prefilled from your goal, but free to change */}
+              <div className="mt-5 w-full max-w-[440px] text-left">
+                <div className="mb-2 text-center text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("chat.topicLabel")}</div>
+                <input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder={t("chat.topicPh")}
+                  maxLength={120}
+                  className="h-11 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-center text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+                />
+              </div>
+
               {poolWords.length > 0 ? (
                 <>
                   <div className="mt-5 flex flex-wrap justify-center gap-1.5">
@@ -381,7 +468,7 @@ export default function CoachChatPage() {
 
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
-              <Bubble key={i} turn={turn} pool={poolStrings} used={used} speakLang={pair?.source ?? "en"} />
+              <Bubble key={i} turn={turn} matcher={matcher} used={used} speakLang={pair?.source ?? "en"} />
             ))}
             {busy && (
               <div className="flex items-center gap-2.5">
@@ -393,62 +480,99 @@ export default function CoachChatPage() {
                 </div>
               </div>
             )}
-          </div>
-
-          <div className="mt-3">
-            {recording && (
-              <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2.5">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warn-text opacity-60" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warn-text" />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
-                  {interim ? interim : <span className="text-ink-faint">{t("coach.practiceRec")}</span>}
-                </span>
+            {finished && (
+              <div className="mt-2 rounded-[16px] border border-sage/30 bg-sage-tint/40 p-4 text-center">
+                <div className="font-serif text-[18px] font-semibold text-ink">{t("chat.recapTitle")}</div>
+                <div className="mt-2 flex flex-wrap justify-center gap-2 text-[13px]">
+                  <span className="rounded-full bg-surface px-3 py-1 font-semibold text-sage-deep">
+                    {t("chat.recapUsed", { n: String(used.size), total: String(poolStrings.length) })}
+                  </span>
+                  <span className="rounded-full bg-surface px-3 py-1 font-semibold text-sage-deep">
+                    {t("chat.recapPts", { n: String(points) })}
+                  </span>
+                  {bestCombo >= 2 && (
+                    <span className="rounded-full bg-surface px-3 py-1 font-semibold text-warn-text">
+                      {t("chat.recapCombo", { n: String(bestCombo) })}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={start}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-surface px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+                >
+                  <Sparkles className="h-4 w-4" /> {t("chat.again")}
+                </button>
               </div>
             )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendText(input);
-              }}
-              className="flex items-end gap-2"
-            >
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendText(input);
-                  }
-                }}
-                rows={1}
-                placeholder={t("chat.input")}
-                disabled={busy}
-                className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[16px] border border-black/[0.08] bg-surface px-4 py-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={toggleRecord}
-                disabled={busy}
-                aria-label={t("coach.practiceMic")}
-                className={cn(
-                  "flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] border transition-colors disabled:opacity-40",
-                  recording ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
-                )}
-              >
-                {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
-              </button>
-              <button
-                type="submit"
-                disabled={busy || !input.trim()}
-                className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] bg-sage text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
-              >
-                <Send className="h-5 w-5" />
-              </button>
-            </form>
           </div>
+
+          {!finished && (
+            <div className="mt-3">
+              <div className="mb-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy || turns.length === 0}
+                  onClick={finish}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/50 disabled:opacity-40"
+                >
+                  <Flag className="h-3.5 w-3.5" /> {t("chat.finish")}
+                </button>
+              </div>
+              {recording && (
+                <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2.5">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warn-text opacity-60" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warn-text" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
+                    {interim ? interim : <span className="text-ink-faint">{t("coach.practiceRec")}</span>}
+                  </span>
+                </div>
+              )}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendText(input);
+                }}
+                className="flex items-end gap-2"
+              >
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendText(input);
+                    }
+                  }}
+                  rows={1}
+                  placeholder={t("chat.input")}
+                  disabled={busy}
+                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[16px] border border-black/[0.08] bg-surface px-4 py-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={toggleRecord}
+                  disabled={busy}
+                  aria-label={t("coach.practiceMic")}
+                  className={cn(
+                    "flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] border transition-colors disabled:opacity-40",
+                    recording ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
+                  )}
+                >
+                  {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || !input.trim()}
+                  className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] bg-sage text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
+                >
+                  <Send className="h-5 w-5" />
+                </button>
+              </form>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -463,7 +587,7 @@ function ChatAvatar() {
   );
 }
 
-function Bubble({ turn, pool, used, speakLang }: { turn: Turn; pool: string[]; used: Set<string>; speakLang: string }) {
+function Bubble({ turn, matcher, used, speakLang }: { turn: Turn; matcher: WordMatcher; used: Set<string>; speakLang: string }) {
   if (turn.role === "user") {
     return (
       <div className="flex items-end justify-end gap-2.5">
@@ -482,7 +606,7 @@ function Bubble({ turn, pool, used, speakLang }: { turn: Turn; pool: string[]; u
       <div className="max-w-[82%]">
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-            <Highlighted text={turn.content} pool={pool} used={used} />
+            <Highlighted text={turn.content} matcher={matcher} used={used} />
           </div>
           <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
