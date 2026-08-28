@@ -15,6 +15,8 @@ export async function coachChat(params: {
   sourceLang?: string;
   targetLang?: string;
   level?: string;
+  topic?: string; // steer the conversation toward this
+  wrap?: boolean; // the learner is finishing — give a warm sign-off
   profileNote?: string; // "about this learner" memory, prepended to the prompt
 }): Promise<CoachChatResult> {
   const source = langName(params.sourceLang ?? "en");
@@ -56,8 +58,13 @@ export async function coachChat(params: {
         `5) Keep it low-pressure: do NOT nitpick grammar. Only reformulate gently if a mistake blocks ` +
         `meaning, and even then keep the fun tone. Never grade, never say "correct/wrong".\n` +
         `6) Pull topics from what the learner cares about (their goal/interests above) and from wherever the ` +
-        `conversation naturally goes.\n\n` +
-        `"say" is your reply. "used" = the learner's words-in-play they just used well (may be empty). ` +
+        `conversation naturally goes.` +
+        (params.topic ? ` The learner specifically wants to chat about: "${params.topic}". Lead there.` : "") +
+        (params.wrap
+          ? `\n\nThe learner is WRAPPING UP now. Give a short, warm sign-off: name a couple of the words they ` +
+            `used well today, one encouraging line, and DO NOT ask a new question or start a new thread.`
+          : "") +
+        `\n\n"say" is your reply. "used" = the learner's words-in-play they just used well (may be empty). ` +
         `"seeded" = your words-in-play you wove into THIS reply (may be empty). Both must be exact words ` +
         `from the list above, verbatim.` +
         scriptNote(params.sourceLang ?? "en") +
