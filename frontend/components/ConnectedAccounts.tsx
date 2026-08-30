@@ -8,6 +8,7 @@ import { errText } from "@/lib/errText";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
 import { Send, Mail, Check } from "lucide-react";
 
@@ -129,15 +130,16 @@ export function ConnectedAccounts() {
           </div>
         </div>
         {on ? (
-          <button
-            type="button"
-            onClick={() => unlink(prov)}
-            disabled={count <= 1 || busy === prov}
-            title={count <= 1 ? t("acct.onlyMethod") : undefined}
-            className="shrink-0 rounded-full border border-black/[0.08] px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-40"
-          >
-            {t("acct.disconnect")}
-          </button>
+          <HoverTip title={count <= 1 ? t("acct.onlyMethod") : ""} className="inline-flex shrink-0">
+            <button
+              type="button"
+              onClick={() => unlink(prov)}
+              disabled={count <= 1 || busy === prov}
+              className="shrink-0 rounded-full border border-black/[0.08] px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-40"
+            >
+              {t("acct.disconnect")}
+            </button>
+          </HoverTip>
         ) : (
           <div className="shrink-0">{connect}</div>
         )}

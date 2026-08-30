@@ -13,6 +13,7 @@ import { getLevel, getExampleStyle, useNewPerDay, setNewPerDay, NEW_PER_DAY_OPTI
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
 import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays, MessageCircle } from "lucide-react";
 
@@ -506,19 +507,20 @@ export default function CoachPage() {
             </div>
             <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pDue")}</div>
           </div>
-          <button
-            type="button"
-            disabled={weak === 0}
-            title={weak > 0 ? t("coach.drillWeak") : undefined}
-            onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
-            className="rounded-[14px] bg-warn-bg p-3.5 text-center transition-transform enabled:hover:scale-[1.03] disabled:cursor-default"
-          >
-            <div className="flex items-center justify-center gap-1.5 text-warn-text">
-              <Dumbbell className="h-4 w-4" />
-              <span className="font-serif text-[26px] font-bold leading-none">{weak}</span>
-            </div>
-            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pWeak")}</div>
-          </button>
+          <HoverTip title={weak > 0 ? t("coach.drillWeak") : ""} className="block h-full">
+            <button
+              type="button"
+              disabled={weak === 0}
+              onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
+              className="h-full w-full rounded-[14px] bg-warn-bg p-3.5 text-center transition-transform enabled:hover:scale-[1.03] disabled:cursor-default"
+            >
+              <div className="flex items-center justify-center gap-1.5 text-warn-text">
+                <Dumbbell className="h-4 w-4" />
+                <span className="font-serif text-[26px] font-bold leading-none">{weak}</span>
+              </div>
+              <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pWeak")}</div>
+            </button>
+          </HoverTip>
           <div className="rounded-[14px] bg-black/[0.04] p-3.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-ink-muted">
               <Sprout className="h-4 w-4 text-sage" />

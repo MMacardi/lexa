@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Save, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CollectionCombo } from "@/components/CollectionCombo";
+import { HoverTip } from "@/components/ui/HoverTip";
 
 // Small pill button — the compact toolbar style shared with the reading view.
 function Chip({
@@ -218,18 +219,18 @@ export function SaveModal({
         <label className="mb-1.5 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.levelLabel")}</label>
         <div className="flex gap-1">
           {CEFR_LEVELS.map((lv) => (
-            <button
-              key={lv}
-              type="button"
-              onClick={() => setLevel((cur) => (cur === lv ? "" : lv))}
-              title={LEVEL_HINT[lv]}
-              className={
-                "flex-1 rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
-                (level === lv ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
-              }
-            >
-              {lv}
-            </button>
+            <HoverTip key={lv} title={LEVEL_HINT[lv]} className="flex-1">
+              <button
+                type="button"
+                onClick={() => setLevel((cur) => (cur === lv ? "" : lv))}
+                className={
+                  "w-full rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
+                  (level === lv ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
+                }
+              >
+                {lv}
+              </button>
+            </HoverTip>
           ))}
         </div>
 
@@ -290,20 +291,20 @@ function GenerateModal({
           <div className="mb-1.5 text-[12px] font-medium text-ink-soft">{t("reader.genLevel")}</div>
           <div className="flex gap-1">
             {CEFR_LEVELS.map((lv) => (
-              <button
-                key={lv}
-                type="button"
-                onClick={() => setLevel(lv)}
-                title={LEVEL_HINT[lv]}
-                className={
-                  "flex-1 rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
-                  (level === lv
-                    ? "border-sage bg-sage/15 text-ink"
-                    : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
-                }
-              >
-                {lv}
-              </button>
+              <HoverTip key={lv} title={LEVEL_HINT[lv]} className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => setLevel(lv)}
+                  className={
+                    "w-full rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
+                    (level === lv
+                      ? "border-sage bg-sage/15 text-ink"
+                      : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
+                  }
+                >
+                  {lv}
+                </button>
+              </HoverTip>
             ))}
           </div>
         </div>

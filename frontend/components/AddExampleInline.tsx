@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
+import { HoverTip } from "@/components/ui/HoverTip";
 import { Plus, Sparkles, Globe, X } from "lucide-react";
 
 // A little "+ add example" affordance under a card's examples: type one in (with
@@ -138,20 +139,20 @@ export function AddExampleInline({ word }: { word: Word }) {
           ] as const).map(([m, Icon]) => {
             const locked = m === "web" && !pro;
             return (
-            <button
-              key={m}
-              type="button"
-              title={locked ? t("pro.locked") : undefined}
-              onClick={() => (locked ? upsell() : setSrc(m))}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                (pro ? src : "ai") === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                locked && "opacity-60",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
-              {locked && <ProTag />}
-            </button>
+            <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
+              <button
+                type="button"
+                onClick={() => (locked ? upsell() : setSrc(m))}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                  (pro ? src : "ai") === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                  locked && "opacity-60",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                {locked && <ProTag />}
+              </button>
+            </HoverTip>
             );
           })}
         </div>
