@@ -383,20 +383,20 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           {(["auto", "manual"] as Mode[]).map((m) => {
             const disabled = m === "auto" && !aiSupported;
             return (
-              <button
-                key={m}
-                type="button"
-                disabled={disabled}
-                title={disabled ? t("add.aiUnsupported", { lang: langLabel(sourceLang) }) : undefined}
-                onClick={() => !disabled && setMode(m)}
-                className={cn(
-                  "rounded-full px-3 py-1 transition-colors",
-                  mode === m ? "bg-sage text-white" : "text-ink-muted",
-                  disabled && "cursor-not-allowed opacity-40",
-                )}
-              >
-                {m === "auto" ? t("add.auto") : t("add.manual")}
-              </button>
+              <HoverTip key={m} title={disabled ? t("add.aiUnsupported", { lang: langLabel(sourceLang) }) : ""} className="inline-flex">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => !disabled && setMode(m)}
+                  className={cn(
+                    "rounded-full px-3 py-1 transition-colors",
+                    mode === m ? "bg-sage text-white" : "text-ink-muted",
+                    disabled && "cursor-not-allowed opacity-40",
+                  )}
+                >
+                  {m === "auto" ? t("add.auto") : t("add.manual")}
+                </button>
+              </HoverTip>
             );
           })}
         </div>
@@ -458,20 +458,20 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               ] as const).map(([m, Icon]) => {
                 const locked = m === "web" && !pro; // web-sourced examples are Pro
                 return (
-                  <button
-                    key={m}
-                    type="button"
-                    title={locked ? t("pro.locked") : undefined}
-                    onClick={() => (locked ? upsell({ word }) : setExMode(m))}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                      exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                      locked && "opacity-60",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
-                    {locked && <ProTag />}
-                  </button>
+                  <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
+                    <button
+                      type="button"
+                      onClick={() => (locked ? upsell({ word }) : setExMode(m))}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                        exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                        locked && "opacity-60",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                      {locked && <ProTag />}
+                    </button>
+                  </HoverTip>
                 );
               })}
             </div>

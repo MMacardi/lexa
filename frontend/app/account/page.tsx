@@ -294,20 +294,20 @@ function MeaningStyleSection() {
         {modes.map((m) => {
           const locked = m.proOnly && !pro;
           return (
-            <button
-              key={m.id}
-              type="button"
-              title={locked ? t("pro.locked") : undefined}
-              onClick={() => (locked ? upsell() : setMeaningMode(m.id))}
-              className={cn(
-                "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
-                effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                locked && "opacity-60",
-              )}
-            >
-              {m.label}
-              {locked && <ProTag />}
-            </button>
+            <HoverTip key={m.id} title={locked ? t("pro.locked") : ""} className="inline-flex">
+              <button
+                type="button"
+                onClick={() => (locked ? upsell() : setMeaningMode(m.id))}
+                className={cn(
+                  "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
+                  effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                  locked && "opacity-60",
+                )}
+              >
+                {m.label}
+                {locked && <ProTag />}
+              </button>
+            </HoverTip>
           );
         })}
       </div>

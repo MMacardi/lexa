@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Eye, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HoverTip } from "@/components/ui/HoverTip";
 
 // Reusable "hover to preview" shell: a small trigger button that reveals a popover
 // on hover, and can be pinned (click) to keep it open while the learner keeps
@@ -34,14 +35,16 @@ export function HoverPreview({ label, title, width = 264, children }: { label: s
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{title}</span>
-            <button
-              type="button"
-              onClick={() => setPinned((p) => !p)}
-              title={t("preview.pin")}
-              className={cn("rounded-full p-1 transition-colors", pinned ? "bg-sage-tint text-sage-deep" : "text-ink-faint hover:text-ink")}
-            >
-              <Pin className="h-3.5 w-3.5" />
-            </button>
+            <HoverTip title={t("preview.pin")} className="inline-flex">
+              <button
+                type="button"
+                onClick={() => setPinned((p) => !p)}
+                aria-label={t("preview.pin")}
+                className={cn("rounded-full p-1 transition-colors", pinned ? "bg-sage-tint text-sage-deep" : "text-ink-faint hover:text-ink")}
+              >
+                <Pin className="h-3.5 w-3.5" />
+              </button>
+            </HoverTip>
           </div>
           {children}
         </div>

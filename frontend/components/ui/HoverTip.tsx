@@ -20,8 +20,10 @@ export function HoverTip({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const enabled = !!title;
 
   const show = () => {
+    if (!enabled) return; // no title (e.g. a conditional hint that isn't active) → no tooltip
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();

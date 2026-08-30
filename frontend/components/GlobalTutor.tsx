@@ -371,24 +371,24 @@ export function GlobalTutor() {
                               const added = isAdded(w);
                               const on = !added && selected.includes(w);
                               return (
-                                <button
-                                  key={w}
-                                  type="button"
-                                  disabled={added}
-                                  title={added ? t("tutor.alreadyAdded") : undefined}
-                                  onClick={() => toggleWord(i, addable, w)}
-                                  className={cn(
-                                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                                    added
-                                      ? "cursor-default border-black/[0.08] bg-black/[0.03] text-ink-faint line-through opacity-70"
-                                      : on
-                                        ? "border-sage bg-sage text-white"
-                                        : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
-                                  )}
-                                >
-                                  {added && <Check className="h-3 w-3 shrink-0" />}
-                                  {w}
-                                </button>
+                                <HoverTip key={w} title={added ? t("tutor.alreadyAdded") : ""} className="inline-flex">
+                                  <button
+                                    type="button"
+                                    disabled={added}
+                                    onClick={() => toggleWord(i, addable, w)}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                                      added
+                                        ? "cursor-default border-black/[0.08] bg-black/[0.03] text-ink-faint line-through opacity-70"
+                                        : on
+                                          ? "border-sage bg-sage text-white"
+                                          : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
+                                    )}
+                                  >
+                                    {added && <Check className="h-3 w-3 shrink-0" />}
+                                    {w}
+                                  </button>
+                                </HoverTip>
                               );
                             })}
                           </div>
