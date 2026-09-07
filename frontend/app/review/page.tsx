@@ -20,6 +20,7 @@ import { pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
+import { PronounceButton } from "@/components/PronounceButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
@@ -527,6 +528,7 @@ export default function FlashcardsPage() {
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PronounceButton text={word.word} lang={word.sourceLang} size="sm" />
           <a
             href={`/word/${word.id}`}
             target="_blank"
