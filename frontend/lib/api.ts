@@ -187,6 +187,7 @@ export interface AddAuto {
   sourceLang: string;
   targetLang: string;
   level?: string; // learner CEFR level for example difficulty
+  synonymLevel?: string; // target CEFR level for the card's synonyms (exam prep)
   exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
   exampleCount?: number; // how many examples to generate (1–3)

@@ -431,6 +431,34 @@ export function useExampleCount(): number {
   return n;
 }
 
+// --- Synonym level: aim the card's synonyms at a target CEFR level (e.g. for
+// IELTS prep you want richer, higher-level alternatives). Global; "" = natural. ---
+const SYN_LEVEL_KEY = "lexa.synonymLevel";
+export function getSynonymLevel(): CefrLevel | "" {
+  if (typeof window === "undefined") return "";
+  const v = localStorage.getItem(SYN_LEVEL_KEY);
+  return (CEFR_LEVELS as readonly string[]).includes(v ?? "") ? (v as CefrLevel) : "";
+}
+export function setSynonymLevel(level: CefrLevel | "") {
+  if (level) localStorage.setItem(SYN_LEVEL_KEY, level);
+  else localStorage.removeItem(SYN_LEVEL_KEY);
+  window.dispatchEvent(new Event(EVT));
+}
+export function useSynonymLevel(): CefrLevel | "" {
+  const [lv, setLv] = useState<CefrLevel | "">("");
+  useEffect(() => {
+    const sync = () => setLv(getSynonymLevel());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return lv;
+}
+
 export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
 

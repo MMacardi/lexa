@@ -63,6 +63,7 @@ export async function addWordForUser(params: {
   sourceLang?: string;
   targetLang?: string;
   level?: string;
+  synonymLevel?: string; // tune the card's synonyms to a target CEFR level (exam prep)
   exampleStyle?: string;
   exampleSource?: string;
   exampleCount?: number; // how many examples to generate (1–3); default 1
@@ -90,7 +91,7 @@ export async function addWordForUser(params: {
       exampleSource: params.exampleSource,
     });
     wordId = example.wordId;
-    await runTutor({ wordId, word: params.word, sourceLang: params.sourceLang, targetLang: params.targetLang });
+    await runTutor({ wordId, word: params.word, sourceLang: params.sourceLang, targetLang: params.targetLang, synonymLevel: params.synonymLevel });
   } else {
     // AI-composed (default) or "none": ONE combined call for the whole entry
     // (dictionary + example + translation) instead of three separate ones.
@@ -99,6 +100,7 @@ export async function addWordForUser(params: {
       sourceLang,
       targetLang,
       level: params.level,
+      synonymLevel: params.synonymLevel,
       exampleStyle: params.exampleStyle,
       withExample,
       meaningInstruction: params.meaningPrompt,

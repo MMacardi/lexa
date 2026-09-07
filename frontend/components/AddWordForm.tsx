@@ -27,6 +27,9 @@ import {
   setExampleSource,
   getExampleCount,
   getMeaningPrompt,
+  getSynonymLevel,
+  setSynonymLevel,
+  useSynonymLevel,
   setExampleCount,
   useExampleCount,
   useLevel,
@@ -163,6 +166,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     }
   };
   const currentLevel = useLevel(sourceLang);
+  const synLevel = useSynonymLevel();
   const recentPairs = useRecentPairs();
   // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
   const [hanChoice, setHanChoice] = useState<"zh" | "ja">("zh");
@@ -267,6 +271,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         created = await api.addWord({
           ...base,
           level,
+          synonymLevel: getSynonymLevel() || undefined,
           exampleStyle,
           // Free plan: never send Pro-only params (web source, 2-3 examples, custom
           // meaning) — the UI locks them, this is the safety net against a stale pref.
@@ -602,6 +607,23 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               />
             </div>
           )}
+
+          {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
+              prep). Applies to every auto sub-mode, since synonyms are always found. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
+            <Select
+              value={synLevel}
+              onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
+              ariaLabel={t("syn.level")}
+              className="w-[150px]"
+              options={[
+                { value: "", label: t("syn.auto") },
+                ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+              ]}
+            />
+            {synLevel && <span className="text-[11px] font-medium text-ink-faint">{t("syn.hint")}</span>}
+          </div>
 
           {/* plain-language hint */}
           <p className="text-[12px] leading-snug text-ink-faint">

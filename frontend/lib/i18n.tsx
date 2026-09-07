@@ -1057,6 +1057,10 @@ const DICT: Record<string, Entry> = {
   "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
   "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
   "add.reverseError": { en: "Couldn't translate — try again.", ru: "Не удалось перевести — попробуйте ещё раз.", zh: "翻译失败——请重试。" },
+  // Synonym level: tune the card's synonyms to a target CEFR level (exam prep).
+  "syn.level": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
+  "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },
+  "syn.hint": { en: "at this level — good for IELTS/exam prep", ru: "под уровень — для IELTS и экзаменов", zh: "按此等级——适合雅思/备考" },
 
   // --- review (flashcards) ---
   "review.title": { en: "Quick review", ru: "Быстрое повторение", zh: "快速复习" },

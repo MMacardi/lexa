@@ -38,6 +38,7 @@ export async function enrichWordEntry(params: {
   sourceLang?: string;
   targetLang?: string;
   level?: string;
+  synonymLevel?: string; // tune synonyms to a target CEFR level (exam prep); "" = natural
   exampleStyle?: string; // news | casual | dialogue | literary (ignored when withExample=false)
   withExample: boolean;
   meaningInstruction?: string; // learner override; falls back to the concise default
@@ -54,6 +55,12 @@ export async function enrichWordEntry(params: {
   const levelLine = params.level
     ? `The learner's CEFR level is ${params.level}; keep the example's vocabulary and grammar at that level. `
     : "";
+  // Optional: aim synonyms at a target CEFR level (e.g. for IELTS prep the learner
+  // wants richer, higher-level alternatives rather than the plainest words).
+  const synClause = params.synonymLevel
+    ? `synonyms (up to 3 genuine ${sourceName} synonyms, chosen at roughly CEFR ${params.synonymLevel} — ` +
+      `richer, more advanced alternatives suitable for exam prep like IELTS, but still TRUE synonyms of the word)`
+    : `synonyms (up to 3 genuine ${sourceName} synonyms)`;
   const avoid = (params.avoid ?? []).map((s) => s.trim()).filter(Boolean);
   const avoidLine = avoid.length
     ? `The example MUST be different from these existing ones: ${avoid.map((s) => `"${s}"`).join("; ")}. `
@@ -77,7 +84,7 @@ export async function enrichWordEntry(params: {
     system:
       `You are a ${sourceName}-to-${targetName} dictionary. For the given ${sourceName} word, respond as JSON ` +
       `with: phonetic (pronunciation), partOfSpeech, meaningZh, collocations (2-3 common ${sourceName} phrases), ` +
-      `synonyms (up to 3 genuine ${sourceName} synonyms), antonyms (up to 3 genuine ${sourceName} antonyms), ` +
+      `${synClause}, antonyms (up to 3 genuine ${sourceName} antonyms), ` +
       `example, exampleTranslation. ` +
       `CRITICAL: "meaningZh" is only a field NAME — its value MUST be written in ${targetName}, NOT in ${sourceName} ` +
       `(even though the word itself is ${sourceName}). For "meaningZh" give ${meaningInstruction} ` +
