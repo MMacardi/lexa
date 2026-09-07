@@ -161,19 +161,18 @@ function buildSession(pool: Word[], flip: boolean, mode: QuizMode): Question[] {
     });
 }
 
-// A hover/pin preview of a REAL question built from the learner's own words, for
-// the currently selected answer mode.
-function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: QuizMode }) {
+// One sample question rendered inside the preview.
+function PreviewQuestion({ q, showKind }: { q: Question; showKind: boolean }) {
   const { t } = useI18n();
-  // Keep the sample stable across re-renders (only rebuild when count/flip/mode change).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const q = useMemo(() => (pool.length ? buildSession(pool, flip, mode)[0] ?? null : null), [pool.length, flip, mode]);
-  const ansLang = q ? (q.kind === "cloze" ? q.word.sourceLang : q.optionsTarget ? q.word.targetLang : q.word.sourceLang) : "";
-
-  const content = !q ? (
-    <p className="py-3 text-center text-[13px] text-ink-soft">{t("quiz.previewNeedWords")}</p>
-  ) : (
+  const ansLang = q.kind === "cloze" ? q.word.sourceLang : q.optionsTarget ? q.word.targetLang : q.word.sourceLang;
+  const kindLabel = q.kind === "choice" ? t("quiz.choice") : q.kind === "cloze" ? t("quiz.cloze") : t("quiz.type");
+  return (
     <div>
+      {showKind && (
+        <div className="mb-2 inline-flex rounded-full bg-sage-tint/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sage-deep">
+          {kindLabel}
+        </div>
+      )}
       <div className="mb-2 text-[12px] font-semibold text-ink-muted">
         {q.kind === "cloze"
           ? t("quiz.fillBlank")
@@ -201,6 +200,71 @@ function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: 
             <span className="font-semibold">{t("quiz.previewAnswer")}:</span> {q.correct}
           </div>
           {q.kind === "cloze" && q.clozeTranslation && <div className="text-[12px] text-ink-soft">{q.clozeTranslation}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A hover/pin preview of REAL questions built from the learner's own words. A
+// single-format mode shows one sample; "Mixed" becomes a carousel that cycles
+// through each format it can produce (multiple choice, typing, fill-the-blank).
+function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: QuizMode }) {
+  const { t } = useI18n();
+  // Keep samples stable across re-renders (pool is a fresh array each render, so
+  // depend on its length — rebuild only when count/flip/mode change).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const slides = useMemo<Question[]>(() => {
+    if (!pool.length) return [];
+    const eligible = pool.filter((w) => w.meaningZh);
+    if (mode !== "mixed") {
+      const q = buildSession(pool, flip, mode)[0];
+      return q ? [q] : [];
+    }
+    // Mixed: one sample per format it can actually produce, on suitable words.
+    const shuffled = shuffle(eligible);
+    const out: Question[] = [];
+    if (eligible.length >= 4) out.push(makeQuestion(shuffled[0], eligible, flip, "choice"));
+    if (shuffled.length) out.push(makeQuestion(shuffled[1] ?? shuffled[0], eligible, flip, "type"));
+    const clozeW = clozeEligible(pool)[0];
+    if (clozeW) out.push(makeQuestion(clozeW, eligible, flip, "cloze"));
+    return out;
+  }, [pool.length, flip, mode]);
+
+  const [slide, setSlide] = useState(0);
+  useEffect(() => setSlide(0), [mode, flip, slides.length]); // reset when the deck changes
+  // Auto-advance so every format is seen without interaction.
+  useEffect(() => {
+    if (slides.length < 2) return;
+    const id = window.setInterval(() => setSlide((s) => (s + 1) % slides.length), 3200);
+    return () => window.clearInterval(id);
+  }, [slides.length]);
+
+  const q = slides.length ? slides[Math.min(slide, slides.length - 1)] : null;
+  const kindLabel = (k: QKind) => (k === "choice" ? t("quiz.choice") : k === "cloze" ? t("quiz.cloze") : t("quiz.type"));
+
+  const content = !q ? (
+    <p className="py-3 text-center text-[13px] text-ink-soft">{t("quiz.previewNeedWords")}</p>
+  ) : (
+    <div>
+      {/* a min-height keeps the popover from jumping as the carousel advances */}
+      <div className="min-h-[150px]">
+        <PreviewQuestion q={q} showKind={mode === "mixed"} />
+      </div>
+      {slides.length > 1 && (
+        <div className="mt-3 flex items-center justify-center gap-1.5">
+          {slides.map((s, k) => (
+            <button
+              key={k}
+              type="button"
+              aria-label={kindLabel(s.kind)}
+              onClick={() => setSlide(k)}
+              className={cn(
+                "h-1.5 rounded-full transition-all",
+                k === slide ? "w-4 bg-sage" : "w-1.5 bg-black/15 hover:bg-black/30",
+              )}
+            />
+          ))}
         </div>
       )}
     </div>
