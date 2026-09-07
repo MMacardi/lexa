@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
+import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
 import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
 
@@ -1166,7 +1167,10 @@ export default function ReaderPage() {
                 glossClosing ? "anim-popover-out" : "anim-popover",
               )}
             >
-              <div className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</div>
+              <div className="flex items-center gap-1.5">
+                <span className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</span>
+                <SpeakButton text={gloss.word} lang={sourceLang} size="sm" />
+              </div>
               {!glossLoading && glossTr && (
                 <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">{glossTr}</div>
               )}
@@ -1189,7 +1193,10 @@ export default function ReaderPage() {
                 knownClosing ? "anim-popover-out" : "anim-popover",
               )}
             >
-              <div className={cn("select-text text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</div>
+              <div className="flex items-center gap-1.5">
+                <span className={cn("select-text text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</span>
+                <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
+              </div>
               {knownPop.meaning && (
                 <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
               )}
@@ -1263,7 +1270,10 @@ export default function ReaderPage() {
                 </div>
                 <div className="max-h-[calc(70vh-2.75rem)] overflow-y-auto p-5">
                 <div className="min-w-0">
-                  <div className={cn("font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
+                  <div className="flex items-center gap-2">
+                    <div className={cn("min-w-0 font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
+                    <SpeakButton text={w.word} lang={w.sourceLang} size="sm" />
+                  </div>
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
                 {w.partOfSpeech && (
