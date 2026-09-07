@@ -5,6 +5,33 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 
 ---
 
+## Done (UX + coach session)
+- ✅ **Reverse translation, done right** — type a word in your own language and
+  get a card in the language you're learning. Explicit "I type in […]" selector
+  under the pair (remembered) + a live "Card in {lang}" hint so a backwards pair
+  is obvious; a script/LLM auto-nudge remains as a fallback. Reuses /api/translate.
+- ✅ **Synonym level** — tune a card's synonyms to a target CEFR level (IELTS prep);
+  threaded through enrich + web-mined (tutor) paths. Free.
+- ✅ **Reader: pronounce the word** in all three popups (tap gloss, known-word,
+  press-and-hold card) via SpeakButton.
+- ✅ **Reader dictaphone** — live speech-to-text into the text box (lecture mode).
+- ✅ **Quiz Mixed preview = carousel** cycling the formats it mixes (choice/type/cloze).
+- ✅ **Home de-clutter** — one primary action (coach briefing), not three CTAs.
+- ✅ **Achievements progress bars**; **New-picks loading** fix.
+- ✅ **My words**: sort (recent / A–Z / most-reviewed / due) + a Due filter pill;
+  single-delete now visible on touch. **Add form** tuning collapsed under "Advanced".
+
+## Next up (proposed clusters — 2026-09-07)
+- 💡 **B5 Pronunciation scoring** — compare browser-STT transcript to the target
+  word in practice/reader, show a score/colour. (IDEAS "voice scoring — later".)
+- 💡 **B6 Fresh example per review / difficulty adaptation** — behind a toggle (tokens).
+- 💡 **B7 Meaning backfill** — shorten old long meanings on demand.
+- ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
+  Legal placeholders, bump Next.js (audit), gate Coach behind Pro Plus + flip
+  `BETA_ALL_PRO=false`.
+
+---
+
 ## Dev notes — browser vision (Playwright MCP)
 - **What it is:** an MCP server (`@playwright/mcp`) that gives Claude a real
   browser — it can navigate, take DOM snapshots and screenshots, click, type and
