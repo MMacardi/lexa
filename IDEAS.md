@@ -22,8 +22,10 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   single-delete now visible on touch. **Add form** tuning collapsed under "Advanced".
 
 ## Next up (proposed clusters — 2026-09-07)
-- 💡 **B5 Pronunciation scoring** — compare browser-STT transcript to the target
-  word in practice/reader, show a score/colour. (IDEAS "voice scoring — later".)
+- ✅ **B5 Pronunciation scoring** — 🎤 self-check on the word page: say the word,
+  browser STT transcribes it, we score closeness (Great/Almost/Not quite + %) via
+  Levenshtein over the recogniser's alternatives. On-device, free. `recognizeOnce`
+  + `lib/pronounce.ts`. Could extend to review/practice later.
 - 💡 **B6 Fresh example per review / difficulty adaptation** — behind a toggle (tokens).
 - 💡 **B7 Meaning backfill** — shorten old long meanings on demand.
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
