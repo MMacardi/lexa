@@ -1044,6 +1044,19 @@ const DICT: Record<string, Entry> = {
     zh: "AI 可能不认识这个词——它会作为空白卡片添加，你可以再编辑。",
   },
   "add.findingSentence": { en: "Finding a real sentence and translating it — a few seconds…", ru: "Ищу живой пример и перевожу — пара секунд…", zh: "正在查找真实例句并翻译——几秒钟…" },
+  // Reverse-translation prompt: the user typed a word in their own (target) language
+  // wanting the word in the language they're learning.
+  "add.reverseTitle": { en: "That looks like {lang}", ru: "Похоже, это {lang}", zh: "这看起来是{lang}" },
+  "add.reversePrompt": {
+    en: "You typed a word in your own language. Translate it into the language you're learning and add that card instead?",
+    ru: "Вы ввели слово на своём языке. Перевести его на изучаемый язык и добавить такую карточку?",
+    zh: "你输入的是母语单词。要翻译成你正在学习的语言并添加那张卡片吗？",
+  },
+  "add.reverseInto": { en: "Translate into", ru: "Перевести на", zh: "翻译成" },
+  "add.reverseGo": { en: "Translate & add", ru: "Перевести и добавить", zh: "翻译并添加" },
+  "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
+  "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
+  "add.reverseError": { en: "Couldn't translate — try again.", ru: "Не удалось перевести — попробуйте ещё раз.", zh: "翻译失败——请重试。" },
 
   // --- review (flashcards) ---
   "review.title": { en: "Quick review", ru: "Быстрое повторение", zh: "快速复习" },

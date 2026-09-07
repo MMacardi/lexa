@@ -10,7 +10,7 @@ import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
 import { ArrowRightLeft, X, Plus, Sparkles, Globe, Ban } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
-import { isAiSupported, isAmbiguousHan, langLabel } from "@/lib/langs";
+import { isAiSupported, isAmbiguousHan, langLabel, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
@@ -67,6 +67,21 @@ function readStoredPair() {
   }
 }
 
+// Best-effort learning language for the reverse card when the source is Auto:
+// the most recent pair's source that isn't the native language, else a sane guess.
+function guessLearnLang(nativeLang: string, pairs: { s: string; t: string }[]): string {
+  const fromRecent = pairs.map((p) => p.s).find((s) => s && s !== nativeLang && s !== "auto");
+  if (fromRecent) return fromRecent;
+  return nativeLang === "en" ? "es" : "en";
+}
+
+// Tidy a one-word/phrase translation coming back from the translator: first line,
+// no surrounding quotes or trailing punctuation.
+function cleanTranslation(s: string): string {
+  const first = (s || "").split("\n")[0].trim();
+  return first.replace(/^["'«»“”]+/, "").replace(/["'«»“”.,;:!?]+$/, "").trim();
+}
+
 type AddVars = {
   chosen: string;
   manual: boolean;
@@ -121,6 +136,11 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   // AI spell-check ("did you mean") state
   const [checking, setChecking] = useState(false);
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
+  // Reverse-translation prompt: the user typed a word in their own (target)
+  // language and probably wants the word in the language they're learning.
+  const [reverse, setReverse] = useState<{ native: string; nativeLang: string } | null>(null);
+  const [reverseTo, setReverseTo] = useState("");
+  const [reversing, setReversing] = useState(false);
 
   // learner prefs (example difficulty + register)
   const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
@@ -211,6 +231,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     setManualEx([{ en: "", tr: "" }]);
     setSrc("");
     setResolvedSourceLang(null);
+    setReverse(null);
   };
 
   // Adds a word. `manual:true` skips the AI agents and creates a bare/manual
@@ -325,12 +346,51 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
-  const busy = mutation.isPending || checking;
+  const busy = mutation.isPending || checking || reversing;
+
+  // Reverse translation: the user typed a word in their own (target) language.
+  // Translate it into the language they're learning and add THAT card, flipping
+  // the pair so the source is the studied language going forward.
+  async function doReverse(learnLang: string) {
+    if (!reverse || reversing) return;
+    setReversing(true);
+    try {
+      const { translation } = await api.translate({
+        text: reverse.native,
+        sourceLang: reverse.nativeLang,
+        targetLang: learnLang,
+      });
+      const learned = cleanTranslation(translation);
+      if (!learned) {
+        show({ icon: "⚠️", title: t("add.reverseError") });
+        return;
+      }
+      // Front of the card is now the studied language; native stays the meaning side.
+      setSourceLang(learnLang);
+      setTargetLang(reverse.nativeLang);
+      setResolvedSourceLang(learnLang);
+      setWord(learned);
+      setReverse(null);
+      // targetLang is unchanged (still the native language), so the closure value
+      // used by the mutation is already correct; only the source needs overriding.
+      addWithChecks({ chosen: learned, manual: false, sourceLangOverride: learnLang });
+    } catch {
+      show({ icon: "⚠️", title: t("add.reverseError") });
+    } finally {
+      setReversing(false);
+    }
+  }
 
   // AI mode: spell-check first, then either add directly or show "did you mean".
   async function handleSubmit() {
     const typed = word.trim();
     if (!canSubmit || busy) return;
+    runAdd(typed, false);
+  }
+
+  // The actual add pipeline. `skipReverse` is set when the user chose "Add as is"
+  // on the reverse prompt, so we don't offer the flip again.
+  async function runAdd(typed: string, skipReverse: boolean) {
     // Offline: adding needs the server (spell-check + AI enrichment), so queue the
     // raw word — it'll be added automatically when the connection is back.
     if (!isOnline()) {
@@ -343,6 +403,18 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       addWithChecks({ chosen: typed, manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang });
       return;
     }
+    // Reverse-translation catch (script-based, no LLM call): the word is written
+    // in the native (target) language's script and NOT the studied one — the user
+    // typed their own word wanting its translation. Offer to flip instead of
+    // spell-checking a native word as if it were the studied language.
+    const typedFam = scriptFamilyOfText(typed);
+    const tgtFam = scriptFamily(targetLang);
+    const srcFam = sourceLang === "auto" ? null : scriptFamily(sourceLang);
+    if (!skipReverse && typedFam && typedFam === tgtFam && typedFam !== srcFam && sourceLang !== targetLang) {
+      setReverseTo(sourceLang !== "auto" ? sourceLang : guessLearnLang(targetLang, recentPairs));
+      setReverse({ native: typed, nativeLang: targetLang });
+      return;
+    }
     setChecking(true);
     setSuggestions(null);
     try {
@@ -351,6 +423,13 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
       // instead of interrupting with a modal.
       const detectedSourceLang =
         sourceLang === "auto" && r.ambiguousHan ? hanChoice : r.detectedLang ?? sourceLang;
+      // Same-script reverse case the LLM can catch (e.g. Spanish native typed under
+      // Auto with a Latin studied language): detected language is the native one.
+      if (!skipReverse && sourceLang === "auto" && detectedSourceLang === targetLang && !r.ambiguousHan) {
+        setReverseTo(guessLearnLang(targetLang, recentPairs));
+        setReverse({ native: typed, nativeLang: targetLang });
+        return;
+      }
       setResolvedSourceLang(detectedSourceLang);
       const typedLc = typed.toLowerCase();
       const alts = r.suggestions.filter(Boolean);
@@ -538,6 +617,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           onChange={(e) => {
             setWord(e.target.value);
             if (suggestions) setSuggestions(null);
+            if (reverse) setReverse(null);
           }}
           placeholder={t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(sourceLang) })}
           disabled={busy}
@@ -585,6 +665,50 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {reverse && (
+        <div className="anim-fade-up space-y-2.5 rounded-[14px] border border-sage/30 bg-sage-tint/50 p-3">
+          <p className="text-sm font-semibold text-sage-deep">
+            {t("add.reverseTitle", { lang: langLabel(reverse.nativeLang) })}
+          </p>
+          <p className="text-[13px] leading-snug text-ink-soft">{t("add.reversePrompt")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.reverseInto")}</span>
+            <LangSelect value={reverseTo} onChange={setReverseTo} className="w-[168px]" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              disabled={reversing || !reverseTo || reverseTo === reverse.nativeLang}
+              onClick={() => doReverse(reverseTo)}
+              className="rounded-full bg-sage px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
+            >
+              {reversing ? t("add.reversing") : `${t("add.reverseGo")} → ${langLabel(reverseTo)}`}
+            </button>
+            <button
+              type="button"
+              disabled={reversing}
+              onClick={() => {
+                const native = reverse.native;
+                setReverse(null);
+                // They really do want a card for the word as typed — run the normal
+                // pipeline (spell-check + AI) with the configured pair, no reverse.
+                runAdd(native, true);
+              }}
+              className="rounded-full border border-black/[0.1] bg-surface px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+            >
+              {t("add.reverseAsIs")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setReverse(null)}
+              className="text-sm font-semibold text-ink-faint hover:text-ink-muted"
+            >
+              {t("common.cancel")}
+            </button>
           </div>
         </div>
       )}
