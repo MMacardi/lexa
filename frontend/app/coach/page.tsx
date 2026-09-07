@@ -163,7 +163,9 @@ export default function CoachPage() {
     initialData: () => readPicksLS(accountId, pair.source, pair.target),
   });
   const picks = picksQuery.data?.picks ?? [];
-  const loading = picksQuery.isFetching;
+  // Manual "New picks" goes through saveThemeAndPicks (not a refetch), so fold its
+  // savingGoal flag in — otherwise the refresh spinner never showed.
+  const loading = picksQuery.isFetching || savingGoal;
   const loaded = picksQuery.isSuccess;
 
   function setSource(source: string) {
