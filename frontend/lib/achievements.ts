@@ -9,37 +9,51 @@ export interface Badge {
   Icon: LucideIcon;
   labelKey: string; // i18n key for the short name
   descKey: string; // i18n key explaining how it's earned
+  cur: number; // current progress toward the milestone
+  target: number; // the milestone value
   done: boolean;
 }
 
 // Single source of truth for milestone badges — used by the StatsPanel display,
 // the Friends profiles, and the toast watcher so they never drift apart. Every
 // badge has a plain-language description so the unlock condition is never a
-// mystery. "Mastered" = a card reviewed to the point it's well-known (5+ reviews).
+// mystery, and cur/target so the UI can show how close you are. "Mastered" = a
+// card reviewed to the point it's well-known (5+ reviews).
+// NOTE: `id` values are STABLE — the toast watcher persists unlocked ids by them.
 export function computeBadges(stats: Stats, goal: number): Badge[] {
   const langs = stats.languages?.length ?? 0;
+  // id, icon, label-key stem (ach.<stem> / ach.<stem>.d), current value, target
+  const mk = (id: string, Icon: LucideIcon, stem: string, cur: number, target: number): Badge => ({
+    id,
+    Icon,
+    labelKey: `ach.${stem}`,
+    descKey: `ach.${stem}.d`,
+    cur,
+    target,
+    done: cur >= target,
+  });
   return [
     // Collecting words
-    { id: "first-word", Icon: Sprout, labelKey: "ach.firstWord", descKey: "ach.firstWord.d", done: stats.total >= 1 },
-    { id: "words-10", Icon: BookOpen, labelKey: "ach.words10", descKey: "ach.words10.d", done: stats.total >= 10 },
-    { id: "words-50", Icon: Library, labelKey: "ach.words50", descKey: "ach.words50.d", done: stats.total >= 50 },
-    { id: "words-100", Icon: Trophy, labelKey: "ach.words100", descKey: "ach.words100.d", done: stats.total >= 100 },
-    { id: "words-250", Icon: Award, labelKey: "ach.words250", descKey: "ach.words250.d", done: stats.total >= 250 },
+    mk("first-word", Sprout, "firstWord", stats.total, 1),
+    mk("words-10", BookOpen, "words10", stats.total, 10),
+    mk("words-50", Library, "words50", stats.total, 50),
+    mk("words-100", Trophy, "words100", stats.total, 100),
+    mk("words-250", Award, "words250", stats.total, 250),
     // Mastering
-    { id: "mastered-1", Icon: GraduationCap, labelKey: "ach.mastered1", descKey: "ach.mastered1.d", done: stats.mastered >= 1 },
-    { id: "mastered-10", Icon: GraduationCap, labelKey: "ach.mastered10", descKey: "ach.mastered10.d", done: stats.mastered >= 10 },
-    { id: "mastered-50", Icon: Star, labelKey: "ach.mastered50", descKey: "ach.mastered50.d", done: stats.mastered >= 50 },
+    mk("mastered-1", GraduationCap, "mastered1", stats.mastered, 1),
+    mk("mastered-10", GraduationCap, "mastered10", stats.mastered, 10),
+    mk("mastered-50", Star, "mastered50", stats.mastered, 50),
     // Reviewing
-    { id: "reviews-100", Icon: Repeat, labelKey: "ach.reviews100", descKey: "ach.reviews100.d", done: stats.reviews >= 100 },
-    { id: "reviews-1000", Icon: Repeat, labelKey: "ach.reviews1000", descKey: "ach.reviews1000.d", done: stats.reviews >= 1000 },
+    mk("reviews-100", Repeat, "reviews100", stats.reviews, 100),
+    mk("reviews-1000", Repeat, "reviews1000", stats.reviews, 1000),
     // Streaks
-    { id: "streak-3", Icon: Flame, labelKey: "ach.streak3", descKey: "ach.streak3.d", done: stats.streak >= 3 },
-    { id: "streak-7", Icon: Zap, labelKey: "ach.streak7", descKey: "ach.streak7.d", done: stats.streak >= 7 },
-    { id: "streak-14", Icon: CalendarCheck, labelKey: "ach.streak14", descKey: "ach.streak14.d", done: stats.streak >= 14 },
+    mk("streak-3", Flame, "streak3", stats.streak, 3),
+    mk("streak-7", Zap, "streak7", stats.streak, 7),
+    mk("streak-14", CalendarCheck, "streak14", stats.streak, 14),
     // Daily goal
-    { id: "daily-goal", Icon: Target, labelKey: "ach.dailyGoal", descKey: "ach.dailyGoal.d", done: stats.trainedToday >= goal },
+    mk("daily-goal", Target, "dailyGoal", stats.trainedToday, goal),
     // Languages
-    { id: "lang-2", Icon: Languages, labelKey: "ach.lang2", descKey: "ach.lang2.d", done: langs >= 2 },
-    { id: "lang-3", Icon: Globe, labelKey: "ach.lang3", descKey: "ach.lang3.d", done: langs >= 3 },
+    mk("lang-2", Languages, "lang2", langs, 2),
+    mk("lang-3", Globe, "lang3", langs, 3),
   ];
 }
