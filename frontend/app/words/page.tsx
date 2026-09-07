@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { api, type Word } from "@/lib/api";
+import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
@@ -21,7 +21,8 @@ import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-type Filter = "all" | "learning" | "mastered";
+type Filter = "all" | "learning" | "mastered" | "due";
+type SortKey = "recent" | "alpha" | "mastery" | "due";
 
 function MasteryDots({ count }: { count: number }) {
   const filled = count >= 5 ? 3 : count >= 3 ? 2 : count >= 1 ? 1 : 0;
@@ -50,6 +51,7 @@ export default function WordsPage() {
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<SortKey>("recent");
   const [pair, setPair] = useState<string>("all");
   const [coll, setColl] = useState<string>("all");
   // bulk selection (add many words to a collection at once)
@@ -117,32 +119,46 @@ export default function WordsPage() {
   const words = data ?? [];
   const mastered = words.filter((w) => w.reviewCount >= 5).length;
   const learning = words.length - mastered;
+  const dueCount = words.filter(isDue).length;
+
+  // Sort comparators for the list. "recent" mirrors the API order (newest first).
+  const dueAt = (w: Word) => (w.nextReviewAt ? new Date(w.nextReviewAt).getTime() : 0); // null = due now
+  const sortFns: Record<SortKey, (a: Word, b: Word) => number> = {
+    recent: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    alpha: (a, b) => a.word.localeCompare(b.word),
+    mastery: (a, b) => b.reviewCount - a.reviewCount,
+    due: (a, b) => dueAt(a) - dueAt(b),
+  };
 
   // Distinct language pairs present in the collection.
   const pairs = Array.from(new Set(words.map((w) => `${w.sourceLang}>${w.targetLang}`)));
 
   const q = query.trim().toLowerCase();
-  const filtered = words.filter((w) => {
-    if (filter === "mastered" && w.reviewCount < 5) return false;
-    if (filter === "learning" && w.reviewCount >= 5) return false;
-    if (pair !== "all" && `${w.sourceLang}>${w.targetLang}` !== pair) return false;
-    if (coll !== "all" && !(w.collections ?? []).some((c) => c.id === coll)) return false;
-    return (
-      !q ||
-      w.word.toLowerCase().includes(q) ||
-      (w.meaningZh ?? "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = words
+    .filter((w) => {
+      if (filter === "mastered" && w.reviewCount < 5) return false;
+      if (filter === "learning" && w.reviewCount >= 5) return false;
+      if (filter === "due" && !isDue(w)) return false;
+      if (pair !== "all" && `${w.sourceLang}>${w.targetLang}` !== pair) return false;
+      if (coll !== "all" && !(w.collections ?? []).some((c) => c.id === coll)) return false;
+      return (
+        !q ||
+        w.word.toLowerCase().includes(q) ||
+        (w.meaningZh ?? "").toLowerCase().includes(q)
+      );
+    })
+    .sort(sortFns[sort]);
 
-  // Reset the visible window whenever the filter/search narrows the list.
+  // Reset the visible window whenever the filter/search/sort narrows the list.
   useEffect(() => {
     setVisible(PAGE);
-  }, [q, filter, pair, coll]);
+  }, [q, filter, pair, coll, sort]);
 
   const shown = filtered.slice(0, visible);
 
   const pills: { key: Filter; label: string }[] = [
     { key: "all", label: t("words.pill.all", { n: words.length }) },
+    { key: "due", label: t("words.pill.due", { n: dueCount }) },
     { key: "learning", label: t("words.pill.learning", { n: learning }) },
     { key: "mastered", label: t("words.pill.mastered", { n: mastered }) },
   ];
@@ -245,6 +261,18 @@ export default function WordsPage() {
                 {p.label}
               </button>
             ))}
+            <Select
+              value={sort}
+              onChange={(v) => setSort(v as SortKey)}
+              ariaLabel={t("words.sort.label")}
+              className="w-[150px]"
+              options={[
+                { value: "recent", label: t("words.sort.recent") },
+                { value: "alpha", label: t("words.sort.alpha") },
+                { value: "mastery", label: t("words.sort.mastery") },
+                { value: "due", label: t("words.sort.due") },
+              ]}
+            />
           </div>
 
           <div className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-surface">
@@ -307,7 +335,7 @@ export default function WordsPage() {
                         )
                           del.mutate(w.id);
                       }}
-                      className="text-ink-faint opacity-0 transition-opacity hover:text-warn-text group-hover:opacity-100"
+                      className="text-ink-faint opacity-100 transition-opacity hover:text-warn-text md:opacity-0 md:group-hover:opacity-100"
                     >
                       <X className="h-4 w-4" />
                     </button>

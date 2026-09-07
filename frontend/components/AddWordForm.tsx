@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus, Sparkles, Globe, Ban } from "lucide-react";
+import { ArrowRightLeft, X, Plus, Sparkles, Globe, Ban, ChevronDown } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -147,6 +147,8 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [reverse, setReverse] = useState<{ native: string; nativeLang: string } | null>(null);
   const [reverseTo, setReverseTo] = useState("");
   const [reversing, setReversing] = useState(false);
+  // Example/synonym tuning is collapsed by default to keep the form light.
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // "Ввожу на" — which side of the pair the learner types. false = source
   // (studied, normal); true = target (their known language → translate first).
   const [reverseInput, setReverseInput] = useState(false);
@@ -577,9 +579,20 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </div>
       )}
 
-      {/* Example tuning (auto mode): where examples come from + register + level */}
+      {/* Example tuning (auto mode): where examples come from + register + level.
+          Collapsed by default so the common path is just pair + word + submit. */}
       {mode === "auto" && (
         <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
+          >
+            {t("add.advanced")}
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
+          </button>
+          {showAdvanced && (
+          <div className="space-y-2">
           {/* source of examples: AI-composed, mined from the web, or none */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
@@ -679,6 +692,8 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
             {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
           </p>
+          </div>
+          )}
         </div>
       )}
 
