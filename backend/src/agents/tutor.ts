@@ -16,16 +16,21 @@ export async function runTutor(params: {
   targetLang?: string;
   /** Keep a translation the user reviewed during import instead of replacing it. */
   preserveMeaning?: boolean;
+  /** Aim synonyms at a target CEFR level (exam prep); "" = the most natural ones. */
+  synonymLevel?: string;
 }): Promise<void> {
   const sourceName = langName(params.sourceLang ?? "en");
   const targetName = langName(params.targetLang ?? "zh");
+  const synClause = params.synonymLevel
+    ? `synonyms (up to 3 genuine ${sourceName} synonyms, chosen at roughly CEFR ${params.synonymLevel} — ` +
+      `richer, more advanced alternatives suitable for exam prep like IELTS, but still TRUE synonyms)`
+    : `synonyms (up to 3 genuine ${sourceName} synonyms)`;
   const result = await chatJson({
     system:
       `You are a ${sourceName}-to-${targetName} dictionary. For the given ` +
       `${sourceName} word, respond as JSON with: phonetic (pronunciation, e.g. ` +
       "IPA in slashes), partOfSpeech, meaningZh, " +
-      `collocations (2-3 common ${sourceName} phrases), synonyms ` +
-      `(up to 3 genuine ${sourceName} synonyms), antonyms (up to 3 genuine ` +
+      `collocations (2-3 common ${sourceName} phrases), ${synClause}, antonyms (up to 3 genuine ` +
       `${sourceName} antonyms). CRITICAL: "meaningZh" is only a field NAME — its value ` +
       `MUST be written in ${targetName}, NOT in ${sourceName} ` +
       `(even when the word itself is ${sourceName}). ` +
