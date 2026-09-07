@@ -85,6 +85,28 @@ export function detectDominantLang(text: string): string | null {
   return null;
 }
 
+// Dominant script family of raw text — like scriptFamily() but read off the
+// characters, with no minimum length (works for a single short word). Returns
+// null when there are no letters to judge. Used to spot when the user typed a
+// word in their OWN language (the target) and really wants the reverse card.
+export function scriptFamilyOfText(text: string): "latin" | "cyrillic" | "han" | "jpn" | "kor" | null {
+  const c = { latin: 0, cyrillic: 0, han: 0, kana: 0, hangul: 0 };
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a)) c.latin++;
+    else if (cp >= 0x0400 && cp <= 0x04ff) c.cyrillic++;
+    else if (cp >= 0x3040 && cp <= 0x30ff) c.kana++;
+    else if (cp >= 0xac00 && cp <= 0xd7af) c.hangul++;
+    else if ((cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0x3400 && cp <= 0x4dbf)) c.han++;
+  }
+  if (c.kana > 0) return "jpn"; // any kana → Japanese
+  if (c.hangul > 0) return "kor"; // any hangul → Korean
+  if (c.han > 0) return "han"; // ideographs (no kana/hangul)
+  if (c.cyrillic > c.latin) return "cyrillic";
+  if (c.latin > 0) return "latin";
+  return null;
+}
+
 // True when the text is written purely in Han ideographs (no kana / hangul), so
 // it could be Chinese, Japanese kanji, or Korean hanja — genuinely ambiguous.
 // Used to show the inline 中文/日本語/한국어 picker under the add field.
