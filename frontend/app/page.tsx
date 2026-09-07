@@ -12,7 +12,7 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, PartyPopper } from "lucide-react";
+import { BookOpen, PartyPopper, ArrowRight } from "lucide-react";
 
 // Highlight the target word (and simple inflections) inside a news sentence.
 function Highlight({ text, word }: { text: string; word: string }) {
@@ -110,6 +110,8 @@ export default function TodayPage() {
             {t("today.greeting")}
           </h1>
         </div>
+        {/* Secondary nav only — the primary "what to do next" action is the coach
+            briefing below, so the header no longer carries a competing review button. */}
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/reader"
@@ -117,14 +119,6 @@ export default function TodayPage() {
           >
             <BookOpen className="h-4 w-4" /> {t("nav.reader")}
           </Link>
-          {due > 0 && (
-            <Link
-              href="/review"
-              className="inline-flex items-center gap-2 rounded-full bg-sage px-6 py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-sage-deep active:scale-[0.98]"
-            >
-              {t("today.startReview")}
-            </Link>
-          )}
         </div>
       </div>
 
@@ -161,10 +155,8 @@ export default function TodayPage() {
           <p className="mt-3 max-w-[340px] text-[15px] leading-relaxed text-[#d8cfc1]">
             {t("today.dueBlurb")}
           </p>
-          <span className="mt-auto pt-6">
-            <span className="inline-flex items-center gap-2 rounded-full bg-sage px-5 py-3 text-[15px] font-semibold text-white">
-              {t("today.openFlashcards")}
-            </span>
+          <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-[15px] font-semibold text-taupe transition-colors group-hover:text-white">
+            {t("today.openFlashcards")} <ArrowRight className="h-4 w-4" />
           </span>
         </Link>
 
