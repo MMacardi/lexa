@@ -118,3 +118,70 @@ export function startDictation(opts: {
     },
   };
 }
+
+/**
+ * Capture ONE spoken utterance (for a quick "say the word" check). Returns every
+ * final alternative the engine offers so the caller can score against the best
+ * match, not just the top guess. `onInterim` streams the live tail for feedback.
+ */
+export function recognizeOnce(opts: {
+  lang: string;
+  onInterim?: (tail: string) => void;
+  onResult: (candidates: string[]) => void;
+  onError?: (kind: "unsupported" | "fail") => void;
+  onEnd?: () => void;
+}): DictationController | null {
+  const SR = getSR();
+  if (!SR) {
+    opts.onError?.("unsupported");
+    return null;
+  }
+  const finals: string[] = [];
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    opts.onResult(finals);
+    opts.onEnd?.();
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rec: any = null;
+  try {
+    rec = new SR();
+    rec.lang = opts.lang;
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 4;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      let it = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) {
+          for (let j = 0; j < r.length; j++) finals.push(r[j].transcript);
+        } else {
+          it += r[0].transcript;
+        }
+      }
+      if (it) opts.onInterim?.(it);
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onerror = (e: any) => {
+      if (e?.error && e.error !== "no-speech" && e.error !== "aborted") opts.onError?.("fail");
+    };
+    rec.onend = finish;
+    rec.start();
+  } catch {
+    opts.onError?.("unsupported");
+    return null;
+  }
+  return {
+    stop() {
+      try {
+        rec?.stop();
+      } catch {
+        /* already stopped */
+      }
+    },
+  };
+}

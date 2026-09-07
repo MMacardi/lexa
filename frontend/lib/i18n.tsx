@@ -1076,6 +1076,16 @@ const DICT: Record<string, Entry> = {
   "add.inputHintNormal": { en: "Card in {card}", ru: "Карточка на {card}", zh: "卡片为{card}" },
   "add.inputHintReverse": { en: "→ translated & added as a {card} card", ru: "→ переведу и добавлю карточкой на {card}", zh: "→ 翻译后作为{card}卡片添加" },
   "add.advanced": { en: "Advanced", ru: "Дополнительно", zh: "高级设置" },
+  // Pronunciation self-check (browser speech recognition).
+  "pron.check": { en: "Check my pronunciation", ru: "Проверить произношение", zh: "检查我的发音" },
+  "pron.listening": { en: "Listening… say the word", ru: "Слушаю… произнесите слово", zh: "聆听中……请说出这个词" },
+  "pron.great": { en: "Great!", ru: "Отлично!", zh: "很棒！" },
+  "pron.close": { en: "Almost — try again", ru: "Почти — ещё раз", zh: "接近了——再试一次" },
+  "pron.off": { en: "Not quite — try again", ru: "Не совсем — ещё раз", zh: "不太对——再试一次" },
+  "pron.heard": { en: "heard: {heard}", ru: "услышал: {heard}", zh: "听到：{heard}" },
+  "pron.again": { en: "Try again", ru: "Ещё раз", zh: "再试一次" },
+  "pron.nothing": { en: "Didn't catch that — try again", ru: "Не расслышал — попробуйте ещё раз", zh: "没听清——请再试一次" },
+  "pron.unsupported": { en: "Speech input isn't available in this browser", ru: "Голосовой ввод недоступен в этом браузере", zh: "此浏览器不支持语音输入" },
   // Synonym level: tune the card's synonyms to a target CEFR level (exam prep).
   "syn.level": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },

@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { EditWordForm } from "@/components/EditWordForm";
 import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
+import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
@@ -172,6 +173,7 @@ export default function WordDetailPage() {
             {word.word}
           </h1>
           <SpeakButton text={word.word} lang={word.sourceLang} />
+          <PronounceButton text={word.word} lang={word.sourceLang} />
           {word.phonetic && <span className="text-[18px] text-ink-faint">{word.phonetic}</span>}
           {word.partOfSpeech && (
             <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
