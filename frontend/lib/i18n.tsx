@@ -1063,6 +1063,13 @@ const DICT: Record<string, Entry> = {
   "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
   "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
   "add.reverseError": { en: "Couldn't translate — try again.", ru: "Не удалось перевести — попробуйте ещё раз.", zh: "翻译失败——请重试。" },
+  // "I'm typing in…" selector — pick which side of the pair you type. Choosing the
+  // known side translates your input into the studied language first.
+  "add.inputLang": { en: "I type in", ru: "Ввожу на", zh: "我输入" },
+  "add.inputStudied": { en: "the word to learn", ru: "слово для изучения", zh: "要学的词" },
+  "add.inputKnown": { en: "translate into the other", ru: "переведу на другой", zh: "翻译成另一种" },
+  "add.inputHintNormal": { en: "Card in {card}", ru: "Карточка на {card}", zh: "卡片为{card}" },
+  "add.inputHintReverse": { en: "→ translated & added as a {card} card", ru: "→ переведу и добавлю карточкой на {card}", zh: "→ 翻译后作为{card}卡片添加" },
   // Synonym level: tune the card's synonyms to a target CEFR level (exam prep).
   "syn.level": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },

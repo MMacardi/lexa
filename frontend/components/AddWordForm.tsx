@@ -52,6 +52,9 @@ type Mode = "auto" | "manual";
 
 const MODE_KEY = "lexa.wordAddMode";
 const PAIR_KEY = "lexa.wordPair";
+// "I'm typing in the target (known) side, not the source (studied) side" — when
+// on, the AI add flow translates the input into the studied language first.
+const REVERSE_INPUT_KEY = "lexa.reverseInput";
 
 // Session-scoped "don't warn me about duplicates again" — resets on full reload,
 // which is what you want when bulk-adding many known duplicates in one sitting.
@@ -144,6 +147,12 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const [reverse, setReverse] = useState<{ native: string; nativeLang: string } | null>(null);
   const [reverseTo, setReverseTo] = useState("");
   const [reversing, setReversing] = useState(false);
+  // "Ввожу на" — which side of the pair the learner types. false = source
+  // (studied, normal); true = target (their known language → translate first).
+  const [reverseInput, setReverseInput] = useState(false);
+  const inputLang = reverseInput && sourceLang !== "auto" ? targetLang : sourceLang;
+  // The reverse selector only makes sense for a concrete two-language pair.
+  const showInputPicker = mode === "auto" && sourceLang !== "auto" && sourceLang !== targetLang;
 
   // learner prefs (example difficulty + register)
   const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
@@ -215,6 +224,13 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     if (!modeReady) return;
     localStorage.setItem(MODE_KEY, mode);
   }, [modeReady, mode]);
+
+  useEffect(() => {
+    setReverseInput(localStorage.getItem(REVERSE_INPUT_KEY) === "1");
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(REVERSE_INPUT_KEY, reverseInput ? "1" : "0");
+  }, [reverseInput]);
 
   // Follow the active "Set" filter as the default selection.
   useEffect(() => {
@@ -353,37 +369,40 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
   const busy = mutation.isPending || checking || reversing;
 
-  // Reverse translation: the user typed a word in their own (target) language.
-  // Translate it into the language they're learning and add THAT card, flipping
-  // the pair so the source is the studied language going forward.
-  async function doReverse(learnLang: string) {
-    if (!reverse || reversing) return;
+  // Core reverse: translate `text` from `fromLang` into `learnLang` and add the
+  // resulting studied-language card. `flip` re-points the pair so `learnLang` is
+  // the source going forward (used by the auto-nudge, where the pair may be Auto
+  // or wrong; the explicit "I'm typing in…" selector passes flip=false because
+  // the pair is already oriented correctly).
+  async function translateAndAdd(text: string, fromLang: string, learnLang: string, flip: boolean) {
+    if (reversing) return;
     setReversing(true);
     try {
-      const { translation } = await api.translate({
-        text: reverse.native,
-        sourceLang: reverse.nativeLang,
-        targetLang: learnLang,
-      });
+      const { translation } = await api.translate({ text, sourceLang: fromLang, targetLang: learnLang });
       const learned = cleanTranslation(translation);
       if (!learned) {
         show({ icon: "⚠️", title: t("add.reverseError") });
         return;
       }
-      // Front of the card is now the studied language; native stays the meaning side.
-      setSourceLang(learnLang);
-      setTargetLang(reverse.nativeLang);
+      if (flip) {
+        setSourceLang(learnLang);
+        setTargetLang(fromLang);
+      }
       setResolvedSourceLang(learnLang);
       setWord(learned);
       setReverse(null);
-      // targetLang is unchanged (still the native language), so the closure value
-      // used by the mutation is already correct; only the source needs overriding.
       addWithChecks({ chosen: learned, manual: false, sourceLangOverride: learnLang });
     } catch {
       show({ icon: "⚠️", title: t("add.reverseError") });
     } finally {
       setReversing(false);
     }
+  }
+
+  // Auto-nudge path: the user was offered the flip and accepted it.
+  function doReverse(learnLang: string) {
+    if (!reverse) return;
+    void translateAndAdd(reverse.native, reverse.nativeLang, learnLang, true);
   }
 
   // AI mode: spell-check first, then either add directly or show "did you mean".
@@ -406,6 +425,12 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
     }
     if (mode === "manual") {
       addWithChecks({ chosen: typed, manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang });
+      return;
+    }
+    // Explicit "I'm typing in the target (known) side" → translate into the
+    // studied language and add that card. No prompt, no guessing.
+    if (!skipReverse && reverseInput && sourceLang !== "auto" && sourceLang !== targetLang) {
+      void translateAndAdd(typed, targetLang, sourceLang, false);
       return;
     }
     // Reverse-translation catch (script-based, no LLM call): the word is written
@@ -528,6 +553,30 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </div>
       )}
 
+      {/* "I'm typing in…" — the studied side (normal) or the known side (then we
+          translate first). Makes the card's language explicit so the pair is never
+          silently backwards. */}
+      {showInputPicker && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
+          <Select
+            value={inputLang}
+            onChange={(v) => setReverseInput(v === targetLang)}
+            ariaLabel={t("add.inputLang")}
+            className="w-[150px]"
+            options={[
+              { value: sourceLang, label: langLabel(sourceLang), hint: t("add.inputStudied") },
+              { value: targetLang, label: langLabel(targetLang), hint: t("add.inputKnown") },
+            ]}
+          />
+          <span className="text-[12px] font-medium text-ink-faint">
+            {reverseInput
+              ? t("add.inputHintReverse", { card: langLabel(sourceLang) })
+              : t("add.inputHintNormal", { card: langLabel(sourceLang) })}
+          </span>
+        </div>
+      )}
+
       {/* Example tuning (auto mode): where examples come from + register + level */}
       {mode === "auto" && (
         <div className="space-y-2">
@@ -641,7 +690,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             if (suggestions) setSuggestions(null);
             if (reverse) setReverse(null);
           }}
-          placeholder={t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(sourceLang) })}
+          placeholder={t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(inputLang) })}
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
