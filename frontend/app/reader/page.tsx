@@ -30,8 +30,9 @@ import { LangSelect } from "@/components/LangSelect";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
+import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
+import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -122,6 +123,11 @@ export default function ReaderPage() {
   // OCR: scan a photo into the text box
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Dictaphone: live speech-to-text into the text box (lecture mode).
+  const [dictating, setDictating] = useState(false);
+  const [dictSupported, setDictSupported] = useState(false);
+  const [dictInterim, setDictInterim] = useState("");
+  const dictRef = useRef<DictationController | null>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
@@ -369,11 +375,45 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rubyOn, reading, sourceLang, tokens]);
 
+  // Live dictation into the text box. Continuous (auto-restarts on pauses) so a
+  // whole lecture can be captured; the recogniser uses the source language, so
+  // Chinese comes out as 汉字, English as letters, etc.
+  function toggleDictate() {
+    if (dictating) {
+      dictRef.current?.stop();
+      return;
+    }
+    const ctrl = startDictation({
+      lang: speechLang(sourceLang),
+      base: text,
+      onText: setText,
+      onInterim: setDictInterim,
+      onError: (kind) => {
+        setDictating(false);
+        setDictInterim("");
+        show({ icon: "⚠️", title: t(kind === "unsupported" ? "reader.micUnsupported" : "reader.micFail") });
+      },
+      onEnd: () => {
+        setDictating(false);
+        setDictInterim("");
+      },
+    });
+    if (ctrl) {
+      dictRef.current = ctrl;
+      setDictating(true);
+    }
+  }
+
+  useEffect(() => setDictSupported(dictationSupported()), []);
+  // Stop the mic if the reader unmounts mid-recording.
+  useEffect(() => () => dictRef.current?.stop(), []);
+
   function startReading() {
     if (!text.trim()) {
       show({ icon: "📖", title: t("reader.emptyText") });
       return;
     }
+    dictRef.current?.stop(); // leaving the input view — release the mic
     setSelected(new Set());
     setShowTr(false);
     setTextLevel(null); // a freshly pasted text has no level until it's saved
@@ -860,6 +900,15 @@ export default function ReaderPage() {
             )}
           />
 
+          {dictating && (
+            <div className="anim-fade-up -mt-1 flex items-center gap-2 rounded-[12px] border border-warn/30 bg-warn-bg/60 px-3 py-2 text-[13px] text-ink-soft">
+              <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-warn-text" />
+              <span className="min-w-0 flex-1 truncate">
+                {dictInterim ? dictInterim : <span className="text-ink-faint">{t("reader.micListening")}</span>}
+              </span>
+            </div>
+          )}
+
           <input
             ref={fileRef}
             type="file"
@@ -886,6 +935,26 @@ export default function ReaderPage() {
             >
               <Camera className="h-3.5 w-3.5" /> {scanning ? t("reader.scanning") : t("reader.scan")}
             </button>
+            {dictSupported && (
+              <button
+                type="button"
+                onClick={toggleDictate}
+                aria-pressed={dictating}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  dictating
+                    ? "border-warn/40 bg-warn-bg text-warn-text"
+                    : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                )}
+              >
+                {dictating ? (
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-warn-text" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" />
+                )}
+                {dictating ? t("reader.micStop") : t("reader.mic")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setText(SAMPLE[sourceLang] ?? SAMPLE.en)}

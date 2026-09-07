@@ -157,6 +157,12 @@ const DICT: Record<string, Entry> = {
   "reader.pasteSample": { en: "Paste example", ru: "Вставить пример", zh: "粘贴示例" },
   "reader.scan": { en: "Scan a photo", ru: "Сканировать фото", zh: "扫描照片" },
   "reader.scanning": { en: "Reading photo…", ru: "Считываю фото…", zh: "正在识别照片…" },
+  // Dictaphone — live speech-to-text into the text box (e.g. a lecture).
+  "reader.mic": { en: "Dictate", ru: "Диктофон", zh: "语音输入" },
+  "reader.micStop": { en: "Stop", ru: "Стоп", zh: "停止" },
+  "reader.micListening": { en: "Listening… speak now", ru: "Слушаю… говорите", zh: "正在聆听……请讲" },
+  "reader.micUnsupported": { en: "Voice input isn't supported in this browser.", ru: "Голосовой ввод не поддерживается в этом браузере.", zh: "此浏览器不支持语音输入。" },
+  "reader.micFail": { en: "Voice input stopped — please try again.", ru: "Голосовой ввод прервался — попробуйте ещё раз.", zh: "语音输入已停止——请重试。" },
   "reader.scanFailed": { en: "Couldn't read the photo", ru: "Не удалось распознать фото", zh: "无法识别照片" },
   "reader.contextTitle": { en: "In context", ru: "В контексте", zh: "在语境中" },
   "reader.sourceLabel": { en: "Text source", ru: "Источник текста", zh: "文本来源" },
