@@ -219,7 +219,7 @@ export function GlobalTutor() {
                 const c = byWord.get(w.trim().toLowerCase())!;
                 return { word: w, meaning: c.meaning, sentence: c.example, exampleTr: c.exampleTr };
               }),
-              source: "Lexa AI",
+              source: "Onomika AI",
               enrich: false, // meaning + example are already known → no tokens spent
               collectionIds: collIds.length ? collIds : undefined,
             }

@@ -224,7 +224,7 @@ export async function runExampleSearch(params: {
       sentenceEn: sentence,
       sentenceZh: translation.translation,
       // A composed sentence has no web source — attribute it to the AI instead.
-      sourceName: source ? sourceNameFromUrl(source.url) : "Lexa AI",
+      sourceName: source ? sourceNameFromUrl(source.url) : "Onomika AI",
       sourceUrl: source ? source.url : "",
       // Record the register + level only for AI-composed examples (a web-mined
       // one carries its publication as the source, not a chosen register).

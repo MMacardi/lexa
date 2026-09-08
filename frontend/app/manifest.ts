@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 
-// Web App Manifest — makes Lexa installable ("Add to Home Screen") and gives it
+// Web App Manifest — makes Onomika installable ("Add to Home Screen") and gives it
 // an app icon, name and standalone (no browser chrome) window.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Lexa — language learning",
-    short_name: "Lexa",
+    name: "Onomika — language learning",
+    short_name: "Onomika",
     description: "Collect words, review with spaced repetition, read and learn — even offline.",
     start_url: "/",
     display: "standalone",

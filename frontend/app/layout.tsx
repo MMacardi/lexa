@@ -6,7 +6,7 @@ import { PwaRegister } from "@/components/PwaRegister";
 import { themeBootScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
-  title: "Lexa — learn English through the news",
+  title: "Onomika — learn English through the news",
   description:
     "Collect English words from real news, with Chinese translations, flashcards and recall checks.",
   manifest: "/manifest.webmanifest",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     icon: "/favicon-32.png",
     apple: "/apple-touch-icon.png",
   },
-  appleWebApp: { capable: true, title: "Lexa", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Onomika", statusBarStyle: "default" },
 };
 
 // Mobile-first viewport: cover the notch/safe-areas and match the browser chrome

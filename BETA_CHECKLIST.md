@@ -15,7 +15,7 @@ What to prepare before inviting testers. Grouped by priority.
 ### Auth delivery
 - [ ] **Email login**: set `SMTP_URL` + `EMAIL_FROM` (e.g. Resend/Postmark), or email sign-in won't deliver in prod. Send a test link.
 - [ ] **Google login** (optional): create an OAuth client, authorise the Vercel origin, set `GOOGLE_CLIENT_ID` (backend) + `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Vercel).
-- [ ] **Telegram login**: `NEXT_PUBLIC_BOT_USERNAME` = the bot that runs the backend (`lexatutorbot`); the bot must be running with `ENABLE_TELEGRAM_BOT=true`.
+- [ ] **Telegram login**: `NEXT_PUBLIC_BOT_USERNAME` = the bot that runs the backend (`llmlangcardlearnerbot`); the bot must be running with `ENABLE_TELEGRAM_BOT=true`.
 
 ### Legal (pages exist at /privacy and /terms — fill the placeholders)
 - [ ] Replace every `[ЗАПОЛНИТЬ: …]` in `/privacy` and `/terms` (operator name, contact email, jurisdiction, min age).

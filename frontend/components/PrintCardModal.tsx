@@ -112,7 +112,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
 
         <button
           type="button"
-          onClick={() => downloadDataUrl(preview, `lexa-${word.word}.png`)}
+          onClick={() => downloadDataUrl(preview, `onomika-${word.word}.png`)}
           className="mt-3 w-full shrink-0 rounded-full bg-sage px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
         >
           ↓ {t("print.download")}

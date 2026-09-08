@@ -338,7 +338,7 @@ export function useSimulateFree(): boolean {
 
 // --- Meaning style: how card meanings are written. A preset for most people
 // ("concise" default, or "detailed" with nuance/register), plus a free-text
-// "custom" mode for a personal instruction (e.g. a topic focus). Sets Lexa apart
+// "custom" mode for a personal instruction (e.g. a topic focus). Sets Onomika apart
 // from a plain translator without forcing anyone to write a prompt. ---
 export type MeaningMode = "concise" | "detailed" | "custom";
 const MEANING_MODE_KEY = "lexa.meaningMode";

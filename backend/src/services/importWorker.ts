@@ -117,7 +117,7 @@ async function processOneImportJob() {
                   wordId: word.id,
                   sentenceEn: entry.example,
                   sentenceZh: entry.exampleTranslation,
-                  sourceName: "Lexa AI",
+                  sourceName: "Onomika AI",
                   sourceUrl: "",
                   register: job.exampleStyle ?? "casual",
                   level: job.level ?? null,

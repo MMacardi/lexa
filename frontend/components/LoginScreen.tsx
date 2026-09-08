@@ -154,7 +154,7 @@ export function LoginScreen() {
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">
       <div className="anim-pop w-full max-w-[420px] rounded-[24px] border border-black/[0.06] bg-surface p-8 text-center shadow-sm">
         <div className="flex items-center justify-center gap-2">
-          <span className="font-serif text-[30px] font-semibold text-ink">Lexa</span>
+          <span className="font-serif text-[30px] font-semibold text-ink">Onomika</span>
           <span className="h-2 w-2 rounded-full bg-sage" />
         </div>
         <p className="mt-2 text-ink-soft">{t("login.tagline")}</p>

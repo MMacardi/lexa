@@ -223,7 +223,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <div className="pointer-events-none fixed inset-x-4 top-4 z-[75] max-w-[calc(100vw-2rem)] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[360px]">
           <div className="group pointer-events-auto overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
             <div className="flex items-center justify-between gap-2 px-3 pt-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">Lexa</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">Onomika</span>
               <div className="flex items-center gap-0.5">
                 <button
                   type="button"

@@ -1,4 +1,4 @@
-# Deployment Guide — Lexa Vocabulary Assistant
+# Deployment Guide — Onomika Vocabulary Assistant
 
 ## Architecture
 ```

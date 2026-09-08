@@ -167,13 +167,13 @@ authRouter.post("/auth/email/start", async (req, res) => {
   }
   const token = createEmailToken(email);
   const link = `${env.FRONTEND_URL.replace(/\/+$/, "")}/login/verify?token=${token}`;
-  const text = `Sign in to Lexa:\n${link}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`;
+  const text = `Sign in to Onomika:\n${link}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`;
   const html =
-    `<p>Tap to sign in to <b>Lexa</b>:</p>` +
-    `<p><a href="${link}" style="display:inline-block;background:#7c9885;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Sign in to Lexa</a></p>` +
+    `<p>Tap to sign in to <b>Onomika</b>:</p>` +
+    `<p><a href="${link}" style="display:inline-block;background:#7c9885;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">Sign in to Onomika</a></p>` +
     `<p style="color:#8a8273;font-size:13px">This link expires in 15 minutes. If you didn't request it, ignore this email.</p>`;
   try {
-    await sendEmail(email, "Your Lexa sign-in link", html, text);
+    await sendEmail(email, "Your Onomika sign-in link", html, text);
   } catch (err) {
     console.error("sendEmail failed:", err);
     res.status(502).json({ error: "Couldn't send the email. Try again." });

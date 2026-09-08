@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16
-    container_name: lexa-postgres
+    container_name: onomika-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: vocab
@@ -10,7 +10,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - lexa-pgdata:/var/lib/postgresql/data
+      - onomika-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vocab -d vocab"]
       interval: 5s
@@ -19,7 +19,7 @@ services:
 
   backend:
     image: node:22-slim
-    container_name: lexa-backend
+    container_name: onomika-backend
     working_dir: /app
     restart: unless-stopped
     env_file:
@@ -47,7 +47,7 @@ services:
 
   frontend:
     image: node:22-slim
-    container_name: lexa-frontend
+    container_name: onomika-frontend
     working_dir: /app
     restart: unless-stopped
     environment:
@@ -65,7 +65,7 @@ services:
   openclaw:
     build:
       context: ./openclaw
-    container_name: lexa-openclaw
+    container_name: onomika-openclaw
     profiles: ["bot"]
     restart: unless-stopped
     env_file:
@@ -79,7 +79,7 @@ services:
       - openclaw-data:/root/.openclaw
 
 volumes:
-  lexa-pgdata:
+  onomika-pgdata:
   backend-node-modules:
   frontend-node-modules:
   openclaw-data:

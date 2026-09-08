@@ -55,7 +55,7 @@ export function Sidebar() {
       {/* ---------- Desktop sidebar ---------- */}
       <aside className="hidden shrink-0 flex-col gap-6 border-r border-black/[0.07] bg-surface px-[18px] py-[26px] md:sticky md:top-0 md:flex md:h-screen md:w-[252px]">
         <Link href="/" aria-label={t("nav.today")} className="flex items-baseline gap-2 px-2.5 transition-opacity hover:opacity-80">
-          <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink">Lexa</span>
+          <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink">Onomika</span>
           <span className="h-[7px] w-[7px] rounded-full bg-sage" />
         </Link>
 
@@ -110,7 +110,7 @@ export function Sidebar() {
       {/* ---------- Mobile top bar ---------- */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/[0.07] bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
         <Link href="/" aria-label={t("nav.today")} className="flex items-baseline gap-2">
-          <span className="font-serif text-[22px] font-semibold tracking-[-0.02em] text-ink">Lexa</span>
+          <span className="font-serif text-[22px] font-semibold tracking-[-0.02em] text-ink">Onomika</span>
           <span className="h-[6px] w-[6px] rounded-full bg-sage" />
         </Link>
         <Link

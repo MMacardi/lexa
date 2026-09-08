@@ -270,7 +270,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
             <section className="anim-fade-up flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-black/[0.12] bg-surface shadow-[0_34px_100px_rgba(21,18,15,0.4)] sm:max-h-[82vh] sm:rounded-[28px]">
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-black/[0.07] bg-surface px-5 py-5 sm:px-7">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.13em] text-sage">Lexa tools</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.13em] text-sage">Onomika tools</p>
                 <h2 className="mt-1 font-serif text-[27px] font-semibold text-ink">{t("import.title")}</h2>
                 <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-soft">{t("import.subtitle")}</p>
               </div>
@@ -596,7 +596,7 @@ function Choice({ active, onClick, title, hint, disabled }: { active: boolean; o
 /** Download a portable, human-readable .txt list without touching the server. */
 export function exportWords(words: Word[]) {
   const text = [
-    "# Lexa vocabulary export",
+    "# Onomika vocabulary export",
     `# ${new Date().toLocaleDateString()}`,
     "",
     ...words.flatMap((word) => {
@@ -609,7 +609,7 @@ export function exportWords(words: Word[]) {
   const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `lexa-words-${new Date().toISOString().slice(0, 10)}.txt`;
+  link.download = `onomika-words-${new Date().toISOString().slice(0, 10)}.txt`;
   link.click();
   URL.revokeObjectURL(url);
 }

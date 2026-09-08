@@ -1,4 +1,4 @@
-# Lexa — Ideas & Roadmap
+# Onomika — Ideas & Roadmap
 
 Living backlog of cool ideas. Add here whenever something interesting comes up.
 Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 later
@@ -49,7 +49,7 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   spending tokens to verify it in a live browser.
 
 ## Context — the "Coach" direction (pre-paywall discussion)
-The wedge vs Quizlet: Lexa should feel like a **personal AI mentor**, not a
+The wedge vs Quizlet: Onomika should feel like a **personal AI mentor**, not a
 flashcard box. It tells you *what* to learn for your level + language, builds a
 daily plan, adapts to weak spots, and can turn *anything* (a photo of a notebook,
 a txt, a PDF, a messy word list) into a structured deck. That framing is what
@@ -84,7 +84,7 @@ the shipped/next pieces.
   and fade out gently. Logo → Today.
 - ✅ **Example register/level knobs + labels** — the inline "+ add example" AI
   button now picks source (AI/web), register and CEFR level; AI examples record
-  how they were made and show it as chips next to "Lexa AI" on the word page.
+  how they were made and show it as chips next to "Onomika AI" on the word page.
 
 ## Economics — cost per AI action
 Model: **qwen-plus** on Alibaba **Bailian (China region, CNY)** — lowest tier

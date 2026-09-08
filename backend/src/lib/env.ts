@@ -33,7 +33,7 @@ const schema = z.object({
   // and the From address. When SMTP_URL is empty we log the link instead of
   // sending (dev), and expose it in the API response only if ALLOW_DEV_LOGIN.
   SMTP_URL: z.string().default(""),
-  EMAIL_FROM: z.string().default("Lexa <no-reply@lexa.app>"),
+  EMAIL_FROM: z.string().default("Onomika <no-reply@onomika.app>"),
   // Billing / entitlements. During the closed beta every signed-in user is Pro
   // (the invite link is the gate), so nobody hits the wall. Flip to "false" at
   // public launch — new users default to "free" and get FREE_DAILY_AI AI actions

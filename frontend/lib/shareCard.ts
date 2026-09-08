@@ -188,7 +188,7 @@ export function renderPrintableCard(word: Word, layout: CardLayout, labels: Reco
   ctx.font = `600 34px ${FONT}`;
   ctx.fillStyle = "#7c9885";
   ctx.textAlign = "center";
-  ctx.fillText("Lexa", W / 2, H - 45);
+  ctx.fillText("Onomika", W / 2, H - 45);
 
   return canvas.toDataURL("image/png");
 }
