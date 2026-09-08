@@ -349,7 +349,7 @@ const DICT: Record<string, Entry> = {
   },
   "upsell.view": { en: "See Pro", ru: "Посмотреть Pro", zh: "查看 Pro" },
   "upsell.later": { en: "Not now", ru: "Не сейчас", zh: "以后再说" },
-  "pro.heroTitle": { en: "Learn faster with unlimited AI", ru: "Учись быстрее с безлимитным ИИ", zh: "用无限 AI 更快学习" },
+  "pro.heroTitle": { en: "Learn faster with unlimited AI", ru: "Учись быстрее с безлимитным ИИ", zh: "用无限 AI，学得更快" },
   "pro.heroSub": {
     en: "Everything in Lexa, with no daily caps and the smartest tools — richer meanings, real examples, unlimited reading and more.",
     ru: "Всё в Lexa без дневных лимитов и с самыми умными инструментами — богатые значения, живые примеры, безлимитная читалка и не только.",
@@ -462,7 +462,7 @@ const DICT: Record<string, Entry> = {
   "coach.sayGoal": {
     en: "I remember — your goal is “{goal}”. I've picked words for it below.",
     ru: "Помню — твоя цель «{goal}». Подобрал слова под неё ниже.",
-    zh: "我记得——你的目标是「{goal}」。下面是我为它挑的词。",
+    zh: "我记得——你的目标是“{goal}”。下面是我为它挑的词。",
   },
   "coach.sayAskGoal": {
     en: "Tell me why you're learning {lang} and I'll pick words that actually help.",
@@ -482,12 +482,12 @@ const DICT: Record<string, Entry> = {
   "coach.sayStumble": {
     en: "“{word}” still trips you up — let's finally nail it.",
     ru: "Слово «{word}» всё ещё буксует — давай наконец добьём его.",
-    zh: "「{word}」还是老出错——这次把它彻底拿下。",
+    zh: "“{word}”还是老出错——这次把它彻底拿下。",
   },
   "coach.sayStumbleY": {
     en: "Yesterday “{word}” gave you trouble — want a quick rematch?",
     ru: "Вчера ты запнулся на «{word}» — устроим реванш?",
-    zh: "昨天「{word}」让你卡住了——要不要再来一局？",
+    zh: "昨天“{word}”让你卡住了——要不要再来一局？",
   },
   "coach.sayFirst": {
     en: "Ready for your very first workout together? Let's try a couple of words.",
@@ -502,7 +502,7 @@ const DICT: Record<string, Entry> = {
   "coach.sayGoalPush": {
     en: "Every word toward “{goal}” is a step closer — shall we add a few?",
     ru: "Каждое слово под «{goal}» — шаг ближе. Добавим ещё пару?",
-    zh: "每一个为「{goal}」学的词都更近一步——再加几个？",
+    zh: "每一个为“{goal}”学的词都更近一步——再加几个？",
   },
   "coach.tip1": {
     en: "Tip: learning a word in a sentence beats a bare list several times over.",
@@ -545,7 +545,7 @@ const DICT: Record<string, Entry> = {
   },
   "chat.start": { en: "Start chatting", ru: "Начать беседу", zh: "开始聊天" },
   "chat.input": { en: "Say something…", ru: "Напиши что-нибудь…", zh: "说点什么……" },
-  "chat.scored": { en: "Nice — you used “{word}”! +{pts}", ru: "Красиво — ты ввернул «{word}»! +{pts}", zh: "漂亮——你用上了「{word}」！+{pts}" },
+  "chat.scored": { en: "Nice — you used “{word}”! +{pts}", ru: "Красиво — ты ввернул «{word}»! +{pts}", zh: "漂亮——你用上了“{word}”！+{pts}" },
   "chat.allUsed": { en: "All words used — full house! 🏆", ru: "Все слова в дело — полный сбор! 🏆", zh: "所有单词都用上了——全清！🏆" },
   "chat.topicLabel": { en: "What to chat about", ru: "О чём поговорить", zh: "聊点什么" },
   "chat.topicPh": { en: "e.g. travel, your work, weekend plans", ru: "напр. путешествия, работа, планы на выходные", zh: "如：旅行、工作、周末计划" },
@@ -802,17 +802,17 @@ const DICT: Record<string, Entry> = {
   "first.sub": {
     en: "Lexa is your AI vocabulary coach: it turns words into cards with examples and breakdowns, and reminds you to review. Grab a starter set to try it in a minute.",
     ru: "Lexa — твой ИИ-наставник по словам: превращает слова в карточки с примерами и разбором и напоминает повторять. Возьми стартовый набор, чтобы попробовать за минуту.",
-    zh: "Lexa 是你的 AI 词汇教练：把单词变成带例句和解析的卡片，并提醒你复习。先拿个入门词组，一分钟上手。",
+    zh: "Lexa 是你的 AI 词汇教练：把单词变成带例句和解析的卡片，并提醒你复习。先领一套入门卡组，一分钟上手。",
   },
   "first.learn": { en: "I'm learning", ru: "Учу", zh: "我在学" },
   "first.know": { en: "I know", ru: "Знаю", zh: "我会" },
   "first.level": { en: "Level", ru: "Уровень", zh: "水平" },
   "first.preview": { en: "You'll get these:", ru: "Вот что попадёт в набор:", zh: "你将获得这些：" },
-  "first.build": { en: "Build my starter set · {n} words", ru: "Собрать стартовый набор · {n} слов", zh: "生成入门词组 · {n} 个词" },
+  "first.build": { en: "Build my starter set · {n} words", ru: "Собрать стартовый набор · {n} слов", zh: "生成入门卡组 · {n} 个词" },
   "first.building": { en: "Building…", ru: "Собираю…", zh: "生成中…" },
   "first.added": { en: "Added {n} words — meanings are filling in now", ru: "Добавил {n} слов — значения сейчас подтянутся", zh: "已添加 {n} 个词——正在补全释义" },
   "first.sameLang": { en: "Pick two different languages.", ru: "Выбери два разных языка.", zh: "请选择两种不同的语言。" },
-  "first.noDeck": { en: "No starter set for {lang} yet — just add your own word below.", ru: "Для «{lang}» пока нет готового набора — просто добавь своё слово ниже.", zh: "暂无 {lang} 的入门词组——在下面添加你自己的词即可。" },
+  "first.noDeck": { en: "No starter set for {lang} yet — just add your own word below.", ru: "Для «{lang}» пока нет готового набора — просто добавь своё слово ниже.", zh: "暂无 {lang} 的入门卡组——直接在下方添加你自己的词即可。" },
   "first.manual": { en: "or add your own word", ru: "или добавить своё слово", zh: "或添加你自己的词" },
   "today.dueForReview": { en: "due for review", ru: "к повторению", zh: "待复习" },
   "today.wordsCollected": { en: "words collected", ru: "слов в коллекции", zh: "已收集" },
@@ -912,7 +912,7 @@ const DICT: Record<string, Entry> = {
   // --- my words ---
   "words.title": { en: "My words", ru: "Мои слова", zh: "我的单词" },
   "words.count": { en: "{n} words", ru: "слов: {n}", zh: "{n} 个单词" },
-  "words.empty": { en: "No words yet — add one above.", ru: "Слов пока нет — добавьте выше.", zh: "还没有单词——在上面添加。" },
+  "words.empty": { en: "No words yet — add one above.", ru: "Слов пока нет — добавьте выше.", zh: "还没有单词——在上方添加一个吧。" },
   "words.set": { en: "Set", ru: "Набор", zh: "合集" },
   "words.pair": { en: "Pair", ru: "Пара", zh: "语言对" },
   "words.nSelected": { en: "{n} selected", ru: "Выбрано: {n}", zh: "已选 {n} 个" },
@@ -946,8 +946,8 @@ const DICT: Record<string, Entry> = {
   "import.title": { en: "Import a word list", ru: "Импорт списка слов", zh: "导入单词表" },
   "import.subtitle": { en: "Paste a list or drop a .txt file. Lexa will turn it into cards you can review first.", ru: "Вставьте список или выберите .txt — Lexa превратит его в карточки, которые можно проверить перед сохранением.", zh: "粘贴词表或选择 .txt 文件。Lexa 会先将其整理为可确认的卡片。" },
   "import.direction": { en: "Translation direction", ru: "Направление перевода", zh: "翻译方向" },
-  "import.dir.enRu": { en: "English → Russian", ru: "English → Russian", zh: "English → Russian" },
-  "import.dir.ruEn": { en: "Russian → English", ru: "Russian → English", zh: "Russian → English" },
+  "import.dir.enRu": { en: "English → Russian", ru: "English → Russian", zh: "英语 → 俄语" },
+  "import.dir.ruEn": { en: "Russian → English", ru: "Russian → English", zh: "俄语 → 英语" },
   "import.dir.custom": { en: "Custom", ru: "Другое", zh: "自定义" },
   "import.pair": { en: "Selected pair:", ru: "Выбранная пара:", zh: "当前语言对：" },
   "import.fmtTitle": { en: "How to write", ru: "Как писать", zh: "书写格式" },
@@ -1049,7 +1049,7 @@ const DICT: Record<string, Entry> = {
   "add.aiUnsupported": {
     en: "AI doesn't support {lang} — manual cards only.",
     ru: "ИИ не знает язык «{lang}» — только ручные карточки.",
-    zh: "AI 不支持「{lang}」——仅手动卡片。",
+    zh: "AI 不支持“{lang}”——仅手动卡片。",
   },
   "add.swapLanguages": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
   "add.wordPlaceholder": { en: "Word or phrase in {lang}", ru: "Слово или словосочетание на языке: {lang}", zh: "{lang} 单词或短语" },
