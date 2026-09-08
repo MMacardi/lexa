@@ -10,7 +10,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - onomika-pgdata:/var/lib/postgresql/data
+      - lexa-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vocab -d vocab"]
       interval: 5s
@@ -79,7 +79,7 @@ services:
       - openclaw-data:/root/.openclaw
 
 volumes:
-  onomika-pgdata:
+  lexa-pgdata:
   backend-node-modules:
   frontend-node-modules:
   openclaw-data:
