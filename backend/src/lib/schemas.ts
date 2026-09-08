@@ -67,6 +67,11 @@ export const coachChatSchema = z.object({
   say: z.string().min(1), // the coach's conversational reply
   used: z.array(z.string()).default([]), // the learner's target words the learner just used well (award points)
   seeded: z.array(z.string()).default([]), // the learner's words the coach wove into THIS reply
+  // Brand-new words (NOT in the learner's deck) the coach naturally introduced this
+  // reply, with a meaning in the learner's language — offered as one-tap "add to my words".
+  newWords: z
+    .array(z.object({ word: z.string(), meaning: z.string().default("") }))
+    .default([]),
 });
 export type CoachChatResult = z.infer<typeof coachChatSchema>;
 
@@ -84,6 +89,11 @@ export const coachSceneSetupSchema = z.object({
   goal: z.string().default(""),
   briefing: z.string().default(""), // memory-driven "why this scene" (may be "")
   missionWords: z
+    .array(z.object({ word: z.string(), meaning: z.string().default("") }))
+    .default([]),
+  // 1-2 brand-new words (NOT in the learner's deck) that fit this scene at their level,
+  // with a meaning in the learner's language — surfaced as tappable "add to my words".
+  newWords: z
     .array(z.object({ word: z.string(), meaning: z.string().default("") }))
     .default([]),
   opening: z.string().default(""), // the character's FIRST line, in the SOURCE language

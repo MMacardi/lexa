@@ -475,7 +475,7 @@ export const api = {
     wrap?: boolean;
     telegramId?: string;
   }) =>
-    http<{ say: string; used: string[]; seeded: string[] }>(`/api/coach/chat`, {
+    http<{ say: string; used: string[]; seeded: string[]; newWords: { word: string; meaning: string }[] }>(`/api/coach/chat`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -489,6 +489,7 @@ export const api = {
     targetLang?: string;
     level?: string;
     idea?: string;
+    avoid?: string[];
     telegramId?: string;
   }) =>
     http<{
@@ -500,6 +501,7 @@ export const api = {
       goal: string;
       briefing: string;
       missionWords: { word: string; meaning: string }[];
+      newWords: { word: string; meaning: string }[];
       opening: string;
     }>(`/api/coach/scene/setup`, { method: "POST", body: JSON.stringify(payload) }),
 
@@ -513,6 +515,7 @@ export const api = {
       learnerRole?: string;
       goal?: string;
       missionWords: { word: string; meaning: string }[];
+      newWords?: { word: string; meaning: string }[];
     };
     sourceLang?: string;
     targetLang?: string;

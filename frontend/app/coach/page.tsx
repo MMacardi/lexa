@@ -348,7 +348,7 @@ export default function CoachPage() {
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage text-white">
             <Compass className="h-[17px] w-[17px]" />
           </span>
-          <p className="rounded-[16px] rounded-tl-[4px] bg-sage-tint/45 px-3.5 py-2 text-[14.5px] leading-snug text-ink">
+          <p className="rounded-[16px] rounded-tl-[4px] bg-sage-tint/45 px-3.5 py-2 text-[14px] leading-relaxed text-ink">
             {coachLine}
           </p>
         </div>

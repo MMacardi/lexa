@@ -60,15 +60,20 @@ export async function coachChat(params: {
         `6) Pull topics from what the learner cares about (their goal/interests above) and from wherever the ` +
         `conversation naturally goes.` +
         (params.topic ? ` The learner specifically wants to chat about: "${params.topic}". Lead there.` : "") +
+        `\n7) TEACH BY STEALTH: once in a while (NOT every turn, at most one per reply) introduce ONE brand-new ` +
+        `word the learner most likely does NOT know yet — natural to the topic and their level, and NOT from the ` +
+        `words-in-play list above. Use it correctly in your reply, gloss it briefly in ${target} the first time, and ` +
+        `report it in "newWords" as {word (in ${source}), meaning (a short gloss in ${target})}. Never quiz or list it.` +
         (params.wrap
           ? `\n\nThe learner is WRAPPING UP now. Give a short, warm sign-off: name a couple of the words they ` +
             `used well today, one encouraging line, and DO NOT ask a new question or start a new thread.`
           : "") +
         `\n\n"say" is your reply. "used" = the learner's words-in-play they just used well (may be empty). ` +
         `"seeded" = your words-in-play you wove into THIS reply (may be empty). Both must be exact words ` +
-        `from the list above, verbatim.` +
+        `from the list above, verbatim. "newWords" = brand-new words you introduced this reply (usually empty).` +
         scriptNote(params.sourceLang ?? "en") +
-        ` Respond as JSON: {"say": string, "used": string[], "seeded": string[]}.`,
+        ` Respond as JSON: {"say": string, "used": string[], "seeded": string[], ` +
+        `"newWords": [{"word": string, "meaning": string}]}.`,
     },
     ...clipped,
   ];
@@ -85,9 +90,22 @@ export async function coachChat(params: {
   const clean = (arr: string[]) =>
     [...new Set(arr.map((w) => w.trim()).filter((w) => pool.has(w.toLowerCase())))];
 
+  // New words must NOT already be in the learner's pool.
+  const seenNew = new Set<string>();
+  const newWords = (result.newWords ?? [])
+    .map((n) => ({ word: (n.word ?? "").trim(), meaning: (n.meaning ?? "").trim() }))
+    .filter((n) => {
+      const k = n.word.toLowerCase();
+      if (!n.word || pool.has(k) || seenNew.has(k)) return false;
+      seenNew.add(k);
+      return true;
+    })
+    .slice(0, 2);
+
   return {
     say: result.say.trim(),
     used: clean(result.used ?? []),
     seeded: clean(result.seeded ?? []),
+    newWords,
   };
 }

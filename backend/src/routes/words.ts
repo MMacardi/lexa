@@ -840,6 +840,7 @@ const coachSceneSetupBody = z.object({
   targetLang: z.string().optional(),
   level: z.string().optional(),
   idea: z.string().max(200).optional(),
+  avoid: z.array(z.string().max(120)).max(12).optional(),
   telegramId: z.string().optional(),
 });
 wordsRouter.post("/coach/scene/setup", async (req, res) => {
@@ -874,6 +875,10 @@ const coachSceneTurnBody = z.object({
     missionWords: z
       .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
       .max(12),
+    newWords: z
+      .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
+      .max(4)
+      .optional(),
   }),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
