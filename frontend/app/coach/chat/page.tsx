@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -55,6 +55,7 @@ export default function CoachChatPage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
+  const qc = useQueryClient();
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -197,6 +198,16 @@ export default function CoachChatPage() {
             // Cleared the whole board? Big celebration.
             if (used.size + fresh.length >= poolStrings.length && poolStrings.length > 0) {
               show({ icon: "🏆", title: t("chat.allUsed") });
+            }
+            // Retention: a word the learner actually deployed in conversation is a
+            // successful recall — grade it Good so chat moves the SRS, not just points.
+            const graded = fresh
+              .map((w) => poolWords.find((p) => p.word.trim().toLowerCase() === w))
+              .filter((c): c is Word => !!c);
+            if (graded.length > 0) {
+              await Promise.allSettled(graded.map((c) => api.reviewWord(c.id, 3)));
+              qc.invalidateQueries({ queryKey: ["words"] });
+              qc.invalidateQueries({ queryKey: ["stats"] });
             }
           }
         } else {
