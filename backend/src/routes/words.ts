@@ -8,6 +8,8 @@ import { translateText, glossInContext, transcribeWords } from "../services/tran
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
 import { coachChat } from "../services/coachChat.js";
+import { coachSceneSetup } from "../services/coachSceneSetup.js";
+import { coachSceneTurn } from "../services/coachSceneTurn.js";
 import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
@@ -47,7 +49,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|stt|remember)|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -821,6 +823,74 @@ wordsRouter.post("/coach/chat", async (req, res) => {
   try {
     const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
     res.json(await coachChat({ ...parsed.data, profileNote }));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/scene/setup -> generate a scene premise (roleplay) from the learner's
+// memory + weak/due mission words. One call; returns the premise card the client renders.
+const coachSceneSetupBody = z.object({
+  words: z
+    .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
+    .min(1)
+    .max(12),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+  level: z.string().optional(),
+  idea: z.string().max(200).optional(),
+  telegramId: z.string().optional(),
+});
+wordsRouter.post("/coach/scene/setup", async (req, res) => {
+  const parsed = coachSceneSetupBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  try {
+    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    res.json(await coachSceneSetup({ ...parsed.data, profileNote }));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/coach/scene/turn -> run one turn of a scene roleplay. The client keeps the
+// message thread AND echoes the scene "bible" each turn (the engine is stateless).
+const coachSceneTurnBody = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(3000) }))
+    .max(24),
+  scene: z.object({
+    title: z.string().optional(),
+    setting: z.string().optional(),
+    character: z.string().optional(),
+    characterName: z.string().optional(),
+    learnerRole: z.string().optional(),
+    goal: z.string().optional(),
+    missionWords: z
+      .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
+      .max(12),
+  }),
+  sourceLang: z.string().optional(),
+  targetLang: z.string().optional(),
+  level: z.string().optional(),
+  wrap: z.boolean().optional(),
+  telegramId: z.string().optional(),
+});
+wordsRouter.post("/coach/scene/turn", async (req, res) => {
+  const parsed = coachSceneTurnBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  try {
+    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    res.json(await coachSceneTurn({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
