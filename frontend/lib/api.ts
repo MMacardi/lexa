@@ -480,6 +480,53 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  // Scene roleplay — generate the premise card (one call), then run it turn by turn.
+  // The client keeps the message thread AND echoes the scene "bible" each turn (the
+  // engine is stateless). "used" mission words feed FSRS on the client.
+  coachSceneSetup: (payload: {
+    words: { word: string; meaning: string }[];
+    sourceLang?: string;
+    targetLang?: string;
+    level?: string;
+    idea?: string;
+    telegramId?: string;
+  }) =>
+    http<{
+      title: string;
+      setting: string;
+      character: string;
+      characterName: string;
+      learnerRole: string;
+      goal: string;
+      briefing: string;
+      missionWords: { word: string; meaning: string }[];
+      opening: string;
+    }>(`/api/coach/scene/setup`, { method: "POST", body: JSON.stringify(payload) }),
+
+  coachSceneTurn: (payload: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    scene: {
+      title?: string;
+      setting?: string;
+      character?: string;
+      characterName?: string;
+      learnerRole?: string;
+      goal?: string;
+      missionWords: { word: string; meaning: string }[];
+    };
+    sourceLang?: string;
+    targetLang?: string;
+    level?: string;
+    wrap?: boolean;
+    telegramId?: string;
+  }) =>
+    http<{
+      say: string;
+      used: string[];
+      corrections: { original: string; corrected: string; note: string }[];
+      sceneDone: boolean;
+    }>(`/api/coach/scene/turn`, { method: "POST", body: JSON.stringify(payload) }),
+
   // Beta bug/idea report (message + auto-collected context + optional screenshot).
   sendFeedback: (payload: FeedbackPayload) =>
     http<{ ok: true; delivered: { email: boolean; telegram: boolean; logged: boolean } }>(`/api/feedback`, {

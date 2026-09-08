@@ -70,6 +70,46 @@ export const coachChatSchema = z.object({
 });
 export type CoachChatResult = z.infer<typeof coachChatSchema>;
 
+// Scene setup: the premise card the learner reads BEFORE the conversation starts.
+// Built from coach memory (goal/interests/notes) + their weak/due "mission words".
+// The fields the learner READS (title/setting/character/learnerRole/goal/briefing) are
+// written in the learner's own language; the character's spoken "opening" is in the
+// SOURCE (studied) language.
+export const coachSceneSetupSchema = z.object({
+  title: z.string().default(""),
+  setting: z.string().default(""),
+  character: z.string().default(""),
+  characterName: z.string().default(""),
+  learnerRole: z.string().default(""),
+  goal: z.string().default(""),
+  briefing: z.string().default(""), // memory-driven "why this scene" (may be "")
+  missionWords: z
+    .array(z.object({ word: z.string(), meaning: z.string().default("") }))
+    .default([]),
+  opening: z.string().default(""), // the character's FIRST line, in the SOURCE language
+});
+export type CoachSceneSetup = z.infer<typeof coachSceneSetupSchema>;
+
+// Scene turn: one in-character reply plus the structured capture for the report card.
+// "used" = mission words the learner used correctly THIS turn (verbatim from the mission
+// set). "corrections" = gentle recasts collected for the END-of-session report (not shown
+// mid-flow). "sceneDone" = the mission resolved or the scene reached a natural end.
+export const coachSceneTurnSchema = z.object({
+  say: z.string().min(1),
+  used: z.array(z.string()).default([]),
+  corrections: z
+    .array(
+      z.object({
+        original: z.string().default(""),
+        corrected: z.string().default(""),
+        note: z.string().default(""),
+      }),
+    )
+    .default([]),
+  sceneDone: z.boolean().default(false),
+});
+export type CoachSceneTurn = z.infer<typeof coachSceneTurnSchema>;
+
 // Actionable tutor chat: a prose reply plus optional suggested edits to the card
 // (synonyms/antonyms to add), which the UI offers as one-tap actions.
 export const wordChatSchema = z.object({
