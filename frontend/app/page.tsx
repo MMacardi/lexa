@@ -6,7 +6,7 @@ import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
-import { AddWordForm } from "@/components/AddWordForm";
+import { FirstRun } from "@/components/FirstRun";
 import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
@@ -86,12 +86,8 @@ export default function TodayPage() {
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-faint">
             {dateStr}
           </div>
-          <h1 className="mt-3 font-serif text-[32px] font-medium leading-[1.08] tracking-[-0.01em] text-ink sm:text-[40px]">
-            {t("today.emptyTitle")}
-          </h1>
-          <p className="mt-2 text-ink-soft">{t("today.emptyText")}</p>
         </div>
-        <AddWordForm />
+        <FirstRun />
       </div>
     );
 
