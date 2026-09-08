@@ -15,7 +15,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays, MessageCircle } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays, MessageCircle, Clapperboard } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
 
@@ -354,20 +354,25 @@ export default function CoachPage() {
         </div>
       </div>
 
-      {/* Practice with your coach — the hero: an adaptive drill on your own words */}
+      {/* Play a scene — the hero: a roleplay built from your goals + tricky words */}
       <Link
-        href="/coach/practice"
+        href="/coach/scene"
         className="group block rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 via-surface to-surface p-6 transition-shadow hover:shadow-[0_16px_40px_rgba(46,42,38,0.10)]"
       >
         <div className="flex items-start gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sage text-white">
-            <Compass className="h-6 w-6" />
+            <Clapperboard className="h-6 w-6" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-[21px] font-semibold text-ink">{t("coach.practiceHeroTitle")}</h2>
-            <p className="mt-1 text-[13.5px] leading-snug text-ink-soft">{t("coach.practiceCard")}</p>
+            <h2 className="flex items-center gap-2 font-serif text-[21px] font-semibold text-ink">
+              {t("scene.heroTitle")}
+              <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">
+                {t("scene.badge")}
+              </span>
+            </h2>
+            <p className="mt-1 text-[13.5px] leading-snug text-ink-soft">{t("scene.card")}</p>
             <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-sage-deep">
-              <Compass className="h-4 w-4" /> {due + weak > 0 ? t("coach.practiceOpen") : t("coach.practiceStart")}
+              <Clapperboard className="h-4 w-4" /> {t("scene.begin")}
             </span>
           </div>
         </div>
