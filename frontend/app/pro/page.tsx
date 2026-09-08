@@ -81,7 +81,7 @@ export default function ProPage() {
       {/* hero */}
       <div className="relative overflow-hidden rounded-[26px] border border-sage/25 bg-gradient-to-br from-sage-tint/70 via-surface to-surface p-8 text-center sm:p-12">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-sage px-3 py-1 text-[13px] font-semibold text-white">
-          <Star className="h-3.5 w-3.5 fill-current" /> Lexa Pro
+          <Star className="h-3.5 w-3.5 fill-current" /> Onomika Pro
         </span>
         <h1 className="mt-4 font-serif text-[34px] font-medium leading-tight tracking-[-0.01em] text-ink sm:text-[44px]">
           {t("pro.heroTitle")}

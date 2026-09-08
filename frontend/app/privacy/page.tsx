@@ -1,12 +1,12 @@
 import { LegalPage } from "@/components/LegalPage";
 
-export const metadata = { title: "Политика конфиденциальности — Lexa" };
+export const metadata = { title: "Политика конфиденциальности — Onomika" };
 
 export default function PrivacyPage() {
   return (
     <LegalPage title="Политика конфиденциальности" updated="21 августа 2026">
       <p>
-        Эта Политика описывает, какие данные обрабатывает сервис Lexa («Сервис», «мы») и как мы их
+        Эта Политика описывает, какие данные обрабатывает сервис Onomika («Сервис», «мы») и как мы их
         используем. Оператор: <strong>[ЗАПОЛНИТЬ: имя/компания оператора]</strong>. Контакт по вопросам
         данных: <a href="mailto:[ЗАПОЛНИТЬ: email]">[ЗАПОЛНИТЬ: email]</a>.
       </p>

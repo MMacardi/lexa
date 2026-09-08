@@ -68,7 +68,7 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
               {/* hero band */}
               <div className="bg-gradient-to-br from-sage-tint/70 via-surface to-surface px-6 pt-6 text-center">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-sage px-3 py-1 text-[12px] font-semibold text-white">
-                  <Star className="h-3.5 w-3.5 fill-current" /> Lexa Pro
+                  <Star className="h-3.5 w-3.5 fill-current" /> Onomika Pro
                 </span>
                 <h2 className="mt-3 font-serif text-[22px] font-semibold leading-tight text-ink">
                   {t("upsell.title")}

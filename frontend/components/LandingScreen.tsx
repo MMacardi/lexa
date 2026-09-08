@@ -514,7 +514,7 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
       {/* top bar */}
       <header className="sticky top-0 z-30 border-b border-black/[0.05] bg-paper/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-3.5 sm:px-8">
-          <span className="bg-gradient-to-r from-sage-deep via-sage to-taupe bg-clip-text font-serif text-[22px] font-semibold tracking-[-0.01em] text-transparent">Lexa</span>
+          <span className="bg-gradient-to-r from-sage-deep via-sage to-taupe bg-clip-text font-serif text-[22px] font-semibold tracking-[-0.01em] text-transparent">Onomika</span>
           <div className="flex items-center gap-2">
             <LangMenu />
             <ThemeToggle />
@@ -651,7 +651,7 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
       {/* footer */}
       <footer className="mx-auto max-w-[1080px] px-5 py-8 sm:px-8">
         <div className="flex flex-col items-center justify-between gap-3 border-t border-black/[0.07] pt-6 text-[13px] text-ink-faint sm:flex-row">
-          <span>© {new Date().getFullYear()} Lexa · {L.rights}</span>
+          <span>© {new Date().getFullYear()} Onomika · {L.rights}</span>
           <div className="flex gap-4">
             <a href="/terms" className="font-semibold hover:text-ink">{L.terms}</a>
             <a href="/privacy" className="font-semibold hover:text-ink">{L.privacy}</a>

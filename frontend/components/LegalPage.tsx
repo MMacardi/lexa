@@ -10,7 +10,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
     <main className="min-h-screen bg-paper px-5 py-10">
       <article className="mx-auto max-w-[720px]">
         <Link href="/" className="text-sm font-semibold text-sage hover:text-sage-deep">
-          ← Lexa
+          ← Onomika
         </Link>
         <h1 className="mt-4 font-serif text-[32px] font-medium tracking-[-0.01em] text-ink">{title}</h1>
         <p className="mt-1 text-[13px] text-ink-faint">Обновлено: {updated}</p>

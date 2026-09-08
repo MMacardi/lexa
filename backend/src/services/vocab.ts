@@ -123,7 +123,7 @@ export async function addWordForUser(params: {
                 create: {
                   sentenceEn: entry.example,
                   sentenceZh: entry.exampleTranslation,
-                  sourceName: "Lexa AI",
+                  sourceName: "Onomika AI",
                   sourceUrl: "",
                   register: params.exampleStyle ?? "casual",
                   level: params.level ?? null,
@@ -253,7 +253,7 @@ export async function addProvidedExample(id: string, sentenceEn: string, sentenc
   const word = await prisma.word.findUnique({ where: { id }, select: { id: true } });
   if (!word) throw new Error("Word not found");
   await prisma.example.create({
-    data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Lexa AI", sourceUrl: "" },
+    data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Onomika AI", sourceUrl: "" },
   });
   return getWord(id);
 }

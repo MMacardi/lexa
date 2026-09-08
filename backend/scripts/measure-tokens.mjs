@@ -1,7 +1,7 @@
 // One-off: compare token cost + output quality of the NEW combined enrichment
 // (1 call) vs the OLD separate agents (example.compose + example.translate +
 // tutor = 3 calls) for the same word. Run inside the backend container:
-//   docker exec lexa-backend node scripts/measure-tokens.mjs
+//   docker exec onomika-backend node scripts/measure-tokens.mjs
 import { enrichWordEntry } from "../dist/agents/enrich.js";
 import { runExampleSearch } from "../dist/agents/exampleSearch.js";
 import { runTutor } from "../dist/agents/tutor.js";

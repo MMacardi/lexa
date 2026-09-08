@@ -23,7 +23,7 @@ function displayName(u: { firstName: string | null; lastName: string | null; dis
   if (name) return name;
   // Fall back to the @username only if the learner hasn't hidden their tag.
   if (!u.hideTag && u.username) return u.username;
-  return "Lexa student";
+  return "Onomika student";
 }
 
 // Compact public stats for a friend card: totals, streak, and languages studied.

@@ -58,7 +58,7 @@ const stateFor = (id: string): ChatState => {
 
 function welcome(pair: Pair): string {
   return [
-    "👋 <b>Lexa — твой персональный репетитор</b>",
+    "👋 <b>Onomika — твой персональный репетитор</b>",
     "",
     `Пара: <b>${esc(langName(pair.source))} → ${esc(langName(pair.target))}</b>`,
     "",
@@ -99,7 +99,7 @@ function cardBack(word: {
   return lines.join("\n");
 }
 
-const siteButton = () => Markup.button.url("🌐 Открыть сайт Lexa", env.FRONTEND_URL);
+const siteButton = () => Markup.button.url("🌐 Открыть сайт Onomika", env.FRONTEND_URL);
 
 // Persistent reply keyboard: the popular functions as always-visible buttons
 // under the input. Tapping one sends its label, caught by bot.hears below.
@@ -284,9 +284,9 @@ async function replyLangPicker(ctx: Context): Promise<void> {
 async function replySite(ctx: Context): Promise<void> {
   // Telegram only allows https URL buttons; on a local http URL, send it as text.
   if (env.FRONTEND_URL.startsWith("https://")) {
-    await ctx.reply("Открой Lexa в браузере:", Markup.inlineKeyboard([[siteButton()]]));
+    await ctx.reply("Открой Onomika в браузере:", Markup.inlineKeyboard([[siteButton()]]));
   } else {
-    await ctx.reply(`Открой Lexa: ${env.FRONTEND_URL}`);
+    await ctx.reply(`Открой Onomika: ${env.FRONTEND_URL}`);
   }
 }
 
@@ -397,7 +397,7 @@ export function createBot(): Telegraf {
     if (payload && payload.startsWith("login_")) {
       const token = payload.slice("login_".length);
       await ctx.replyWithHTML(
-        "🔐 <b>Вход на сайт Lexa</b>\nПодтверждайте, только если вы <b>сами</b> сейчас входите на сайте.",
+        "🔐 <b>Вход на сайт Onomika</b>\nПодтверждайте, только если вы <b>сами</b> сейчас входите на сайте.",
         Markup.inlineKeyboard([[Markup.button.callback("✅ Это я — войти", `login:ok:${token}`)]]),
       );
       return;
@@ -806,7 +806,7 @@ export function launchBot(): void {
   // Menu button → open the site as a Mini App (Telegram requires an https URL).
   if (env.FRONTEND_URL.startsWith("https://")) {
     void bot.telegram
-      .setChatMenuButton({ menuButton: { type: "web_app", text: "Открыть Lexa", web_app: { url: env.FRONTEND_URL } } })
+      .setChatMenuButton({ menuButton: { type: "web_app", text: "Открыть Onomika", web_app: { url: env.FRONTEND_URL } } })
       .catch((err) => console.error("setChatMenuButton failed:", (err as Error).message));
   }
   void bot.launch(() => console.log("Telegram tutor bot started (long polling)."));

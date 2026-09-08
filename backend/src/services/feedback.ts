@@ -87,7 +87,7 @@ function htmlSummary(r: FeedbackReport, hasShot: boolean): string {
     : "";
   return `
   <div style="font-family:Georgia,serif;color:#2e2a26;max-width:640px;">
-    <h2 style="margin:0 0 4px;">${KIND_LABEL[r.kind]} — Lexa beta</h2>
+    <h2 style="margin:0 0 4px;">${KIND_LABEL[r.kind]} — Onomika beta</h2>
     <p style="white-space:pre-wrap;font-size:15px;line-height:1.5;background:#f4f1ec;padding:12px 14px;border-radius:10px;">${esc(
       r.message.trim(),
     )}</p>
@@ -132,7 +132,7 @@ async function sendTelegram(chatId: string, r: FeedbackReport, shot: ReturnType<
 
 export async function deliverFeedback(report: FeedbackReport): Promise<DeliveryResult> {
   const shot = decodeScreenshot(report.screenshot);
-  const subject = `[Lexa ${report.kind}] ${report.message.trim().slice(0, 60).replace(/\s+/g, " ")}`;
+  const subject = `[Onomika ${report.kind}] ${report.message.trim().slice(0, 60).replace(/\s+/g, " ")}`;
   const result: DeliveryResult = { email: false, telegram: false, logged: false };
 
   // Email channel.

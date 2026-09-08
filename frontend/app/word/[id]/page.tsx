@@ -60,7 +60,7 @@ function openInReader(
 }
 
 // Attributions that are not a saved reader text (so don't try to reopen a text).
-const NON_TEXT_SOURCE = new Set(["", "Manual entry", "Lexa AI", "Imported list"]);
+const NON_TEXT_SOURCE = new Set(["", "Manual entry", "Onomika AI", "Imported list"]);
 
 // An example added from the Reader carries the text's title as its source and no
 // URL. We label those "«title» (reader)" and let "Open in Reader" reopen the text.

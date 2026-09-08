@@ -343,17 +343,17 @@ const DICT: Record<string, Entry> = {
   // Upsell popup (shown before sending a free user to /pro)
   "upsell.title": { en: "This is a Pro feature", ru: "Это функция Pro", zh: "这是 Pro 功能" },
   "upsell.body": {
-    en: "Unlock it with Lexa Pro — plus unlimited daily cards, richer AI and more.",
-    ru: "Откройте её в Lexa Pro — и ещё безлимит карточек в день, продвинутый ИИ и больше.",
-    zh: "使用 Lexa Pro 解锁 — 还有每日无限卡片、更强 AI 等。",
+    en: "Unlock it with Onomika Pro — plus unlimited daily cards, richer AI and more.",
+    ru: "Откройте её в Onomika Pro — и ещё безлимит карточек в день, продвинутый ИИ и больше.",
+    zh: "使用 Onomika Pro 解锁 — 还有每日无限卡片、更强 AI 等。",
   },
   "upsell.view": { en: "See Pro", ru: "Посмотреть Pro", zh: "查看 Pro" },
   "upsell.later": { en: "Not now", ru: "Не сейчас", zh: "以后再说" },
   "pro.heroTitle": { en: "Learn faster with unlimited AI", ru: "Учись быстрее с безлимитным ИИ", zh: "用无限 AI，学得更快" },
   "pro.heroSub": {
-    en: "Everything in Lexa, with no daily caps and the smartest tools — richer meanings, real examples, unlimited reading and more.",
-    ru: "Всё в Lexa без дневных лимитов и с самыми умными инструментами — богатые значения, живые примеры, безлимитная читалка и не только.",
-    zh: "Lexa 的全部功能，无每日上限，配备最智能的工具——更丰富的释义、真实例句、无限阅读等。",
+    en: "Everything in Onomika, with no daily caps and the smartest tools — richer meanings, real examples, unlimited reading and more.",
+    ru: "Всё в Onomika без дневных лимитов и с самыми умными инструментами — богатые значения, живые примеры, безлимитная читалка и не только.",
+    zh: "Onomika 的全部功能，无每日上限，配备最智能的工具——更丰富的释义、真实例句、无限阅读等。",
   },
   "pro.already": { en: "You're on Pro — thank you!", ru: "У вас Pro — спасибо!", zh: "你已是 Pro——谢谢！" },
   "pro.b1": { en: "Unlimited AI", ru: "Безлимитный ИИ", zh: "无限 AI" },
@@ -661,9 +661,9 @@ const DICT: Record<string, Entry> = {
   },
   "coach.importTitle": { en: "Anything → deck", ru: "Из чего угодно → дек", zh: "任何内容 → 卡组" },
   "coach.importHint": {
-    en: "Paste a word list or drop a PDF (textbook, article) — Lexa turns it into a reviewable deck.",
-    ru: "Вставь список слов или загрузи PDF (учебник, статью) — Lexa соберёт из этого дек для повторения.",
-    zh: "粘贴词表或上传 PDF（课本、文章）——Lexa 会做成可复习的卡组。",
+    en: "Paste a word list or drop a PDF (textbook, article) — Onomika turns it into a reviewable deck.",
+    ru: "Вставь список слов или загрузи PDF (учебник, статью) — Onomika соберёт из этого дек для повторения.",
+    zh: "粘贴词表或上传 PDF（课本、文章）——Onomika 会做成可复习的卡组。",
   },
   "coach.pAddNew": { en: "Add new words", ru: "Новые слова", zh: "添加新词" },
   "coach.planFoot": {
@@ -800,9 +800,9 @@ const DICT: Record<string, Entry> = {
   // First-run onboarding (empty deck).
   "first.title": { en: "Let's start — your first words", ru: "Начнём — соберём первые слова", zh: "开始吧——你的第一批单词" },
   "first.sub": {
-    en: "Lexa is your AI vocabulary coach: it turns words into cards with examples and breakdowns, and reminds you to review. Grab a starter set to try it in a minute.",
-    ru: "Lexa — твой ИИ-наставник по словам: превращает слова в карточки с примерами и разбором и напоминает повторять. Возьми стартовый набор, чтобы попробовать за минуту.",
-    zh: "Lexa 是你的 AI 词汇教练：把单词变成带例句和解析的卡片，并提醒你复习。先领一套入门卡组，一分钟上手。",
+    en: "Onomika is your AI vocabulary coach: it turns words into cards with examples and breakdowns, and reminds you to review. Grab a starter set to try it in a minute.",
+    ru: "Onomika — твой ИИ-наставник по словам: превращает слова в карточки с примерами и разбором и напоминает повторять. Возьми стартовый набор, чтобы попробовать за минуту.",
+    zh: "Onomika 是你的 AI 词汇教练：把单词变成带例句和解析的卡片，并提醒你复习。先领一套入门卡组，一分钟上手。",
   },
   "first.learn": { en: "I'm learning", ru: "Учу", zh: "我在学" },
   "first.know": { en: "I know", ru: "Знаю", zh: "我会" },
@@ -944,7 +944,7 @@ const DICT: Record<string, Entry> = {
   "import.open": { en: "Import words", ru: "Импорт слов", zh: "导入单词" },
   "import.export": { en: "Export", ru: "Экспорт", zh: "导出" },
   "import.title": { en: "Import a word list", ru: "Импорт списка слов", zh: "导入单词表" },
-  "import.subtitle": { en: "Paste a list or drop a .txt file. Lexa will turn it into cards you can review first.", ru: "Вставьте список или выберите .txt — Lexa превратит его в карточки, которые можно проверить перед сохранением.", zh: "粘贴词表或选择 .txt 文件。Lexa 会先将其整理为可确认的卡片。" },
+  "import.subtitle": { en: "Paste a list or drop a .txt file. Onomika will turn it into cards you can review first.", ru: "Вставьте список или выберите .txt — Onomika превратит его в карточки, которые можно проверить перед сохранением.", zh: "粘贴词表或选择 .txt 文件。Onomika 会先将其整理为可确认的卡片。" },
   "import.direction": { en: "Translation direction", ru: "Направление перевода", zh: "翻译方向" },
   "import.dir.enRu": { en: "English → Russian", ru: "English → Russian", zh: "英语 → 俄语" },
   "import.dir.ruEn": { en: "Russian → English", ru: "Russian → English", zh: "俄语 → 英语" },
@@ -958,9 +958,9 @@ const DICT: Record<string, Entry> = {
     zh: "单词 — 同义词, 同义词（同种语言 = 同义词）",
   },
   "import.fmtFree": {
-    en: "…or just paste any text, a photo's words or a messy list — Lexa sorts it out.",
-    ru: "…или просто вставьте любой текст, слова с фото или сырой список — Lexa разберётся.",
-    zh: "……或直接粘贴任意文本、照片里的词或杂乱列表，Lexa 会自动整理。",
+    en: "…or just paste any text, a photo's words or a messy list — Onomika sorts it out.",
+    ru: "…или просто вставьте любой текст, слова с фото или сырой список — Onomika разберётся.",
+    zh: "……或直接粘贴任意文本、照片里的词或杂乱列表，Onomika 会自动整理。",
   },
   "import.paste": { en: "Paste your list here…", ru: "Вставьте список сюда…", zh: "在此粘贴词表…" },
   "import.file": { en: "File / photo", ru: "Файл / фото", zh: "文件 / 照片" },
@@ -1036,7 +1036,7 @@ const DICT: Record<string, Entry> = {
   "import.backgroundProgress": { en: "AI enrichment: {done} / {total}", ru: "ИИ-обогащение: {done} / {total}", zh: "AI 增强：{done} / {total}" },
   "import.backgroundDone": { en: "AI enrichment complete.", ru: "ИИ-обогащение завершено.", zh: "AI 增强已完成。" },
   "import.backgroundFailed": { en: "Some optional enrichment could not finish, but your cards were saved.", ru: "Часть дополнительного ИИ-обогащения не завершилась, но карточки сохранены.", zh: "部分可选 AI 增强未完成，但卡片已保存。" },
-  "import.noCards": { en: "Lexa could not find any word pairs. Try one per line, for example: hello — привет", ru: "Lexa не нашла пар «слово — перевод». Попробуйте по одной на строке, например: hello — привет", zh: "Lexa 未找到词语配对。请每行输入一个，例如：hello — 你好" },
+  "import.noCards": { en: "Onomika could not find any word pairs. Try one per line, for example: hello — привет", ru: "Onomika не нашла пар «слово — перевод». Попробуйте по одной на строке, например: hello — привет", zh: "Onomika 未找到词语配对。请每行输入一个，例如：hello — 你好" },
   "import.back": { en: "← Edit list", ru: "← К списку", zh: "← 返回编辑" },
   "import.close": { en: "Done", ru: "Готово", zh: "完成" },
 
@@ -1111,9 +1111,9 @@ const DICT: Record<string, Entry> = {
   // --- soft one-time hints (shown once per screen, dismissible, then never again) ---
   "hint.dismiss": { en: "Dismiss", ru: "Скрыть", zh: "收起" },
   "hint.review": {
-    en: "Swipe or tap Again → Easy to grade each card — Lexa reschedules it for just before you'd forget.",
-    ru: "Оцените карточку свайпом или кнопкой (Снова → Легко) — Lexa назначит повторение как раз перед тем, как вы забудете.",
-    zh: "滑动或点按给卡片评分（重来 → 简单）——Lexa 会在你快忘记时安排下次复习。",
+    en: "Swipe or tap Again → Easy to grade each card — Onomika reschedules it for just before you'd forget.",
+    ru: "Оцените карточку свайпом или кнопкой (Снова → Легко) — Onomika назначит повторение как раз перед тем, как вы забудете.",
+    zh: "滑动或点按给卡片评分（重来 → 简单）——Onomika 会在你快忘记时安排下次复习。",
   },
   "hint.quiz": {
     en: "Pick how to answer — choice, typing, fill-in-the-blank, or Mixed. A round needs at least 4 words.",

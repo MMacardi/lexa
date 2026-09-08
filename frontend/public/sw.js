@@ -1,7 +1,7 @@
-// Lexa service worker — makes the app shell load offline. Data (words, review
+// Onomika service worker — makes the app shell load offline. Data (words, review
 // state) is handled by the app itself via IndexedDB + a sync outbox; here we only
 // cache the shell/static assets and never touch /api.
-const CACHE = "lexa-v1";
+const CACHE = "onomika-v1";
 const STATIC = /\/_next\/(static|image)\//;
 
 self.addEventListener("install", () => {

@@ -1,7 +1,7 @@
 // One-off: rewrite the stored `phonetic` of existing Chinese/Korean cards with
 // deterministic local pinyin/romanization (older cards sometimes hold the model's
 // IPA, e.g. 中国 → /tʂʊŋ.kwǒ/). Run inside the backend container:
-//   docker exec lexa-backend node scripts/backfill-phonetic.mjs
+//   docker exec onomika-backend node scripts/backfill-phonetic.mjs
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
