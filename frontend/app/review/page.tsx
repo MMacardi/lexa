@@ -28,9 +28,10 @@ import { CardLayoutPreview } from "@/components/CardLayoutPreview";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
+import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -211,12 +212,22 @@ export default function FlashcardsPage() {
 
   if (words.length === 0)
     return (
-      <p className="text-sm text-ink-soft">
-        {t("review.noWords")}{" "}
-        <Link href="/words" className="font-semibold text-sage hover:text-sage-deep">
-          {t("review.addFirst")}
+      <div className="mx-auto max-w-[480px] rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+        <Repeat className="mx-auto h-8 w-8 text-sage" />
+        <h2 className="mt-4 font-serif text-[26px] font-medium text-ink">{t("review.noWords")}</h2>
+        <p className="mt-2 text-ink-soft">{t("review.emptyHint")}</p>
+        <Link
+          href="/"
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-sage px-5 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-sage-deep"
+        >
+          {t("review.emptyCta")}
         </Link>
-      </p>
+        <div className="mt-3">
+          <Link href="/words" className="inline-flex items-center gap-1.5 text-sm font-semibold text-sage transition-colors hover:text-sage-deep">
+            {t("first.manual")}
+          </Link>
+        </div>
+      </div>
     );
 
   // ---------------- Setup screen ----------------
@@ -228,6 +239,7 @@ export default function FlashcardsPage() {
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
+        <OnceHint id="review">{t("hint.review")}</OnceHint>
 
         <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
           {/* card layout: presets + custom front/back fields */}

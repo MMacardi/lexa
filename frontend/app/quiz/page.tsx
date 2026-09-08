@@ -20,6 +20,7 @@ import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
 import { HoverPreview } from "@/components/HoverPreview";
 import { HighlightWord } from "@/components/HighlightWord";
+import { OnceHint } from "@/components/OnceHint";
 import { cn } from "@/lib/utils";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -407,6 +408,7 @@ export default function QuizPage() {
     return (
       <div className="mx-auto max-w-[520px] space-y-6">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
+        <OnceHint id="quiz">{t("hint.quiz")}</OnceHint>
         <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.direction")}</p>
