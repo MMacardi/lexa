@@ -12,6 +12,7 @@ import { getLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { SpeakButton } from "@/components/SpeakButton";
+import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
 import { cn } from "@/lib/utils";
 import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Trophy, Flame, Star, Flag } from "lucide-react";
 
@@ -31,8 +32,22 @@ function speechLang(src?: string): string {
 }
 
 // Highlight any of the learner's words-in-play wherever they appear (inflections
-// included), so the vocab visibly "lives" in the talk. Used words glow green.
-function Highlighted({ text, matcher, used }: { text: string; matcher: WordMatcher; used: Set<string> }) {
+// included), so the vocab visibly "lives" in the talk. Used words glow green; words
+// Onomika just introduced (not yet in the deck) glow amber and can be added in a tap.
+type WordEntry = { meaning: string; isNew: boolean };
+function Highlighted({
+  text,
+  matcher,
+  used,
+  entries,
+  onTap,
+}: {
+  text: string;
+  matcher: WordMatcher;
+  used: Set<string>;
+  entries: Map<string, WordEntry>;
+  onTap: (canonical: string, el: HTMLElement) => void;
+}) {
   if (!matcher.regex) return <>{text}</>;
   const parts = text.split(matcher.regex);
   return (
@@ -40,9 +55,31 @@ function Highlighted({ text, matcher, used }: { text: string; matcher: WordMatch
       {parts.map((p, i) => {
         const canon = p ? matcher.canonical(p) : null;
         if (!canon) return <span key={i}>{p}</span>;
-        const hit = used.has(canon.toLowerCase());
+        const key = canon.trim().toLowerCase();
+        const isNew = entries.get(key)?.isNew;
+        const hit = !isNew && used.has(key);
+        const fire = (el: HTMLElement) => onTap(canon, el);
         return (
-          <span key={i} className={cn("rounded-md px-1 py-0.5 font-semibold", hit ? "bg-sage text-white" : "bg-sage-tint text-sage-deep")}>
+          <span
+            key={i}
+            role="button"
+            tabIndex={0}
+            onClick={(e) => fire(e.currentTarget)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fire(e.currentTarget);
+              }
+            }}
+            className={cn(
+              "cursor-pointer rounded-md px-1 py-0.5 font-semibold transition-colors",
+              isNew
+                ? "bg-warn-bg text-warn-text ring-1 ring-inset ring-warn/30"
+                : hit
+                  ? "bg-sage text-white"
+                  : "bg-sage-tint text-sage-deep",
+            )}
+          >
             {p}
           </span>
         );
@@ -126,8 +163,20 @@ export default function CoachChatPage() {
   }, [deck, pair, scope]);
 
   const poolStrings = useMemo(() => poolWords.map((w) => w.word), [poolWords]);
-  const matcher = useMemo(() => buildWordMatcher(poolStrings), [poolStrings]);
   const wordPayload = useMemo(() => poolWords.map((w) => ({ word: w.word, meaning: w.meaningZh ?? "" })), [poolWords]);
+
+  // Brand-new words Onomika slips into the chat (not yet in the deck) accumulate here.
+  const [newWords, setNewWords] = useState<{ word: string; meaning: string }[]>([]);
+  // Highlighting covers the learner's words-in-play AND any new words introduced.
+  const allStrings = useMemo(() => [...poolStrings, ...newWords.map((n) => n.word)], [poolStrings, newWords]);
+  const matcher = useMemo(() => buildWordMatcher(allStrings), [allStrings]);
+  const entries = useMemo(() => {
+    const m = new Map<string, WordEntry>();
+    // New words first, then owned words override → an owned word never shows as "new".
+    for (const n of newWords) m.set(n.word.trim().toLowerCase(), { meaning: n.meaning, isNew: true });
+    for (const w of poolWords) m.set(w.word.trim().toLowerCase(), { meaning: w.meaningZh ?? "", isNew: false });
+    return m;
+  }, [poolWords, newWords]);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -135,6 +184,10 @@ export default function CoachChatPage() {
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [used, setUsed] = useState<Set<string>>(new Set());
+  // Tapped-word meaning popover + one-tap "add to my words" state.
+  const [pop, setPop] = useState<WordPopTarget | null>(null);
+  const [addingWord, setAddingWord] = useState<string | null>(null);
+  const [addedWords, setAddedWords] = useState<Set<string>>(new Set());
   // Gamification: session points + combo, plus a persistent lifetime total → level.
   const [points, setPoints] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -180,6 +233,16 @@ export default function CoachChatPage() {
         telegramId: accountId,
       });
       setTurns((cur) => [...cur, { role: "assistant", content: res.say }]);
+
+      // Onomika may slip in a brand-new word — collect it so it highlights amber and
+      // can be added to the deck in a tap.
+      if (res.newWords?.length) {
+        setNewWords((cur) => {
+          const seen = new Set(cur.map((n) => n.word.trim().toLowerCase()));
+          const fresh = res.newWords.filter((n) => n.word && !seen.has(n.word.trim().toLowerCase()));
+          return fresh.length ? [...cur, ...fresh] : cur;
+        });
+      }
 
       if (opts.userTurn) {
         const usedNow = (res.used ?? []).map((w) => w.toLowerCase());
@@ -229,6 +292,9 @@ export default function CoachChatPage() {
     setFinished(false);
     setTurns([]);
     setUsed(new Set());
+    setNewWords([]);
+    setPop(null);
+    setAddedWords(new Set());
     setPoints(0);
     setCombo(0);
     setBestCombo(0);
@@ -256,6 +322,45 @@ export default function CoachChatPage() {
   async function finish() {
     if (busy || finished || turns.length === 0) return;
     await sendTurn(turns, { userTurn: false, wrap: true });
+  }
+
+  // Save a brand-new word Onomika introduced → a card, instantly (meaning is known,
+  // so no AI enrichment / no tokens).
+  async function addNewWord(word: string, meaning: string) {
+    if (!pair || addingWord) return;
+    setAddingWord(word);
+    try {
+      await api.batchAddWords({
+        telegramId: accountId,
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        items: [{ word, meaning }],
+        source: "Onomika",
+        enrich: false,
+      });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      setAddedWords((s) => new Set([...s, word.trim().toLowerCase()]));
+      show({ icon: "🌱", title: t("pop.addedToast", { word }) });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setAddingWord(null);
+    }
+  }
+
+  // Open the meaning popover for a tapped highlight (a word-in-play or a new word).
+  function openWordPop(canonical: string, el: HTMLElement) {
+    if (!pair) return;
+    const entry = entries.get(canonical.trim().toLowerCase());
+    setPop({
+      word: canonical,
+      meaning: entry?.meaning ?? "",
+      isNew: entry?.isNew ?? false,
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      anchor: el,
+    });
   }
 
   // ---- voice answer via the browser's SpeechRecognition (free, on-device) ----
@@ -348,11 +453,8 @@ export default function CoachChatPage() {
       </div>
 
       {!started ? (
-        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-8 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage text-white">
-            <MessageCircle className="h-7 w-7" />
-          </span>
-          <h2 className="mt-4 font-serif text-[22px] font-semibold text-ink">{t("chat.heroTitle")}</h2>
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 text-center">
+          <h2 className="font-serif text-[22px] font-semibold text-ink">{t("chat.heroTitle")}</h2>
           <p className="mt-2 max-w-[460px] text-[14px] leading-relaxed text-ink-soft">{t("chat.heroSub")}</p>
           {lifetime > 0 && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/30 bg-sage-tint/40 px-3 py-1 text-[12px] font-semibold text-sage-deep">
@@ -479,7 +581,7 @@ export default function CoachChatPage() {
 
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
-              <Bubble key={i} turn={turn} matcher={matcher} used={used} speakLang={pair?.source ?? "en"} />
+              <Bubble key={i} turn={turn} matcher={matcher} used={used} entries={entries} onTap={openWordPop} speakLang={pair?.source ?? "en"} />
             ))}
             {busy && (
               <div className="flex items-center gap-2.5">
@@ -586,6 +688,16 @@ export default function CoachChatPage() {
           )}
         </>
       )}
+
+      {pop && (
+        <WordMeaningPop
+          target={pop}
+          adding={addingWord === pop.word}
+          added={addedWords.has(pop.word.trim().toLowerCase())}
+          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "") : undefined}
+          onClose={() => setPop(null)}
+        />
+      )}
     </div>
   );
 }
@@ -598,7 +710,21 @@ function ChatAvatar() {
   );
 }
 
-function Bubble({ turn, matcher, used, speakLang }: { turn: Turn; matcher: WordMatcher; used: Set<string>; speakLang: string }) {
+function Bubble({
+  turn,
+  matcher,
+  used,
+  entries,
+  onTap,
+  speakLang,
+}: {
+  turn: Turn;
+  matcher: WordMatcher;
+  used: Set<string>;
+  entries: Map<string, WordEntry>;
+  onTap: (canonical: string, el: HTMLElement) => void;
+  speakLang: string;
+}) {
   if (turn.role === "user") {
     return (
       <div className="flex items-end justify-end gap-2.5">
@@ -617,7 +743,7 @@ function Bubble({ turn, matcher, used, speakLang }: { turn: Turn; matcher: WordM
       <div className="max-w-[82%]">
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-            <Highlighted text={turn.content} matcher={matcher} used={used} />
+            <Highlighted text={turn.content} matcher={matcher} used={used} entries={entries} onTap={onTap} />
           </div>
           <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>

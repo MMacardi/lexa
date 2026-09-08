@@ -12,6 +12,7 @@ export interface SceneBible {
   learnerRole?: string;
   goal?: string;
   missionWords: { word: string; meaning: string }[];
+  newWords?: { word: string; meaning: string }[];
 }
 
 /**
@@ -37,6 +38,9 @@ export async function coachSceneTurn(params: {
   const missionList = (params.scene.missionWords ?? [])
     .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
     .join("\n");
+  const newList = (params.scene.newWords ?? [])
+    .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
+    .join("\n");
 
   const bible =
     `SCENE — stay inside it every turn:\n` +
@@ -45,7 +49,8 @@ export async function coachSceneTurn(params: {
     `- You play: ${params.scene.character || params.scene.characterName || "a character"}\n` +
     `- The learner plays: ${params.scene.learnerRole || "themselves"}\n` +
     `- The learner's objective: ${params.scene.goal || "—"}\n` +
-    `- Mission words the learner is practising:\n${missionList || "(none)"}`;
+    `- Mission words the learner is practising:\n${missionList || "(none)"}` +
+    (newList ? `\n- New words to introduce naturally (the learner does NOT know these yet):\n${newList}` : "");
 
   const clipped = params.messages.slice(-16).map((m) => ({
     role: m.role,
@@ -77,6 +82,9 @@ export async function coachSceneTurn(params: {
         `demand. If the learner uses a mission word correctly in THIS message (any inflected form counts), put its ` +
         `canonical form — verbatim from the mission list — into "used". Be generous, but ONLY list real mission words ` +
         `they actually used; never invent.\n` +
+        `   NEW WORDS: when it fits, slip a "new word" into YOUR OWN line so the learner meets it alive in context ` +
+        `(gloss it briefly in ${target} the first time). Never quiz or translate it on demand, and never put a new ` +
+        `word in "used" — that array is only for mission words.\n` +
         `5) ENDING: set "sceneDone" to true once the objective is resolved or the scene reaches a natural end (or the ` +
         `learner says goodbye / asks to stop). On that turn, "say" a short, warm in-character closing line and do not ` +
         `ask a new question.\n` +

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -13,8 +14,9 @@ import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { SpeakButton } from "@/components/SpeakButton";
 import { SceneReportCard, type SceneCorrection } from "@/components/SceneReportCard";
+import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
 import { cn } from "@/lib/utils";
-import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw } from "lucide-react";
+import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 type PairKey = { source: string; target: string };
@@ -28,8 +30,41 @@ type Scene = {
   goal: string;
   briefing: string;
   missionWords: Mission[];
+  newWords: Mission[];
   opening: string;
 };
+
+// Quick-start scene cards. The image lives in /public/scenes, the label is the
+// scene.preset.<id> i18n key, and the `idea` is what we send the model on click.
+const PRESETS: { id: string; img: string; idea: string }[] = [
+  { id: "bakery", img: "/scenes/bakery.webp", idea: "ordering bread and pastries at a bakery" },
+  { id: "cinema", img: "/scenes/cinema.webp", idea: "buying tickets at the cinema and asking about showtimes" },
+  { id: "office", img: "/scenes/office.webp", idea: "talking with a coworker about a task at work" },
+  { id: "cafe", img: "/scenes/cafe.webp", idea: "meeting a friend for coffee at a café" },
+  { id: "travel", img: "/scenes/travel.webp", idea: "checking into a hotel while travelling" },
+  { id: "interview", img: "/scenes/interview.webp", idea: "a job interview" },
+];
+
+// Recent scene themes, kept client-side so auto-generation stops repeating itself.
+const RECENT_KEY = "lexa.sceneRecent";
+function readRecent(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+function pushRecent(theme: string) {
+  if (!theme.trim()) return;
+  try {
+    const next = [theme.trim(), ...readRecent().filter((x) => x !== theme.trim())].slice(0, 6);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
 
 // Map our language code to a BCP-47 tag for the browser's speech recogniser.
 function speechLang(src?: string): string {
@@ -41,8 +76,23 @@ function speechLang(src?: string): string {
   return map[src ?? "en"] ?? src ?? "en-US";
 }
 
-// Highlight mission words (inflections included) wherever they appear; used ones glow green.
-function Highlighted({ text, matcher, used }: { text: string; matcher: WordMatcher; used: Set<string> }) {
+// Highlight mission + new words (inflections included) wherever they appear. Used
+// mission words glow green; brand-new words get an amber tint. Every highlight is
+// tappable → a meaning popover (the same mechanic as the Reader).
+type WordEntry = { meaning: string; isNew: boolean };
+function Highlighted({
+  text,
+  matcher,
+  used,
+  entries,
+  onTap,
+}: {
+  text: string;
+  matcher: WordMatcher;
+  used: Set<string>;
+  entries: Map<string, WordEntry>;
+  onTap: (canonical: string, el: HTMLElement) => void;
+}) {
   if (!matcher.regex) return <>{text}</>;
   const parts = text.split(matcher.regex);
   return (
@@ -50,9 +100,31 @@ function Highlighted({ text, matcher, used }: { text: string; matcher: WordMatch
       {parts.map((p, i) => {
         const canon = p ? matcher.canonical(p) : null;
         if (!canon) return <span key={i}>{p}</span>;
-        const hit = used.has(canon.toLowerCase());
+        const key = canon.trim().toLowerCase();
+        const isNew = entries.get(key)?.isNew;
+        const hit = !isNew && used.has(key);
+        const fire = (el: HTMLElement) => onTap(canon, el);
         return (
-          <span key={i} className={cn("rounded-md px-1 py-0.5 font-semibold", hit ? "bg-sage text-white" : "bg-sage-tint text-sage-deep")}>
+          <span
+            key={i}
+            role="button"
+            tabIndex={0}
+            onClick={(e) => fire(e.currentTarget)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fire(e.currentTarget);
+              }
+            }}
+            className={cn(
+              "cursor-pointer rounded-md px-1 py-0.5 font-semibold transition-colors",
+              isNew
+                ? "bg-warn-bg text-warn-text ring-1 ring-inset ring-warn/30"
+                : hit
+                  ? "bg-sage text-white"
+                  : "bg-sage-tint text-sage-deep",
+            )}
+          >
             {p}
           </span>
         );
@@ -167,6 +239,14 @@ export default function CoachScenePage() {
   const gradedRef = useRef<Set<string>>(new Set()); // mission words already graded Good this session
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ---- setup steering + in-conversation UI state ----
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [recentThemes, setRecentThemes] = useState<string[]>(() => readRecent());
+  const [showContext, setShowContext] = useState(false); // scene-context popover (#skipped briefing)
+  const [pop, setPop] = useState<WordPopTarget | null>(null); // tapped-word meaning popover
+  const [addingWord, setAddingWord] = useState<string | null>(null);
+  const [addedWords, setAddedWords] = useState<Set<string>>(new Set());
+
   // ---- voice answer via the browser's SpeechRecognition (free, on-device) ----
   const [recording, setRecording] = useState(false);
   const [interim, setInterim] = useState("");
@@ -175,7 +255,19 @@ export default function CoachScenePage() {
   const baseInputRef = useRef("");
 
   const missionStrings = useMemo(() => (scene?.missionWords ?? []).map((w) => w.word), [scene]);
-  const matcher = useMemo(() => buildWordMatcher(missionStrings), [missionStrings]);
+  const missionMatcher = useMemo(() => buildWordMatcher(missionStrings), [missionStrings]);
+  // Highlighting covers mission words AND the scene's brand-new words.
+  const allWordStrings = useMemo(
+    () => [...(scene?.missionWords ?? []).map((w) => w.word), ...(scene?.newWords ?? []).map((w) => w.word)],
+    [scene],
+  );
+  const matcher = useMemo(() => buildWordMatcher(allWordStrings), [allWordStrings]);
+  const entries = useMemo(() => {
+    const m = new Map<string, WordEntry>();
+    for (const w of scene?.missionWords ?? []) m.set(w.word.trim().toLowerCase(), { meaning: w.meaning, isNew: false });
+    for (const w of scene?.newWords ?? []) m.set(w.word.trim().toLowerCase(), { meaning: w.meaning, isNew: true });
+    return m;
+  }, [scene]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -183,10 +275,10 @@ export default function CoachScenePage() {
 
   // Client backstop: catch inflected mission-word uses the model may under-report.
   function scanMessage(text: string): string[] {
-    if (!matcher.regex) return [];
+    if (!missionMatcher.regex) return [];
     const hits: string[] = [];
-    for (const p of text.split(matcher.regex)) {
-      const canon = p ? matcher.canonical(p) : null;
+    for (const p of text.split(missionMatcher.regex)) {
+      const canon = p ? missionMatcher.canonical(p) : null;
       if (canon) hits.push(canon.trim().toLowerCase());
     }
     return hits;
@@ -211,21 +303,71 @@ export default function CoachScenePage() {
   async function generate() {
     if (!pair || poolWords.length === 0 || generating) return;
     setGenerating(true);
+    const preset = selectedPreset ? PRESETS.find((p) => p.id === selectedPreset) : null;
+    const effectiveIdea = preset ? preset.idea : idea.trim() || undefined;
     try {
       const res = await api.coachSceneSetup({
         words: wordPayload,
         sourceLang: pair.source,
         targetLang: pair.target,
         level: getLevel(pair.source) ?? undefined,
-        idea: idea.trim() || undefined,
+        idea: effectiveIdea,
+        // Only steer away from recent themes when the learner didn't ask for a specific
+        // scene — an explicit pick/preset should always be honoured.
+        avoid: effectiveIdea ? undefined : recentThemes,
         telegramId: accountId,
       });
-      setScene(res);
+      const next: Scene = { ...res, newWords: res.newWords ?? [] };
+      setScene(next);
+      if (next.title) {
+        pushRecent(next.title);
+        setRecentThemes(readRecent());
+      }
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Save a brand-new word the scene introduced → a card, instantly (meaning is known,
+  // so no AI enrichment / no tokens).
+  async function addNewWord(word: string, meaning: string) {
+    if (!pair || addingWord) return;
+    setAddingWord(word);
+    try {
+      await api.batchAddWords({
+        telegramId: accountId,
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        items: [{ word, meaning }],
+        source: "Onomika",
+        enrich: false,
+      });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      setAddedWords((s) => new Set([...s, word.trim().toLowerCase()]));
+      show({ icon: "🌱", title: t("pop.addedToast", { word }) });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setAddingWord(null);
+    }
+  }
+
+  // Open the meaning popover for a tapped highlight (mission word or new word).
+  function openWordPop(canonical: string, el: HTMLElement) {
+    const key = canonical.trim().toLowerCase();
+    const entry = entries.get(key);
+    if (!pair) return;
+    setPop({
+      word: canonical,
+      meaning: entry?.meaning ?? "",
+      isNew: entry?.isNew ?? false,
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      anchor: el,
+    });
   }
 
   function begin() {
@@ -236,6 +378,8 @@ export default function CoachScenePage() {
     setReviewedCount(0);
     gradedRef.current = new Set();
     setDone(false);
+    setPop(null);
+    setShowContext(false);
     setStarted(true);
   }
 
@@ -249,6 +393,11 @@ export default function CoachScenePage() {
     gradedRef.current = new Set();
     setDone(false);
     setInput("");
+    setPop(null);
+    setShowContext(false);
+    setAddedWords(new Set());
+    setSelectedPreset(null);
+    setIdea("");
   }
 
   async function sendTurn(history: Turn[], opts: { userText?: string; wrap?: boolean } = {}) {
@@ -265,6 +414,7 @@ export default function CoachScenePage() {
           learnerRole: scene.learnerRole,
           goal: scene.goal,
           missionWords: scene.missionWords,
+          newWords: scene.newWords,
         },
         sourceLang: pair.source,
         targetLang: pair.target,
@@ -386,22 +536,35 @@ export default function CoachScenePage() {
           <h1 className="flex items-center gap-2 font-serif text-[26px] font-medium tracking-[-0.01em] text-ink">
             <Clapperboard className="h-6 w-6 text-sage-deep" /> {t("scene.heroTitle")}
           </h1>
-          {started && missionStrings.length > 0 && !done && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sage-tint px-2.5 py-1 text-[13px] font-semibold text-sage-deep">
-              <Check className="h-3.5 w-3.5" /> {used.size}/{missionStrings.length}
-            </span>
+          {started && !done && (
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowContext((v) => !v)}
+                aria-pressed={showContext}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold transition-colors",
+                  showContext
+                    ? "border-sage bg-sage-tint text-sage-deep"
+                    : "border-black/[0.1] text-ink-muted hover:border-sage/50",
+                )}
+              >
+                <Info className="h-3.5 w-3.5" /> {t("scene.contextBtn")}
+              </button>
+              {missionStrings.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-sage-tint px-2.5 py-1 text-[13px] font-semibold text-sage-deep">
+                  <Check className="h-3.5 w-3.5" /> {used.size}/{missionStrings.length}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
 
       {/* ---------- 1. SETUP: pick pair/scope/idea, then generate the scene ---------- */}
       {!scene ? (
-        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-8 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage text-white">
-            <Clapperboard className="h-7 w-7" />
-          </span>
-          <h2 className="mt-4 font-serif text-[22px] font-semibold text-ink">{t("scene.heroTitle")}</h2>
-          <p className="mt-2 max-w-[460px] text-[14px] leading-relaxed text-ink-soft">{t("scene.heroSub")}</p>
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 text-center">
+          <p className="max-w-[460px] text-[14.5px] leading-relaxed text-ink-soft">{t("scene.heroSub")}</p>
 
           {!hasWords ? (
             <p className="mt-6 rounded-[12px] border border-dashed border-black/[0.12] bg-paper/50 px-4 py-3 text-[13px] text-ink-soft">
@@ -461,12 +624,49 @@ export default function CoachScenePage() {
                 </div>
               )}
 
+              {/* quick-start scene presets — tap a card to steer the scene */}
+              <div className="mt-6 w-full max-w-[520px]">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.presetsLabel")}</div>
+                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1.5">
+                  {PRESETS.map((p) => {
+                    const on = selectedPreset === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          if (on) {
+                            setSelectedPreset(null);
+                          } else {
+                            setSelectedPreset(p.id);
+                            setIdea("");
+                          }
+                        }}
+                        aria-pressed={on}
+                        className={cn(
+                          "relative shrink-0 overflow-hidden rounded-[14px] border transition-all",
+                          on ? "border-sage ring-2 ring-sage/40" : "border-black/[0.08] hover:border-sage/50",
+                        )}
+                      >
+                        <Image src={p.img} alt="" width={160} height={112} className="h-[78px] w-[112px] object-cover" />
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1 pt-4 text-left text-[11.5px] font-semibold text-white">
+                          {t(`scene.preset.${p.id}`)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* optional custom scene idea */}
-              <div className="mt-5 w-full max-w-[440px] text-left">
+              <div className="mt-4 w-full max-w-[440px] text-left">
                 <div className="mb-2 text-center text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.ideaLabel")}</div>
                 <input
                   value={idea}
-                  onChange={(e) => setIdea(e.target.value)}
+                  onChange={(e) => {
+                    setIdea(e.target.value);
+                    if (e.target.value) setSelectedPreset(null);
+                  }}
                   placeholder={t("scene.ideaPh")}
                   maxLength={120}
                   className="h-11 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-center text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
@@ -541,6 +741,22 @@ export default function CoachScenePage() {
             </div>
           )}
 
+          {scene.newWords.length > 0 && (
+            <div className="mt-4">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-warn-text">
+                <Sparkles className="h-3.5 w-3.5" /> {t("scene.newWordsLabel")}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {scene.newWords.map((w) => (
+                  <span key={w.word} className={cn("rounded-full border border-warn/30 bg-warn-bg px-2.5 py-1 text-[13px] text-warn-text", srcFontCls)}>
+                    {w.word}
+                    {w.meaning && <span className="ml-1.5 opacity-75">{w.meaning}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -584,9 +800,59 @@ export default function CoachScenePage() {
             </div>
           )}
 
+          {showContext && !done && (
+            <div className="anim-fade-up mb-3 rounded-[16px] border border-sage/25 bg-sage-tint/30 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-sage-deep">{t("scene.contextTitle")}</div>
+                <button
+                  type="button"
+                  onClick={() => setShowContext(false)}
+                  aria-label={t("common.cancel")}
+                  className="-mr-1 -mt-1 rounded-full p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-1.5 font-serif text-[17px] font-semibold text-ink">{scene.title}</div>
+              <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{scene.setting}</p>
+              <div className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+                <div className="rounded-[12px] bg-surface/70 px-3 py-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.character")}</span>
+                  <div className="mt-0.5 font-semibold text-ink">{scene.characterName || scene.character}</div>
+                </div>
+                <div className="rounded-[12px] bg-surface/70 px-3 py-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.yourRole")}</span>
+                  <div className="mt-0.5 text-ink">{scene.learnerRole}</div>
+                </div>
+              </div>
+              <div className="mt-2 rounded-[12px] bg-surface/70 px-3 py-2 text-[13px]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.goal")}</span>
+                <div className="mt-0.5 leading-relaxed text-ink">{scene.goal}</div>
+              </div>
+              {scene.missionWords.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {scene.missionWords.map((w) => (
+                    <span key={w.word} className={cn("rounded-full border border-black/[0.08] bg-surface px-2 py-0.5 text-[12px] text-ink-muted", srcFontCls)}>
+                      {w.word}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
-              <Bubble key={i} turn={turn} matcher={matcher} used={used} speakLang={pair?.source ?? "en"} characterName={scene.characterName} />
+              <Bubble
+                key={i}
+                turn={turn}
+                matcher={matcher}
+                used={used}
+                entries={entries}
+                onTap={openWordPop}
+                speakLang={pair?.source ?? "en"}
+                characterName={scene.characterName}
+              />
             ))}
             {busy && (
               <div className="flex items-center gap-2.5">
@@ -677,6 +943,16 @@ export default function CoachScenePage() {
           )}
         </>
       )}
+
+      {pop && (
+        <WordMeaningPop
+          target={pop}
+          adding={addingWord === pop.word}
+          added={addedWords.has(pop.word.trim().toLowerCase())}
+          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "") : undefined}
+          onClose={() => setPop(null)}
+        />
+      )}
     </div>
   );
 }
@@ -693,12 +969,16 @@ function Bubble({
   turn,
   matcher,
   used,
+  entries,
+  onTap,
   speakLang,
   characterName,
 }: {
   turn: Turn;
   matcher: WordMatcher;
   used: Set<string>;
+  entries: Map<string, WordEntry>;
+  onTap: (canonical: string, el: HTMLElement) => void;
   speakLang: string;
   characterName?: string;
 }) {
@@ -723,7 +1003,7 @@ function Bubble({
         )}
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-            <Highlighted text={turn.content} matcher={matcher} used={used} />
+            <Highlighted text={turn.content} matcher={matcher} used={used} entries={entries} onTap={onTap} />
           </div>
           <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
