@@ -1108,6 +1108,19 @@ const DICT: Record<string, Entry> = {
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },
   "syn.hint": { en: "at this level — good for IELTS/exam prep", ru: "под уровень — для IELTS и экзаменов", zh: "按此等级——适合雅思/备考" },
 
+  // --- soft one-time hints (shown once per screen, dismissible, then never again) ---
+  "hint.dismiss": { en: "Dismiss", ru: "Скрыть", zh: "收起" },
+  "hint.review": {
+    en: "Swipe or tap Again → Easy to grade each card — Lexa reschedules it for just before you'd forget.",
+    ru: "Оцените карточку свайпом или кнопкой (Снова → Легко) — Lexa назначит повторение как раз перед тем, как вы забудете.",
+    zh: "滑动或点按给卡片评分（重来 → 简单）——Lexa 会在你快忘记时安排下次复习。",
+  },
+  "hint.quiz": {
+    en: "Pick how to answer — choice, typing, fill-in-the-blank, or Mixed. A round needs at least 4 words.",
+    ru: "Выберите формат ответа — выбор, ввод, пропуск или Микс. Для раунда нужно минимум 4 слова.",
+    zh: "选择作答方式——选择、拼写、填空或混合。每轮至少需要 4 个单词。",
+  },
+
   // --- review (flashcards) ---
   "review.title": { en: "Quick review", ru: "Быстрое повторение", zh: "快速复习" },
   "review.direction": { en: "Direction", ru: "Направление", zh: "方向" },
@@ -1170,7 +1183,12 @@ const DICT: Record<string, Entry> = {
   "review.knowBadge": { en: "KNOW", ru: "ЗНАЮ", zh: "认识" },
   "review.learningBadge": { en: "LEARNING", ru: "УЧУ", zh: "学习" },
   "review.noWords": { en: "No words to review yet.", ru: "Пока нечего повторять.", zh: "还没有可复习的单词。" },
-  "review.addFirst": { en: "Add some first.", ru: "Сначала добавьте слова.", zh: "先添加一些。" },
+  "review.emptyHint": {
+    en: "Add a few words — or grab a starter set — and they'll appear here, each one scheduled for right before you'd forget it.",
+    ru: "Добавьте несколько слов — или возьмите стартовый набор — и они появятся здесь; каждое повторение придёт почти перед тем, как вы забудете слово.",
+    zh: "添加几个单词——或领一套入门卡组——它们就会出现在这里，每个词都会在你快忘记时安排复习。",
+  },
+  "review.emptyCta": { en: "Get your first words", ru: "Собрать первые слова", zh: "获取第一批单词" },
   "review.learningLabel": { en: "Learning {n}", ru: "Учу {n}", zh: "学习 {n}" },
   "review.knownLabel": { en: "Known {n}", ru: "Знаю {n}", zh: "认识 {n}" },
 
