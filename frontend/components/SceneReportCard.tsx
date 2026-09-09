@@ -31,29 +31,33 @@ export function SceneReportCard({
       <div className="text-center font-serif text-[20px] font-semibold text-ink">{t("scene.reportTitle")}</div>
 
       <div className="mt-4 space-y-4">
-        {/* mission words used */}
-        <div>
-          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
-            {t("scene.progress", { n: String(used.size), total: String(missionWords.length) })}
+        {/* mission words used — a scene may have none, when nothing in the deck fitted it */}
+        {missionWords.length > 0 ? (
+          <div>
+            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
+              {t("scene.progress", { n: String(used.size), total: String(missionWords.length) })}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {missionWords.map((w) => {
+                const hit = used.has(w.word.trim().toLowerCase());
+                return (
+                  <span
+                    key={w.word}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold",
+                      hit ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink-muted",
+                    )}
+                  >
+                    {hit && <Check className="h-3 w-3" strokeWidth={3} />}
+                    {w.word}
+                  </span>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {missionWords.map((w) => {
-              const hit = used.has(w.word.trim().toLowerCase());
-              return (
-                <span
-                  key={w.word}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold",
-                    hit ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink-muted",
-                  )}
-                >
-                  {hit && <Check className="h-3 w-3" strokeWidth={3} />}
-                  {w.word}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+        ) : (
+          <p className="text-center text-[13px] leading-relaxed text-ink-soft">{t("scene.noMission")}</p>
+        )}
 
         {/* still to practise — surfaced, never penalised */}
         {missed.length > 0 && (

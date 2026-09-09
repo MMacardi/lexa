@@ -8,13 +8,17 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLevel, useTapAnyGloss } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
+import { resolveMeaning } from "@/lib/resolveMeaning";
+import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { SpeakButton } from "@/components/SpeakButton";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
+import { TappableText, type WordEntry } from "@/components/TappableText";
+import { PracticeBar } from "@/components/PracticeBar";
 import { cn } from "@/lib/utils";
-import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Trophy, Flame, Star, Flag } from "lucide-react";
+import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Flame, Star, Flag } from "lucide-react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 type PairKey = { source: string; target: string };
@@ -31,68 +35,13 @@ function speechLang(src?: string): string {
   return map[src ?? "en"] ?? src ?? "en-US";
 }
 
-// Highlight any of the learner's words-in-play wherever they appear (inflections
-// included), so the vocab visibly "lives" in the talk. Used words glow green; words
-// Onomika just introduced (not yet in the deck) glow amber and can be added in a tap.
-type WordEntry = { meaning: string; isNew: boolean };
-function Highlighted({
-  text,
-  matcher,
-  used,
-  entries,
-  onTap,
-}: {
-  text: string;
-  matcher: WordMatcher;
-  used: Set<string>;
-  entries: Map<string, WordEntry>;
-  onTap: (canonical: string, el: HTMLElement) => void;
-}) {
-  if (!matcher.regex) return <>{text}</>;
-  const parts = text.split(matcher.regex);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const canon = p ? matcher.canonical(p) : null;
-        if (!canon) return <span key={i}>{p}</span>;
-        const key = canon.trim().toLowerCase();
-        const isNew = entries.get(key)?.isNew;
-        const hit = !isNew && used.has(key);
-        const fire = (el: HTMLElement) => onTap(canon, el);
-        return (
-          <span
-            key={i}
-            role="button"
-            tabIndex={0}
-            onClick={(e) => fire(e.currentTarget)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                fire(e.currentTarget);
-              }
-            }}
-            className={cn(
-              "cursor-pointer rounded-md px-1 py-0.5 font-semibold transition-colors",
-              isNew
-                ? "bg-warn-bg text-warn-text ring-1 ring-inset ring-warn/30"
-                : hit
-                  ? "bg-sage text-white"
-                  : "bg-sage-tint text-sage-deep",
-            )}
-          >
-            {p}
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
 export default function CoachChatPage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
+  const tapAny = useTapAnyGloss();
+  const ensureLevel = useEnsureLevel();
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -114,7 +63,6 @@ export default function CoachChatPage() {
   }, [deck]);
 
   const [pair, setPair] = useState<PairKey | null>(null);
-  const [scope, setScope] = useState<string>("smart");
   const [topic, setTopic] = useState("");
   useEffect(() => {
     if (pair || deck.length === 0) return;
@@ -135,32 +83,16 @@ export default function CoachChatPage() {
     if (g) setTopic((cur) => cur || g);
   }, [profile?.goal]);
 
-  const collections = useMemo(() => {
-    if (!pair) return [] as { id: string; name: string; count: number }[];
-    const m = new Map<string, { id: string; name: string; count: number }>();
-    for (const w of deck) {
-      if (w.sourceLang !== pair.source || w.targetLang !== pair.target) continue;
-      for (const c of w.collections ?? []) {
-        const e = m.get(c.id) ?? { id: c.id, name: c.name, count: 0 };
-        e.count++;
-        m.set(c.id, e);
-      }
-    }
-    return [...m.values()];
-  }, [deck, pair]);
-
+  // Candidate words for the conversation: weak → due → the rest, capped. These are
+  // CANDIDATES, not a checklist — the model weaves in only the ones that fit what you
+  // are actually talking about, and may use none at all.
   const poolWords = useMemo(() => {
     if (!pair) return [] as Word[];
-    let pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
-    if (scope.startsWith("coll:")) {
-      const cid = scope.slice(5);
-      pool = pool.filter((w) => (w.collections ?? []).some((c) => c.id === cid));
-    }
-    if (scope === "all") return [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
+    const pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
     const weak = pool.filter((w) => (w.lapses ?? 0) >= 2);
     const due = pool.filter(isDue);
-    return [...new Map([...weak, ...due, ...pool].map((w) => [w.id, w])).values()].slice(0, 10);
-  }, [deck, pair, scope]);
+    return [...new Map([...weak, ...due, ...pool].map((w) => [w.id, w])).values()].slice(0, 24);
+  }, [deck, pair]);
 
   const poolStrings = useMemo(() => poolWords.map((w) => w.word), [poolWords]);
   const wordPayload = useMemo(() => poolWords.map((w) => ({ word: w.word, meaning: w.meaningZh ?? "" })), [poolWords]);
@@ -177,6 +109,21 @@ export default function CoachChatPage() {
     for (const w of poolWords) m.set(w.word.trim().toLowerCase(), { meaning: w.meaningZh ?? "", isNew: false });
     return m;
   }, [poolWords, newWords]);
+
+  // Words that have actually come up in THIS conversation: seeded by Onomika, used by
+  // the learner, or introduced as new. The chip strip is live, not a pre-dealt board.
+  const [liveWords, setLiveWords] = useState<{ word: string; meaning: string; state: "seeded" | "used" | "new" }[]>([]);
+
+  // Every word the learner owns in this pair, keyed for the tap-any-word lookup: an
+  // owned word that isn't a candidate still resolves locally, with no model call.
+  const deckByKey = useMemo(() => {
+    const m = new Map<string, Word>();
+    if (!pair) return m;
+    for (const w of deck) {
+      if (w.sourceLang === pair.source && w.targetLang === pair.target) m.set(w.word.trim().toLowerCase(), w);
+    }
+    return m;
+  }, [deck, pair]);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -218,6 +165,27 @@ export default function CoachChatPage() {
     });
   }
 
+  // Merge words into the live strip. A word already there never duplicates; it only
+  // upgrades seeded → used once the learner deploys it themselves.
+  function pushLive(next: { word: string; meaning: string; state: "seeded" | "used" | "new" }[]) {
+    const items = next.filter((n) => n.word.trim());
+    if (items.length === 0) return;
+    setLiveWords((cur) => {
+      const byKey = new Map(cur.map((c) => [c.word.trim().toLowerCase(), c]));
+      for (const it of items) {
+        const k = it.word.trim().toLowerCase();
+        const prev = byKey.get(k);
+        byKey.set(
+          k,
+          prev
+            ? { ...prev, state: prev.state === "new" ? "new" : it.state === "used" ? "used" : prev.state }
+            : it,
+        );
+      }
+      return [...byKey.values()];
+    });
+  }
+
   async function sendTurn(history: Turn[], opts: { userTurn: boolean; wrap?: boolean } = { userTurn: true }) {
     if (!pair) return;
     setBusy(true);
@@ -242,6 +210,14 @@ export default function CoachChatPage() {
           const fresh = res.newWords.filter((n) => n.word && !seen.has(n.word.trim().toLowerCase()));
           return fresh.length ? [...cur, ...fresh] : cur;
         });
+        pushLive(res.newWords.map((n) => ({ word: n.word, meaning: n.meaning, state: "new" as const })));
+      }
+      // Whatever Onomika wove into THIS reply joins the strip too — the chips appear
+      // as words actually come up, rather than being dealt before the chat starts.
+      if (res.seeded?.length) {
+        pushLive(
+          res.seeded.map((w) => ({ word: w, meaning: entries.get(w.trim().toLowerCase())?.meaning ?? "", state: "seeded" as const })),
+        );
       }
 
       if (opts.userTurn) {
@@ -258,10 +234,13 @@ export default function CoachChatPage() {
             addLifetime(gained);
             const first = (res.used ?? []).find((w) => fresh.includes(w.toLowerCase())) ?? "";
             show({ icon: "🎯", title: t("chat.scored", { word: first, pts: String(gained) }) });
-            // Cleared the whole board? Big celebration.
-            if (used.size + fresh.length >= poolStrings.length && poolStrings.length > 0) {
-              show({ icon: "🏆", title: t("chat.allUsed") });
-            }
+            pushLive(
+              (res.used ?? []).map((w) => ({
+                word: w,
+                meaning: entries.get(w.trim().toLowerCase())?.meaning ?? "",
+                state: "used" as const,
+              })),
+            );
             // Retention: a word the learner actually deployed in conversation is a
             // successful recall — grade it Good so chat moves the SRS, not just points.
             const graded = fresh
@@ -287,12 +266,16 @@ export default function CoachChatPage() {
   }
 
   async function start() {
-    if (poolWords.length === 0 || busy) return;
+    if (!pair || busy) return;
+    // Difficulty is never random: if no level is set for this language yet, ask once.
+    const { ok } = await ensureLevel(pair.source);
+    if (!ok) return;
     setStarted(true);
     setFinished(false);
     setTurns([]);
     setUsed(new Set());
     setNewWords([]);
+    setLiveWords([]);
     setPop(null);
     setAddedWords(new Set());
     setPoints(0);
@@ -324,9 +307,9 @@ export default function CoachChatPage() {
     await sendTurn(turns, { userTurn: false, wrap: true });
   }
 
-  // Save a brand-new word Onomika introduced → a card, instantly (meaning is known,
-  // so no AI enrichment / no tokens).
-  async function addNewWord(word: string, meaning: string) {
+  // Save a word Onomika introduced (or one you tapped and glossed) → a card, instantly:
+  // the meaning is already known, so no AI enrichment and no tokens.
+  async function addNewWord(word: string, meaning: string, sentence?: string) {
     if (!pair || addingWord) return;
     setAddingWord(word);
     try {
@@ -334,7 +317,7 @@ export default function CoachChatPage() {
         telegramId: accountId,
         sourceLang: pair.source,
         targetLang: pair.target,
-        items: [{ word, meaning }],
+        items: [{ word, meaning, sentence: sentence?.trim() || undefined }],
         source: "Onomika",
         enrich: false,
       });
@@ -349,18 +332,59 @@ export default function CoachChatPage() {
     }
   }
 
-  // Open the meaning popover for a tapped highlight (a word-in-play or a new word).
-  function openWordPop(canonical: string, el: HTMLElement) {
+  // Open the meaning popover for a tapped highlight (a candidate or a new word) —
+  // the meaning is already in hand, so this never waits on a request.
+  function openWordPop(canonical: string, sentence: string, el: HTMLElement) {
     if (!pair) return;
     const entry = entries.get(canonical.trim().toLowerCase());
     setPop({
       word: canonical,
       meaning: entry?.meaning ?? "",
       isNew: entry?.isNew ?? false,
+      sentence,
       sourceLang: pair.source,
       targetLang: pair.target,
       anchor: el,
     });
+  }
+
+  // Tap ANY other word in a bubble: the Reader's instant-gloss mechanic. A word the
+  // learner already owns resolves from the deck (no request, nothing to add); anything
+  // else opens in a loading state and fills from the gloss cache or one cheap call.
+  async function openGlossPop(token: string, sentence: string, el: HTMLElement) {
+    if (!pair) return;
+    const key = token.trim().toLowerCase();
+    const owned = deckByKey.get(key);
+    if (owned) {
+      setPop({
+        word: owned.word,
+        meaning: owned.meaningZh ?? "",
+        transcription: owned.phonetic ?? "",
+        isNew: false,
+        sentence,
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        anchor: el,
+      });
+      return;
+    }
+    setPop({
+      word: token,
+      meaning: "",
+      isNew: true,
+      loading: true,
+      sentence,
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      anchor: el,
+    });
+    try {
+      const r = await resolveMeaning({ word: token, sentence, sourceLang: pair.source, targetLang: pair.target });
+      // Only patch if this exact popover is still open — the learner may have moved on.
+      setPop((cur) => (cur && cur.anchor === el ? { ...cur, meaning: r.meaning, transcription: r.transcription, loading: false } : cur));
+    } catch {
+      setPop((cur) => (cur && cur.anchor === el ? { ...cur, meaning: t("reader.translateFailed"), loading: false, isNew: false } : cur));
+    }
   }
 
   // ---- voice answer via the browser's SpeechRecognition (free, on-device) ----
@@ -420,7 +444,6 @@ export default function CoachChatPage() {
 
   const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
   const level = levelFor(lifetime);
-  const levelProg = lifetime % 100;
 
   return (
     <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
@@ -432,11 +455,8 @@ export default function CoachChatPage() {
           <h1 className="flex items-center gap-2 font-serif text-[26px] font-medium tracking-[-0.01em] text-ink">
             <MessageCircle className="h-6 w-6 text-sage-deep" /> {t("chat.title")}
           </h1>
-          {started && poolStrings.length > 0 && (
+          {started && (points > 0 || combo >= 2) && (
             <div className="flex shrink-0 items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-sage-tint px-2.5 py-1 text-[13px] font-semibold text-sage-deep">
-                <Trophy className="h-3.5 w-3.5" /> {used.size}/{poolStrings.length}
-              </span>
               {points > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-sage px-2.5 py-1 text-[13px] font-semibold text-white">
                   <Star className="h-3.5 w-3.5 fill-current" /> {points}
@@ -478,10 +498,7 @@ export default function CoachChatPage() {
                         <button
                           key={`${p.source}|${p.target}`}
                           type="button"
-                          onClick={() => {
-                            setPair(p);
-                            setScope("smart");
-                          }}
+                          onClick={() => setPair(p)}
                           className={cn(
                             "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
                             on ? "border-sage bg-sage text-white" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
@@ -495,27 +512,9 @@ export default function CoachChatPage() {
                 </div>
               )}
 
-              <div className="mt-5 w-full max-w-[440px]">
-                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.practiceScope")}</div>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {[
-                    { id: "smart", label: t("coach.scopeSmart") },
-                    { id: "all", label: t("coach.scopeAll") },
-                    ...collections.map((c) => ({ id: `coll:${c.id}`, label: `${c.name} · ${c.count}` })),
-                  ].map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setScope(s.id)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
-                        scope === s.id ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+              {/* how hard Onomika talks, and whether every word is tappable */}
+              <div className="mt-5">
+                <PracticeBar lang={pair?.source ?? "en"} />
               </div>
 
               {/* what to chat about — prefilled from your goal, but free to change */}
@@ -530,58 +529,66 @@ export default function CoachChatPage() {
                 />
               </div>
 
-              {poolWords.length > 0 ? (
-                <>
-                  <div className="mt-5 flex flex-wrap justify-center gap-1.5">
-                    {poolWords.map((w) => (
-                      <span key={w.id} className="rounded-full border border-black/[0.06] bg-paper px-2.5 py-0.5 text-[13px] text-ink-muted">
-                        {w.word}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={start}
-                    className="mt-6 inline-flex items-center gap-2 rounded-full bg-sage px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
-                  >
-                    <Sparkles className="h-4 w-4" /> {t("chat.start")}
-                  </button>
-                </>
-              ) : (
-                <p className="mt-6 rounded-[12px] border border-dashed border-black/[0.12] bg-paper/50 px-4 py-3 text-[13px] text-ink-soft">
-                  {t("coach.practiceNoWords")}
+              {poolWords.length > 0 && (
+                <p className="mt-5 max-w-[420px] text-[13px] leading-relaxed text-ink-faint">
+                  {t("chat.poolHint", { n: String(poolWords.length) })}
                 </p>
               )}
+              <button
+                type="button"
+                onClick={start}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-sage px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
+              >
+                <Sparkles className="h-4 w-4" /> {t("chat.start")}
+              </button>
             </>
           )}
         </div>
       ) : (
         <>
-          {/* words in play — chips that light up as you actually use them */}
-          {poolStrings.length > 0 && (
+          {/* difficulty + tap-any-word stay reachable mid-conversation */}
+          <div className="mb-2 flex justify-end">
+            <PracticeBar lang={pair?.source ?? "en"} />
+          </div>
+
+          {/* words in play — chips appear as they actually come up, not dealt up front */}
+          {liveWords.length > 0 && (
             <div className="mb-3 flex gap-1.5 overflow-x-auto rounded-[16px] border border-black/[0.06] bg-surface px-3 py-2.5">
-              {poolWords.map((w) => {
-                const hit = used.has(w.word.toLowerCase());
-                return (
-                  <span
-                    key={w.id}
-                    className={cn(
-                      "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold transition-colors",
-                      hit ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-paper text-ink-muted",
-                      srcFontCls,
-                    )}
-                  >
-                    {hit && <Check className="h-3 w-3" strokeWidth={3} />}
-                    {w.word}
-                  </span>
-                );
-              })}
+              {liveWords.map((w) => (
+                <button
+                  key={w.word}
+                  type="button"
+                  onClick={(e) => openWordPop(w.word, "", e.currentTarget)}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold transition-colors",
+                    w.state === "used"
+                      ? "border-sage bg-sage text-white"
+                      : w.state === "new"
+                        ? "border-warn/30 bg-warn-bg text-warn-text"
+                        : "border-black/[0.08] bg-paper text-ink-muted hover:border-sage/40",
+                    srcFontCls,
+                  )}
+                >
+                  {w.state === "used" && <Check className="h-3 w-3" strokeWidth={3} />}
+                  {w.word}
+                </button>
+              ))}
             </div>
           )}
 
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
-              <Bubble key={i} turn={turn} matcher={matcher} used={used} entries={entries} onTap={openWordPop} speakLang={pair?.source ?? "en"} />
+              <Bubble
+                key={i}
+                turn={turn}
+                matcher={matcher}
+                used={used}
+                entries={entries}
+                tapAny={tapAny}
+                onKnown={openWordPop}
+                onUnknown={openGlossPop}
+                speakLang={pair?.source ?? "en"}
+              />
             ))}
             {busy && (
               <div className="flex items-center gap-2.5">
@@ -597,9 +604,11 @@ export default function CoachChatPage() {
               <div className="mt-2 rounded-[16px] border border-sage/30 bg-sage-tint/40 p-4 text-center">
                 <div className="font-serif text-[18px] font-semibold text-ink">{t("chat.recapTitle")}</div>
                 <div className="mt-2 flex flex-wrap justify-center gap-2 text-[13px]">
-                  <span className="rounded-full bg-surface px-3 py-1 font-semibold text-sage-deep">
-                    {t("chat.recapUsed", { n: String(used.size), total: String(poolStrings.length) })}
-                  </span>
+                  {used.size > 0 && (
+                    <span className="rounded-full bg-surface px-3 py-1 font-semibold text-sage-deep">
+                      {t("chat.recapUsedN", { n: String(used.size) })}
+                    </span>
+                  )}
                   <span className="rounded-full bg-surface px-3 py-1 font-semibold text-sage-deep">
                     {t("chat.recapPts", { n: String(points) })}
                   </span>
@@ -694,7 +703,7 @@ export default function CoachChatPage() {
           target={pop}
           adding={addingWord === pop.word}
           added={addedWords.has(pop.word.trim().toLowerCase())}
-          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "") : undefined}
+          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "", pop.sentence) : undefined}
           onClose={() => setPop(null)}
         />
       )}
@@ -715,14 +724,18 @@ function Bubble({
   matcher,
   used,
   entries,
-  onTap,
+  tapAny,
+  onKnown,
+  onUnknown,
   speakLang,
 }: {
   turn: Turn;
   matcher: WordMatcher;
   used: Set<string>;
   entries: Map<string, WordEntry>;
-  onTap: (canonical: string, el: HTMLElement) => void;
+  tapAny: boolean;
+  onKnown: (canonical: string, sentence: string, el: HTMLElement) => void;
+  onUnknown: (token: string, sentence: string, el: HTMLElement) => void;
   speakLang: string;
 }) {
   if (turn.role === "user") {
@@ -743,7 +756,16 @@ function Bubble({
       <div className="max-w-[82%]">
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-            <Highlighted text={turn.content} matcher={matcher} used={used} entries={entries} onTap={onTap} />
+            <TappableText
+              text={turn.content}
+              lang={speakLang}
+              matcher={matcher}
+              used={used}
+              entries={entries}
+              tapAny={tapAny}
+              onKnown={(canonical, el) => onKnown(canonical, turn.content, el)}
+              onUnknown={(token, el) => onUnknown(token, turn.content, el)}
+            />
           </div>
           <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>

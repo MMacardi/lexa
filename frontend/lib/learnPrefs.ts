@@ -573,6 +573,33 @@ export function useAutoGloss(): boolean {
   return on;
 }
 
+// Coach: make EVERY word in a chat/scene bubble tappable for an instant gloss (and
+// one-tap add to the deck), not just the words already in play. Off = only the
+// highlighted words respond, so no lookup request can fire.
+const TAP_ANY_KEY = "lexa.tapAnyGloss";
+export function getTapAnyGloss(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(TAP_ANY_KEY) !== "0"; // default on
+}
+export function setTapAnyGloss(on: boolean) {
+  localStorage.setItem(TAP_ANY_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useTapAnyGloss(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(getTapAnyGloss());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Show an estimated CEFR level on saved texts (and estimate it at save time).
 const LEVEL_BADGE_KEY = "lexa.showTextLevel";
 export function getShowTextLevel(): boolean {

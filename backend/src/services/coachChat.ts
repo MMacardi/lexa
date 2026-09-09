@@ -1,6 +1,7 @@
 import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachChatSchema, type CoachChatResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { levelGuide } from "./levelGuide.js";
 
 /**
  * The casual "learn by chatting" coach. Unlike the drill, this is NOT a quiz: it's
@@ -21,11 +22,11 @@ export async function coachChat(params: {
 }): Promise<CoachChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = params.level ? ` The learner's level is about ${params.level} (CEFR).` : "";
-  const wordList = params.words
-    .slice(0, 14)
-    .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
-    .join("\n");
+  const level = `\n\n${levelGuide(params.level, source)}`;
+  const pool = params.words.slice(0, 24);
+  const wordList = pool.length
+    ? pool.map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`).join("\n")
+    : "(none yet — the learner has no cards, so just talk and teach new words)";
 
   const clipped = params.messages.slice(-16).map((m) => ({
     role: m.role,
@@ -42,17 +43,18 @@ export async function coachChat(params: {
         level +
         `\n\nThis is a RELAXED CHAT, not a lesson or a quiz. The whole point is that it feels fun and ` +
         `natural, and the learner picks up words without it feeling like studying.\n\n` +
-        `These are words the learner is currently studying — their "words in play":\n${wordList}\n\n` +
+        `These are words the learner happens to be reviewing — CANDIDATES, not a checklist:\n${wordList}\n\n` +
         `How to chat:\n` +
         `1) Talk like a real person: react to what they say, share a tiny opinion or a light joke, ask ONE ` +
-        `engaging follow-up question. Keep it short — 1-3 sentences. Lead the conversation somewhere fun; ` +
-        `never let it stall.\n` +
-        `2) IMMERSION: write mostly in ${source}, pitched at the learner's level so it's easy to follow. ` +
+        `engaging follow-up question. Length and vocabulary come from the LEVEL block above — obey it exactly. ` +
+        `Lead the conversation somewhere fun; never let it stall.\n` +
+        `2) IMMERSION: write mostly in ${source}. ` +
         `Only drop in a short ${target} word/gloss if something would otherwise be confusing.\n` +
-        `3) SEED naturally: when it fits, weave ONE (occasionally two) of the learner's words-in-play into ` +
-        `your OWN reply, used correctly in context — so they meet the word alive, not drilled. Don't force ` +
-        `it every turn and never list or "quiz" the words. List the words you used this way in "seeded".\n` +
-        `4) REWARD: if the learner uses one of their words-in-play (roughly correctly — be generous), react ` +
+        `3) SEED naturally: when one of the candidates genuinely fits what you are talking about RIGHT NOW, ` +
+        `weave ONE (occasionally two) into your OWN reply, used correctly in context — so they meet the word ` +
+        `alive, not drilled. If none of them fit this turn, use NONE: an unrelated word shoehorned into the ` +
+        `chat is worse than no word at all. Never list or quiz them. List whatever you seeded in "seeded".\n` +
+        `4) REWARD: if the learner uses one of the candidates (roughly correctly — be generous), react ` +
         `with a quick, warm bit of delight ("nice — you slipped in «resilient»!") and list those words in ` +
         `"used". Only count a word in "used" when THEY actually used it in their latest message.\n` +
         `5) Keep it low-pressure: do NOT nitpick grammar. Only reformulate gently if a mistake blocks ` +
@@ -61,15 +63,16 @@ export async function coachChat(params: {
         `conversation naturally goes.` +
         (params.topic ? ` The learner specifically wants to chat about: "${params.topic}". Lead there.` : "") +
         `\n7) TEACH BY STEALTH: once in a while (NOT every turn, at most one per reply) introduce ONE brand-new ` +
-        `word the learner most likely does NOT know yet — natural to the topic and their level, and NOT from the ` +
-        `words-in-play list above. Use it correctly in your reply, gloss it briefly in ${target} the first time, and ` +
-        `report it in "newWords" as {word (in ${source}), meaning (a short gloss in ${target})}. Never quiz or list it.` +
+        `word the learner most likely does NOT know yet — natural to the topic, at most one notch above their ` +
+        `LEVEL block, and NOT from the candidate list above. Use it correctly in your reply, gloss it briefly in ` +
+        `${target} the first time, and report it in "newWords" as {word (in ${source}), meaning (a short gloss in ` +
+        `${target})}. Never quiz or list it.` +
         (params.wrap
           ? `\n\nThe learner is WRAPPING UP now. Give a short, warm sign-off: name a couple of the words they ` +
             `used well today, one encouraging line, and DO NOT ask a new question or start a new thread.`
           : "") +
-        `\n\n"say" is your reply. "used" = the learner's words-in-play they just used well (may be empty). ` +
-        `"seeded" = your words-in-play you wove into THIS reply (may be empty). Both must be exact words ` +
+        `\n\n"say" is your reply. "used" = the candidates the learner just used well (may be empty). ` +
+        `"seeded" = the candidates you wove into THIS reply (may be empty). Both must be exact words ` +
         `from the list above, verbatim. "newWords" = brand-new words you introduced this reply (usually empty).` +
         scriptNote(params.sourceLang ?? "en") +
         ` Respond as JSON: {"say": string, "used": string[], "seeded": string[], ` +
@@ -85,10 +88,10 @@ export async function coachChat(params: {
     label: "coachChat",
   });
 
-  // Keep only words that are genuinely in the pool (models sometimes invent).
-  const pool = new Set(params.words.map((w) => w.word.trim().toLowerCase()));
+  // Keep only words that are genuinely in the candidate list (models sometimes invent).
+  const poolSet = new Set(pool.map((w) => w.word.trim().toLowerCase()));
   const clean = (arr: string[]) =>
-    [...new Set(arr.map((w) => w.trim()).filter((w) => pool.has(w.toLowerCase())))];
+    [...new Set(arr.map((w) => w.trim()).filter((w) => poolSet.has(w.toLowerCase())))];
 
   // New words must NOT already be in the learner's pool.
   const seenNew = new Set<string>();
@@ -96,7 +99,7 @@ export async function coachChat(params: {
     .map((n) => ({ word: (n.word ?? "").trim(), meaning: (n.meaning ?? "").trim() }))
     .filter((n) => {
       const k = n.word.toLowerCase();
-      if (!n.word || pool.has(k) || seenNew.has(k)) return false;
+      if (!n.word || poolSet.has(k) || seenNew.has(k)) return false;
       seenNew.add(k);
       return true;
     })

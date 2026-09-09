@@ -9,12 +9,16 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLevel, useTapAnyGloss } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
+import { resolveMeaning } from "@/lib/resolveMeaning";
+import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { SpeakButton } from "@/components/SpeakButton";
 import { SceneReportCard, type SceneCorrection } from "@/components/SceneReportCard";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
+import { TappableText, type WordEntry } from "@/components/TappableText";
+import { PracticeBar } from "@/components/PracticeBar";
 import { cn } from "@/lib/utils";
 import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
 
@@ -76,68 +80,13 @@ function speechLang(src?: string): string {
   return map[src ?? "en"] ?? src ?? "en-US";
 }
 
-// Highlight mission + new words (inflections included) wherever they appear. Used
-// mission words glow green; brand-new words get an amber tint. Every highlight is
-// tappable → a meaning popover (the same mechanic as the Reader).
-type WordEntry = { meaning: string; isNew: boolean };
-function Highlighted({
-  text,
-  matcher,
-  used,
-  entries,
-  onTap,
-}: {
-  text: string;
-  matcher: WordMatcher;
-  used: Set<string>;
-  entries: Map<string, WordEntry>;
-  onTap: (canonical: string, el: HTMLElement) => void;
-}) {
-  if (!matcher.regex) return <>{text}</>;
-  const parts = text.split(matcher.regex);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const canon = p ? matcher.canonical(p) : null;
-        if (!canon) return <span key={i}>{p}</span>;
-        const key = canon.trim().toLowerCase();
-        const isNew = entries.get(key)?.isNew;
-        const hit = !isNew && used.has(key);
-        const fire = (el: HTMLElement) => onTap(canon, el);
-        return (
-          <span
-            key={i}
-            role="button"
-            tabIndex={0}
-            onClick={(e) => fire(e.currentTarget)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                fire(e.currentTarget);
-              }
-            }}
-            className={cn(
-              "cursor-pointer rounded-md px-1 py-0.5 font-semibold transition-colors",
-              isNew
-                ? "bg-warn-bg text-warn-text ring-1 ring-inset ring-warn/30"
-                : hit
-                  ? "bg-sage text-white"
-                  : "bg-sage-tint text-sage-deep",
-            )}
-          >
-            {p}
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
 export default function CoachScenePage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
+  const tapAny = useTapAnyGloss();
+  const ensureLevel = useEnsureLevel();
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -167,7 +116,6 @@ export default function CoachScenePage() {
   }, [deck]);
 
   const [pair, setPair] = useState<PairKey | null>(null);
-  const [scope, setScope] = useState("smart");
   useEffect(() => {
     if (pair || deck.length === 0) return;
     if (focusIds && focusIds.length) {
@@ -189,38 +137,30 @@ export default function CoachScenePage() {
     }
   }, [deck, focusIds, pair]);
 
-  const collections = useMemo(() => {
-    if (!pair) return [] as { id: string; name: string; count: number }[];
-    const m = new Map<string, { id: string; name: string; count: number }>();
-    for (const w of deck) {
-      if (w.sourceLang !== pair.source || w.targetLang !== pair.target) continue;
-      for (const c of w.collections ?? []) {
-        const e = m.get(c.id) ?? { id: c.id, name: c.name, count: 0 };
-        e.count++;
-        m.set(c.id, e);
-      }
-    }
-    return [...m.values()];
-  }, [deck, pair]);
-
-  // Candidate mission words: weak → due → any, capped. The setup picks the subset that fits the scene.
+  // Candidate mission words: weak → due → the rest, capped. These are CANDIDATES, not a
+  // checklist — the setup keeps only the ones that plausibly belong in the scene, and
+  // keeping none is a perfectly good answer (a bakery scene has no use for "camouflage").
+  const pairWords = useMemo(
+    () => (pair ? deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target) : []),
+    [deck, pair],
+  );
+  const focusSet = useMemo(() => (focusIds?.length ? new Set(focusIds) : null), [focusIds]);
   const poolWords = useMemo(() => {
-    if (!pair) return [] as Word[];
-    let pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
-    if (focusIds && focusIds.length) {
-      const set = new Set(focusIds);
-      pool = pool.filter((w) => set.has(w.id));
-    } else if (scope.startsWith("coll:")) {
-      const cid = scope.slice(5);
-      pool = pool.filter((w) => (w.collections ?? []).some((c) => c.id === cid));
-    }
-    if (!focusIds?.length && scope === "all") {
-      return [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
-    }
-    const weak = pool.filter((w) => (w.lapses ?? 0) >= 2);
-    const due = pool.filter(isDue);
-    return [...new Map([...weak, ...due, ...pool].map((w) => [w.id, w])).values()].slice(0, 10);
-  }, [deck, pair, focusIds, scope]);
+    const base = focusSet ? pairWords.filter((w) => focusSet.has(w.id)) : pairWords;
+    const weak = base.filter((w) => (w.lapses ?? 0) >= 2);
+    const due = base.filter(isDue);
+    return [...new Map([...weak, ...due, ...base].map((w) => [w.id, w])).values()].slice(0, 24);
+  }, [pairWords, focusSet]);
+  const weakCount = useMemo(() => poolWords.filter((w) => (w.lapses ?? 0) >= 2).length, [poolWords]);
+  const dueCount = useMemo(() => poolWords.filter(isDue).length, [poolWords]);
+
+  // Every word the learner owns in this pair, for the tap-any-word lookup: an owned word
+  // that isn't a candidate still resolves locally, with no request.
+  const deckByKey = useMemo(() => {
+    const m = new Map<string, Word>();
+    for (const w of pairWords) m.set(w.word.trim().toLowerCase(), w);
+    return m;
+  }, [pairWords]);
 
   const wordPayload = useMemo(() => poolWords.map((w) => ({ word: w.word, meaning: w.meaningZh ?? "" })), [poolWords]);
 
@@ -300,7 +240,10 @@ export default function CoachScenePage() {
   }
 
   async function generate() {
-    if (!pair || poolWords.length === 0 || generating) return;
+    if (!pair || generating) return;
+    // Difficulty is never random: if no level is set for this language yet, ask once.
+    const { ok } = await ensureLevel(pair.source);
+    if (!ok) return;
     setGenerating(true);
     const preset = selectedPreset ? PRESETS.find((p) => p.id === selectedPreset) : null;
     const effectiveIdea = preset ? preset.idea : undefined;
@@ -316,7 +259,7 @@ export default function CoachScenePage() {
         avoid: effectiveIdea ? undefined : recentThemes,
         telegramId: accountId,
       });
-      const next: Scene = { ...res, newWords: res.newWords ?? [] };
+      const next: Scene = { ...res, missionWords: res.missionWords ?? [], newWords: res.newWords ?? [] };
       setScene(next);
       if (next.title) {
         pushRecent(next.title);
@@ -329,9 +272,9 @@ export default function CoachScenePage() {
     }
   }
 
-  // Save a brand-new word the scene introduced → a card, instantly (meaning is known,
-  // so no AI enrichment / no tokens).
-  async function addNewWord(word: string, meaning: string) {
+  // Save a word the scene introduced (or one you tapped and glossed) → a card, instantly:
+  // the meaning is already known, so no AI enrichment and no tokens.
+  async function addNewWord(word: string, meaning: string, sentence?: string) {
     if (!pair || addingWord) return;
     setAddingWord(word);
     try {
@@ -339,7 +282,7 @@ export default function CoachScenePage() {
         telegramId: accountId,
         sourceLang: pair.source,
         targetLang: pair.target,
-        items: [{ word, meaning }],
+        items: [{ word, meaning, sentence: sentence?.trim() || undefined }],
         source: "Onomika",
         enrich: false,
       });
@@ -354,19 +297,58 @@ export default function CoachScenePage() {
     }
   }
 
-  // Open the meaning popover for a tapped highlight (mission word or new word).
-  function openWordPop(canonical: string, el: HTMLElement) {
-    const key = canonical.trim().toLowerCase();
-    const entry = entries.get(key);
+  // Open the meaning popover for a tapped highlight (mission word or new word) — the
+  // meaning is already in hand, so this never waits on a request.
+  function openWordPop(canonical: string, sentence: string, el: HTMLElement) {
     if (!pair) return;
+    const entry = entries.get(canonical.trim().toLowerCase());
     setPop({
       word: canonical,
       meaning: entry?.meaning ?? "",
       isNew: entry?.isNew ?? false,
+      sentence,
       sourceLang: pair.source,
       targetLang: pair.target,
       anchor: el,
     });
+  }
+
+  // Tap ANY other word in a bubble: an owned word resolves from the deck (no request,
+  // nothing to add); anything else opens in a loading state and fills from the gloss
+  // cache or one cheap call.
+  async function openGlossPop(token: string, sentence: string, el: HTMLElement) {
+    if (!pair) return;
+    const owned = deckByKey.get(token.trim().toLowerCase());
+    if (owned) {
+      setPop({
+        word: owned.word,
+        meaning: owned.meaningZh ?? "",
+        transcription: owned.phonetic ?? "",
+        isNew: false,
+        sentence,
+        sourceLang: pair.source,
+        targetLang: pair.target,
+        anchor: el,
+      });
+      return;
+    }
+    setPop({
+      word: token,
+      meaning: "",
+      isNew: true,
+      loading: true,
+      sentence,
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      anchor: el,
+    });
+    try {
+      const r = await resolveMeaning({ word: token, sentence, sourceLang: pair.source, targetLang: pair.target });
+      // Only patch if this exact popover is still open — the learner may have moved on.
+      setPop((cur) => (cur && cur.anchor === el ? { ...cur, meaning: r.meaning, transcription: r.transcription, loading: false } : cur));
+    } catch {
+      setPop((cur) => (cur && cur.anchor === el ? { ...cur, meaning: t("reader.translateFailed"), loading: false, isNew: false } : cur));
+    }
   }
 
   function begin() {
@@ -522,7 +504,9 @@ export default function CoachScenePage() {
   }
 
   const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
-  const hasWords = deck.length > 0 && poolWords.length > 0;
+  // Without a single card there is no language pair to practise in — that is the only
+  // real blocker now; an empty candidate pool is fine, the scene runs on new words.
+  const hasWords = deck.length > 0;
 
   return (
     <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
@@ -580,10 +564,7 @@ export default function CoachScenePage() {
                         <button
                           key={`${p.source}|${p.target}`}
                           type="button"
-                          onClick={() => {
-                            setPair(p);
-                            setScope("smart");
-                          }}
+                          onClick={() => setPair(p)}
                           className={cn(
                             "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
                             on ? "border-sage bg-sage text-white" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
@@ -597,30 +578,29 @@ export default function CoachScenePage() {
                 </div>
               )}
 
-              {(!focusIds || focusIds.length === 0) && (
-                <div className="mt-5 w-full max-w-[440px]">
-                  <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.practiceScope")}</div>
-                  <div className="flex flex-wrap justify-center gap-1.5">
-                    {[
-                      { id: "smart", label: t("coach.scopeSmart") },
-                      { id: "all", label: t("coach.scopeAll") },
-                      ...collections.map((c) => ({ id: `coll:${c.id}`, label: `${c.name} · ${c.count}` })),
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setScope(s.id)}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
-                          scope === s.id ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50",
-                        )}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
+              {/* A deep-link (from a collection or "drill weak words") is now visible and
+                  clearable, since the picker that used to surface it is gone. */}
+              {focusSet && poolWords.length > 0 && (
+                <div className="mt-5 flex justify-center">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint/50 py-1 pl-3 pr-1.5 text-[13px] font-semibold text-sage-deep">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {t("scene.practisingFocus", { n: String(poolWords.length) })}
+                    <button
+                      type="button"
+                      onClick={() => setFocusIds(null)}
+                      aria-label={t("common.cancel")}
+                      className="rounded-full p-0.5 transition-colors hover:bg-black/[0.06]"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
                 </div>
               )}
+
+              {/* how hard the character talks, and whether every word is tappable */}
+              <div className="mt-5">
+                <PracticeBar lang={pair?.source ?? "en"} />
+              </div>
 
               {/* quick-start scene presets — all visible at once, tap to select */}
               <div className="mt-5 w-full max-w-[540px]">
@@ -663,13 +643,13 @@ export default function CoachScenePage() {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap justify-center gap-1.5">
-                {poolWords.map((w) => (
-                  <span key={w.id} className="rounded-full border border-black/[0.06] bg-paper px-2.5 py-0.5 text-[13px] text-ink-muted">
-                    {w.word}
-                  </span>
-                ))}
-              </div>
+              {poolWords.length > 0 ? (
+                <p className="mt-5 max-w-[420px] text-[13px] leading-relaxed text-ink-faint">
+                  {t("scene.poolHint", { due: String(dueCount), weak: String(weakCount) })}
+                </p>
+              ) : (
+                <p className="mt-5 max-w-[420px] text-[13px] leading-relaxed text-ink-faint">{t("scene.poolHintEmpty")}</p>
+              )}
               <button
                 type="button"
                 onClick={generate}
@@ -717,7 +697,7 @@ export default function CoachScenePage() {
             </p>
           )}
 
-          {scene.missionWords.length > 0 && (
+          {scene.missionWords.length > 0 ? (
             <div className="mt-4">
               <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.missionWords")}</div>
               <div className="flex flex-wrap gap-1.5">
@@ -729,6 +709,10 @@ export default function CoachScenePage() {
                 ))}
               </div>
             </div>
+          ) : (
+            <p className="mt-4 rounded-[14px] border border-black/[0.06] bg-surface/70 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft">
+              {t("scene.noMission")}
+            </p>
           )}
 
           {scene.newWords.length > 0 && (
@@ -769,22 +753,29 @@ export default function CoachScenePage() {
       ) : (
         /* ---------- 3. CONVERSATION (+ report card when done) ---------- */
         <>
+          {/* difficulty + tap-any-word stay reachable mid-scene */}
+          <div className="mb-2 flex justify-end">
+            <PracticeBar lang={pair?.source ?? "en"} />
+          </div>
+
           {missionStrings.length > 0 && !done && (
             <div className="mb-3 flex gap-1.5 overflow-x-auto rounded-[16px] border border-black/[0.06] bg-surface px-3 py-2.5">
               {scene.missionWords.map((w) => {
                 const hit = used.has(w.word.trim().toLowerCase());
                 return (
-                  <span
+                  <button
                     key={w.word}
+                    type="button"
+                    onClick={(e) => openWordPop(w.word, "", e.currentTarget)}
                     className={cn(
                       "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[13px] font-semibold transition-colors",
-                      hit ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-paper text-ink-muted",
+                      hit ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-paper text-ink-muted hover:border-sage/40",
                       srcFontCls,
                     )}
                   >
                     {hit && <Check className="h-3 w-3" strokeWidth={3} />}
                     {w.word}
-                  </span>
+                  </button>
                 );
               })}
             </div>
@@ -839,7 +830,9 @@ export default function CoachScenePage() {
                 matcher={matcher}
                 used={used}
                 entries={entries}
-                onTap={openWordPop}
+                tapAny={tapAny}
+                onKnown={openWordPop}
+                onUnknown={openGlossPop}
                 speakLang={pair?.source ?? "en"}
                 characterName={scene.characterName}
               />
@@ -939,7 +932,7 @@ export default function CoachScenePage() {
           target={pop}
           adding={addingWord === pop.word}
           added={addedWords.has(pop.word.trim().toLowerCase())}
-          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "") : undefined}
+          onAdd={pop.isNew ? () => addNewWord(pop.word, pop.meaning ?? "", pop.sentence) : undefined}
           onClose={() => setPop(null)}
         />
       )}
@@ -960,7 +953,9 @@ function Bubble({
   matcher,
   used,
   entries,
-  onTap,
+  tapAny,
+  onKnown,
+  onUnknown,
   speakLang,
   characterName,
 }: {
@@ -968,7 +963,9 @@ function Bubble({
   matcher: WordMatcher;
   used: Set<string>;
   entries: Map<string, WordEntry>;
-  onTap: (canonical: string, el: HTMLElement) => void;
+  tapAny: boolean;
+  onKnown: (canonical: string, sentence: string, el: HTMLElement) => void;
+  onUnknown: (token: string, sentence: string, el: HTMLElement) => void;
   speakLang: string;
   characterName?: string;
 }) {
@@ -993,7 +990,16 @@ function Bubble({
         )}
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
-            <Highlighted text={turn.content} matcher={matcher} used={used} entries={entries} onTap={onTap} />
+            <TappableText
+              text={turn.content}
+              lang={speakLang}
+              matcher={matcher}
+              used={used}
+              entries={entries}
+              tapAny={tapAny}
+              onKnown={(canonical, el) => onKnown(canonical, turn.content, el)}
+              onUnknown={(token, el) => onUnknown(token, turn.content, el)}
+            />
           </div>
           <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
         </div>

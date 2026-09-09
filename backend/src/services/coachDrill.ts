@@ -1,6 +1,7 @@
 import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachDrillSchema, type CoachDrillResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { levelGuide } from "./levelGuide.js";
 
 /**
  * The adaptive Coach "practice" drill. Unlike the free-form tutor chat, this runs
@@ -19,7 +20,7 @@ export async function coachDrill(params: {
 }): Promise<CoachDrillResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = params.level ? ` The learner's level is about ${params.level} (CEFR).` : "";
+  const level = `\n\n${levelGuide(params.level, source)}`;
   const wordList = params.words
     .slice(0, 12)
     .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
@@ -56,7 +57,8 @@ export async function coachDrill(params: {
         `"wrong", and "gradedWord" to THAT word (the one they just attempted). Give brief, specific ` +
         `feedback in "say" — praise what was right, fix mistakes, show the corrected ${source} form when ` +
         `needed. Then move to the NEXT word in the list (set "drillWord" to it).\n` +
-        `6) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance). If ` +
+        `6) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance) — but never ` +
+        `harder than the LEVEL block above allows. If ` +
         `they struggle, simplify and give a small hint — but stay on the SAME word until it's attempted.\n` +
         `7) When every word has been practised (or the learner asks to stop), set "done" to true and end ` +
         `with a short, encouraging wrap-up naming what improved.\n\n` +
