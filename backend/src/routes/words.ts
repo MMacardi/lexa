@@ -690,6 +690,51 @@ async function coachNote(telegramId: string | undefined, sourceLang?: string): P
   return profilePreamble(await getProfile(telegramId, lang), lang);
 }
 
+/**
+ * Stream a coach reply as NDJSON lines over an already-open POST response.
+ * Protocol: {"type":"delta","t":...} ×N, then one {"type":"final","result":...}
+ * (the validated, post-filtered object) or {"type":"error","error":...}.
+ *
+ * The caller must do any DB work (e.g. coachNote) BEFORE calling this, so an early
+ * failure can still be a clean 502 JSON. Once we start writing deltas the headers are
+ * committed, so a later failure becomes an inline {"type":"error"} line instead.
+ * A client disconnect (req "close") aborts the LLM call and is swallowed silently.
+ */
+async function streamNdjson(
+  req: Request,
+  res: Response,
+  run: (onDelta: (t: string) => void, signal: AbortSignal) => Promise<unknown>,
+): Promise<void> {
+  const ac = new AbortController();
+  let closed = false;
+  req.on("close", () => {
+    closed = true;
+    ac.abort();
+  });
+  res.setHeader("Content-Type", "application/x-ndjson");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+  const write = (obj: unknown) => {
+    if (!closed && !res.writableEnded) res.write(JSON.stringify(obj) + "\n");
+  };
+  try {
+    const result = await run((t) => write({ type: "delta", t }), ac.signal);
+    write({ type: "final", result });
+  } catch (err) {
+    if ((err as Error).name === "AbortError" || closed) {
+      // Client went away mid-stream — nothing left to send.
+    } else if (!res.headersSent) {
+      // Failed before any delta (e.g. LLM unreachable): clean JSON error.
+      res.status(502).json({ error: (err as Error).message });
+      return;
+    } else {
+      write({ type: "error", error: (err as Error).message });
+    }
+  } finally {
+    if (!closed && !res.writableEnded) res.end();
+  }
+}
+
 // POST /api/tutor/ask -> global AI tutor chat (not tied to a card).
 const tutorBody = z.object({
   messages: z
@@ -846,6 +891,7 @@ const coachChatBody = coachDrillBody.extend({
   words: z.array(coachWord).max(30).default([]), // candidates the model filters for relevance
   topic: z.string().max(200).optional(), // what to chat about (steers the conversation)
   wrap: z.boolean().optional(), // the learner is finishing — give a warm sign-off
+  stream: z.boolean().optional(), // opt into NDJSON streaming of the "say" text
 });
 wordsRouter.post("/coach/chat", async (req, res) => {
   const parsed = coachChatBody.safeParse(req.body);
@@ -854,9 +900,22 @@ wordsRouter.post("/coach/chat", async (req, res) => {
     return;
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
+  const { stream, ...rest } = parsed.data;
+  // DB read happens before any streaming headers so an early failure is a clean 502.
+  let profileNote: string;
   try {
-    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
-    res.json(await coachChat({ ...parsed.data, profileNote }));
+    profileNote = await coachNote(telegramId, parsed.data.sourceLang);
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+    return;
+  }
+  if (stream) {
+    await streamNdjson(req, res, (onDelta, signal) => coachChat({ ...rest, profileNote, onDelta, signal }));
+    return;
+  }
+  try {
+    res.json(await coachChat({ ...rest, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
@@ -917,6 +976,7 @@ const coachSceneTurnBody = z.object({
   level: z.string().optional(),
   wrap: z.boolean().optional(),
   telegramId: z.string().optional(),
+  stream: z.boolean().optional(), // opt into NDJSON streaming of the "say" text
 });
 wordsRouter.post("/coach/scene/turn", async (req, res) => {
   const parsed = coachSceneTurnBody.safeParse(req.body);
@@ -925,9 +985,22 @@ wordsRouter.post("/coach/scene/turn", async (req, res) => {
     return;
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
+  const { stream, ...rest } = parsed.data;
+  // DB read happens before any streaming headers so an early failure is a clean 502.
+  let profileNote: string;
   try {
-    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
-    res.json(await coachSceneTurn({ ...parsed.data, profileNote }));
+    profileNote = await coachNote(telegramId, parsed.data.sourceLang);
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+    return;
+  }
+  if (stream) {
+    await streamNdjson(req, res, (onDelta, signal) => coachSceneTurn({ ...rest, profileNote, onDelta, signal }));
+    return;
+  }
+  try {
+    res.json(await coachSceneTurn({ ...rest, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

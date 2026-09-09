@@ -1,4 +1,4 @@
-import { chatJsonConversation, type ChatMessage } from "./llm.js";
+import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { coachSceneTurnSchema, type CoachSceneTurn } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
@@ -32,6 +32,8 @@ export async function coachSceneTurn(params: {
   level?: string;
   profileNote?: string;
   wrap?: boolean;
+  onDelta?: (chunk: string) => void; // when set, stream the live "say" text via this callback
+  signal?: AbortSignal; // abort the stream when the client disconnects
 }): Promise<CoachSceneTurn> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
@@ -107,12 +109,21 @@ export async function coachSceneTurn(params: {
     ...clipped,
   ];
 
-  const result = await chatJsonConversation({
-    messages,
-    schema: coachSceneTurnSchema,
-    timeoutMs: 60000,
-    label: "coachSceneTurn",
-  });
+  const result = params.onDelta
+    ? await chatJsonConversationStream({
+        messages,
+        schema: coachSceneTurnSchema,
+        onDelta: params.onDelta,
+        signal: params.signal,
+        timeoutMs: 60000,
+        label: "coachSceneTurn.stream",
+      })
+    : await chatJsonConversation({
+        messages,
+        schema: coachSceneTurnSchema,
+        timeoutMs: 60000,
+        label: "coachSceneTurn",
+      });
 
   // Post-filter "used" to genuine mission words; keep corrections that actually have a fix.
   const pool = new Set((params.scene.missionWords ?? []).map((w) => w.word.trim().toLowerCase()));
