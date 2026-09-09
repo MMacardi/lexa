@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./db.js";
-import { chatJson } from "./llm.js";
+import { chatJson, FAST_MODEL } from "./llm.js";
 import { langName } from "../lib/langs.js";
 
 // The learner's persistent "coach memory": what the personal mentor remembers
@@ -111,6 +111,7 @@ export async function rememberFromSession(params: {
       user: `Existing notes:\n${existing || "(none yet)"}\n\nLatest session transcript:\n${transcript}`,
       schema: notesSchema,
       label: "coach.remember",
+      model: FAST_MODEL,
       timeoutMs: 20000,
     });
     const notes = (r.notes ?? "").trim().slice(0, NOTES_CAP);

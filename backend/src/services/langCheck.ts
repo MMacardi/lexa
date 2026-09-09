@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatJson } from "./llm.js";
+import { chatJson, FAST_MODEL } from "./llm.js";
 
 // Adding a custom language used to accept any typed string, so «Klingon» or a stray
 // word got full AI enrichment that confidently produced garbage. One cheap call
@@ -30,6 +30,7 @@ export async function checkLanguage(name: string): Promise<LangCheck> {
     user: `Input: ${name.trim().slice(0, 120)}`,
     schema: checkSchema,
     label: "lang.check",
+    model: FAST_MODEL,
     timeoutMs: 20000,
   });
   return { isLanguage: !!r.isLanguage, canonicalName: (r.canonicalName ?? "").trim() };
