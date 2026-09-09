@@ -49,6 +49,7 @@ model User {
   sentFriendships Friendship[] @relation("SentFriendships")
   recvFriendships Friendship[] @relation("RecvFriendships")
   coachMemories CoachMemory[]
+  sceneSessions SceneSession[]
 }
 
 // Coach memory — what the personal mentor remembers about the learner across
@@ -166,6 +167,33 @@ model ReaderText {
   targetLang String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+// A coach scene playthrough, saved so the learner can browse past scenes and
+// resume one mid-dialogue. The scene engine is stateless (the client echoes the
+// bible every turn), so a row is the full resume state: bible + transcript +
+// which mission words were used + corrections + report-card inputs. The Json
+// blobs are never queried; `used`/`addedWords` are arrays so the history list
+// can show studied words without loading the transcript.
+model SceneSession {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  status        String   @default("active") // active | done
+  sceneKey      String? // preset key ("bakery"…), null for generated scenes
+  sourceLang    String?
+  targetLang    String?
+  bible         Json
+  turns         Json     @default("[]")
+  corrections   Json     @default("[]")
+  used          String[] @default([])
+  addedWords    String[] @default([])
+  reviewedCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId, updatedAt])
 }

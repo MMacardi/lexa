@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useI18n, LOCALES } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
-import { Compass, Sparkles, ArrowRight, Check, Plus, FileText, Layers, Sun, Moon, Globe, ChevronDown, Brain } from "lucide-react";
+import { Compass, Sparkles, ArrowRight, Check, Plus, FileText, Layers, Sun, Moon, Globe, ChevronDown, Brain, Clapperboard } from "lucide-react";
 
 // Public marketing landing for signed-out visitors. `onStart` reveals the login
 // screen. Feature demos are distributed down the page (each feature has its own
@@ -33,6 +34,19 @@ const copy = {
     rowMemoryText: "Знает твою цель, интересы и слабые места — и подстраивает практику, подсказки и подбор слов под тебя. Между сессиями и устройствами.",
     scenTitle: "Практика под любую ситуацию",
     scenSub: "Наставник подстраивается под язык, уровень и то, что тебе нужно.",
+    scenSteps: [
+      { t: "Выбери сцену", s: "персонаж и ситуация под твою цель" },
+      { t: "Говори внутри истории", s: "слова твоей колоды вплетаются в диалог" },
+      { t: "Получи отчёт", s: "ошибки и успехи уходят в интервальные повторения" },
+    ],
+    scenes: [
+      { img: "/scenes/bakery.webp", title: "Пекарня", teaser: "Закажите хлеб и выпечку у вежливого пекаря.", words: ["a baguette", "fresh", "a slice"] },
+      { img: "/scenes/cinema.webp", title: "Кинотеатр", teaser: "Спросите про сеансы и возьмите два билета.", words: ["showtimes", "tickets", "row"] },
+      { img: "/scenes/office.webp", title: "Офис", teaser: "Обсудите задачу с коллегой между встречами.", words: ["deadline", "to schedule", "follow up"] },
+      { img: "/scenes/cafe.webp", title: "Кафе", teaser: "Встретьте друга за кофе и поболтайте.", words: ["to catch up", "on tap", "cosy"] },
+      { img: "/scenes/travel.webp", title: "Дорога", teaser: "Заселитесь в отель и уточните всё важное.", words: ["check-in", "luggage", "view"] },
+      { img: "/scenes/interview.webp", title: "Собеседование", teaser: "Расскажите о себе — и получите обратную связь.", words: ["strength", "experience", "to hire"] },
+    ],
     howTitle: "Как это работает",
     how: [
       { n: "01", title: "Загрузи слова", text: "Импортируй список, PDF или фото — или добавляй по одному." },
@@ -44,14 +58,6 @@ const copy = {
     rights: "Все права защищены.",
     terms: "Условия",
     privacy: "Конфиденциальность",
-    scenarios: [
-      { title: "Первый день на испанском", coach: "¡Hola! Начнём с простого — поздоровайся и скажи, кто ты.", user: "Hola, soy Alex." },
-      { title: "Перед поездкой в Токио", coach: "Едешь в Токио — потренируем заказ еды.", user: "すみません、これをください。" },
-      { title: "Собеседование на английском", coach: "Расскажи о себе — поправлю по ходу.", user: "I'm a software developer with…" },
-      { title: "Кофе по-французски", coach: "В кафе — как попросишь кофе?", user: "Un café, s'il vous plaît." },
-      { title: "Small talk на немецком", coach: "Планы на выходные? Одну фразу по-немецки.", user: "Ich gehe wandern." },
-      { title: "Возвращаемся к китайскому", coach: "Вчера 的 подвело — повторим 慢慢来.", user: "我们今天做什么？" },
-    ],
     faqTitle: "Частые вопросы",
     faq: [
       { q: "Чем это отличается от обычного приложения с карточками?", a: "Вместо простого перелистывания наставник заставляет вспоминать каждое слово — ты его употребляешь, он проверяет ответ, исправляет и подстраивается. Карточки, интервальные повторения и читалка уже внутри; закрепляет именно коучинг." },
@@ -84,6 +90,19 @@ const copy = {
     rowMemoryText: "Knows your goal, interests and weak spots — and tailors practice, hints and word picks to you. Across sessions and devices.",
     scenTitle: "Practice for any situation",
     scenSub: "The coach adapts to your language, your level and what you actually need.",
+    scenSteps: [
+      { t: "Pick a scene", s: "a character and a situation that fit your goal" },
+      { t: "Talk inside the story", s: "your deck's words get woven into the dialogue" },
+      { t: "Get a report", s: "misses and wins feed your spaced repetition" },
+    ],
+    scenes: [
+      { img: "/scenes/bakery.webp", title: "The bakery", teaser: "Order bread and pastries from a friendly baker.", words: ["a baguette", "fresh", "a slice"] },
+      { img: "/scenes/cinema.webp", title: "The cinema", teaser: "Ask about showtimes and grab two tickets.", words: ["showtimes", "tickets", "row"] },
+      { img: "/scenes/office.webp", title: "The office", teaser: "Talk a task through with a coworker between meetings.", words: ["deadline", "to schedule", "follow up"] },
+      { img: "/scenes/cafe.webp", title: "The café", teaser: "Meet a friend for coffee and catch up.", words: ["to catch up", "on tap", "cosy"] },
+      { img: "/scenes/travel.webp", title: "On the road", teaser: "Check into a hotel and sort out the details.", words: ["check-in", "luggage", "view"] },
+      { img: "/scenes/interview.webp", title: "The interview", teaser: "Tell them about yourself — and get it right.", words: ["strength", "experience", "to hire"] },
+    ],
     howTitle: "How it works",
     how: [
       { n: "01", title: "Load your words", text: "Import a list, a PDF or a photo — or add them one by one." },
@@ -95,14 +114,6 @@ const copy = {
     rights: "All rights reserved.",
     terms: "Terms",
     privacy: "Privacy",
-    scenarios: [
-      { title: "Day one in Spanish", coach: "¡Hola! Let's start simple — say hello and who you are.", user: "Hola, soy Alex." },
-      { title: "Before a trip to Tokyo", coach: "You're headed to Tokyo — let's practice ordering food.", user: "すみません、これをください。" },
-      { title: "A job interview in English", coach: "Tell me about yourself — I'll fix it as you go.", user: "I'm a software developer with…" },
-      { title: "Ordering coffee in French", coach: "At the café — how do you ask for a coffee?", user: "Un café, s'il vous plaît." },
-      { title: "Small talk in German", coach: "Weekend plans? Say one thing in German.", user: "Ich gehe wandern." },
-      { title: "Picking Chinese back up", coach: "Yesterday 的 tripped you — let's redo it 慢慢来.", user: "我们今天做什么？" },
-    ],
     faqTitle: "Frequently asked questions",
     faq: [
       { q: "How is this different from a normal flashcard app?", a: "Instead of just flipping cards, a coach makes you recall each word — you use it, it checks your answer, corrects you and adapts. Cards, spaced repetition and a reader are built in; the coaching is what makes it stick." },
@@ -404,21 +415,25 @@ function MemoryScene({ locale }: { locale: string }) {
   );
 }
 
-function ScenarioCard({ s }: { s: { title: string; coach: string; user: string } }) {
+function SceneCard({ s }: { s: { img: string; title: string; teaser: string; words: string[] } }) {
   return (
-    <div className="flex h-full flex-col rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(46,42,38,0.1)]">
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-sage" />
-        <span className="h-2.5 w-2.5 rounded-full bg-taupe" />
-        <span className="h-2.5 w-2.5 rounded-full bg-warn" />
+    <div className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-black/[0.07] bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(46,42,38,0.1)]">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-paper">
+        <Image src={s.img} alt={s.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+          <Clapperboard className="h-3 w-3" /> Scene
+        </span>
       </div>
-      <h3 className="mt-4 font-serif text-[19px] font-semibold text-ink">{s.title}</h3>
-      <div className="mt-3 flex flex-col gap-2">
-        <div className="flex items-start gap-1.5 text-[13px] leading-snug text-ink-soft">
-          <span className="shrink-0 font-semibold text-sage-deep">Coach</span>
-          <span>“{s.coach}”</span>
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="font-serif text-[19px] font-semibold text-ink">{s.title}</h3>
+        <p className="mt-1.5 flex-1 text-[13px] leading-snug text-ink-soft">{s.teaser}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {s.words.map((w) => (
+            <span key={w} className="rounded-full border border-sage/30 bg-sage-tint/50 px-2.5 py-0.5 text-[12px] font-medium text-sage-deep">
+              {w}
+            </span>
+          ))}
         </div>
-        <div className="self-end rounded-[12px] rounded-br-sm bg-sage px-3 py-1.5 text-[13px] font-medium text-white">{s.user}</div>
       </div>
     </div>
   );
@@ -583,16 +598,38 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
         <FeatureRow title={L.rowMemoryTitle} text={L.rowMemoryText} demo={<MemoryScene locale={locale} />} flip />
       </section>
 
-      {/* scenario grid — brief, bright, many languages/situations */}
+      {/* scenes — the product's best demo: pick a situation, talk inside it */}
       <section className="mx-auto max-w-[1080px] px-5 py-10 sm:px-8 sm:py-16">
         <Reveal>
-          <h2 className="text-center font-serif text-[27px] font-medium tracking-[-0.01em] sm:text-[34px]">{L.scenTitle}</h2>
+          <div className="flex items-center justify-center gap-2">
+            <Clapperboard className="h-6 w-6 text-sage-deep" />
+            <h2 className="text-center font-serif text-[27px] font-medium tracking-[-0.01em] sm:text-[34px]">{L.scenTitle}</h2>
+          </div>
           <p className="mx-auto mt-2 max-w-[520px] text-center text-[15px] text-ink-soft">{L.scenSub}</p>
         </Reveal>
-        <div className="mt-9 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {L.scenarios.map((s, i) => (
+
+        {/* how a scene plays out — three steps */}
+        <div className="mt-9 grid gap-3.5 sm:grid-cols-3">
+          {L.scenSteps.map((s, i) => (
+            <Reveal key={s.t} delay={i * 110}>
+              <div className="flex h-full items-start gap-3 rounded-[18px] border border-black/[0.06] bg-surface p-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage-tint font-serif text-[15px] font-bold text-sage-deep">
+                  {i + 1}
+                </span>
+                <div>
+                  <div className="font-serif text-[16px] font-semibold text-ink">{s.t}</div>
+                  <div className="mt-0.5 text-[13px] leading-snug text-ink-soft">{s.s}</div>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* real scene presets — same images the app uses */}
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {L.scenes.map((s, i) => (
             <Reveal key={s.title} delay={(i % 3) * 80}>
-              <ScenarioCard s={s} />
+              <SceneCard s={s} />
             </Reveal>
           ))}
         </div>
