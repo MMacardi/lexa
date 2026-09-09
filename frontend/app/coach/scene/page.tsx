@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, isDue, type Word } from "@/lib/api";
+import { api, isDue, type Word, type CoachSceneTurnPayload } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
@@ -25,7 +25,7 @@ import { PracticeBar } from "@/components/PracticeBar";
 import { cn } from "@/lib/utils";
 import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
 
-type Turn = { role: "user" | "assistant"; content: string };
+type Turn = { role: "user" | "assistant"; content: string; streaming?: boolean };
 type PairKey = { source: string; target: string };
 type Mission = { word: string; meaning: string };
 type Scene = {
@@ -188,6 +188,10 @@ export default function CoachScenePage() {
   const [reviewedCount, setReviewedCount] = useState(0);
   const gradedRef = useRef<Set<string>>(new Set()); // mission words already graded Good this session
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Aborts an in-flight streamed reply (unmount, or sending while one is streaming).
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // ---- setup steering + in-conversation UI state ----
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -480,27 +484,50 @@ export default function CoachScenePage() {
   async function sendTurn(history: Turn[], opts: { userText?: string; wrap?: boolean } = {}) {
     if (!pair || !scene) return;
     setBusy(true);
+    const payload: CoachSceneTurnPayload = {
+      messages: history.map((m) => ({ role: m.role, content: m.content })),
+      scene: {
+        title: scene.title,
+        setting: scene.setting,
+        character: scene.character,
+        characterName: scene.characterName,
+        learnerRole: scene.learnerRole,
+        goal: scene.goal,
+        missionWords: scene.missionWords,
+        newWords: scene.newWords,
+      },
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      level: getLevel(pair.source) ?? undefined,
+      wrap: opts.wrap,
+      telegramId: accountId,
+    };
+    // Streaming placeholder; onDelta fills it live, final replaces it.
+    setTurns((cur) => [...cur, { role: "assistant", content: "", streaming: true }]);
+    let acc = "";
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const patchStream = () =>
+      setTurns((cur) => {
+        if (cur.length === 0) return cur;
+        const last = cur[cur.length - 1];
+        if (!last.streaming) return cur;
+        return [...cur.slice(0, -1), { ...last, content: acc }];
+      });
     try {
-      const res = await api.coachSceneTurn({
-        messages: history.map((m) => ({ role: m.role, content: m.content })),
-        scene: {
-          title: scene.title,
-          setting: scene.setting,
-          character: scene.character,
-          characterName: scene.characterName,
-          learnerRole: scene.learnerRole,
-          goal: scene.goal,
-          missionWords: scene.missionWords,
-          newWords: scene.newWords,
+      const res = await api.coachSceneTurnStream(payload, {
+        onDelta: (t) => {
+          acc += t;
+          patchStream();
         },
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        wrap: opts.wrap,
-        telegramId: accountId,
+        signal: ac.signal,
       });
       const reply: Turn = { role: "assistant", content: res.say };
-      setTurns((cur) => [...cur, reply]);
+      setTurns((cur) => {
+        const last = cur[cur.length - 1];
+        if (last?.streaming) return [...cur.slice(0, -1), reply];
+        return [...cur, reply];
+      });
 
       if (opts.userText) {
         const hits = new Set<string>([
@@ -523,8 +550,20 @@ export default function CoachScenePage() {
         api.coachRemember({ telegramId: accountId, sourceLang: pair.source, messages: [...history, reply] }).catch(() => {});
       }
     } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
+      const aborted = (e as Error)?.name === "AbortError";
+      if (acc.trim()) {
+        // Keep whatever streamed; skip structured extras for this turn.
+        setTurns((cur) => {
+          const last = cur[cur.length - 1];
+          if (last?.streaming) return [...cur.slice(0, -1), { role: "assistant", content: acc }];
+          return cur;
+        });
+      } else {
+        setTurns((cur) => (cur[cur.length - 1]?.streaming ? cur.slice(0, -1) : cur));
+        if (!aborted) show({ icon: "⚠️", title: errText(e, t) });
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   }
@@ -940,7 +979,7 @@ export default function CoachScenePage() {
                 characterName={scene.characterName}
               />
             ))}
-            {busy && (
+            {busy && turns[turns.length - 1]?.streaming && !turns[turns.length - 1]?.content && (
               <div className="flex items-center gap-2.5">
                 <SceneAvatar />
                 <div className="flex items-center gap-1.5 rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-3">
@@ -1081,6 +1120,22 @@ function Bubble({
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-taupe/30 text-ink-muted">
           <User className="h-[17px] w-[17px]" />
         </span>
+      </div>
+    );
+  }
+  if (turn.streaming) {
+    if (!turn.content) return null;
+    return (
+      <div className="flex items-end justify-start gap-2.5">
+        <SceneAvatar />
+        <div className="max-w-[82%]">
+          {characterName && (
+            <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{characterName}</div>
+          )}
+          <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
+            {turn.content}
+          </div>
+        </div>
       </div>
     );
   }

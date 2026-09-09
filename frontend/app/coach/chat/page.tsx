@@ -21,7 +21,7 @@ import { PracticeBar } from "@/components/PracticeBar";
 import { cn } from "@/lib/utils";
 import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Flame, Star, Flag } from "lucide-react";
 
-type Turn = { role: "user" | "assistant"; content: string };
+type Turn = { role: "user" | "assistant"; content: string; streaming?: boolean };
 type PairKey = { source: string; target: string };
 
 const LIFETIME_KEY = "lexa.chatPoints";
@@ -157,6 +157,10 @@ export default function CoachChatPage() {
   });
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Aborts an in-flight streamed reply (unmount, or sending while one is streaming).
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy, finished]);
@@ -197,18 +201,49 @@ export default function CoachChatPage() {
   async function sendTurn(history: Turn[], opts: { userTurn: boolean; wrap?: boolean } = { userTurn: true }) {
     if (!pair) return;
     setBusy(true);
-    try {
-      const res = await api.coachChat({
-        messages: history.map((m) => ({ role: m.role, content: m.content })),
-        words: wordPayload,
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        topic: topic.trim() || undefined,
-        wrap: opts.wrap,
-        telegramId: accountId,
+    // Live placeholder bubble that the streamed deltas type into.
+    setTurns((cur) => [...cur, { role: "assistant", content: "", streaming: true }]);
+    let acc = ""; // text streamed so far — kept as the bubble if the stream breaks mid-way
+    const ac = new AbortController();
+    abortRef.current = ac;
+    // Patch the placeholder only while it is still the last, still-streaming turn (guards
+    // against a reset/unmount racing an in-flight delta).
+    const patchStream = () => {
+      setTurns((cur) => {
+        if (!cur.length) return cur;
+        const last = cur[cur.length - 1];
+        if (last.role !== "assistant" || !last.streaming) return cur;
+        return [...cur.slice(0, -1), { ...last, content: acc }];
       });
-      setTurns((cur) => [...cur, { role: "assistant", content: res.say }]);
+    };
+    try {
+      const res = await api.coachChatStream(
+        {
+          messages: history.map((m) => ({ role: m.role, content: m.content })),
+          words: wordPayload,
+          sourceLang: pair.source,
+          targetLang: pair.target,
+          level: getLevel(pair.source) ?? undefined,
+          topic: topic.trim() || undefined,
+          wrap: opts.wrap,
+          telegramId: accountId,
+        },
+        {
+          onDelta: (t) => {
+            acc += t;
+            patchStream();
+          },
+          signal: ac.signal,
+        },
+      );
+      // Finalize the bubble with the validated text (highlighting snaps on here), then run
+      // the structured extras exactly once.
+      setTurns((cur) => {
+        if (cur.length && cur[cur.length - 1].role === "assistant" && cur[cur.length - 1].streaming) {
+          return [...cur.slice(0, -1), { role: "assistant", content: res.say }];
+        }
+        return [...cur, { role: "assistant", content: res.say }];
+      });
 
       // Onomika may slip in a brand-new word — collect it so it highlights amber and
       // can be added to the deck in a tap.
@@ -267,8 +302,22 @@ export default function CoachChatPage() {
 
       if (opts.wrap) setFinished(true);
     } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
+      const aborted = (e as Error)?.name === "AbortError";
+      if (acc.trim()) {
+        // Streamed visible text but never got a validated final: keep what we have as the
+        // bubble, skip the structured extras (no SRS/points for a half-turn), no toast.
+        setTurns((cur) =>
+          cur.length && cur[cur.length - 1].streaming
+            ? [...cur.slice(0, -1), { role: "assistant", content: acc }]
+            : cur,
+        );
+      } else {
+        // Nothing streamed: drop the empty placeholder; surface the error unless aborted.
+        setTurns((cur) => (cur.length && cur[cur.length - 1].streaming ? cur.slice(0, -1) : cur));
+        if (!aborted) show({ icon: "⚠️", title: errText(e, t) });
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   }
@@ -599,7 +648,7 @@ export default function CoachChatPage() {
                 speakLang={pair?.source ?? "en"}
               />
             ))}
-            {busy && (
+            {busy && turns[turns.length - 1]?.streaming && !turns[turns.length - 1]?.content && (
               <div className="flex items-center gap-2.5">
                 <ChatAvatar />
                 <div className="flex items-center gap-1.5 rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-3">
@@ -756,6 +805,22 @@ function Bubble({
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-taupe/30 text-ink-muted">
           <User className="h-[17px] w-[17px]" />
         </span>
+      </div>
+    );
+  }
+  // While streaming, render plain text — no tap-to-gloss on half-tokens and no speak
+  // button yet; highlighting snaps on at the final. An empty placeholder renders nothing
+  // (the typing dots cover the waiting state).
+  if (turn.streaming) {
+    if (!turn.content) return null;
+    return (
+      <div className="flex items-end justify-start gap-2.5">
+        <ChatAvatar />
+        <div className="max-w-[82%]">
+          <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
+            {turn.content}
+          </div>
+        </div>
       </div>
     );
   }
