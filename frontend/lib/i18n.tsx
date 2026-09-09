@@ -1125,7 +1125,7 @@ const DICT: Record<string, Entry> = {
 
   // --- add word form ---
   "add.auto": { en: "Auto (AI)", ru: "Авто (ИИ)", zh: "自动 (AI)" },
-  "add.manual": { en: "✍️ Manual", ru: "✍️ Вручную", zh: "✍️ 手动" },
+  "add.manual": { en: "Manual", ru: "Вручную", zh: "手动" },
   "add.autoDetect": { en: "Auto-detect", ru: "Автоопределение", zh: "自动识别" },
   "add.swap": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
   "add.recent": { en: "Recent", ru: "Недавние", zh: "最近" },
@@ -1362,6 +1362,12 @@ const DICT: Record<string, Entry> = {
     ru: "Onomika запоминает это между сессиями и подстраивает практику, подсказки и подбор слов под тебя.",
     zh: "Onomika 会跨会话记住这些，并据此调整练习、提示和选词。",
   },
+  "coachmem.lang": { en: "Language", ru: "Язык", zh: "语言" },
+  "coachmem.perLang": {
+    en: "Memory is kept separately for each language — an English goal won't leak into your Chinese practice.",
+    ru: "Память хранится отдельно для каждого языка — цель для английского не попадёт в практику китайского.",
+    zh: "每种语言的记忆是分开保存的——英语目标不会出现在你的中文练习里。",
+  },
   "coachmem.goal": { en: "Your goal", ru: "Твоя цель", zh: "你的目标" },
   "coachmem.goalPh": { en: "e.g. IELTS 7.0, a trip to Japan", ru: "напр. IELTS 7.0, поездка в Японию", zh: "如 雅思 7.0、日本旅行" },
   "coachmem.interests": { en: "Interests / topics", ru: "Интересы / темы", zh: "兴趣 / 主题" },
@@ -1481,6 +1487,20 @@ const DICT: Record<string, Entry> = {
   "col.removeLang": { en: "Remove language", ru: "Удалить язык", zh: "删除语言" },
   "col.searchLang": { en: "Search language…", ru: "Поиск языка…", zh: "搜索语言…" },
   "col.langPrompt": { en: "New language name (in English, e.g. Portuguese):", ru: "Название нового языка (по-английски, напр. Portuguese):", zh: "新语言名称（用英文，如 Portuguese）：" },
+  "col.removeLangTitle": { en: "Remove this language?", ru: "Удалить этот язык?", zh: "删除此语言？" },
+  "col.removeLangConfirm": {
+    en: "Remove \"{name}\" from the language list? Cards you already saved in it stay in your deck.",
+    ru: "Убрать «{name}» из списка языков? Карточки, уже сохранённые на этом языке, останутся в колоде.",
+    zh: "从语言列表中移除“{name}”？已用该语言保存的卡片仍会留在你的卡片库中。",
+  },
+  "lang.checking": { en: "Checking…", ru: "Проверяем…", zh: "正在检查…" },
+  "lang.notATitle": { en: "\"{name}\" doesn't look like a language", ru: "«{name}» не похоже на язык", zh: "“{name}” 似乎不是一种语言" },
+  "lang.notAMsg": {
+    en: "Onomika couldn't recognize this name, so AI translation and auto-filled cards will be OFF for it — you can still add cards manually. Add it anyway?",
+    ru: "Onomika не распознала это название, поэтому ИИ-перевод и автозаполнение карточек будут для него ВЫКЛЮЧЕНЫ — карточки можно добавлять вручную. Всё равно добавить?",
+    zh: "Onomika 无法识别该名称，因此它的 AI 翻译和自动填卡将关闭——你仍可手动添加卡片。仍要添加吗？",
+  },
+  "lang.manualOnly": { en: "manual only", ru: "только вручную", zh: "仅手动" },
 
   // --- command palette ---
   "cmd.placeholder": { en: "Search words or jump to a page…", ru: "Найти слово или открыть страницу…", zh: "搜索单词或跳转页面…" },

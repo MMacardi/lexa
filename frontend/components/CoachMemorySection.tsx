@@ -7,18 +7,36 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
+import { LangSelect } from "@/components/LangSelect";
 import { Compass, Trash2 } from "lucide-react";
 
 // "What your coach knows about you" — the learner-visible view of the coach memory
 // (goal + interests they set, plus the model-maintained notes). Editable + clearable,
 // so the personal-agent memory is transparent and under the learner's control.
+//
+// Memory is PER SOURCE LANGUAGE: an IELTS goal written while practising English must
+// not follow the learner into their Chinese sessions, so the section is scoped by a
+// language picker and each language has its own row.
 export function CoachMemorySection() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
+  const [lang, setLang] = useState("en");
+
+  // Start on the pair the learner actually uses, so the section opens on the language
+  // they care about rather than always English.
+  useEffect(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string } | null;
+      if (p?.sourceLang) setLang(p.sourceLang);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const { data } = useQuery({
-    queryKey: ["coach-profile", accountId],
-    queryFn: () => api.coachProfile(accountId),
+    queryKey: ["coach-profile", accountId, lang],
+    queryFn: () => api.coachProfile(accountId, lang),
     enabled: !!accountId,
   });
 
@@ -38,7 +56,7 @@ export function CoachMemorySection() {
   async function save() {
     setSaving(true);
     try {
-      await api.updateCoachProfile({ telegramId: accountId, goal, interests, notes });
+      await api.updateCoachProfile({ telegramId: accountId, lang, goal, interests, notes });
       show({ icon: "💾", title: t("coachmem.saved") });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -50,7 +68,7 @@ export function CoachMemorySection() {
   async function clearNotes() {
     setNotes("");
     try {
-      await api.updateCoachProfile({ telegramId: accountId, notes: "" });
+      await api.updateCoachProfile({ telegramId: accountId, lang, notes: "" });
     } catch {
       /* ignore */
     }
@@ -64,6 +82,11 @@ export function CoachMemorySection() {
       <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">{t("coachmem.hint")}</p>
 
       <div className="mt-4 space-y-3">
+        <div>
+          <label className="text-[13px] font-semibold text-ink">{t("coachmem.lang")}</label>
+          <LangSelect value={lang} onChange={setLang} className="mt-1" />
+          <p className="mt-1 text-[12px] text-ink-faint">{t("coachmem.perLang")}</p>
+        </div>
         <div>
           <label className="text-[13px] font-semibold text-ink">{t("coachmem.goal")}</label>
           <input

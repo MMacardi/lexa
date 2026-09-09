@@ -333,7 +333,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
       words: p.words.map((w) => ({ word: w.word, meaning: w.meaning })),
       sourceLang: p.pair.source,
       targetLang: p.pair.target,
-      profileNote: telegramId ? profilePreamble(await getProfile(telegramId)) : "",
+      profileNote: telegramId ? profilePreamble(await getProfile(telegramId, p.pair.source), p.pair.source) : "",
     });
   } catch (err) {
     console.error(err);
@@ -359,7 +359,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
   }
   const mark = res.grade === "correct" ? "🟢 " : res.grade === "partial" ? "🟠 " : res.grade === "wrong" ? "🔴 " : "";
   if (res.done) {
-    if (telegramId) void rememberFromSession({ telegramId, messages: p.messages });
+    if (telegramId) void rememberFromSession({ telegramId, lang: p.pair.source, messages: p.messages });
     st.practice = undefined;
     await ctx.replyWithHTML(
       `${mark}${esc(res.say)}\n\n🎉 <b>Готово</b> — верно ${p.correct}/${p.graded.size}. Ещё раз: /practice`,
@@ -703,7 +703,7 @@ export function createBot(): Telegraf {
         messages: st.history,
         sourceLang: pair.source,
         targetLang: pair.target,
-        profileNote: profilePreamble(await getProfile(telegramId)),
+        profileNote: profilePreamble(await getProfile(telegramId, pair.source), pair.source),
       });
       st.history.push({ role: "assistant", content: r.answer });
       st.suggested = r.addWords ?? [];

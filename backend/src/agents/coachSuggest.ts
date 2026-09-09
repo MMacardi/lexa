@@ -56,7 +56,7 @@ export async function suggestDailyPicks(params: {
         `topics/domains (natural next words, common collocations, same themes), while staying varied. `
       : "";
 
-  const memory = profilePreamble(await getProfile(params.telegramId));
+  const memory = profilePreamble(await getProfile(params.telegramId, params.sourceLang), params.sourceLang);
 
   const result = await chatJson({
     system:

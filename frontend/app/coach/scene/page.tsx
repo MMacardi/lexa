@@ -13,6 +13,7 @@ import { getLevel, useTapAnyGloss } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { resolveMeaning } from "@/lib/resolveMeaning";
+import { useTranscriptions } from "@/lib/transcribe";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { SpeakButton } from "@/components/SpeakButton";
 import { SceneReportCard, type SceneCorrection } from "@/components/SceneReportCard";
@@ -200,6 +201,9 @@ export default function CoachScenePage() {
     () => [...(scene?.missionWords ?? []).map((w) => w.word), ...(scene?.newWords ?? []).map((w) => w.word)],
     [scene],
   );
+  // Pinyin / romanization for the word chips — resolved on-device, empty for languages
+  // we can't romanize locally or when the learner turned transcriptions off.
+  const readings = useTranscriptions(allWordStrings, pair?.source ?? "");
   const matcher = useMemo(() => buildWordMatcher(allWordStrings), [allWordStrings]);
   const entries = useMemo(() => {
     const m = new Map<string, WordEntry>();
@@ -423,7 +427,7 @@ export default function CoachScenePage() {
       if (res.sceneDone || opts.wrap) {
         setDone(true);
         // Fold what happened into Onomika's long-term memory of this learner.
-        api.coachRemember({ telegramId: accountId, messages: [...history, reply] }).catch(() => {});
+        api.coachRemember({ telegramId: accountId, sourceLang: pair.source, messages: [...history, reply] }).catch(() => {});
       }
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -704,6 +708,7 @@ export default function CoachScenePage() {
                 {scene.missionWords.map((w) => (
                   <span key={w.word} className={cn("rounded-full border border-black/[0.08] bg-surface px-2.5 py-1 text-[13px] text-ink", srcFontCls)}>
                     {w.word}
+                    {readings.get(w.word) && <span className="ml-1.5 text-[12px] font-medium text-ink-faint">{readings.get(w.word)}</span>}
                     {w.meaning && <span className="ml-1.5 text-ink-faint">{w.meaning}</span>}
                   </span>
                 ))}
@@ -724,6 +729,7 @@ export default function CoachScenePage() {
                 {scene.newWords.map((w) => (
                   <span key={w.word} className={cn("rounded-full border border-warn/30 bg-warn-bg px-2.5 py-1 text-[13px] text-warn-text", srcFontCls)}>
                     {w.word}
+                    {readings.get(w.word) && <span className="ml-1.5 text-[12px] font-medium opacity-60">{readings.get(w.word)}</span>}
                     {w.meaning && <span className="ml-1.5 opacity-75">{w.meaning}</span>}
                   </span>
                 ))}
@@ -775,6 +781,7 @@ export default function CoachScenePage() {
                   >
                     {hit && <Check className="h-3 w-3" strokeWidth={3} />}
                     {w.word}
+                    {readings.get(w.word) && <span className="text-[11px] font-medium opacity-65">{readings.get(w.word)}</span>}
                   </button>
                 );
               })}

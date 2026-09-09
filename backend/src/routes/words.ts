@@ -6,6 +6,7 @@ import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
+import { checkLanguage } from "../services/langCheck.js";
 import { coachDrill } from "../services/coachDrill.js";
 import { coachChat } from "../services/coachChat.js";
 import { coachSceneSetup } from "../services/coachSceneSetup.js";
@@ -49,7 +50,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -641,6 +642,24 @@ wordsRouter.post("/gloss", async (req, res) => {
   }
 });
 
+// POST /api/languages/check -> is this learner-typed custom language a real one?
+// Decides whether AI enrichment stays on for it. Cheap and rare (once per language
+// added), so it is rate limited but NOT charged against the daily generation pool.
+const langCheckBody = z.object({ name: z.string().min(1).max(120) });
+wordsRouter.post("/languages/check", async (req, res) => {
+  const parsed = langCheckBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await checkLanguage(parsed.data.name));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
 // POST /api/ocr -> extract text from an uploaded photo (Reader "scan a photo").
 const ocrBody = z.object({
   image: z.string().min(1).max(15_000_000).regex(/^data:image\//, "Expected an image data URL"),
@@ -661,6 +680,15 @@ wordsRouter.post("/ocr", monthlyGuard("ocr", env.FREE_MONTHLY_OCR), async (req, 
   }
 });
 
+// Coach memory is stored PER SOURCE LANGUAGE, so every coach/tutor route resolves the
+// learner's memory for the language they are actually practising — an English goal must
+// never be injected into a Chinese session.
+async function coachNote(telegramId: string | undefined, sourceLang?: string): Promise<string> {
+  if (!telegramId) return "";
+  const lang = sourceLang?.trim() || "en";
+  return profilePreamble(await getProfile(telegramId, lang), lang);
+}
+
 // POST /api/tutor/ask -> global AI tutor chat (not tied to a card).
 const tutorBody = z.object({
   messages: z
@@ -680,7 +708,7 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
     res.json(await tutorChat({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
@@ -688,24 +716,26 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
   }
 });
 
-// GET /api/coach/profile -> what the coach remembers about the learner.
+// GET /api/coach/profile -> what the coach remembers about the learner for one language.
 wordsRouter.get("/coach/profile", async (req, res) => {
   const telegramId = readSession(req) ?? String(req.query.telegramId ?? "");
+  const lang = String(req.query.lang ?? "").trim() || "en";
   if (!telegramId) {
     res.json({ goal: "", interests: "", notes: "" });
     return;
   }
   try {
-    res.json(await getProfile(telegramId));
+    res.json(await getProfile(telegramId, lang));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });
   }
 });
 
-// PUT /api/coach/profile -> the learner edits their goal / interests / notes.
+// PUT /api/coach/profile -> the learner edits their goal / interests / notes for `lang`.
 const profileBody = z.object({
   telegramId: z.string().optional(),
+  lang: z.string().min(1).max(32).default("en"),
   goal: z.string().max(300).optional(),
   interests: z.string().max(300).optional(),
   notes: z.string().max(1000).optional(),
@@ -722,17 +752,18 @@ wordsRouter.put("/coach/profile", async (req, res) => {
     return;
   }
   try {
-    res.json(await updateProfile(telegramId, parsed.data));
+    res.json(await updateProfile(telegramId, parsed.data.lang, parsed.data));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });
   }
 });
 
-// POST /api/coach/remember -> fold a finished session's transcript into the
-// learner's durable coach notes (best-effort; runs one cheap call).
+// POST /api/coach/remember -> fold a finished session's transcript into the durable
+// coach notes for the language that session was in (best-effort; one cheap call).
 const rememberBody = z.object({
   telegramId: z.string().optional(),
+  sourceLang: z.string().min(1).max(32).default("en"),
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(3000) })).max(30),
 });
 wordsRouter.post("/coach/remember", async (req, res) => {
@@ -747,7 +778,7 @@ wordsRouter.post("/coach/remember", async (req, res) => {
     return;
   }
   // Fire-and-forget so the client isn't blocked on the summary call.
-  void rememberFromSession({ telegramId, messages: parsed.data.messages });
+  void rememberFromSession({ telegramId, lang: parsed.data.sourceLang, messages: parsed.data.messages });
   res.json({ ok: true });
 });
 
@@ -800,7 +831,7 @@ wordsRouter.post("/coach/drill", async (req, res) => {
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
     res.json(await coachDrill({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
@@ -823,7 +854,7 @@ wordsRouter.post("/coach/chat", async (req, res) => {
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
     res.json(await coachChat({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
@@ -851,7 +882,7 @@ wordsRouter.post("/coach/scene/setup", async (req, res) => {
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
     res.json(await coachSceneSetup({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);
@@ -894,7 +925,7 @@ wordsRouter.post("/coach/scene/turn", async (req, res) => {
   }
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
-    const profileNote = telegramId ? profilePreamble(await getProfile(telegramId)) : "";
+    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
     res.json(await coachSceneTurn({ ...parsed.data, profileNote }));
   } catch (err) {
     console.error(err);

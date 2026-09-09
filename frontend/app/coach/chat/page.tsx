@@ -12,6 +12,7 @@ import { getLevel, useTapAnyGloss } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { resolveMeaning } from "@/lib/resolveMeaning";
+import { useTranscriptions } from "@/lib/transcribe";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { SpeakButton } from "@/components/SpeakButton";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
@@ -50,12 +51,6 @@ export default function CoachChatPage() {
   });
   const deck = useMemo(() => words ?? [], [words]);
 
-  const { data: profile } = useQuery({
-    queryKey: ["coach-profile", accountId],
-    queryFn: () => api.coachProfile(accountId),
-    enabled: !!accountId,
-  });
-
   const pairs = useMemo(() => {
     const m = new Map<string, PairKey>();
     for (const w of deck) m.set(`${w.sourceLang}|${w.targetLang}`, { source: w.sourceLang, target: w.targetLang });
@@ -77,6 +72,14 @@ export default function CoachChatPage() {
       setPair({ source, target });
     }
   }, [deck, pair]);
+
+  // Coach memory is per SOURCE LANGUAGE — read the goal for the pair actually selected.
+  const { data: profile } = useQuery({
+    queryKey: ["coach-profile", accountId, pair?.source],
+    queryFn: () => api.coachProfile(accountId, pair!.source),
+    enabled: !!accountId && !!pair,
+  });
+
   // Prefill the topic with the learner's saved goal — a natural thing to chat about.
   useEffect(() => {
     const g = profile?.goal?.trim();
@@ -113,6 +116,11 @@ export default function CoachChatPage() {
   // Words that have actually come up in THIS conversation: seeded by Onomika, used by
   // the learner, or introduced as new. The chip strip is live, not a pre-dealt board.
   const [liveWords, setLiveWords] = useState<{ word: string; meaning: string; state: "seeded" | "used" | "new" }[]>([]);
+  // Pinyin / romanization for those chips — empty for languages we can't romanize locally.
+  const readings = useTranscriptions(
+    liveWords.map((w) => w.word),
+    pair?.source ?? "",
+  );
 
   // Every word the learner owns in this pair, keyed for the tap-any-word lookup: an
   // owned word that isn't a candidate still resolves locally, with no model call.
@@ -571,6 +579,7 @@ export default function CoachChatPage() {
                 >
                   {w.state === "used" && <Check className="h-3 w-3" strokeWidth={3} />}
                   {w.word}
+                  {readings.get(w.word) && <span className="text-[11px] font-medium opacity-65">{readings.get(w.word)}</span>}
                 </button>
               ))}
             </div>
