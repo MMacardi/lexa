@@ -23,6 +23,8 @@ import {
   setMeaningMode,
   setMeaningCustom,
   setGraphAddMethod,
+  setMicEngine,
+  clearMicBrowserFailed,
   useMeaningMode,
   useMeaningCustom,
   useShowTextLevel,
@@ -32,10 +34,12 @@ import {
   useRetention,
   useShowTranscription,
   useGraphAddMethod,
+  useMicEngine,
   type CefrLevel,
   type ExampleSource,
   type MeaningMode,
   type GraphAddMethod,
+  type MicEngine,
 } from "@/lib/learnPrefs";
 import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
@@ -198,6 +202,46 @@ function TranscriptionSection() {
         </div>
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("tr.hint")}</p>
+    </section>
+  );
+}
+
+function MicSection() {
+  const { t } = useI18n();
+  const engine = useMicEngine();
+  const options: MicEngine[] = ["auto", "browser", "server"];
+  const label: Record<MicEngine, string> = {
+    auto: t("mic.auto"),
+    browser: t("mic.browser"),
+    server: t("mic.server"),
+  };
+  return (
+    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("mic.title")}</h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("mic.label")}</span>
+        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+          {options.map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => {
+                setMicEngine(v);
+                // Choosing the browser engine is the learner asserting it works for them —
+                // forget any past runtime failure so "auto" can reconsider it later too.
+                if (v === "browser") clearMicBrowserFailed();
+              }}
+              className={cn(
+                "rounded-full px-4 py-1.5 transition-colors",
+                engine === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {label[v]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("mic.hint")}</p>
     </section>
   );
 }
@@ -545,6 +589,8 @@ export default function AccountPage() {
       {/* ── Coach: your personal mentor's memory ── */}
       <GroupHeading>{t("coach.title")}</GroupHeading>
       <CoachMemorySection />
+      {/* which engine transcribes voice answers + pronunciation checks */}
+      <MicSection />
 
       {/* ── Adding words: how new cards are created ── */}
       <GroupHeading>{t("settings.groupAdding")}</GroupHeading>

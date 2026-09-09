@@ -26,6 +26,37 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   browser STT transcribes it, we score closeness (Great/Almost/Not quite + %) via
   Levenshtein over the recogniser's alternatives. On-device, free. `recognizeOnce`
   + `lib/pronounce.ts`. Could extend to review/practice later.
+- 🧊 **B5+ Phoneme-level pronunciation scoring** (DEFERRED — researched, not built).
+  Today's check is a word-level ASR proxy (did the transcript match?). The upgrade is
+  per-phoneme feedback: green/yellow/red highlighting of each sound, for en + zh.
+  - **Recommended vendor: Alibaba Cloud 口语评测** (Smart Science-Education Content
+    Platform / SSECP, product `AiContent`) — same vendor as Bailian. Domestic endpoint
+    `aicontent.cn-hangzhou.aliyuncs.com` (region cn-hangzhou) reachable **without a VPN**.
+    Protocol is **RESTful HTTPS OpenAPI** (SDK `alibabacloud_aicontent20240611`, RAM AK/SK
+    or 24 h temp token) — NOT WebSocket, so less infra than realtime ASR.
+  - **Response shape:** `result.details[].phone[].score` + `pherr` per phoneme, `stress[]`,
+    `phdet`/`syldet` error detection, `result.overall`. Request `{coreType:"en.word.score"|
+    "en.sent.score"|"cn...", refText, rank:100, precision, attachAudioUrl, accent:"am"|"en",
+    phdet, syldet}`. Types: word / sentence / passage / read-aloud / Q&A.
+  - **Price:** ¥0.004 per successful call (failed not billed); volume tiers to ¥0.002.
+    ~200 calls/mo ≈ ¥0.8 ≈ 10₽/mo.
+  - **Activate:** Console → 智能科教内容生成平台 → 立即开通; RAM user with OpenAPI access;
+    buy resource pack `commodityCode=aioral_grading_dp_cn`.
+  - **Integration sketch:** backend `POST /api/pronounce/score` reusing the existing
+    record→backend pattern (lib/record.ts → base64 audio), returning per-phoneme scores;
+    render as coloured phoneme highlighting on PronounceButton + the Reader read-aloud rows.
+    Other languages keep the current word-level ASR fallback.
+  - **Unknowns to resolve at build time:** exact OpenAPI action name for 口语评测 (the blog
+    only showed AI-teacher dialogue actions); audio upload (base64 inline vs OSS); sample-rate
+    /encoding requirements; whether to call SSECP/AiContent OpenAPI vs a dedicated
+    `aioral_grading` product.
+  - **Alternates:** Tencent SOE 智聆 ¥0.005/call (phoneme en+zh, separate vendor/account);
+    iFlytek ISE / SpeechSuper 先声 / Unisound 云知声 (same class, standard `en.word.score`
+    schema). **Azure Pronunciation Assessment** = global gold standard but poor China
+    reachability → rejected.
+  - **Why realtime WS ASR was rejected:** it only adds live captions + VAD auto-stop (comfort),
+    not scoring accuracy — same word-level transcript. Phoneme scoring comes from the
+    evaluation API above via plain REST. Deferred together.
 - 💡 **B6 Fresh example per review / difficulty adaptation** — behind a toggle (tokens).
 - 💡 **B7 Meaning backfill** — shorten old long meanings on demand.
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
@@ -279,6 +310,13 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   → The two open ones behind a per-user toggle (default off) to control token spend.
 
 ## Done (big recent batches)
+- ✅ **Streaming + cost/voice wave (2026-09-10)** — coach chat/scene replies now stream
+  live over NDJSON (`{"type":"delta"}` → `final`); system prompts reordered (static →
+  session-stable → volatile) to hit Bailian's implicit prefix cache (`cached=` in usage
+  logs); trivial calls (gloss/translate/transcribe/suggest/langCheck/coach-memory/tutor-dict)
+  moved to `qwen-flash` (`FAST_MODEL`, env-overridable); universal mics — one `useMicInput`
+  hook + `micEngine` resolver (auto/browser/server pref in Account) so voice answers and
+  pronunciation checks work on iPhone and in mainland China via server STT fallback.
 - ✅ **Reader upgrades** — saved texts + collections, AI-generated texts at a chosen
   CEFR level, tap-transcription (pinyin/romaji), background generation.
 - ✅ **AI explanation cache** on the card (free re-opens; cleared on edits).

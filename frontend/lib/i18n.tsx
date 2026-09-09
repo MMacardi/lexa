@@ -713,6 +713,23 @@ const DICT: Record<string, Entry> = {
   "coach.practiceTranscribing": { en: "Transcribing…", ru: "Распознаю голос…", zh: "识别中…" },
   "coach.practiceSttFail": { en: "Couldn't catch that — try again or type it.", ru: "Не разобрал запись — попробуй ещё раз или напиши текстом.", zh: "没听清——再试一次或改用文字。" },
   "coach.practiceMicUnsupported": { en: "Recording isn't available in this browser.", ru: "Запись недоступна в этом браузере.", zh: "此浏览器不支持录音。" },
+  // Voice-input engine setting (Account) + runtime hints
+  "mic.title": { en: "Voice input", ru: "Голосовой ввод", zh: "语音输入" },
+  "mic.label": { en: "Microphone engine", ru: "Движок микрофона", zh: "麦克风引擎" },
+  "mic.auto": { en: "Auto", ru: "Авто", zh: "自动" },
+  "mic.browser": { en: "Browser", ru: "Браузер", zh: "浏览器" },
+  "mic.server": { en: "Server", ru: "Сервер", zh: "服务器" },
+  "mic.hint": {
+    en: "Auto uses live browser recognition where it works and falls back to our server otherwise — the server works everywhere, including iPhone and mainland China. Browser gives live text but only on Chrome/desktop; server works everywhere but transcribes after you stop.",
+    ru: "Авто использует живое распознавание в браузере, где оно работает, и иначе переключается на наш сервер — сервер работает везде, включая iPhone и материковый Китай. Браузер даёт текст в реальном времени, но только в Chrome/на компьютере; сервер работает везде, но распознаёт после остановки записи.",
+    zh: "自动模式在可用时使用浏览器的实时识别，否则改用我们的服务器——服务器在任何地方都能用，包括 iPhone 和中国大陆。浏览器可实时出字，但仅限 Chrome/桌面端；服务器到处可用，但在你停止录音后才转写。",
+  },
+  "mic.checking": { en: "Recorded — transcribing…", ru: "Записано — распознаю…", zh: "已录音——识别中…" },
+  "mic.browserFailed": {
+    en: "Browser recognition isn't available here — switched to the server.",
+    ru: "Браузерное распознавание здесь недоступно — переключили на серверное.",
+    zh: "此设备不支持浏览器识别——已切换到服务器识别。",
+  },
   // Coach's daily voice on Today (adaptive, no AI)
   "coach.briefWeak": {
     en: "{n} words keep slipping — let's lock them in together first.",
