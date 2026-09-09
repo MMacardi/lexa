@@ -62,11 +62,10 @@ export async function coachSceneTurn(params: {
     {
       role: "system",
       content:
-        (params.profileNote ?? "") +
+        // --- session-stable prefix (cached across turns) ---
         `You are ${params.scene.characterName || "a character"} in a language-practice roleplay. You are a warm, ` +
         `natural conversation partner — NOT a teacher reading a script and NOT a quiz. The learner is practising ` +
         `${source}; their own language is ${target}.${level}\n\n` +
-        bible + `\n\n` +
         `How to play your turn:\n` +
         `1) STAY IN CHARACTER and keep the scene moving. Write "say" mostly in ${source}, obeying the LEVEL block ` +
         `above exactly, and end with something that invites their reply. Never write ${target} inside "say" — no ` +
@@ -84,7 +83,7 @@ export async function coachSceneTurn(params: {
         `4) MISSION WORDS: create natural openings for the mission words, but never quiz, list or translate them on ` +
         `demand. If the learner uses a mission word correctly in THIS message (any inflected form counts), put its ` +
         `canonical form — verbatim from the mission list — into "used". Be generous, but ONLY list real mission words ` +
-        `they actually used; never invent. If the mission list above is "(none)", ignore this rule entirely — just ` +
+        `they actually used; never invent. If the mission list below is "(none)", ignore this rule entirely — just ` +
         `play the scene well and let the new words carry the learning; "used" stays empty.\n` +
         `   NEW WORDS: when it fits, slip a "new word" into YOUR OWN line so the learner meets it alive in context ` +
         `(the first time, make its meaning obvious from context — never append a ${target} translation). Never quiz ` +
@@ -93,13 +92,17 @@ export async function coachSceneTurn(params: {
         `5) ENDING: set "sceneDone" to true once the objective is resolved or the scene reaches a natural end (or the ` +
         `learner says goodbye / asks to stop). On that turn, "say" a short, warm in-character closing line and do not ` +
         `ask a new question.\n` +
-        (params.wrap
-          ? `\nThe learner is ending the session right now: give a brief, warm in-character sign-off (no new question) ` +
-            `and set "sceneDone" to true.\n`
-          : "") +
         scriptNote(params.sourceLang ?? "en") +
-        ` Respond as JSON: {"say": string, "used": string[], ` +
-        `"corrections": [{"original": string, "corrected": string, "note": string}], "sceneDone": boolean}.`,
+        `\n\n` +
+        bible +
+        `\n\nRespond as JSON with "say" as the FIRST key: {"say": string, "used": string[], ` +
+        `"corrections": [{"original": string, "corrected": string, "note": string}], "sceneDone": boolean}.` +
+        // --- volatile tail (changes mid-session; kept last so the prefix above caches) ---
+        (params.profileNote ? `\n\n${params.profileNote}` : "") +
+        (params.wrap
+          ? `\n\nThe learner is ending the session right now: give a brief, warm in-character sign-off (no new question) ` +
+            `and set "sceneDone" to true.`
+          : ""),
     },
     ...clipped,
   ];
