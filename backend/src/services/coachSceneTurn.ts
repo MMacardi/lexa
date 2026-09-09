@@ -69,8 +69,10 @@ export async function coachSceneTurn(params: {
         bible + `\n\n` +
         `How to play your turn:\n` +
         `1) STAY IN CHARACTER and keep the scene moving. Write "say" mostly in ${source}, obeying the LEVEL block ` +
-        `above exactly, and end with something that invites their reply. Add a brief ${target} gloss ` +
-        `only if something would genuinely confuse.\n` +
+        `above exactly, and end with something that invites their reply. Never write ${target} inside "say" — no ` +
+        `translations and no parenthetical glosses: every highlighted word is tappable in the app and shows its ` +
+        `meaning there, so an inline translation only breaks the scene. Make an unclear word obvious from ` +
+        `context instead.\n` +
         `2) RELEVANCE WITHOUT GRADING: if the learner drifts off the scene or ignores what your character just asked, ` +
         `react IN CHARACTER and steer back naturally (a barista pulls the talk back to the order). NEVER say ` +
         `"correct"/"wrong" and never break character to grade.\n` +
@@ -85,7 +87,8 @@ export async function coachSceneTurn(params: {
         `they actually used; never invent. If the mission list above is "(none)", ignore this rule entirely — just ` +
         `play the scene well and let the new words carry the learning; "used" stays empty.\n` +
         `   NEW WORDS: when it fits, slip a "new word" into YOUR OWN line so the learner meets it alive in context ` +
-        `(gloss it briefly in ${target} the first time). Never quiz or translate it on demand, and never put a new ` +
+        `(the first time, make its meaning obvious from context — never append a ${target} translation). Never quiz ` +
+        `or translate it on demand, and never put a new ` +
         `word in "used" — that array is only for mission words.\n` +
         `5) ENDING: set "sceneDone" to true once the objective is resolved or the scene reaches a natural end (or the ` +
         `learner says goodbye / asks to stop). On that turn, "say" a short, warm in-character closing line and do not ` +

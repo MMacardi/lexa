@@ -49,7 +49,8 @@ export async function coachChat(params: {
         `engaging follow-up question. Length and vocabulary come from the LEVEL block above — obey it exactly. ` +
         `Lead the conversation somewhere fun; never let it stall.\n` +
         `2) IMMERSION: write mostly in ${source}. ` +
-        `Only drop in a short ${target} word/gloss if something would otherwise be confusing.\n` +
+        `Never drop ${target} words or glosses into it — no parenthetical translations: the learner taps any ` +
+        `highlighted word to see its meaning. Make an unclear word obvious from context instead.\n` +
         `3) SEED naturally: when one of the candidates genuinely fits what you are talking about RIGHT NOW, ` +
         `weave ONE (occasionally two) into your OWN reply, used correctly in context — so they meet the word ` +
         `alive, not drilled. If none of them fit this turn, use NONE: an unrelated word shoehorned into the ` +
@@ -64,8 +65,9 @@ export async function coachChat(params: {
         (params.topic ? ` The learner specifically wants to chat about: "${params.topic}". Lead there.` : "") +
         `\n7) TEACH BY STEALTH: once in a while (NOT every turn, at most one per reply) introduce ONE brand-new ` +
         `word the learner most likely does NOT know yet — natural to the topic, at most one notch above their ` +
-        `LEVEL block, and NOT from the candidate list above. Use it correctly in your reply, gloss it briefly in ` +
-        `${target} the first time, and report it in "newWords" as {word (in ${source}), meaning (a short gloss in ` +
+        `LEVEL block, and NOT from the candidate list above. Use it correctly in your reply, make its meaning ` +
+        `clear from context the first time (never append a ${target} translation), and report it in "newWords" ` +
+        `as {word (in ${source}), meaning (a short gloss in ` +
         `${target})}. Never quiz or list it.` +
         (params.wrap
           ? `\n\nThe learner is WRAPPING UP now. Give a short, warm sign-off: name a couple of the words they ` +

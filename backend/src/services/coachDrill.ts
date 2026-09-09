@@ -63,8 +63,9 @@ export async function coachDrill(params: {
         `7) When every word has been practised (or the learner asks to stop), set "done" to true and end ` +
         `with a short, encouraging wrap-up naming what improved.\n\n` +
         `By default write "say" in ${target} (the learner's language). If the learner asks to communicate ` +
-        `in ${source}, DO switch: actually write more of your "say" in ${source} at their level (with a ` +
-        `short ${target} gloss only if truly needed) — never merely promise to switch and then keep using ` +
+        `in ${source}, DO switch: actually write more of your "say" in ${source} at their level (if a word might ` +
+        `not land, make it clear with simple ${source} context or a plain ${source} paraphrase — never a ` +
+        `parenthetical ${target} gloss) — never merely promise to switch and then keep using ` +
         `${target}. Keep it warm and concise — at most ~3 short sentences. The ${source} words/sentences ` +
         `you quote always stay in ${source}. "drillWord" is the word you are asking about in THIS message ` +
         `(use "" only for the intro line before the first word, or the final wrap-up).` +
