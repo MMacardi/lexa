@@ -1,4 +1,4 @@
-import { chatJsonConversation, type ChatMessage } from "./llm.js";
+import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { coachChatSchema, type CoachChatResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
@@ -19,6 +19,8 @@ export async function coachChat(params: {
   topic?: string; // steer the conversation toward this
   wrap?: boolean; // the learner is finishing — give a warm sign-off
   profileNote?: string; // "about this learner" memory, prepended to the prompt
+  onDelta?: (chunk: string) => void; // when set, stream the live "say" text via this callback
+  signal?: AbortSignal; // abort the stream when the client disconnects
 }): Promise<CoachChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
@@ -85,12 +87,21 @@ export async function coachChat(params: {
     ...clipped,
   ];
 
-  const result = await chatJsonConversation({
-    messages,
-    schema: coachChatSchema,
-    timeoutMs: 60000,
-    label: "coachChat",
-  });
+  const result = params.onDelta
+    ? await chatJsonConversationStream({
+        messages,
+        schema: coachChatSchema,
+        onDelta: params.onDelta,
+        signal: params.signal,
+        timeoutMs: 60000,
+        label: "coachChat.stream",
+      })
+    : await chatJsonConversation({
+        messages,
+        schema: coachChatSchema,
+        timeoutMs: 60000,
+        label: "coachChat",
+      });
 
   // Keep only words that are genuinely in the candidate list (models sometimes invent).
   const poolSet = new Set(pool.map((w) => w.word.trim().toLowerCase()));

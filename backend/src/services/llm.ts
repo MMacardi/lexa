@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import type { ZodSchema } from "zod";
 import { env } from "../lib/env.js";
 import { langName } from "../lib/langs.js";
+import { createSayExtractor } from "../lib/sayStream.js";
 
 // Qwen on Alibaba Bailian speaks the OpenAI Chat Completions protocol via its
 // "compatible-mode" endpoint, so we reuse the official OpenAI SDK and just point
@@ -240,6 +241,88 @@ export async function chatJsonConversation<T>(opts: {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
   return opts.schema.parse(parsed);
+}
+
+/**
+ * Streaming variant of chatJsonConversation: forwards the live text of the "say"
+ * key via `onDelta` as the model generates it, then parses + validates the full
+ * JSON exactly like the non-streaming path. Used by the coach chat/scene NDJSON
+ * endpoints so the reply types out instead of arriving as one blob.
+ *
+ * Aborts (client disconnect) are rethrown as an error whose `name` is "AbortError"
+ * so the route can swallow them silently. `final` is never unvalidated: if the
+ * stream completes but the JSON is malformed/off-schema, this throws like chatJson.
+ */
+export async function chatJsonConversationStream<T>(opts: {
+  messages: ChatMessage[];
+  schema: ZodSchema<T>;
+  onDelta: (chunk: string) => void;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  label?: string;
+  model?: string;
+}): Promise<T> {
+  const extractor = createSayExtractor(opts.onDelta);
+  let raw = "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let usage: any;
+  const t0 = Date.now();
+
+  let stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+  try {
+    stream = await getClient().chat.completions.create(
+      {
+        model: opts.model ?? MODEL,
+        messages: opts.messages,
+        response_format: { type: "json_object" },
+        temperature: 0.4,
+        stream: true,
+        stream_options: { include_usage: true },
+      },
+      {
+        ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+        ...(opts.signal ? { signal: opts.signal } : {}),
+      },
+    );
+  } catch (err) {
+    if (opts.signal?.aborted) throw abortError();
+    throw friendlyLlmError(err);
+  }
+
+  try {
+    for await (const chunk of stream) {
+      if (opts.signal?.aborted) break;
+      const piece = chunk.choices?.[0]?.delta?.content;
+      if (piece) {
+        raw += piece;
+        extractor.push(raw);
+      }
+      // With include_usage, Bailian sends usage on a final chunk with empty choices.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((chunk as any).usage) usage = (chunk as any).usage;
+    }
+  } catch (err) {
+    if (opts.signal?.aborted) throw abortError();
+    throw friendlyLlmError(err);
+  }
+
+  if (opts.signal?.aborted) throw abortError();
+
+  logUsage(opts.label ?? "chatJsonConversationStream", { usage }, Date.now() - t0);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
+  }
+  return opts.schema.parse(parsed);
+}
+
+function abortError(): Error {
+  const e = new Error("Aborted");
+  e.name = "AbortError";
+  return e;
 }
 
 /**
