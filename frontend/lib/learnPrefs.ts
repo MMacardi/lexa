@@ -689,3 +689,50 @@ export function useGraphAddMethod(): GraphAddMethod {
   }, []);
   return m;
 }
+
+// --- Voice input engine: how the composer/pronunciation mics transcribe speech ---
+// "auto" (default) uses the browser's free realtime Web Speech where it works and falls
+// back to server STT (qwen3-asr) where it doesn't — iPhone Safari and mainland China both
+// lack working Web Speech. "browser"/"server" pin one engine. See lib/micEngine.ts.
+export type MicEngine = "auto" | "browser" | "server";
+const MIC_ENGINE_KEY = "lexa.micEngine";
+export function getMicEngine(): MicEngine {
+  if (typeof window === "undefined") return "auto";
+  const v = localStorage.getItem(MIC_ENGINE_KEY);
+  return v === "browser" || v === "server" ? v : "auto";
+}
+export function setMicEngine(m: MicEngine) {
+  localStorage.setItem(MIC_ENGINE_KEY, m);
+  window.dispatchEvent(new Event(EVT));
+}
+export function useMicEngine(): MicEngine {
+  const [m, setM] = useState<MicEngine>("auto");
+  useEffect(() => {
+    const sync = () => setM(getMicEngine());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return m;
+}
+
+// Sticky flag: set the first time browser Web Speech errors at runtime, so "auto" goes
+// straight to server STT afterwards instead of failing once more. Cleared by switching
+// the engine pref back to "browser" explicitly (the learner insists it works for them).
+const MIC_BROWSER_FAILED_KEY = "lexa.micBrowserFailed";
+export function micBrowserFailed(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(MIC_BROWSER_FAILED_KEY) === "1";
+}
+export function markMicBrowserFailed() {
+  localStorage.setItem(MIC_BROWSER_FAILED_KEY, "1");
+  window.dispatchEvent(new Event(EVT));
+}
+export function clearMicBrowserFailed() {
+  localStorage.removeItem(MIC_BROWSER_FAILED_KEY);
+  window.dispatchEvent(new Event(EVT));
+}

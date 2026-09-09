@@ -11,24 +11,15 @@ import { errText } from "@/lib/errText";
 import { getLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { SpeakButton } from "@/components/SpeakButton";
+import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
-import { Compass, ArrowLeft, Check, Minus, X as XIcon, Send, RotateCcw, Mic, Square, Lightbulb, SkipForward, User } from "lucide-react";
+import { Compass, ArrowLeft, Check, Minus, X as XIcon, Send, RotateCcw, Mic, Square, Lightbulb, SkipForward, User, Loader2 } from "lucide-react";
 
 type Grade = "none" | "correct" | "partial" | "wrong";
 type Turn = { role: "user" | "assistant"; content: string; grade?: Grade };
 type PairKey = { source: string; target: string };
 
 const GRADE_RATING: Record<Exclude<Grade, "none">, number> = { correct: 3, partial: 2, wrong: 1 };
-
-// Map our language code to a BCP-47 tag for the browser's speech recogniser.
-function speechLang(src?: string): string {
-  const map: Record<string, string> = {
-    en: "en-US", ru: "ru-RU", zh: "zh-CN", "zh-Hant": "zh-TW", ja: "ja-JP", ko: "ko-KR",
-    es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT", pt: "pt-PT", nl: "nl-NL",
-    pl: "pl-PL", tr: "tr-TR", uk: "uk-UA", hi: "hi-IN", ar: "ar-SA",
-  };
-  return map[src ?? "en"] ?? src ?? "en-US";
-}
 
 // Render the coach's light markdown (*word* / **word**) as clean highlights so the
 // target word reads as a chip instead of literal asterisks.
@@ -223,77 +214,20 @@ export default function CoachPracticePage() {
     const v = text.trim();
     if (!v || busy || done) return;
     // Stop any live recording and clear its preview when the answer is sent.
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* ignore */
-      }
-    }
-    setRecording(false);
-    setInterim("");
+    mic.cancel();
     const next: Turn[] = [...turns, { role: "user", content: v }];
     setTurns(next);
     setInput("");
     await sendTurn(next);
   }
 
-  // ---- voice answer via the browser's SpeechRecognition (free, on-device, with
-  // LIVE interim results so the learner sees what they're saying as they speak). ----
-  const [recording, setRecording] = useState(false);
-  const [interim, setInterim] = useState(""); // live preview of the current speech
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const baseInputRef = useRef("");
-
-  function toggleRecord() {
-    if (recording) {
-      recognitionRef.current?.stop();
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = typeof window !== "undefined" ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null;
-    if (!SR) {
-      show({ icon: "⚠️", title: t("coach.practiceMicUnsupported") });
-      return;
-    }
-    const rec = new SR();
-    rec.lang = speechLang(pair?.source);
-    rec.interimResults = true;
-    rec.continuous = true;
-    baseInputRef.current = input.trim();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (e: any) => {
-      let finalTxt = "";
-      let interimTxt = "";
-      for (let i = 0; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finalTxt += r[0].transcript;
-        else interimTxt += r[0].transcript;
-      }
-      setInterim(interimTxt);
-      const base = baseInputRef.current;
-      const combined = [base, (finalTxt + interimTxt).trim()].filter(Boolean).join(" ");
-      setInput(combined);
-    };
-    rec.onerror = () => {
-      setRecording(false);
-      setInterim("");
-      show({ icon: "⚠️", title: t("coach.practiceSttFail") });
-    };
-    rec.onend = () => {
-      setRecording(false);
-      setInterim("");
-    };
-    recognitionRef.current = rec;
-    try {
-      rec.start();
-      setRecording(true);
-    } catch {
-      setRecording(false);
-      show({ icon: "⚠️", title: t("coach.practiceMicUnsupported") });
-    }
-  }
+  // ---- voice answer (auto: browser Web Speech where it works, else server STT) ----
+  const mic = useMicInput({
+    lang: pair?.source,
+    getBase: () => input.trim(),
+    onText: (full) => setInput(full),
+    onError: (message) => show({ icon: "⚠️", title: message }),
+  });
 
   const gradedCount = Object.keys(scores).length;
   const correct = Object.values(scores).filter((g) => g === "correct").length;
@@ -488,14 +422,22 @@ export default function CoachPracticePage() {
               </div>
 
               {/* live speech preview (like the phone dictation bar) */}
-              {recording && (
+              {mic.phase !== "idle" && (
                 <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2.5">
-                  <span className="relative flex h-2.5 w-2.5 shrink-0">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warn-text opacity-60" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warn-text" />
-                  </span>
+                  {mic.phase === "recording" && (
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warn-text opacity-60" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warn-text" />
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
-                    {interim ? interim : <span className="text-ink-faint">{t("coach.practiceRec")}</span>}
+                    {mic.phase === "transcribing" ? (
+                      <span className="text-ink-faint">{t("mic.checking")}</span>
+                    ) : mic.interim ? (
+                      mic.interim
+                    ) : (
+                      <span className="text-ink-faint">{t("coach.practiceRec")}</span>
+                    )}
                   </span>
                 </div>
               )}
@@ -523,15 +465,21 @@ export default function CoachPracticePage() {
                 />
                 <button
                   type="button"
-                  onClick={toggleRecord}
-                  disabled={busy}
+                  onClick={mic.toggle}
+                  disabled={busy || mic.phase === "transcribing"}
                   aria-label={t("coach.practiceMic")}
                   className={cn(
                     "flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[16px] border transition-colors disabled:opacity-40",
-                    recording ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
+                    mic.phase === "recording" ? "border-warn/50 bg-warn-bg text-warn-text" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/50 hover:text-sage-deep",
                   )}
                 >
-                  {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                  {mic.phase === "recording" ? (
+                    <Square className="h-4 w-4 fill-current" />
+                  ) : mic.phase === "transcribing" ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
                 </button>
                 <button
                   type="submit"
