@@ -31,6 +31,8 @@ import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
+import { recorderSupported } from "@/lib/record";
+import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
 import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
 
@@ -139,6 +141,11 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // Read-aloud practice (server STT — works on mobile and in China, unlike the
+  // browser recogniser): toggle + per-sentence scoring panel under the text.
+  const [readAloud, setReadAloud] = useState(false);
+  const [recOk, setRecOk] = useState(false);
+  useEffect(() => setRecOk(recorderSupported()), []);
   // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
   const [rubyOn, setRubyOn] = useState(false);
   const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
@@ -298,6 +305,19 @@ export default function ReaderPage() {
   }, [words, sourceLang, targetLang]);
 
   const tokens = useMemo(() => (reading ? segment(text, sourceLang) : []), [reading, text, sourceLang]);
+
+  // Sentences for read-aloud practice: split on terminal punctuation (incl. CJK),
+  // drop empties, cap the panel so it stays scannable. Stable across renders so
+  // the panel doesn't reset its scores on every keystroke elsewhere.
+  const { sentences: readAloudSentences, hidden: readAloudHidden } = useMemo(() => {
+    if (!reading) return { sentences: [] as string[], hidden: 0 };
+    const parts = text
+      .split(/(?<=[.!?。！？…])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 1);
+    const list = parts.length ? parts : text.trim() ? [text.trim()] : [];
+    return { sentences: list.slice(0, 12), hidden: Math.max(0, list.length - 12) };
+  }, [reading, text]);
 
   const { wordCount, newKeys } = useMemo(() => {
     let count = 0;
@@ -1044,6 +1064,21 @@ export default function ReaderPage() {
           </button>
         )}
 
+        {/* read-aloud practice: per-sentence pronunciation check via server STT */}
+        {recOk && (
+          <button
+            type="button"
+            onClick={() => setReadAloud((v) => !v)}
+            aria-pressed={readAloud}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              readAloud ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Mic className="h-3.5 w-3.5" /> {t("reader.readAloud")}
+          </button>
+        )}
+
         {/* translate whole text */}
         <button
           type="button"
@@ -1201,6 +1236,12 @@ export default function ReaderPage() {
           </div>
         )}
       </div>
+
+      {readAloud && readAloudSentences.length > 0 && (
+        <div className="mt-4">
+          <ReadAloudCheck sentences={readAloudSentences} lang={sourceLang} hiddenCount={readAloudHidden} />
+        </div>
+      )}
 
       {/* sticky add bar (floats above the mobile tab bar) */}
       {(selected.size > 0 || busy) && (

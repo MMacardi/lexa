@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -17,6 +18,7 @@ import { useTranscriptions } from "@/lib/transcribe";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { SpeakButton } from "@/components/SpeakButton";
 import { SceneReportCard, type SceneCorrection } from "@/components/SceneReportCard";
+import { SceneHistory } from "@/components/SceneHistory";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
 import { TappableText, type WordEntry } from "@/components/TappableText";
 import { PracticeBar } from "@/components/PracticeBar";
@@ -88,6 +90,14 @@ export default function CoachScenePage() {
   const qc = useQueryClient();
   const tapAny = useTapAnyGloss();
   const ensureLevel = useEnsureLevel();
+  const router = useRouter();
+  const params = useSearchParams();
+
+  // Server-side session row (history + resume). A ref, not state: saves are
+  // fire-and-forget and nothing renders off the id itself.
+  const sessionIdRef = useRef<string | null>(null);
+  const lastResumeRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -265,6 +275,27 @@ export default function CoachScenePage() {
       });
       const next: Scene = { ...res, missionWords: res.missionWords ?? [], newWords: res.newWords ?? [] };
       setScene(next);
+      // Persist for history/resume. Regenerating (from the briefing) refreshes the
+      // same row; the first generate of a fresh scene creates one. Fire-and-forget:
+      // play must never wait on (or die from) the save.
+      const sid = sessionIdRef.current;
+      if (sid) {
+        api.saveSceneSession(sid, { telegramId: accountId, title: next.title, bible: next }).catch(() => {});
+      } else {
+        api
+          .createSceneSession({
+            telegramId: accountId,
+            title: next.title,
+            sceneKey: preset?.id,
+            sourceLang: pair.source,
+            targetLang: pair.target,
+            bible: next,
+          })
+          .then((r) => {
+            sessionIdRef.current = r.id;
+          })
+          .catch(() => {});
+      }
       if (next.title) {
         pushRecent(next.title);
         setRecentThemes(readRecent());
@@ -369,6 +400,9 @@ export default function CoachScenePage() {
   }
 
   function reset() {
+    sessionIdRef.current = null;
+    lastResumeRef.current = null;
+    if (params.get("session")) router.replace("/coach/scene");
     setScene(null);
     setStarted(false);
     setTurns([]);
@@ -383,6 +417,65 @@ export default function CoachScenePage() {
     setAddedWords(new Set());
     setSelectedPreset(null);
   }
+
+  // Resume from history: ?session=<id> rehydrates the whole play state — the
+  // engine is stateless, so the row (bible + turns + used + corrections) IS everything.
+  const resumeId = params.get("session");
+  useEffect(() => {
+    if (!resumeId || !accountId || resumeId === lastResumeRef.current) return;
+    lastResumeRef.current = resumeId;
+    (async () => {
+      try {
+        const s = await api.sceneSession(resumeId, accountId);
+        const b = s.bible as Scene;
+        sessionIdRef.current = s.id;
+        setScene({ ...b, missionWords: b.missionWords ?? [], newWords: b.newWords ?? [] });
+        setTurns(s.turns?.length ? s.turns : b.opening ? [{ role: "assistant", content: b.opening }] : []);
+        setUsed(new Set(s.used ?? []));
+        gradedRef.current = new Set(s.used ?? []); // already-graded words must not double-count in FSRS
+        setCorrections((s.corrections ?? []) as SceneCorrection[]);
+        setReviewedCount(s.reviewedCount ?? 0);
+        setAddedWords(new Set(s.addedWords ?? []));
+        if (s.sourceLang && s.targetLang) setPair({ source: s.sourceLang, target: s.targetLang });
+        setDone(s.status === "done");
+        setStarted(true);
+        setInput("");
+        setPop(null);
+        setShowContext(false);
+      } catch {
+        show({ icon: "⚠️", title: t("scene.loadFailed") });
+        router.replace("/coach/scene");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeId, accountId]);
+
+  // Save after every change (debounced to coalesce rapid updates — a closed tab or
+  // a navigation loses nothing). A 404 silently drops the link (row deleted
+  // elsewhere); play continues exactly as before.
+  useEffect(() => {
+    const id = sessionIdRef.current;
+    if (!id || !started || !scene) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      api
+        .saveSceneSession(id, {
+          telegramId: accountId,
+          turns,
+          corrections,
+          used: [...used],
+          addedWords: [...addedWords],
+          reviewedCount,
+          ...(done ? { status: "done" as const } : {}),
+        })
+        .catch((e) => {
+          if (String((e as Error)?.message ?? "").includes("not found")) sessionIdRef.current = null;
+        });
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [turns, used, corrections, reviewedCount, addedWords, done, started, scene, accountId]);
 
   async function sendTurn(history: Turn[], opts: { userText?: string; wrap?: boolean } = {}) {
     if (!pair || !scene) return;
@@ -665,6 +758,9 @@ export default function CoachScenePage() {
               </button>
             </>
           )}
+
+          {/* past scenes — resume an unfinished one or re-read a finished one */}
+          <SceneHistory onOpen={(id) => router.push(`/coach/scene?session=${id}`)} />
         </div>
       ) : !started ? (
         /* ---------- 2. BRIEFING: the premise card the learner reads, then "Begin" ---------- */

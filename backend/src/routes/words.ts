@@ -15,6 +15,7 @@ import { getProfile, updateProfile, profilePreamble, rememberFromSession } from 
 import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
+import { listSessions, getSession, createSession, saveSession, deleteSession } from "../services/sceneSession.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { importedCardSchema } from "../lib/schemas.js";
@@ -1074,4 +1075,80 @@ wordsRouter.post("/reader/generate", monthlyGuard("reader_gen", env.FREE_MONTHLY
     console.error(err);
     res.status(400).json({ error: (err as Error).message });
   }
+});
+
+// ---------------- Coach scenes: saved sessions (history + resume) ----------------
+
+// GET /api/scene/sessions?q= -> summaries (no bible/turns blobs), newest first
+wordsRouter.get("/scene/sessions", async (req, res) => {
+  res.json(await listSessions(callerId(req), req.query.q ? String(req.query.q) : undefined));
+});
+
+// GET /api/scene/sessions/:id -> full row (owner only) — the resume state
+wordsRouter.get("/scene/sessions/:id", async (req, res) => {
+  const row = await getSession(callerId(req), String(req.params.id));
+  if (!row) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json(row);
+});
+
+const sceneCreateBody = z.object({
+  telegramId: z.string().optional(),
+  title: z.string().max(120).default(""),
+  sceneKey: z.string().max(40).optional(),
+  sourceLang: z.string().max(12).optional(),
+  targetLang: z.string().max(12).optional(),
+  bible: z.record(z.string(), z.any()),
+});
+wordsRouter.post("/scene/sessions", async (req, res) => {
+  const parsed = sceneCreateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.status(201).json(await createSession(callerId(req), parsed.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+const sceneSaveBody = z.object({
+  telegramId: z.string().optional(),
+  title: z.string().max(120).optional(),
+  status: z.enum(["active", "done"]).optional(),
+  bible: z.unknown().optional(),
+  turns: z.unknown().optional(),
+  corrections: z.unknown().optional(),
+  used: z.array(z.string().max(200)).max(500).optional(),
+  addedWords: z.array(z.string().max(200)).max(500).optional(),
+  reviewedCount: z.number().int().min(0).max(1000).optional(),
+});
+wordsRouter.put("/scene/sessions/:id", async (req, res) => {
+  const parsed = sceneSaveBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const row = await saveSession(callerId(req), String(req.params.id), parsed.data);
+    if (!row) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+wordsRouter.delete("/scene/sessions/:id", async (req, res) => {
+  const ok = await deleteSession(callerId(req), String(req.params.id));
+  if (!ok) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json({ ok: true });
 });

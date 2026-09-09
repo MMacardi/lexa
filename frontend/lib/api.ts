@@ -80,6 +80,29 @@ export interface ReaderTextFull {
   targetLang?: string | null;
 }
 
+// A saved coach scene playthrough. Summaries carry the studied words so the
+// history list renders chips without the transcript; the full row is the resume
+// state (the scene engine is stateless — bible + turns are everything).
+export interface SceneSessionSummary {
+  id: string;
+  title: string;
+  status: string; // active | done
+  sceneKey?: string | null;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+  used: string[];
+  addedWords: string[];
+  reviewedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface SceneSessionFull extends SceneSessionSummary {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bible: Record<string, any>;
+  turns: { role: "user" | "assistant"; content: string }[];
+  corrections: { original: string; corrected: string; note: string }[];
+}
+
 export interface Friend {
   friendshipId: string;
   telegramId: string;
@@ -589,6 +612,37 @@ export const api = {
   // Kicks off background generation; returns the new row id (poll readerText for status).
   generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string }) =>
     http<{ id: string; title: string; status: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
+  // Coach scenes: saved sessions (history + resume).
+  sceneSessions: (telegramId: string, q?: string) =>
+    http<SceneSessionSummary[]>(
+      `/api/scene/sessions?telegramId=${encodeURIComponent(telegramId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+    ),
+  sceneSession: (id: string, telegramId: string) =>
+    http<SceneSessionFull>(`/api/scene/sessions/${id}?telegramId=${encodeURIComponent(telegramId)}`),
+  createSceneSession: (payload: {
+    telegramId: string;
+    title: string;
+    sceneKey?: string;
+    sourceLang?: string;
+    targetLang?: string;
+    bible: unknown;
+  }) => http<{ id: string }>(`/api/scene/sessions`, { method: "POST", body: JSON.stringify(payload) }),
+  saveSceneSession: (
+    id: string,
+    payload: {
+      telegramId: string;
+      title?: string;
+      status?: "active" | "done";
+      bible?: unknown;
+      turns?: unknown;
+      corrections?: unknown;
+      used?: string[];
+      addedWords?: string[];
+      reviewedCount?: number;
+    },
+  ) => http<{ id: string }>(`/api/scene/sessions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteSceneSession: (id: string, telegramId: string) =>
+    http<{ ok: true }>(`/api/scene/sessions/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

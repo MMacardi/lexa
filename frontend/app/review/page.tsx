@@ -553,7 +553,6 @@ export default function FlashcardsPage() {
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PronounceButton text={word.word} lang={word.sourceLang} size="sm" />
           <a
             href={`/word/${word.id}`}
             target="_blank"
@@ -622,7 +621,15 @@ export default function FlashcardsPage() {
           <div className="flip-scene">
             <div className={cn("flip-card", flipped && "is-flipped")}>
               {/* FRONT — the layout's front fields, first one as the hero */}
-              <div className="flip-face flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+              <div className="flip-face relative flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+                {/* on-card mic: stopPropagation or the tap would swipe/flip the card */}
+                <span
+                  className="absolute right-4 top-4"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <PronounceButton text={word.word} lang={word.sourceLang} size="sm" />
+                </span>
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                   {frontFields.map((f, i) => (
                     <div key={f}>{fieldNode(f, i === 0, frontTr)}</div>

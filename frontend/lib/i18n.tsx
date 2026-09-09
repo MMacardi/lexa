@@ -182,6 +182,17 @@ const DICT: Record<string, Entry> = {
     ru: "Зажми слово, чтобы увидеть его значение в этом предложении.",
     zh: "长按单词可查看它在该句中的含义。",
   },
+  "reader.readAloud": { en: "Read aloud", ru: "Чтение вслух", zh: "朗读" },
+  "reader.readAloudHint": {
+    en: "Read a sentence out loud — we'll listen and score how close it sounded.",
+    ru: "Прочитайте предложение вслух — мы послушаем и оценим произношение.",
+    zh: "大声朗读一个句子——我们会聆听并评估你的发音。",
+  },
+  "reader.readAloudMore": {
+    en: "+{n} more sentences aren't shown — the first twelve are here",
+    ru: "ещё {n} предложений не показаны — здесь первые двенадцать",
+    zh: "还有 {n} 个句子未显示——这里是前十二个",
+  },
   "reader.wordCount": { en: "{n} words", ru: "слов: {n}", zh: "{n} 个词" },
   "reader.newCount": { en: "{n} new", ru: "новых: {n}", zh: "{n} 个新词" },
   "reader.selectAllNew": { en: "Select all new", ru: "Выбрать все новые", zh: "全选新词" },
@@ -582,6 +593,14 @@ const DICT: Record<string, Entry> = {
   "scene.missionWords": { en: "Mission words", ru: "Целевые слова", zh: "任务单词" },
   "scene.input": { en: "Reply in character…", ru: "Ответь в роли…", zh: "以角色身份回复…" },
   "scene.finish": { en: "End scene", ru: "Завершить сцену", zh: "结束场景" },
+  // Scene history (setup screen): past playthroughs to resume or re-read
+  "scene.historyTitle": { en: "Your scenes", ru: "Твои сцены", zh: "你的场景" },
+  "scene.historyEmpty": { en: "Nothing matches that search.", ru: "Ничего не нашлось по этому запросу.", zh: "没有匹配的内容。" },
+  "scene.searchPlaceholder": { en: "Search scenes…", ru: "Поиск сцен…", zh: "搜索场景…" },
+  "scene.statusActive": { en: "in progress", ru: "в процессе", zh: "进行中" },
+  "scene.statusDone": { en: "done", ru: "пройдена", zh: "已完成" },
+  "scene.studiedWords": { en: "words", ru: "слова", zh: "单词" },
+  "scene.loadFailed": { en: "Couldn't open that scene — it may have been deleted.", ru: "Не удалось открыть эту сцену — возможно, она удалена.", zh: "无法打开该场景——它可能已被删除。" },
   "scene.progress": { en: "{n}/{total} words used", ru: "слов в деле: {n}/{total}", zh: "用了 {n}/{total} 个词" },
   "scene.reportTitle": { en: "Scene complete!", ru: "Сцена пройдена!", zh: "场景完成！" },
   "scene.reportMissedLabel": { en: "Still to practise", ru: "Ещё потренировать", zh: "仍需练习" },
@@ -701,6 +720,9 @@ const DICT: Record<string, Entry> = {
     zh: "有 {n} 个词老是记不牢——我们先一起把它们攻克。",
   },
   "coach.briefWeakCta": { en: "Practice", ru: "Отработать", zh: "练习" },
+  // Coach page: the same nudge, but with the actual words on show
+  "coach.weakStripTitle": { en: "Keep slipping", ru: "Ускользающие слова", zh: "总是记不牢" },
+  "coach.weakLapses": { en: "×{n}", ru: "×{n}", zh: "×{n}" },
   "coach.briefDue": {
     en: "{n} words are due. Five focused minutes and you're all caught up.",
     ru: "{n} слов пора повторить — пять минут, и всё под контролем.",
@@ -1186,6 +1208,9 @@ const DICT: Record<string, Entry> = {
   "pron.again": { en: "Try again", ru: "Ещё раз", zh: "再试一次" },
   "pron.nothing": { en: "Didn't catch that — try again", ru: "Не расслышал — попробуйте ещё раз", zh: "没听清——请再试一次" },
   "pron.unsupported": { en: "Speech input isn't available in this browser", ru: "Голосовой ввод недоступен в этом браузере", zh: "此浏览器不支持语音输入" },
+  "pron.recording": { en: "Reading… tap the mic to finish", ru: "Слушаю… нажмите на микрофон, чтобы закончить", zh: "聆听中……点击麦克风结束" },
+  "pron.denied": { en: "No microphone access — allow it in your browser settings", ru: "Нет доступа к микрофону — разрешите его в настройках браузера", zh: "无法访问麦克风——请在浏览器设置中允许" },
+  "pron.checkFailed": { en: "Something went wrong — try again", ru: "Что-то пошло не так — попробуйте ещё раз", zh: "出了点问题——请再试一次" },
   // Synonym level: tune the card's synonyms to a target CEFR level (exam prep).
   "syn.level": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },

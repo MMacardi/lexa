@@ -143,8 +143,10 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
   return (completion.choices[0]?.message?.content ?? "").trim();
 }
 
-// Qwen audio model for speech-to-text (Telegram voice answers during practice).
-const AUDIO_MODEL = process.env.BAILIAN_AUDIO_MODEL || "qwen-audio-asr";
+// Qwen audio model for speech-to-text (Telegram voice answers, Reader read-aloud).
+// "qwen-audio-asr" was retired on the Beijing endpoint (404); qwen3-asr-flash is the
+// documented non-realtime ASR model that accepts OpenAI-compatible `input_audio`.
+const AUDIO_MODEL = process.env.BAILIAN_AUDIO_MODEL || "qwen3-asr-flash";
 
 /**
  * Transcribe a short voice clip to text via a Qwen audio model (OpenAI-compatible
@@ -153,17 +155,32 @@ const AUDIO_MODEL = process.env.BAILIAN_AUDIO_MODEL || "qwen-audio-asr";
  */
 export async function transcribeAudio(opts: { base64: string; format?: string; sourceLang?: string }): Promise<string> {
   const format = opts.format || "ogg";
-  const langHint = opts.sourceLang && opts.sourceLang !== "auto" ? ` The speech is in ${langName(opts.sourceLang)}.` : "";
+  // qwen3-asr-flash auto-detects language and can guess wrong (e.g. returns Cyrillic for
+  // English speech). Pin it with asr_options.language when the caller knows the language.
+  const language = opts.sourceLang && opts.sourceLang !== "auto" ? opts.sourceLang : undefined;
   try {
-    // The installed OpenAI types don't model `input_audio` parts yet, so build the
-    // multimodal message loosely — Bailian's compatible endpoint accepts it.
-    const content = [
-      { type: "input_audio", input_audio: { data: `data:audio/${format};base64,${opts.base64}`, format } },
-      { type: "text", text: `Transcribe this audio verbatim. Output only the transcription, no commentary.${langHint}` },
-    ];
+    // qwen3-asr-flash is a dedicated ASR task: it wants ONLY the audio part — a text
+    // prompt or an explicit `format` field makes it reject the request. The mediatype
+    // in the data URI carries the format.
+    // The installed OpenAI types don't model `input_audio`/`asr_options` yet, hence the loose cast.
+    const content = [{ type: "input_audio", input_audio: { data: `data:audio/${format};base64,${opts.base64}` } }];
+    // Docs: a system message provides context to qwen3-asr-flash. asr_options.language
+    // alone was ignored in testing, so state the language in the system message too.
+    const messages = language
+      ? [
+          { role: "system", content: [{ type: "text", text: `The speech is in ${langName(language)}. Transcribe it in ${langName(language)}.` }] },
+          { role: "user", content },
+        ]
+      : [{ role: "user", content }];
     const completion = await getClient().chat.completions.create(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { model: AUDIO_MODEL, messages: [{ role: "user", content } as any], temperature: 0 },
+      {
+        model: AUDIO_MODEL,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: messages as any,
+        temperature: 0,
+        ...(language ? { asr_options: { language } } : {}),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       { timeout: 45_000 },
     );
     return (completion.choices[0]?.message?.content ?? "").trim();

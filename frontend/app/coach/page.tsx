@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -13,7 +14,7 @@ import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft, Flame, ArrowRight } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
 
@@ -60,6 +61,7 @@ export default function CoachPage() {
   const { t } = useI18n();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
+  const router = useRouter();
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -74,6 +76,17 @@ export default function CoachPage() {
     .filter((w) => (w.lapses ?? 0) >= 2)
     .sort((a, b) => (b.lapses ?? 0) - (a.lapses ?? 0))
     .slice(0, 4);
+
+  // Same focus-ids contract as the Home briefing card: stash the slipping words so
+  // /coach/practice drills exactly them.
+  const focusWeak = () => {
+    const ids = deck
+      .filter((w) => (w.lapses ?? 0) >= 2)
+      .map((w) => w.id)
+      .slice(0, 8);
+    sessionStorage.setItem("lexa.coachFocusIds", JSON.stringify(ids));
+    router.push("/coach/practice");
+  };
 
   const [pair, setPair] = useState(() => readPair());
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -339,6 +352,36 @@ export default function CoachPage() {
           </div>
         </div>
       </div>
+
+      {/* Slipping words — the Home nudge, but with the actual words on show */}
+      {weakTop.length > 0 && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-warn/25 bg-warn-bg/50 px-4 py-3.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-warn-text">
+              <Flame className="h-3.5 w-3.5" /> {t("coach.weakStripTitle")}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {weakTop.map((w) => (
+                <span
+                  key={w.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-warn/30 bg-surface px-2.5 py-1 text-[13px] font-semibold text-ink"
+                >
+                  <span className={srcFont(pair.source)}>{w.word}</span>
+                  <span className="text-[11px] font-bold text-warn-text">
+                    {t("coach.weakLapses", { n: String(w.lapses ?? 0) })}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={focusWeak}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
+          >
+            {t("coach.briefWeakCta")} <ArrowRight className="h-4 w-4" />
+          </button>
+        </section>
+      )}
 
       {/* Practice options — scene and chat as equal, side-by-side cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
