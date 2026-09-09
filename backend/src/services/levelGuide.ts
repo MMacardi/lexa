@@ -12,7 +12,8 @@ const RULES: Record<string, string> = {
   A2: `A2 (elementary): 1-2 short sentences per reply, ~15 words total. Everyday vocabulary and simple ` +
     `connectors ("and", "but", "because"). No idioms, no abstract or formal register.`,
   B1: `B1 (intermediate): 2-3 sentences per reply, ~30 words. Everyday plus common topic vocabulary; simple ` +
-    `idioms allowed only if obvious from context. At most ONE word they may not know, and gloss it.`,
+    `idioms allowed only if obvious from context. At most ONE word they may not know, and make its ` +
+    `meaning obvious from context.`,
   B2: `B2 (upper-intermediate): 2-4 natural sentences. Ordinary native vocabulary and idioms in moderation; ` +
     `still avoid rare, literary or highly specialised words.`,
   C1: `C1 (advanced): natural, fluent, nuanced — idioms and register shifts are fine.`,
@@ -36,7 +37,9 @@ export function levelGuide(level?: string, source = "the language being practise
     `${head}\n` +
     `Applies to everything you write in ${source} AND to everything you ask the learner to produce in it.\n` +
     `Never use a ${source} word above this level unless it is the ONE new word you are deliberately teaching ` +
-    `this turn — and then gloss it immediately in the learner's own language.\n` +
+    `this turn — and then make its meaning obvious from how you use it. NEVER insert a translation or gloss in ` +
+    `the learner's own language inside ${source} prose (no parentheticals like «word (its translation)»): the app ` +
+    `shows the meaning when the learner taps the word.\n` +
     `When two words would both work, take the simpler one. Short and clear always beats rich and impressive.`
   );
 }
