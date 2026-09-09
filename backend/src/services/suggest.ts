@@ -1,4 +1,4 @@
-import { chatJson } from "./llm.js";
+import { chatJson, FAST_MODEL } from "./llm.js";
 import { suggestSchema, type SuggestResult } from "../lib/schemas.js";
 import { langName } from "../lib/langs.js";
 
@@ -54,6 +54,8 @@ export async function suggestWord(
       `correctly spelled word, set "corrected" to the input unchanged.`,
     user: word.trim(),
     schema: suggestSchema,
+    label: "suggest",
+    model: FAST_MODEL,
   });
 
   // Normalise: lowercase, de-dupe, drop empties.

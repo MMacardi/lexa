@@ -1,5 +1,5 @@
 import { prisma } from "../services/db.js";
-import { chatJson } from "../services/llm.js";
+import { chatJson, FAST_MODEL } from "../services/llm.js";
 import { tutorSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
@@ -49,7 +49,8 @@ export async function runTutor(params: {
       '"collocations": string[], "synonyms": string[], "antonyms": string[]}.',
     user: params.word,
     schema: tutorSchema,
-    label: "tutor(dictionary)",
+    label: "tutor(dict)",
+    model: FAST_MODEL,
   });
 
   // Chinese/Korean: use deterministic local pinyin/romanization for the phonetic

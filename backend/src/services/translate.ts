@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatJson } from "./llm.js";
+import { chatJson, FAST_MODEL } from "./llm.js";
 import { translationSchema, glossSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 
@@ -47,6 +47,8 @@ export async function glossInContext(params: {
       user: word,
       schema: translationSchema,
       timeoutMs: 30000,
+      label: "gloss",
+      model: FAST_MODEL,
     });
     return { gloss: result.translation.trim(), transcription: "" };
   }
@@ -62,6 +64,8 @@ export async function glossInContext(params: {
     user: word,
     schema: glossSchema,
     timeoutMs: 30000,
+    label: "gloss",
+    model: FAST_MODEL,
   });
   return { gloss: result.translation.trim(), transcription: (result.transcription ?? "").trim() };
 }
@@ -86,6 +90,8 @@ export async function transcribeWords(params: { words: string[]; sourceLang?: st
     user: JSON.stringify(words),
     schema: z.object({ items: z.array(z.string()) }),
     timeoutMs: 45000,
+    label: "transcribe.words",
+    model: FAST_MODEL,
   });
   return result.items.map((s) => s.trim());
 }
@@ -117,6 +123,8 @@ export async function translateText(params: {
     user: text,
     schema: translationSchema,
     timeoutMs: 60000,
+    label: "translate.text",
+    model: FAST_MODEL,
   });
   return { translation: result.translation };
 }

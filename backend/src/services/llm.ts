@@ -51,12 +51,26 @@ function friendlyLlmError(err: unknown): Error {
 // qwen-plus: good quality/cost balance for sentence selection + translation.
 const MODEL = "qwen-plus";
 
+// qwen-flash: cheaper/faster tier for trivial calls (gloss, translate, transcribe,
+// suggest, lang-check, coach-memory, tutor dictionary). Env override lets us roll
+// back to qwen-plus instantly without a code change.
+export const FAST_MODEL = process.env.BAILIAN_FAST_MODEL || "qwen-flash";
+
 // Log per-call token usage so we can compare prompt strategies (combined vs
 // separate) with real numbers. Bailian returns OpenAI-style `usage`.
-function logUsage(label: string, completion: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }) {
+// `cached` comes from prompt_tokens_details.cached_tokens on implicit-cache hits;
+// `ms` is wall-clock latency around the create() call.
+function logUsage(
+  label: string,
+  completion: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } },
+  ms: number,
+) {
   const u = completion.usage;
   if (!u) return;
-  console.log(`[llm usage] ${label} in=${u.prompt_tokens ?? "?"} out=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cached = (u as any).prompt_tokens_details?.cached_tokens as number | undefined;
+  const cachedStr = cached ? ` cached=${cached}` : "";
+  console.log(`[llm usage] ${label} in=${u.prompt_tokens ?? "?"} out=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}${cachedStr} ms=${ms}`);
 }
 
 /**
@@ -72,12 +86,14 @@ export async function chatJson<T>(opts: {
   // array of cards that takes longer than a single-word lookup.
   timeoutMs?: number;
   label?: string; // for token-usage logging
+  model?: string; // override MODEL (e.g. FAST_MODEL for trivial calls)
 }): Promise<T> {
   let completion;
+  const t0 = Date.now();
   try {
     completion = await getClient().chat.completions.create(
       {
-        model: MODEL,
+        model: opts.model ?? MODEL,
         messages: [
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
@@ -90,7 +106,7 @@ export async function chatJson<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
-  logUsage(opts.label ?? "chatJson", completion);
+  logUsage(opts.label ?? "chatJson", completion, Date.now() - t0);
 
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
@@ -198,12 +214,14 @@ export async function chatJsonConversation<T>(opts: {
   schema: ZodSchema<T>;
   timeoutMs?: number;
   label?: string;
+  model?: string; // override MODEL (e.g. FAST_MODEL for trivial calls)
 }): Promise<T> {
   let completion;
+  const t0 = Date.now();
   try {
     completion = await getClient().chat.completions.create(
       {
-        model: MODEL,
+        model: opts.model ?? MODEL,
         messages: opts.messages,
         response_format: { type: "json_object" },
         temperature: 0.4,
@@ -213,7 +231,7 @@ export async function chatJsonConversation<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
-  logUsage(opts.label ?? "chatJsonConversation", completion);
+  logUsage(opts.label ?? "chatJsonConversation", completion, Date.now() - t0);
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
   try {
