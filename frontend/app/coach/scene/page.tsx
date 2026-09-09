@@ -168,7 +168,6 @@ export default function CoachScenePage() {
 
   const [pair, setPair] = useState<PairKey | null>(null);
   const [scope, setScope] = useState("smart");
-  const [idea, setIdea] = useState("");
   useEffect(() => {
     if (pair || deck.length === 0) return;
     if (focusIds && focusIds.length) {
@@ -304,7 +303,7 @@ export default function CoachScenePage() {
     if (!pair || poolWords.length === 0 || generating) return;
     setGenerating(true);
     const preset = selectedPreset ? PRESETS.find((p) => p.id === selectedPreset) : null;
-    const effectiveIdea = preset ? preset.idea : idea.trim() || undefined;
+    const effectiveIdea = preset ? preset.idea : undefined;
     try {
       const res = await api.coachSceneSetup({
         words: wordPayload,
@@ -397,7 +396,6 @@ export default function CoachScenePage() {
     setShowContext(false);
     setAddedWords(new Set());
     setSelectedPreset(null);
-    setIdea("");
   }
 
   async function sendTurn(history: Turn[], opts: { userText?: string; wrap?: boolean } = {}) {
@@ -563,7 +561,7 @@ export default function CoachScenePage() {
 
       {/* ---------- 1. SETUP: pick pair/scope/idea, then generate the scene ---------- */}
       {!scene ? (
-        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 text-center">
+        <div className="flex flex-1 flex-col items-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 py-8 text-center">
           <p className="max-w-[460px] text-[14.5px] leading-relaxed text-ink-soft">{t("scene.heroSub")}</p>
 
           {!hasWords ? (
@@ -624,53 +622,45 @@ export default function CoachScenePage() {
                 </div>
               )}
 
-              {/* quick-start scene presets — tap a card to steer the scene */}
-              <div className="mt-6 w-full max-w-[520px]">
-                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.presetsLabel")}</div>
-                <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1.5">
+              {/* quick-start scene presets — all visible at once, tap to select */}
+              <div className="mt-5 w-full max-w-[540px]">
+                <div className="mb-2 text-center text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
+                  {t("scene.presetsLabel")}
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 px-1 select-none sm:grid-cols-3">
                   {PRESETS.map((p) => {
                     const on = selectedPreset === p.id;
                     return (
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => {
-                          if (on) {
-                            setSelectedPreset(null);
-                          } else {
-                            setSelectedPreset(p.id);
-                            setIdea("");
-                          }
-                        }}
+                        onClick={() => setSelectedPreset(on ? null : p.id)}
                         aria-pressed={on}
                         className={cn(
-                          "relative shrink-0 overflow-hidden rounded-[14px] border transition-all",
-                          on ? "border-sage ring-2 ring-sage/40" : "border-black/[0.08] hover:border-sage/50",
+                          "rounded-[16px] border bg-surface p-1.5 text-left shadow-sm transition-all duration-200 ease-out",
+                          on
+                            ? "border-sage ring-2 ring-sage/40 ring-offset-2 ring-offset-surface"
+                            : "border-black/[0.08] hover:-translate-y-0.5 hover:shadow-md hover:border-sage/30",
                         )}
+                        style={{ WebkitTapHighlightColor: "transparent", WebkitUserSelect: "none" }}
                       >
-                        <Image src={p.img} alt="" width={160} height={112} className="h-[78px] w-[112px] object-cover" />
-                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1 pt-4 text-left text-[11.5px] font-semibold text-white">
+                        <div className="relative overflow-hidden rounded-[11px]">
+                          <Image
+                            src={p.img}
+                            alt=""
+                            width={300}
+                            height={200}
+                            draggable={false}
+                            className="aspect-[3/2] w-full object-cover pointer-events-none select-none"
+                          />
+                        </div>
+                        <div className="mt-1.5 px-0.5 text-[13px] font-semibold leading-tight text-ink">
                           {t(`scene.preset.${p.id}`)}
-                        </span>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-
-              {/* optional custom scene idea */}
-              <div className="mt-4 w-full max-w-[440px] text-left">
-                <div className="mb-2 text-center text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.ideaLabel")}</div>
-                <input
-                  value={idea}
-                  onChange={(e) => {
-                    setIdea(e.target.value);
-                    if (e.target.value) setSelectedPreset(null);
-                  }}
-                  placeholder={t("scene.ideaPh")}
-                  maxLength={120}
-                  className="h-11 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-center text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-                />
               </div>
 
               <div className="mt-5 flex flex-wrap justify-center gap-1.5">

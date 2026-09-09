@@ -2,20 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel, getExampleStyle, useNewPerDay, setNewPerDay, NEW_PER_DAY_OPTIONS } from "@/lib/learnPrefs";
+import { getLevel, getExampleStyle } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
-import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, RotateCcw, Dumbbell, Sprout, CalendarDays, MessageCircle, Clapperboard } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
 
@@ -62,50 +60,26 @@ export default function CoachPage() {
   const { t } = useI18n();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
-  const router = useRouter();
-
-  // Hand the learner's weak words to the review screen for a focused drill.
-  function startWeakDrill(ids: string[]) {
-    if (!ids.length) return;
-    try {
-      sessionStorage.setItem("lexa.reviewFocusIds", JSON.stringify(ids));
-    } catch {
-      /* ignore */
-    }
-    router.push("/review");
-  }
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
     enabled: !!accountId,
   });
-  const deck = words ?? [];
-  // Today's plan — computed from the deck (no AI, no tokens).
+  const deck = useMemo(() => words ?? [], [words]);
+  // Stats used by the living greeting (no AI, no tokens).
   const due = deck.filter(isDue).length;
-  const weak = deck.filter((w) => (w.lapses ?? 0) >= 2).length; // words you keep forgetting
-  const mastered = deck.filter((w) => w.reviewCount >= 5).length;
-  const NEW_TARGET = 5;
-  const mins = Math.max(1, Math.round((due + weak) * 0.4 + NEW_TARGET * 0.8)); // rough estimate
-  // Review-plan pacing: how the deck's still-new words get phased in over days.
-  const newPerDay = useNewPerDay();
-  const newLeft = deck.filter((w) => w.reviewCount === 0).length;
-  const planDays = newLeft > 0 ? Math.ceil(newLeft / newPerDay) : 0;
-  const planMins = Math.max(1, Math.round(newPerDay * 0.5 + due * 0.3));
-  // "This week" recap — progress tracking from the deck (no AI, no tokens).
-  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-  const addedThisWeek = deck.filter((w) => new Date(w.createdAt).getTime() >= weekAgo).length;
-  const reviewedThisWeek = deck.filter((w) => w.lastReview && new Date(w.lastReview).getTime() >= weekAgo).length;
+  const weak = deck.filter((w) => (w.lapses ?? 0) >= 2).length;
   const weakTop = deck
     .filter((w) => (w.lapses ?? 0) >= 2)
     .sort((a, b) => (b.lapses ?? 0) - (a.lapses ?? 0))
     .slice(0, 4);
-  const showRecap = addedThisWeek + reviewedThisWeek > 0;
 
   const [pair, setPair] = useState(() => readPair());
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [theme, setTheme] = useState("");
   const [adding, setAdding] = useState(false);
+  const [swapSpin, setSwapSpin] = useState(false);
 
   // Coach memory: the learner's goal powers a "get to know you" prompt + tailored picks.
   const { data: profile } = useQuery({
@@ -155,7 +129,7 @@ export default function CoachPage() {
         count: 8,
         theme: theme.trim() || undefined,
       }),
-    enabled: !!accountId,
+    enabled: false, // only fetch via the "New picks" button — switching languages must not burn tokens
     staleTime: Infinity, // keep until the user asks for new picks
     gcTime: 30 * 60_000,
     // Hydrate from localStorage on mount so a reload keeps the picks (no re-fetch,
@@ -166,7 +140,6 @@ export default function CoachPage() {
   // Manual "New picks" goes through saveThemeAndPicks (not a refetch), so fold its
   // savingGoal flag in — otherwise the refresh spinner never showed.
   const loading = picksQuery.isFetching || savingGoal;
-  const loaded = picksQuery.isSuccess;
 
   function setSource(source: string) {
     const next = { ...pair, source };
@@ -186,12 +159,21 @@ export default function CoachPage() {
       /* ignore */
     }
   }
+  function swapLangs() {
+    const next = { source: pair.target, target: pair.source };
+    setPair(next);
+    setSwapSpin((v) => !v);
+    try {
+      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
+    } catch {
+      /* ignore */
+    }
+  }
 
   // Prefill the "what to learn" box with the saved goal, so it's remembered but not nagged.
   useEffect(() => {
     const g = profile?.goal?.trim();
     if (g) setTheme((cur) => cur || g);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.goal]);
 
   // Gentle personalization: whatever you type in "what to learn" IS your goal — it's
@@ -344,61 +326,51 @@ export default function CoachPage() {
           <Compass className="h-7 w-7 text-sage-deep" /> {t("coach.title")}
         </h1>
         {/* Living greeting — a friendly, context-aware line instead of a static subtitle */}
-        <div className="mt-3 flex items-start gap-2.5">
+        <div className="mt-2 flex items-start gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage text-white">
             <Compass className="h-[17px] w-[17px]" />
           </span>
-          <p className="rounded-[16px] rounded-tl-[4px] bg-sage-tint/45 px-3.5 py-2 text-[14px] leading-relaxed text-ink">
-            {coachLine}
-          </p>
+          <div className="min-w-0">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.name")}</div>
+            <p className="rounded-[16px] rounded-tl-[4px] border border-sage/20 bg-sage-tint px-3.5 py-2 text-[14px] leading-relaxed text-ink shadow-sm">
+              {coachLine}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Play a scene — the hero: a roleplay built from your goals + tricky words */}
-      <Link
-        href="/coach/scene"
-        className="group block rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/60 via-surface to-surface p-6 transition-shadow hover:shadow-[0_16px_40px_rgba(46,42,38,0.10)]"
-      >
-        <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sage text-white">
-            <Clapperboard className="h-6 w-6" />
+      {/* Practice options — scene and chat as equal, side-by-side cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Link
+          href="/coach/scene"
+          className="group flex h-full flex-col rounded-[20px] border border-sage/25 bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sage text-white">
+            <Clapperboard className="h-5 w-5" />
           </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 font-serif text-[21px] font-semibold text-ink">
-              {t("scene.heroTitle")}
-              <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">
-                {t("scene.badge")}
-              </span>
-            </h2>
-            <p className="mt-1 text-[13.5px] leading-snug text-ink-soft">{t("scene.card")}</p>
-            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-sage-deep">
-              <Clapperboard className="h-4 w-4" /> {t("scene.begin")}
-            </span>
-          </div>
-        </div>
-      </Link>
+          <h2 className="mt-3 font-serif text-[19px] font-semibold text-ink">{t("scene.heroTitle")}</h2>
+          <p className="mt-1 flex-1 text-[13px] leading-snug text-ink-soft">{t("scene.card")}</p>
+          <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-sage-deep">
+            <Clapperboard className="h-4 w-4" /> {t("scene.begin")}
+          </span>
+        </Link>
 
-      {/* Casual "learn by chatting" — the relaxed, gamified counterpart to the drill */}
-      <Link
-        href="/coach/chat"
-        className="group flex items-center gap-4 rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sage-tint text-sage-deep">
-          <MessageCircle className="h-[22px] w-[22px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 font-serif text-[18px] font-semibold text-ink">
-            {t("chat.title")}
-            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">
-              {t("chat.badge")}
-            </span>
-          </h2>
-          <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{t("chat.card")}</p>
-        </div>
-        <span className="shrink-0 text-ink-faint transition-colors group-hover:text-sage-deep">→</span>
-      </Link>
+        <Link
+          href="/coach/chat"
+          className="group flex h-full flex-col rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sage-tint text-sage-deep">
+            <MessageCircle className="h-5 w-5" />
+          </span>
+          <h2 className="mt-3 font-serif text-[19px] font-semibold text-ink">{t("chat.title")}</h2>
+          <p className="mt-1 flex-1 text-[13px] leading-snug text-ink-soft">{t("chat.card")}</p>
+          <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full border border-sage/50 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint">
+            <MessageCircle className="h-4 w-4" /> {t("chat.start")}
+          </span>
+        </Link>
+      </div>
 
-      {/* Words for you — level-appropriate picks, near the top so it's front-and-centre */}
+      {/* Words for you — level-appropriate picks */}
       <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -421,7 +393,14 @@ export default function CoachPage() {
         {/* language pair */}
         <div className="flex flex-wrap items-center gap-2">
           <LangSelect value={pair.source} onChange={setSource} />
-          <span className="text-ink-faint">→</span>
+          <button
+            type="button"
+            onClick={swapLangs}
+            aria-label={t("add.swap")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
+          >
+            <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
+          </button>
           <LangSelect value={pair.target} onChange={setTarget} />
         </div>
 
@@ -447,8 +426,23 @@ export default function CoachPage() {
         {/* picks */}
         {loading && picks.length === 0 ? (
           <p className="py-8 text-center text-sm text-ink-soft">{t("coach.loading")}</p>
-        ) : picks.length === 0 && loaded ? (
-          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.empty")}</p>
+        ) : picks.length === 0 ? (
+          <div className="rounded-[18px] border border-dashed border-black/[0.12] bg-black/[0.02] p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sage-tint/60 text-sage-deep">
+              <Sprout className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-[16px] font-semibold text-ink">{t("coach.emptyPicksTitle")}</p>
+            <p className="mt-1 text-[13px] text-ink-soft">{t("coach.emptyPicksHint")}</p>
+            <button
+              type="button"
+              onClick={loadPicks}
+              disabled={loading}
+              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {t("coach.refresh")}
+            </button>
+          </div>
         ) : (
           <div className="max-h-[336px] space-y-2 overflow-y-auto pr-1">
             {picks.map((p) => {
@@ -502,128 +496,6 @@ export default function CoachPage() {
           </Button>
         )}
       </section>
-
-      {/* Today's plan — deterministic, no AI */}
-      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-        <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.planTitle")}</h2>
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
-          <div className="rounded-[14px] bg-sage-tint/50 p-3.5 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-sage-deep">
-              <RotateCcw className="h-4 w-4" />
-              <span className="font-serif text-[26px] font-bold leading-none">{due}</span>
-            </div>
-            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pDue")}</div>
-          </div>
-          <HoverTip title={weak > 0 ? t("coach.drillWeak") : ""} className="block h-full">
-            <button
-              type="button"
-              disabled={weak === 0}
-              onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
-              className="h-full w-full rounded-[14px] bg-warn-bg p-3.5 text-center transition-transform enabled:hover:scale-[1.03] disabled:cursor-default"
-            >
-              <div className="flex items-center justify-center gap-1.5 text-warn-text">
-                <Dumbbell className="h-4 w-4" />
-                <span className="font-serif text-[26px] font-bold leading-none">{weak}</span>
-              </div>
-              <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pWeak")}</div>
-            </button>
-          </HoverTip>
-          <div className="rounded-[14px] bg-black/[0.04] p-3.5 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-ink-muted">
-              <Sprout className="h-4 w-4 text-sage" />
-              <span className="font-serif text-[26px] font-bold leading-none">{NEW_TARGET}</span>
-            </div>
-            <div className="mt-1.5 text-[12px] font-semibold text-ink-soft">{t("coach.pNew")}</div>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/review"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
-              due + weak > 0 ? "bg-sage text-white hover:bg-sage-deep" : "pointer-events-none bg-black/[0.05] text-ink-faint",
-            )}
-          >
-            <RotateCcw className="h-4 w-4" /> {t("coach.pReview")}
-          </Link>
-          <button
-            type="button"
-            onClick={() => document.getElementById("coach-picks")?.scrollIntoView({ behavior: "smooth" })}
-            className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
-          >
-            <Plus className="h-4 w-4" /> {t("coach.pAddNew")}
-          </button>
-        </div>
-        <p className="mt-3 text-[12px] text-ink-faint">{t("coach.planFoot", { mins, total: deck.length, mastered })}</p>
-      </section>
-
-      {/* Review plan — pace the deck's still-new words into a daily schedule */}
-      <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-        <h2 className="flex items-center gap-2 font-serif text-[20px] font-medium text-ink">
-          <CalendarDays className="h-5 w-5 text-sage-deep" /> {t("coach.planReviewTitle")}
-        </h2>
-        {newLeft > 0 ? (
-          <>
-            <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
-              {t("coach.planReviewLine", { n: newLeft, per: newPerDay, days: planDays, mins: planMins })}
-            </p>
-            <div className="mt-4">
-              <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.planPace")}</div>
-              <div className="inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-                {NEW_PER_DAY_OPTIONS.map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setNewPerDay(n)}
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 transition-colors",
-                      newPerDay === n ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <span className="ml-2 text-[13px] text-ink-soft">{t("coach.planPerDay")}</span>
-            </div>
-          </>
-        ) : (
-          <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">{t("coach.planAllCaught")}</p>
-        )}
-      </section>
-
-      {/* This week — a short coaching recap of progress */}
-      {showRecap && (
-        <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-          <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.weekTitle")}</h2>
-          <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
-            {t("coach.weekLine", { added: addedThisWeek, reviewed: reviewedThisWeek, mastered })}
-          </p>
-          {weakTop.length > 0 && (
-            <div className="mt-3">
-              <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("coach.weekWatch")}</div>
-              <div className="flex flex-wrap gap-1.5">
-                {weakTop.map((w) => (
-                  <Link
-                    key={w.id}
-                    href={`/word/${w.id}`}
-                    className="rounded-full border border-warn/40 bg-warn-bg px-2.5 py-0.5 text-[13px] font-medium text-warn-text hover:opacity-80"
-                  >
-                    {w.word}
-                  </Link>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => startWeakDrill(deck.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id))}
-                  className="rounded-full border border-sage/50 bg-sage-tint/40 px-2.5 py-0.5 text-[13px] font-semibold text-sage-deep hover:bg-sage-tint"
-                >
-                  {t("coach.weekDrill")}
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
 
     </div>
   );

@@ -150,6 +150,16 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   export mostly undercuts positioning; keep only as a migration/marketing checkbox.
 - ⏭ Gate the Coach behind a real **Pro Plus** tier (add plan tier + /pro column).
 
+### Scenes — backlog
+- 🧊 **Custom scene ideas (free text)** — parked. The learner can write nonsense
+  and we'd burn tokens on it; `/coach/scene` offers curated presets only (grid,
+  all visible at once). Revisit once presets are exhausted.
+- ⏭ **More presets** — grow the set; if it outgrows one screen, add a "more"
+  button rather than bringing the carousel back.
+- ✅ **Coach landing dedup** — `/coach` dropped "Today's plan", "This week" and
+  the pace slider (they contradicted Home's daily goal). Home owns pacing;
+  `/coach` = greeting + scene/chat entry + "Words for you".
+
 ## Monetization / paywall
 - ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
   quotas (reader-gen 3, OCR 5), Pro-only params (web examples / detailed+custom
