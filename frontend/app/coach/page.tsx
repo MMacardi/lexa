@@ -82,9 +82,10 @@ export default function CoachPage() {
   const [swapSpin, setSwapSpin] = useState(false);
 
   // Coach memory: the learner's goal powers a "get to know you" prompt + tailored picks.
+  // Scoped to the selected source language so an English goal never leaks into Chinese.
   const { data: profile } = useQuery({
-    queryKey: ["coach-profile", accountId],
-    queryFn: () => api.coachProfile(accountId),
+    queryKey: ["coach-profile", accountId, pair.source],
+    queryFn: () => api.coachProfile(accountId, pair.source),
     enabled: !!accountId,
   });
   const [savingGoal, setSavingGoal] = useState(false);
@@ -184,8 +185,8 @@ export default function CoachPage() {
     setSavingGoal(true);
     try {
       if (g) {
-        await api.updateCoachProfile({ telegramId: accountId, goal: g });
-        qc.invalidateQueries({ queryKey: ["coach-profile", accountId] });
+        await api.updateCoachProfile({ telegramId: accountId, lang: pair.source, goal: g });
+        qc.invalidateQueries({ queryKey: ["coach-profile", accountId, pair.source] });
       }
       const r = await api.coachPicks({
         sourceLang: pair.source,

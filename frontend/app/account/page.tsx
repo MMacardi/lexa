@@ -41,7 +41,7 @@ import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, X, Pencil, Check, Eye, EyeOff } from "lucide-react";
+import { Sun, Moon, X, Pencil, Check, Eye, EyeOff, Sparkles, PenLine, type LucideIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -237,10 +237,10 @@ function TextLevelSection() {
 function GraphAddSection() {
   const { t } = useI18n();
   const method = useGraphAddMethod();
-  const opts: { id: GraphAddMethod; label: string }[] = [
+  const opts: { id: GraphAddMethod; label: string; icon?: LucideIcon }[] = [
     { id: "ask", label: t("graphadd.ask") },
-    { id: "ai", label: t("add.auto") },
-    { id: "manual", label: t("add.manual") },
+    { id: "ai", label: t("add.auto"), icon: Sparkles },
+    { id: "manual", label: t("add.manual"), icon: PenLine },
   ];
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
@@ -253,10 +253,11 @@ function GraphAddSection() {
             type="button"
             onClick={() => setGraphAddMethod(o.id)}
             className={cn(
-              "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
+              "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors",
               method === o.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
             )}
           >
+            {o.icon && <o.icon className="h-3.5 w-3.5" />}
             {o.label}
           </button>
         ))}

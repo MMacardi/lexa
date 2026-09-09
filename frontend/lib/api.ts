@@ -338,6 +338,9 @@ export const api = {
   // Contextual meaning of one word within its sentence (Reader press-and-hold).
   gloss: (payload: { word: string; sentence: string; sourceLang?: string; targetLang?: string; withTranscription?: boolean }) =>
     http<{ gloss: string; transcription?: string }>(`/api/gloss`, { method: "POST", body: JSON.stringify(payload) }),
+  // Is a learner-typed custom language name a real language? Decides whether AI stays on for it.
+  checkLanguage: (name: string) =>
+    http<{ isLanguage: boolean; canonicalName: string }>(`/api/languages/check`, { method: "POST", body: JSON.stringify({ name }) }),
   // Add many bare words at once; AI enrichment runs in the background worker.
   batchAddWords: (payload: {
     telegramId: string;
@@ -441,13 +444,18 @@ export const api = {
   stt: (payload: { audio: string; format?: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/coach/stt`, { method: "POST", body: JSON.stringify(payload) }),
 
-  // What the coach remembers about the learner (goal / interests / notes).
-  coachProfile: (telegramId: string) =>
-    http<{ goal: string; interests: string; notes: string }>(`/api/coach/profile?telegramId=${encodeURIComponent(telegramId)}`),
-  updateCoachProfile: (payload: { telegramId: string; goal?: string; interests?: string; notes?: string }) =>
+  // What the coach remembers about the learner for ONE source language (goal / interests / notes).
+  coachProfile: (telegramId: string, lang: string) =>
+    http<{ goal: string; interests: string; notes: string }>(
+      `/api/coach/profile?telegramId=${encodeURIComponent(telegramId)}&lang=${encodeURIComponent(lang)}`,
+    ),
+  updateCoachProfile: (payload: { telegramId: string; lang: string; goal?: string; interests?: string; notes?: string }) =>
     http<{ goal: string; interests: string; notes: string }>(`/api/coach/profile`, { method: "PUT", body: JSON.stringify(payload) }),
-  coachRemember: (payload: { telegramId: string; messages: { role: "user" | "assistant"; content: string }[] }) =>
-    http<{ ok: true }>(`/api/coach/remember`, { method: "POST", body: JSON.stringify(payload) }),
+  coachRemember: (payload: {
+    telegramId: string;
+    sourceLang: string;
+    messages: { role: "user" | "assistant"; content: string }[];
+  }) => http<{ ok: true }>(`/api/coach/remember`, { method: "POST", body: JSON.stringify(payload) }),
 
   // Adaptive Coach practice: one drill turn (the client keeps the message thread).
   coachDrill: (payload: {

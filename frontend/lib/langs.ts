@@ -39,16 +39,17 @@ export function pairLabel(source: string, target: string): string {
   return `${langLabel(source)} → ${langLabel(target)}`;
 }
 
-// AI cards work for the built-in languages AND any language the user deliberately
-// added (Qwen is broadly multilingual — e.g. it knows Hindi, Arabic, Turkish…). A
-// truly unknown code (never added) still falls back to manual cards.
+// AI cards work for the built-in languages AND any custom language the AI recognised
+// when it was added (Qwen is broadly multilingual — e.g. it knows Hindi, Arabic,
+// Turkish…). A custom language flagged `ai: false` failed that check, so it is manual
+// entry only rather than getting confident nonsense from the model.
 const AI_LANGS = new Set<string>(LANGS.map((l) => l.code));
 export function isAiSupported(code: string): boolean {
   if (code === "auto" || AI_LANGS.has(code)) return true;
   if (typeof window === "undefined") return false;
   try {
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]") as { code: string }[];
-    return custom.some((x) => x.code === code);
+    const custom = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]") as { code: string; ai?: boolean }[];
+    return custom.some((x) => x.code === code && x.ai !== false);
   } catch {
     return false;
   }

@@ -37,13 +37,6 @@ model User {
   // Which weekdays the nudge fires on: CSV of getDay() ints (0=Sun..6=Sat). Empty
   // string means every day (the default).
   reminderDays String @default("")
-  // Coach memory — what the personal mentor remembers about the learner across
-  // sessions, so it acts like a real agent, not a stateless chat. `goal` and
-  // `interests` are learner-set; `notes` is a short, model-maintained summary of
-  // recurring mistakes / preferences, capped in length.
-  coachGoal      String    @default("")
-  coachInterests String    @default("")
-  coachNotes     String    @default("")
   // Social: a short code others use to add you as a friend, and who referred you.
   referralCode String?     @unique
   referredById String?
@@ -55,6 +48,27 @@ model User {
   readerTexts ReaderText[]
   sentFriendships Friendship[] @relation("SentFriendships")
   recvFriendships Friendship[] @relation("RecvFriendships")
+  coachMemories CoachMemory[]
+}
+
+// Coach memory — what the personal mentor remembers about the learner across
+// sessions, so it acts like a real agent, not a stateless chat. Scoped PER SOURCE
+// LANGUAGE: an IELTS goal set while practising English must not be injected into
+// their Chinese drills. `goal` and `interests` are learner-set; `notes` is a short,
+// model-maintained summary of recurring mistakes / preferences, capped in length.
+model CoachMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lang      String // source-language code this memory belongs to ("en", "zh", …)
+  goal      String   @default("")
+  interests String   @default("")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lang])
+  @@index([userId])
 }
 
 // A friend link between two users. `requester` sent it; `addressee` accepts. Once

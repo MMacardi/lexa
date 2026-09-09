@@ -2,6 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 import { LANGS } from "@/lib/langs";
 import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
@@ -27,9 +29,10 @@ export function LangSelect({
   autoLabel?: string;
 }) {
   const { t } = useI18n();
-  const { prompt } = useDialog();
+  const { prompt, confirm } = useDialog();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [checking, setChecking] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -74,7 +77,6 @@ export function LangSelect({
     : all;
 
   const onAddLanguage = async () => {
-    setOpen(false);
     const name = (
       await prompt({
         title: t("dialog.addLanguageTitle"),
@@ -83,8 +85,39 @@ export function LangSelect({
         confirmLabel: t("common.add"),
       })
     )?.trim();
-    if (!name) return;
-    const lang = addCustomLang(name);
+    if (!name) {
+      setOpen(false);
+      return;
+    }
+    // A learner can type anything here, so the AI decides whether it is a language it
+    // can actually work with: recognized → full AI cards under its canonical name;
+    // unrecognized → warn, and keep it as manual-entry only if they still want it.
+    setChecking(true);
+    let finalName = name;
+    let ai = true;
+    try {
+      const r = await api.checkLanguage(name);
+      if (r.isLanguage) {
+        finalName = r.canonicalName || name;
+      } else {
+        const anyway = await confirm({
+          title: t("lang.notATitle", { name }),
+          message: t("lang.notAMsg", { name }),
+          confirmLabel: t("common.add"),
+        });
+        if (!anyway) {
+          setOpen(false);
+          return;
+        }
+        ai = false;
+      }
+    } catch {
+      /* best-effort: a failed check keeps AI on rather than downgrading a real language */
+    } finally {
+      setChecking(false);
+    }
+    setOpen(false);
+    const lang = addCustomLang(finalName, { ai });
     onChange(lang.code);
   };
 
@@ -136,6 +169,7 @@ export function LangSelect({
               {filtered.map((l) => {
                 const active = l.code === value;
                 const isCustom = custom.some((c) => c.code === l.code);
+                const manualOnly = custom.some((c) => c.code === l.code && c.ai === false);
                 return (
                   <li key={l.code} className="flex items-center gap-1">
                     <button
@@ -150,13 +184,27 @@ export function LangSelect({
                       )}
                     >
                       <span className="truncate">{l.name}</span>
-                      {active && <span className="shrink-0 text-sage">✓</span>}
+                      {manualOnly && (
+                        <span className="ml-2 shrink-0 rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-semibold text-ink-faint">
+                          {t("lang.manualOnly")}
+                        </span>
+                      )}
+                      {active && <span className="ml-2 shrink-0 text-sage">✓</span>}
                     </button>
                     {isCustom && (
                       <button
                         type="button"
                         aria-label={t("col.removeLang")}
-                        onClick={() => {
+                        onClick={async () => {
+                          // Removing the language only removes it from the picker: cards
+                          // already saved in it keep their language code and stay in the deck.
+                          const ok = await confirm({
+                            title: t("col.removeLangTitle"),
+                            message: t("col.removeLangConfirm", { name: l.name }),
+                            confirmLabel: t("common.delete"),
+                            tone: "danger",
+                          });
+                          if (!ok) return;
                           removeCustomLang(l.code);
                           if (l.code === value) onChange("en"); // reset if we deleted the selected one
                         }}
@@ -174,9 +222,11 @@ export function LangSelect({
                 <button
                   type="button"
                   onClick={onAddLanguage}
-                  className="w-full rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-sage-deep hover:bg-black/[0.03]"
+                  disabled={checking}
+                  className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-sage-deep hover:bg-black/[0.03] disabled:opacity-60"
                 >
-                  {t("col.addLanguage")}
+                  {checking && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {checking ? t("lang.checking") : t("col.addLanguage")}
                 </button>
               </li>
             </ul>

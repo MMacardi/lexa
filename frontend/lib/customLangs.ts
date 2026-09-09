@@ -11,6 +11,12 @@ const EVT = "lexa-langs-changed";
 export interface CustomLang {
   code: string;
   name: string;
+  /**
+   * Whether AI enrichment is available for this language. Only an explicit `false`
+   * turns it off (the name failed validation); entries saved before this flag existed
+   * have no key and keep behaving as supported.
+   */
+  ai?: boolean;
 }
 
 export function getCustomLangs(): CustomLang[] {
@@ -27,12 +33,12 @@ function slug(name: string): string {
 }
 
 /** Add a custom language (idempotent on code); returns the created/existing one. */
-export function addCustomLang(rawName: string): CustomLang {
+export function addCustomLang(rawName: string, opts?: { ai?: boolean }): CustomLang {
   const name = rawName.trim();
   const code = slug(name);
   const list = getCustomLangs();
   if (!list.some((l) => l.code === code)) {
-    list.push({ code, name });
+    list.push({ code, name, ...(opts?.ai === false ? { ai: false } : {}) });
     localStorage.setItem(KEY, JSON.stringify(list));
     window.dispatchEvent(new Event(EVT));
   }

@@ -418,7 +418,7 @@ export default function FlashcardsPage() {
       </div>
     ) : null;
 
-  const fieldNode = (field: CardField, primary: boolean): React.ReactNode => {
+  const fieldNode = (field: CardField, primary: boolean, withTr = false): React.ReactNode => {
     switch (field) {
       case "word":
         return (
@@ -449,6 +449,11 @@ export default function FlashcardsPage() {
                 <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
                   <HighlightWord text={ex.sentenceEn} word={word.word} />
                 </p>
+                {withTr && ex.sentenceZh?.trim() && (
+                  <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
+                    {ex.sentenceZh}
+                  </p>
+                )}
                 {ex.sourceName && (
                   <div className="mt-1 text-[12px] font-semibold tracking-[0.04em] text-ink-faint">— {ex.sourceName}</div>
                 )}
@@ -484,8 +489,16 @@ export default function FlashcardsPage() {
   };
 
   // Non-empty fields, so a missing phonetic/example doesn't leave blank gaps.
-  const frontFields = layout.front.filter((f) => fieldNode(f, true) !== null);
-  const backFields = layout.back.filter((f) => fieldNode(f, false) !== null);
+  // When BOTH example fields are on for a side, each sentence renders its own
+  // translation underneath — so the standalone "Example translation" list (which read
+  // as 3 examples followed by 3 unaligned translations) is dropped for that side.
+  const inlineTr = (fields: CardField[]) => fields.includes("example") && fields.includes("exampleTr");
+  const visibleFields = (fields: CardField[], primary: boolean, withTr: boolean) =>
+    fields.filter((f) => !(withTr && f === "exampleTr")).filter((f) => fieldNode(f, primary, withTr) !== null);
+  const frontTr = inlineTr(layout.front);
+  const backTr = inlineTr(layout.back);
+  const frontFields = visibleFields(layout.front, true, frontTr);
+  const backFields = visibleFields(layout.back, false, backTr);
 
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
@@ -612,7 +625,7 @@ export default function FlashcardsPage() {
               <div className="flip-face flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                   {frontFields.map((f, i) => (
-                    <div key={f}>{fieldNode(f, i === 0)}</div>
+                    <div key={f}>{fieldNode(f, i === 0, frontTr)}</div>
                   ))}
                   <div className="mt-6 text-sm font-medium text-ink-faint">{t("review.reveal")}</div>
                 </div>
@@ -634,7 +647,7 @@ export default function FlashcardsPage() {
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
                         {t(`field.${f}`)}
                       </p>
-                      {fieldNode(f, false)}
+                      {fieldNode(f, false, backTr)}
                     </div>
                   ))}
                 </div>

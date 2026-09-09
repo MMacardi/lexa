@@ -62,8 +62,10 @@ export async function coachSceneSetup(params: {
       `   list above. Return them as "newWords", each as {word (in ${source}), meaning (a short gloss in ${target})}.\n\n` +
       `Write "title", "setting", "character", "characterName", "learnerRole", "goal" and "briefing" in ${target}\n` +
       `(the learner's language) so the premise is instantly clear. "character" is a short description of who you play;\n` +
-      `"characterName" is just that character's name. "briefing" is ONE short line on why this scene helps THIS learner\n` +
-      `(tie it to their goal or a known weak point); use "" if nothing is known yet.\n` +
+      `"characterName" is just that character's name. "briefing" is ONE short line IN THE SITUATION — what is at stake\n` +
+      `or what to aim for, addressed to the learner (e.g. "the client is in a hurry — get the size right"). It is part of\n` +
+      `the scene, NOT a commentary on it: never mention exams, tests, CEFR levels, language skills or study\n` +
+      `methodology, and never explain why the scene is useful.\n` +
       `Write "opening" — the character's FIRST spoken line — in ${source}, obeying the LEVEL block above, in character,\n` +
       `and end it with something that invites a reply (and, when there ARE mission words, creates a natural slot for one).\n` +
       scriptNote(params.sourceLang ?? "en") +

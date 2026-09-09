@@ -186,7 +186,7 @@ export default function CoachPracticePage() {
       if (res.done) {
         setDone(true);
         // Fold what happened into the coach's long-term memory of this learner.
-        api.coachRemember({ telegramId: accountId, messages: thread }).catch(() => {});
+        api.coachRemember({ telegramId: accountId, sourceLang: pair.source, messages: thread }).catch(() => {});
       }
       if (res.grade !== "none" && res.gradedWord) {
         const key = res.gradedWord.trim().toLowerCase();

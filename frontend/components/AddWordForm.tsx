@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus, Sparkles, Globe, Ban, ChevronDown } from "lucide-react";
+import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -500,11 +500,12 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   disabled={disabled}
                   onClick={() => !disabled && setMode(m)}
                   className={cn(
-                    "rounded-full px-3 py-1 transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
                     mode === m ? "bg-sage text-white" : "text-ink-muted",
                     disabled && "cursor-not-allowed opacity-40",
                   )}
                 >
+                  {m === "auto" ? <Sparkles className="h-3.5 w-3.5" /> : <PenLine className="h-3.5 w-3.5" />}
                   {m === "auto" ? t("add.auto") : t("add.manual")}
                 </button>
               </HoverTip>
