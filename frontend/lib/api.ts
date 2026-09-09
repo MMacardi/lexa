@@ -181,6 +181,72 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Streaming variant of http() for the NDJSON coach endpoints. POSTs the payload with
+// stream:true, forwards each {"type":"delta","t"} chunk to onDelta the moment it arrives
+// (so the reply types out live), and resolves with the {"type":"final","result"} payload —
+// the same validated object the non-stream endpoint returns. An {"type":"error"} line, a
+// non-ok response, or a stream that ends without a final all reject. `signal` aborts the
+// fetch (used on unmount / send-while-streaming); the rejection is a DOMException named
+// "AbortError", which callers swallow.
+async function streamHttp<T>(
+  path: string,
+  payload: unknown,
+  opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
+): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    credentials: "include",
+    signal: opts.signal,
+    headers: { "Content-Type": "application/json", ...simulateFreeHeader() },
+    body: JSON.stringify({ ...(payload as object), stream: true }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error ?? `Request failed: ${res.status}`);
+    if (body.code) (err as Error & { code?: string }).code = body.code;
+    throw err;
+  }
+
+  const state: { final?: T; error?: string } = {};
+  const handleLine = (line: string) => {
+    if (!line.trim()) return;
+    let msg: { type?: string; t?: string; result?: T; error?: string };
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return; // a split/garbage line — the final pass re-flushes the tail
+    }
+    if (msg.type === "delta" && msg.t) opts.onDelta?.(msg.t);
+    else if (msg.type === "final") state.final = msg.result as T;
+    else if (msg.type === "error") state.error = msg.error ?? "stream error";
+  };
+
+  // Fallback: no readable stream (a proxy buffered it) — read the whole body at once.
+  if (!res.body) {
+    for (const line of (await res.text()).split("\n")) handleLine(line);
+  } else {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        handleLine(buf.slice(0, nl));
+        buf = buf.slice(nl + 1);
+      }
+    }
+    buf += decoder.decode(); // flush the decoder
+    if (buf.trim()) handleLine(buf); // a trailing final line with no newline
+  }
+
+  if (state.error) throw new Error(state.error);
+  if (state.final === undefined) throw new Error("Stream ended without a final result");
+  return state.final;
+}
+
 // A tutor-suggested word carrying the meaning + example it already wrote in chat,
 // so saving it as a card needs no extra AI call.
 export interface TutorCard {
@@ -188,6 +254,49 @@ export interface TutorCard {
   meaning: string;
   example: string;
   exampleTr: string;
+}
+
+// Coach chat/scene-turn payloads + results, named so the streaming and non-streaming
+// client methods share one definition.
+export interface CoachChatPayload {
+  messages: { role: "user" | "assistant"; content: string }[];
+  words: { word: string; meaning: string }[];
+  sourceLang?: string;
+  targetLang?: string;
+  level?: string;
+  topic?: string;
+  wrap?: boolean;
+  telegramId?: string;
+}
+export interface CoachChatResult {
+  say: string;
+  used: string[];
+  seeded: string[];
+  newWords: { word: string; meaning: string }[];
+}
+export interface CoachSceneTurnPayload {
+  messages: { role: "user" | "assistant"; content: string }[];
+  scene: {
+    title?: string;
+    setting?: string;
+    character?: string;
+    characterName?: string;
+    learnerRole?: string;
+    goal?: string;
+    missionWords: { word: string; meaning: string }[];
+    newWords?: { word: string; meaning: string }[];
+  };
+  sourceLang?: string;
+  targetLang?: string;
+  level?: string;
+  wrap?: boolean;
+  telegramId?: string;
+}
+export interface CoachSceneTurnResult {
+  say: string;
+  used: string[];
+  corrections: { original: string; corrected: string; note: string }[];
+  sceneDone: boolean;
 }
 
 export interface FeedbackPayload {
@@ -496,20 +605,18 @@ export const api = {
 
   // Casual "learn by chatting": one conversational turn. Returns the coach's reply
   // plus which words-in-play the learner used ("used") and which the coach seeded.
-  coachChat: (payload: {
-    messages: { role: "user" | "assistant"; content: string }[];
-    words: { word: string; meaning: string }[];
-    sourceLang?: string;
-    targetLang?: string;
-    level?: string;
-    topic?: string;
-    wrap?: boolean;
-    telegramId?: string;
-  }) =>
-    http<{ say: string; used: string[]; seeded: string[]; newWords: { word: string; meaning: string }[] }>(`/api/coach/chat`, {
+  coachChat: (payload: CoachChatPayload) =>
+    http<CoachChatResult>(`/api/coach/chat`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  // Same turn, but streamed: the "say" text arrives via onDelta as it is generated and
+  // the promise resolves with the identical validated CoachChatResult.
+  coachChatStream: (
+    payload: CoachChatPayload,
+    opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
+  ) => streamHttp<CoachChatResult>(`/api/coach/chat`, payload, opts),
 
   // Scene roleplay — generate the premise card (one call), then run it turn by turn.
   // The client keeps the message thread AND echoes the scene "bible" each turn (the
@@ -536,30 +643,15 @@ export const api = {
       opening: string;
     }>(`/api/coach/scene/setup`, { method: "POST", body: JSON.stringify(payload) }),
 
-  coachSceneTurn: (payload: {
-    messages: { role: "user" | "assistant"; content: string }[];
-    scene: {
-      title?: string;
-      setting?: string;
-      character?: string;
-      characterName?: string;
-      learnerRole?: string;
-      goal?: string;
-      missionWords: { word: string; meaning: string }[];
-      newWords?: { word: string; meaning: string }[];
-    };
-    sourceLang?: string;
-    targetLang?: string;
-    level?: string;
-    wrap?: boolean;
-    telegramId?: string;
-  }) =>
-    http<{
-      say: string;
-      used: string[];
-      corrections: { original: string; corrected: string; note: string }[];
-      sceneDone: boolean;
-    }>(`/api/coach/scene/turn`, { method: "POST", body: JSON.stringify(payload) }),
+  coachSceneTurn: (payload: CoachSceneTurnPayload) =>
+    http<CoachSceneTurnResult>(`/api/coach/scene/turn`, { method: "POST", body: JSON.stringify(payload) }),
+
+  // Same scene turn, streamed: live "say" deltas via onDelta, resolving with the
+  // identical validated CoachSceneTurnResult.
+  coachSceneTurnStream: (
+    payload: CoachSceneTurnPayload,
+    opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
+  ) => streamHttp<CoachSceneTurnResult>(`/api/coach/scene/turn`, payload, opts),
 
   // Beta bug/idea report (message + auto-collected context + optional screenshot).
   sendFeedback: (payload: FeedbackPayload) =>
