@@ -12,6 +12,9 @@ const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "f
 export type WordPopTarget = {
   word: string;
   meaning?: string;
+  transcription?: string; // pinyin / romaji, when the source language has one
+  loading?: boolean; // the gloss request is still in flight
+  sentence?: string; // the bubble the word was tapped in → the card's example
   sourceLang: string;
   targetLang: string;
   isNew?: boolean; // not yet in the learner's deck → offer "add to my words"
@@ -69,7 +72,7 @@ export function WordMeaningPop({
   }, [target.anchor, close]);
 
   if (!pos) return null;
-  const { word, meaning, sourceLang, targetLang, isNew } = target;
+  const { word, meaning, transcription, loading, sourceLang, targetLang, isNew } = target;
 
   return createPortal(
     <div className="fixed z-[90] -translate-x-1/2" style={{ left: pos.x, top: pos.y + 8 }}>
@@ -86,14 +89,23 @@ export function WordMeaningPop({
             </span>
           )}
         </div>
-        {meaning && (
-          <div className={cn("mt-1 select-text text-[13px] leading-snug text-sage-deep", srcFont(targetLang))}>{meaning}</div>
+        {transcription && (
+          <div className="mt-0.5 select-text text-[12px] font-medium tracking-wide text-ink-faint">{transcription}</div>
+        )}
+        {loading ? (
+          <div className="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-faint">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("pop.loading")}
+          </div>
+        ) : (
+          meaning && (
+            <div className={cn("mt-1 select-text text-[13px] leading-snug text-sage-deep", srcFont(targetLang))}>{meaning}</div>
+          )
         )}
         {isNew && onAdd && (
           <button
             type="button"
             onClick={onAdd}
-            disabled={adding || added}
+            disabled={adding || added || loading || !meaning}
             className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-sage px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-60"
           >
             {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : added ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}

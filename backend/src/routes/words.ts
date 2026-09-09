@@ -776,16 +776,17 @@ wordsRouter.post("/coach/stt", async (req, res) => {
   }
 });
 
+// A word handed to the coach. The drill needs at least one; chat and scenes treat the
+// list as relevance-filtered CANDIDATES, so an empty deck is allowed there.
+const coachWord = z.object({ word: z.string().min(1), meaning: z.string().default("") });
+
 // POST /api/coach/drill -> adaptive Coach practice: quiz the learner on their own
 // words, grade each answer, adapt. One turn per request (client keeps the thread).
 const coachDrillBody = z.object({
   messages: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(3000) }))
     .max(24),
-  words: z
-    .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
-    .min(1)
-    .max(12),
+  words: z.array(coachWord).min(1).max(12),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   level: z.string().optional(),
@@ -810,6 +811,7 @@ wordsRouter.post("/coach/drill", async (req, res) => {
 // POST /api/coach/chat -> casual "learn by chatting": a relaxed conversation that
 // seeds the learner's words and rewards them for using them. One turn per request.
 const coachChatBody = coachDrillBody.extend({
+  words: z.array(coachWord).max(30).default([]), // candidates the model filters for relevance
   topic: z.string().max(200).optional(), // what to chat about (steers the conversation)
   wrap: z.boolean().optional(), // the learner is finishing — give a warm sign-off
 });
@@ -830,12 +832,10 @@ wordsRouter.post("/coach/chat", async (req, res) => {
 });
 
 // POST /api/coach/scene/setup -> generate a scene premise (roleplay) from the learner's
-// memory + weak/due mission words. One call; returns the premise card the client renders.
+// memory + a candidate pool of words they are reviewing; the model keeps only the ones
+// that fit the situation. One call; returns the premise card the client renders.
 const coachSceneSetupBody = z.object({
-  words: z
-    .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
-    .min(1)
-    .max(12),
+  words: z.array(coachWord).max(30).default([]),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   level: z.string().optional(),

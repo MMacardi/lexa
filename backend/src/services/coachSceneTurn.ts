@@ -1,6 +1,7 @@
 import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachSceneTurnSchema, type CoachSceneTurn } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { levelGuide } from "./levelGuide.js";
 
 // The scene "bible", echoed by the client every turn so the engine is stateless and
 // never drifts out of character (chatJsonConversation only sees the clipped history).
@@ -34,7 +35,7 @@ export async function coachSceneTurn(params: {
 }): Promise<CoachSceneTurn> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = params.level ? ` The learner's level is about ${params.level} (CEFR).` : "";
+  const level = `\n\n${levelGuide(params.level, source)}`;
   const missionList = (params.scene.missionWords ?? [])
     .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
     .join("\n");
@@ -67,8 +68,8 @@ export async function coachSceneTurn(params: {
         `${source}; their own language is ${target}.${level}\n\n` +
         bible + `\n\n` +
         `How to play your turn:\n` +
-        `1) STAY IN CHARACTER and keep the scene moving. Write "say" mostly in ${source}, pitched to the learner's ` +
-        `level, short (1-3 sentences), and end with something that invites their reply. Add a brief ${target} gloss ` +
+        `1) STAY IN CHARACTER and keep the scene moving. Write "say" mostly in ${source}, obeying the LEVEL block ` +
+        `above exactly, and end with something that invites their reply. Add a brief ${target} gloss ` +
         `only if something would genuinely confuse.\n` +
         `2) RELEVANCE WITHOUT GRADING: if the learner drifts off the scene or ignores what your character just asked, ` +
         `react IN CHARACTER and steer back naturally (a barista pulls the talk back to the order). NEVER say ` +
@@ -81,7 +82,8 @@ export async function coachSceneTurn(params: {
         `4) MISSION WORDS: create natural openings for the mission words, but never quiz, list or translate them on ` +
         `demand. If the learner uses a mission word correctly in THIS message (any inflected form counts), put its ` +
         `canonical form — verbatim from the mission list — into "used". Be generous, but ONLY list real mission words ` +
-        `they actually used; never invent.\n` +
+        `they actually used; never invent. If the mission list above is "(none)", ignore this rule entirely — just ` +
+        `play the scene well and let the new words carry the learning; "used" stays empty.\n` +
         `   NEW WORDS: when it fits, slip a "new word" into YOUR OWN line so the learner meets it alive in context ` +
         `(gloss it briefly in ${target} the first time). Never quiz or translate it on demand, and never put a new ` +
         `word in "used" — that array is only for mission words.\n` +

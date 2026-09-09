@@ -159,6 +159,24 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ✅ **Coach landing dedup** — `/coach` dropped "Today's plan", "This week" and
   the pace slider (they contradicted Home's daily goal). Home owns pacing;
   `/coach` = greeting + scene/chat entry + "Words for you".
+- ✅ **Relevance-filtered word pool** — chat/scene no longer deal a shuffled 10-word
+  board (a bakery scene demanding «камфляж»). The picker is gone; the client sends up
+  to 24 CANDIDATES (weak → due → rest) and the model keeps only the ones that fit the
+  situation — keeping NONE is a valid answer, and the fallback that backfilled the
+  whole pool was deleted. Chat chips are live now: they appear as words actually come
+  up. The drill keeps its picker (a workout over EXACTLY these words is its premise).
+- ✅ **Level is a hard constraint** — `levelGuide()` replaces the one soft "level is
+  about A1" sentence in all four coach prompts with per-CEFR limits (A1 = one ~10-word
+  sentence, present tense, no idioms …) and always emits something, so an unset level
+  no longer means "no constraint". A visible chip (`PracticeBar`) shows and edits it,
+  and start/generate gate on `useEnsureLevel` — difficulty is never random.
+- ✅ **Tap any word in chat/scene** — the Reader's instant-gloss mechanic: every token
+  in a bubble is tappable (`Intl.Segmenter`, so Chinese segments offline) → meaning +
+  pinyin + one-tap save carrying the sentence it came from. Owned words resolve from
+  the deck with no request; the rest hit the localStorage gloss cache or one cheap
+  `/api/gloss`. Togglable in the PracticeBar.
+- ⏭ **Fold the Reader onto `resolveMeaning.ts`** — the lookup chain was extracted for
+  the Coach but `reader/page.tsx` still carries its own inline copy.
 
 ## Monetization / paywall
 - ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
