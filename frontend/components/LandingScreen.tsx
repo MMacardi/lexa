@@ -9,7 +9,7 @@ import { Compass, Sparkles, ArrowRight, Check, Plus, FileText, Layers, Sun, Moon
 // Public marketing landing for signed-out visitors. `onStart` reveals the login
 // screen. Feature demos are distributed down the page (each feature has its own
 // animated mini-preview), plus a grid of bright scenario cards — all purely
-// client-side (no requests, no tokens). Localized (en default / ru; zh → en).
+// client-side (no requests, no tokens). Localized (en / ru / zh).
 
 const copy = {
   ru: {
@@ -124,6 +124,62 @@ const copy = {
       { q: "Which languages are supported, and can I import my existing words?", a: "Many language pairs, including Chinese, Japanese and Korean. Bring your words by pasting a list, dropping a PDF, snapping a photo of your notebook, or importing an export from another app." },
     ],
   },
+  zh: {
+    signIn: "登录",
+    eyebrow: "你的专属 AI 语言导师",
+    heroTitle: "把你学的一切,变成一套私人记忆系统",
+    heroSub: "智能卡片与间隔重复——再加一位专属 AI 导师:帮你决定学什么、带你实战练习,并记住你的进度。",
+    ctaMain: "免费开始",
+    ctaHint: "无需银行卡。用 Telegram、Google 或邮箱登录。",
+    pillars: [
+      { t: "智能卡片", s: "间隔重复 (FSRS)" },
+      { t: "AI 导师", s: "带你练习、随你调整" },
+      { t: "记住你", s: "目标、兴趣、薄弱点" },
+    ],
+    rowReaderTitle: "读任何内容——点一下就学会",
+    rowReaderText: "粘贴任意文本,点一下生词即可看到释义,一键加入卡组。内置中日韩分词。",
+    rowCardsTitle: "贴合你学习方式的卡片",
+    rowCardsText: "按你喜欢的方式翻阅——词→义、反向或按同义词。滑动评分,FSRS 安排下次复习。",
+    rowDeckTitle: "任何内容 → 一副卡组",
+    rowDeckText: "一份清单、教材 PDF,或笔记本的照片(哪怕手写),几秒内变成可用 FSRS 复习的卡组。",
+    rowMemoryTitle: "一位记住你的导师",
+    rowMemoryText: "了解你的目标、兴趣和薄弱点——为你定制练习、提示和选词。跨会话、跨设备。",
+    scenTitle: "为任何场景而练",
+    scenSub: "导师会根据你的语言、水平和真正需要的内容来调整。",
+    scenSteps: [
+      { t: "选择一个场景", s: "贴合你目标的角色与情境" },
+      { t: "在故事里对话", s: "你卡组的词会织进对话中" },
+      { t: "获得报告", s: "错处与亮点都汇入间隔重复" },
+    ],
+    scenes: [
+      { img: "/scenes/bakery.webp", title: "面包店", teaser: "向亲切的店员点面包和糕点。", words: ["a baguette", "fresh", "a slice"] },
+      { img: "/scenes/cinema.webp", title: "电影院", teaser: "询问场次并买两张票。", words: ["showtimes", "tickets", "row"] },
+      { img: "/scenes/office.webp", title: "办公室", teaser: "在会议间隙和同事敲定一项任务。", words: ["deadline", "to schedule", "follow up"] },
+      { img: "/scenes/cafe.webp", title: "咖啡馆", teaser: "和朋友喝杯咖啡、叙叙旧。", words: ["to catch up", "on tap", "cosy"] },
+      { img: "/scenes/travel.webp", title: "旅途中", teaser: "入住酒店并安排好各项细节。", words: ["check-in", "luggage", "view"] },
+      { img: "/scenes/interview.webp", title: "面试", teaser: "介绍你自己——并表现出色。", words: ["strength", "experience", "to hire"] },
+    ],
+    howTitle: "它是如何运作的",
+    how: [
+      { n: "01", title: "导入单词", text: "导入清单、PDF 或照片——或逐个添加。" },
+      { n: "02", title: "跟导师练习", text: "它专练你的弱词,并为你的回答打分。" },
+      { n: "03", title: "长久记住", text: "FSRS 复习把单词锁进长期记忆。" },
+    ],
+    finalTitle: "今天就开始更聪明的学习",
+    finalSub: "内测期间免费。",
+    rights: "版权所有。",
+    terms: "条款",
+    privacy: "隐私",
+    faqTitle: "常见问题",
+    faq: [
+      { q: "它和普通卡片应用有什么不同?", a: "不只是翻卡片——导师会让你主动回忆每个单词:你去用它,它检查你的答案、纠正并调整。卡片、间隔重复和读客都已内置,真正让知识牢固的是这种教练式练习。" },
+      { q: "完全零基础也能用吗?", a: "可以。告诉导师你的水平和目标,它会制定计划——学哪些词、每天学多少新词。之后卡片和间隔重复把它们牢牢记住。" },
+      { q: "对高水平学习者有用吗?", a: "当然。把水平调高,导师就会训练细微差别、语域和难词,并随你的进步调整难度。" },
+      { q: "这是 AI——我的数据和语音怎么办?", a: "网页上的语音回答由你自己的浏览器识别——此过程不上传任何内容。你的单词和进度归你所有,我们仅为运行应用而处理它们。详见——", link: { text: "隐私政策", href: "/privacy" } },
+      { q: "免费吗?Pro 是什么?", a: "内测期间免费。之后 Pro 方案会解除每日 AI 限制并增加更多功能——但你保存的单词和进度永远可以免费保留和导出。" },
+      { q: "支持哪些语言?我能导入已有的单词吗?", a: "支持很多语言对,包括中文、日语和韩语。你可以粘贴清单、上传 PDF、拍下笔记本,或导入其他应用的导出文件,把你的单词带过来。" },
+    ],
+  },
 };
 
 // ---------- shared helpers ----------
@@ -213,13 +269,21 @@ function DemoCard({ children }: { children: React.ReactNode }) {
 // ---------- animated feature demos ----------
 function PracticeScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
-  const meaning = ru ? "если только не" : "if not · except if";
+  const zh = locale === "zh";
+  const meaning = ru ? "если только не" : zh ? "除非;如果不" : "if not · except if";
   const turns = ru
     ? [
         { role: "coach", text: "Начнём со слова *unless* — составь короткое предложение." },
         { role: "hint", text: "💡 Подсказка: I won't … *unless* …" },
         { role: "user", text: "I won't go unless you come with me." },
         { role: "grade", text: "Отлично — естественно и верно!" },
+      ]
+    : zh
+    ? [
+        { role: "coach", text: "先从 *unless* 开始——造一个短句。" },
+        { role: "hint", text: "💡 提示:I won't … *unless* …" },
+        { role: "user", text: "I won't go unless you come with me." },
+        { role: "grade", text: "很好——自然又正确!" },
       ]
     : [
         { role: "coach", text: "Let's start with *unless* — make a short sentence." },
@@ -249,7 +313,7 @@ function PracticeScene({ locale }: { locale: string }) {
               <div className="max-w-[82%]">
                 {t.role === "grade" && (
                   <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">
-                    <Check className="h-2.5 w-2.5" strokeWidth={3} /> {ru ? "Верно" : "Correct"}
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} /> {ru ? "Верно" : zh ? "正确" : "Correct"}
                   </span>
                 )}
                 <div className={`rounded-[14px] rounded-bl-sm border px-3 py-2 text-[13.5px] leading-snug ${t.role === "hint" ? "border-sage/30 bg-sage-tint/40 text-sage-deep" : "border-black/[0.06] bg-paper text-ink"}`}>
@@ -277,11 +341,12 @@ function PracticeScene({ locale }: { locale: string }) {
 // Interactive: really tap the highlighted words to see a gloss + add them.
 function ReaderScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
+  const zh = locale === "zh";
   const glosses: Record<string, string> = {
-    proved: ru ? "оказался, проявил себя" : "proved · turned out",
-    remarkably: ru ? "удивительно, поразительно" : "remarkably",
-    resilient: ru ? "устойчивый, стойкий" : "resilient · стойкий",
-    flood: ru ? "наводнение" : "flood · наводнение",
+    proved: ru ? "оказался, проявил себя" : zh ? "结果是,证明是" : "proved · turned out",
+    remarkably: ru ? "удивительно, поразительно" : zh ? "显著地,异常地" : "remarkably",
+    resilient: ru ? "устойчивый, стойкий" : zh ? "有韧性的,适应力强的" : "resilient · стойкий",
+    flood: ru ? "наводнение" : zh ? "洪水" : "flood · наводнение",
   };
   const [open, setOpen] = useState<string | null>(null);
 
@@ -312,7 +377,7 @@ function ReaderScene({ locale }: { locale: string }) {
 
   return (
     <DemoCard>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни подчёркнутое слово" : "Reader · tap an underlined word"}</div>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни подчёркнутое слово" : zh ? "阅读 · 点击带下划线的词" : "Reader · tap an underlined word"}</div>
       <div className="relative">
         {open && <button type="button" aria-hidden className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(null)} />}
         <p className="relative z-0 min-h-[132px] rounded-[16px] border border-black/[0.06] bg-paper p-4 font-serif text-[17px] leading-relaxed text-ink">
@@ -320,7 +385,7 @@ function ReaderScene({ locale }: { locale: string }) {
         </p>
       </div>
       <div className="mt-3 text-[12px] leading-snug text-ink-faint">
-        {ru ? "Перевод появляется прямо в тексте — не уходя со страницы." : "Meanings appear right in the text — without leaving the page."}
+        {ru ? "Перевод появляется прямо в тексте — не уходя со страницы." : zh ? "释义直接出现在文中——无需离开页面。" : "Meanings appear right in the text — without leaving the page."}
       </div>
     </DemoCard>
   );
@@ -328,18 +393,31 @@ function ReaderScene({ locale }: { locale: string }) {
 
 function DeckScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
+  const zh = locale === "zh";
   const step = useStepper(4, 850);
-  const cards: [string, string][] = [
-    ["ubiquitous", "вездесущий"],
-    ["curb", "сдерживать"],
-    ["scalable", "масштабируемый"],
-  ];
+  const cards: [string, string][] = ru
+    ? [
+        ["ubiquitous", "вездесущий"],
+        ["curb", "сдерживать"],
+        ["scalable", "масштабируемый"],
+      ]
+    : zh
+    ? [
+        ["ubiquitous", "无处不在的"],
+        ["curb", "抑制"],
+        ["scalable", "可扩展的"],
+      ]
+    : [
+        ["ubiquitous", "omnipresent"],
+        ["curb", "restrain"],
+        ["scalable", "expandable"],
+      ];
   return (
     <DemoCard>
       <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-ink-muted">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-paper px-2.5 py-1"><FileText className="h-3.5 w-3.5" /> PDF</span>
         <ArrowRight className="h-4 w-4 text-ink-faint" />
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-tint px-2.5 py-1 text-sage-deep"><Layers className="h-3.5 w-3.5" /> {ru ? "Колода" : "Deck"}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-tint px-2.5 py-1 text-sage-deep"><Layers className="h-3.5 w-3.5" /> {ru ? "Колода" : zh ? "卡组" : "Deck"}</span>
       </div>
       <div className="flex min-h-[168px] flex-col gap-2">
         {cards.slice(0, step).map(([w, m], i) => (
@@ -350,7 +428,7 @@ function DeckScene({ locale }: { locale: string }) {
         ))}
       </div>
       {step >= cards.length && (
-        <div className="anim-fade-up mt-3 text-[12px] font-semibold text-sage-deep">{ru ? "12 карточек готовы к повторению" : "12 cards ready to review"}</div>
+        <div className="anim-fade-up mt-3 text-[12px] font-semibold text-sage-deep">{ru ? "12 карточек готовы к повторению" : zh ? "12 张卡片已可复习" : "12 cards ready to review"}</div>
       )}
     </DemoCard>
   );
@@ -358,6 +436,7 @@ function DeckScene({ locale }: { locale: string }) {
 
 function FlashcardScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
+  const zh = locale === "zh";
   const [flipped, setFlipped] = useState(false);
   useEffect(() => {
     const t = setInterval(() => setFlipped((f) => !f), 2600);
@@ -365,17 +444,17 @@ function FlashcardScene({ locale }: { locale: string }) {
   }, []);
   return (
     <DemoCard>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Карточки · нажми, чтобы перевернуть" : "Flashcards · tap to flip"}</div>
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Карточки · нажми, чтобы перевернуть" : zh ? "卡片 · 点击翻转" : "Flashcards · tap to flip"}</div>
       <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
         <div className={`flip-card ${flipped ? "is-flipped" : ""}`}>
           <div className="flip-face flex min-h-[204px] flex-col items-center justify-center rounded-[16px] border border-black/[0.06] bg-paper p-6 text-center">
             <div className="font-serif text-[30px] font-semibold text-ink">resilient</div>
             <div className="mt-1 text-[13px] text-ink-faint">/rɪˈzɪl.i.ənt/</div>
-            <div className="mt-4 text-[12px] text-ink-faint">{ru ? "вспомни значение…" : "recall the meaning…"}</div>
+            <div className="mt-4 text-[12px] text-ink-faint">{ru ? "вспомни значение…" : zh ? "回忆释义…" : "recall the meaning…"}</div>
           </div>
           <div className="flip-face flip-back flex min-h-[204px] flex-col justify-center rounded-[16px] border border-sage/30 bg-sage-tint/40 p-6">
             <div className="font-serif text-[22px] font-semibold text-ink">resilient</div>
-            <div className="mt-1 text-[15px] font-medium text-sage-deep">{ru ? "устойчивый, стойкий" : "устойчивый (resilient)"}</div>
+            <div className="mt-1 text-[15px] font-medium text-sage-deep">{ru ? "устойчивый, стойкий" : zh ? "有韧性的,适应力强的" : "able to recover quickly"}</div>
             <div className="mt-3 font-serif text-[14px] italic leading-snug text-quote">“The city proved remarkably resilient after the flood.”</div>
           </div>
         </div>
@@ -386,12 +465,19 @@ function FlashcardScene({ locale }: { locale: string }) {
 
 function MemoryScene({ locale }: { locale: string }) {
   const ru = locale === "ru";
+  const zh = locale === "zh";
   const step = useStepper(3, 900);
   const rows = ru
     ? [
         { k: "Цель", v: "IELTS 7.0 через 3 месяца" },
         { k: "Интересы", v: "технологии, стартапы" },
         { k: "Замечено", v: "путает past simple и present perfect" },
+      ]
+    : zh
+    ? [
+        { k: "目标", v: "3 个月考到雅思 7.0" },
+        { k: "兴趣", v: "科技、创业" },
+        { k: "注意到", v: "常混淆一般过去时与现在完成时" },
       ]
     : [
         { k: "Goal", v: "IELTS 7.0 in 3 months" },
@@ -401,7 +487,7 @@ function MemoryScene({ locale }: { locale: string }) {
   return (
     <DemoCard>
       <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
-        <Brain className="h-4 w-4 text-sage-deep" /> {ru ? "Что наставник знает о тебе" : "What your coach knows about you"}
+        <Brain className="h-4 w-4 text-sage-deep" /> {ru ? "Что наставник знает о тебе" : zh ? "导师对你的了解" : "What your coach knows about you"}
       </div>
       <div className="flex min-h-[168px] flex-col gap-2">
         {rows.slice(0, step).map((r, i) => (
@@ -522,7 +608,7 @@ function FaqItem({ q, a, link }: { q: string; a: string; link?: { text: string; 
 
 export function LandingScreen({ onStart }: { onStart: () => void }) {
   const { locale } = useI18n();
-  const L = locale === "ru" ? copy.ru : copy.en;
+  const L = locale === "ru" ? copy.ru : locale === "zh" ? copy.zh : copy.en;
 
   return (
     <main className="min-h-screen bg-paper text-ink">

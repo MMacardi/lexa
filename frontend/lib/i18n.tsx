@@ -1161,6 +1161,8 @@ const DICT: Record<string, Entry> = {
   "import.noCards": { en: "Onomika could not find any word pairs. Try one per line, for example: hello — привет", ru: "Onomika не нашла пар «слово — перевод». Попробуйте по одной на строке, например: hello — привет", zh: "Onomika 未找到词语配对。请每行输入一个，例如：hello — 你好" },
   "import.back": { en: "← Edit list", ru: "← К списку", zh: "← 返回编辑" },
   "import.close": { en: "Done", ru: "Готово", zh: "完成" },
+  "import.previewTyping": { en: "Start typing — I'll show a card", ru: "Начните печатать — покажу карточку", zh: "开始输入——我会展示卡片预览" },
+  "import.previewAiMeaning": { en: "AI will fill the meaning", ru: "значение подберёт ИИ", zh: "释义将由 AI 生成" },
 
   // --- add word form ---
   "add.auto": { en: "Auto (AI)", ru: "Авто (ИИ)", zh: "自动 (AI)" },
