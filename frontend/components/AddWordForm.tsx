@@ -591,6 +591,14 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             </div>
           </div>
 
+          {/* Plain-language description of the chosen example source — sits directly
+              under the "Примеры" picker so it reads as a caption for that control, and
+              stays visible even with Advanced collapsed. */}
+          <p className="text-[12px] leading-snug text-ink-faint">
+            {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
+            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+          </p>
+
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -620,19 +628,39 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   ]}
                 />
               </div>
-              <div className="flex items-center gap-2 rounded-[12px] bg-black/[0.03] px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{langLabel(inputLang)}</div>
-                  <div className="mt-0.5 truncate rounded-lg bg-surface px-2 py-1 text-[13px] font-medium text-ink shadow-sm ring-1 ring-black/[0.05]">
+              <div className="flex items-center gap-2 rounded-[12px] bg-black/[0.03] px-3 py-2 text-[13px]">
+                {/* typed word — labelled with its language only when it differs from the
+                    card's (reverse mode), otherwise the "→ Карточка" flow is unambiguous */}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {reverseInput && (
+                    <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                      {langLabel(inputLang)}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      "min-w-0 truncate rounded-lg bg-surface px-2.5 py-1 font-medium text-ink shadow-sm ring-1 ring-black/[0.05]",
+                      reverseInput && "mt-0.5",
+                    )}
+                  >
                     {word.trim() || t("add.inputPreviewWord")}
-                  </div>
+                  </span>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-ink-faint" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputPreviewCard")}</div>
-                  <div className="mt-0.5 truncate rounded-lg bg-sage-tint px-2 py-1 text-[13px] font-semibold text-sage-deep">
+                <div className="flex shrink-0 flex-col items-center leading-none">
+                  {reverseInput && (
+                    <span className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-sage-deep">
+                      {t("add.inputPreviewTranslate")}
+                    </span>
+                  )}
+                  <ArrowRight className="h-4 w-4 text-ink-faint" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {t("add.inputPreviewCard")}
+                  </span>
+                  <span className="mt-0.5 truncate rounded-lg bg-sage-tint px-2.5 py-1 font-semibold text-sage-deep">
                     {langLabel(sourceLang)}
-                  </div>
+                  </span>
                 </div>
               </div>
             </div>
@@ -701,12 +729,6 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
             />
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
-
-          {/* plain-language hint */}
-          <p className="text-[12px] leading-snug text-ink-faint">
-            {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
-            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
-          </p>
           </div>
           )}
         </div>
