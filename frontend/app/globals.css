@@ -136,6 +136,14 @@ button:disabled {
   border-radius: 99px;
 }
 
+/* Chrome paints the native textarea resize grip with a light fill that reads as a
+   white square on the dark field — recolor it to the surface and round the corner
+   to match the rounded textareas, in both themes. */
+textarea::-webkit-resizer {
+  background-color: var(--color-surface);
+  border-bottom-right-radius: 14px;
+}
+
 /* ---- Animations ---- */
 @keyframes lexaFadeUp {
   from { opacity: 0; transform: translateY(12px); }
