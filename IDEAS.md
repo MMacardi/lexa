@@ -213,6 +213,15 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
   quotas (reader-gen 3, OCR 5), Pro-only params (web examples / detailed+custom
   meaning / 2-3 examples), free import cap (25). Gloss/read stays free.
+- ⏭ **Free example-cap leak (word page)** — "1 example on free" is only enforced via
+  the `exampleCount` field on `POST /words` (add form). The word page's
+  `POST /words/:id/example` (`AddExampleInline` / `EditWordForm`) carries no such
+  field, so `requireProFeature` never trips and a free user can append unlimited AI
+  examples. Harmless while `BETA_ALL_PRO=true`; must close before the flip.
+  Decided rule: free = **1 AI example/word** (replace/regenerate stays free);
+  manual (user-typed) examples are unlimited (cost $0). Fix server-side in
+  `addExampleToWord`/route (cap total AI examples per word for non-Pro when
+  `!replace`); mirror with a ProTag/upsell on "+ add example" once at the cap.
 - ✅ **Simulate-free toggle** (Account → Plan) to preview the free tier on a Pro
   account, via `X-Simulate-Free` header.
 - ✅ **Upfront UI locks** — free users see "Pro" tags on locked knobs (+ request
