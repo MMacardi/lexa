@@ -1,26 +1,43 @@
 // Languages a user can pick for a card pair (source -> target). `name` is the
-// English label (used in the UI so search works with a latin keyboard); `native`
-// is kept for reference.
+// English label (kept for latin-keyboard search); `ru`/`zh` are the localized
+// display names shown when the app language is Russian/Chinese; `native` is the
+// name in that language itself.
 export const LANGS = [
-  { code: "en", name: "English", native: "English" },
-  { code: "zh", name: "Chinese (Simplified)", native: "简体中文" },
-  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文" },
-  { code: "ru", name: "Russian", native: "Русский" },
-  { code: "es", name: "Spanish", native: "Español" },
-  { code: "de", name: "German", native: "Deutsch" },
-  { code: "fr", name: "French", native: "Français" },
-  { code: "ja", name: "Japanese", native: "日本語" },
-  { code: "ko", name: "Korean", native: "한국어" },
+  { code: "en", name: "English", native: "English", ru: "Английский", zh: "英语" },
+  { code: "zh", name: "Chinese (Simplified)", native: "简体中文", ru: "Китайский (упрощ.)", zh: "简体中文" },
+  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文", ru: "Китайский (традиц.)", zh: "繁体中文" },
+  { code: "ru", name: "Russian", native: "Русский", ru: "Русский", zh: "俄语" },
+  { code: "es", name: "Spanish", native: "Español", ru: "Испанский", zh: "西班牙语" },
+  { code: "de", name: "German", native: "Deutsch", ru: "Немецкий", zh: "德语" },
+  { code: "fr", name: "French", native: "Français", ru: "Французский", zh: "法语" },
+  { code: "ja", name: "Japanese", native: "日本語", ru: "Японский", zh: "日语" },
+  { code: "ko", name: "Korean", native: "한국어", ru: "Корейский", zh: "韩语" },
 ] as const;
 
-const LABELS: Record<string, string> = Object.fromEntries(LANGS.map((l) => [l.code, l.name]));
-
 const CUSTOM_KEY = "lexa.customLangs";
+const LOCALE_KEY = "lexa.locale";
 
-// Custom languages the user added themselves (stored locally).
+// Current app language (en/ru/zh), read straight from the store the i18n provider
+// writes. Lets the pure langLabel() localize without threading `t` through 20+ callers.
+function currentLocale(): "en" | "ru" | "zh" {
+  if (typeof window === "undefined") return "en";
+  const l = localStorage.getItem(LOCALE_KEY);
+  return l === "ru" || l === "zh" ? l : "en";
+}
+
+const AUTO_LABEL: Record<"en" | "ru" | "zh", string> = {
+  en: "Auto-detect",
+  ru: "Авто",
+  zh: "自动",
+};
+
+// Custom languages the user added themselves (stored locally). Built-in languages
+// show in the app language; custom ones keep the name the learner typed.
 export function langLabel(code: string): string {
-  if (code === "auto") return "Auto-detect";
-  if (LABELS[code]) return LABELS[code];
+  const locale = currentLocale();
+  if (code === "auto") return AUTO_LABEL[locale];
+  const built = LANGS.find((l) => l.code === code);
+  if (built) return locale === "ru" ? built.ru : locale === "zh" ? built.zh : built.name;
   if (typeof window !== "undefined") {
     try {
       const found = (JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]") as { code: string; name: string }[]).find(

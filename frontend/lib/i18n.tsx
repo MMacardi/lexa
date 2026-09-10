@@ -1214,6 +1214,8 @@ const DICT: Record<string, Entry> = {
   "add.inputKnown": { en: "translate into the other", ru: "переведу на другой", zh: "翻译成另一种" },
   "add.inputHintNormal": { en: "Card in {card}", ru: "Карточка на {card}", zh: "卡片为{card}" },
   "add.inputHintReverse": { en: "→ translated & added as a {card} card", ru: "→ переведу и добавлю карточкой на {card}", zh: "→ 翻译后作为{card}卡片添加" },
+  "add.inputPreviewWord": { en: "your word", ru: "ваше слово", zh: "你的单词" },
+  "add.inputPreviewCard": { en: "Card", ru: "Карточка", zh: "卡片" },
   "add.advanced": { en: "Advanced", ru: "Дополнительно", zh: "高级设置" },
   // Pronunciation self-check (browser speech recognition).
   "pron.check": { en: "Check my pronunciation", ru: "Проверить произношение", zh: "检查我的发音" },
@@ -1232,6 +1234,11 @@ const DICT: Record<string, Entry> = {
   "syn.level": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },
   "syn.hint": { en: "at this level — good for IELTS/exam prep", ru: "под уровень — для IELTS и экзаменов", zh: "按此等级——适合雅思/备考" },
+  "syn.desc": {
+    en: "“Natural” keeps everyday synonyms. Pick a CEFR level to aim them higher — e.g. C1 gives “mitigate” instead of “ease” (handy for IELTS/exams).",
+    ru: "«Обычные» — синонимы из живой речи. Выберите уровень CEFR, чтобы подобрать посложнее: например, C1 даст «mitigate» вместо «ease» — пригодно для IELTS и экзаменов.",
+    zh: "「自然」保留日常同义词；选择 CEFR 等级可提高难度——例如 C1 会给出「mitigate」而非「ease」,适合雅思/备考。",
+  },
 
   // --- soft one-time hints (shown once per screen, dismissible, then never again) ---
   "hint.dismiss": { en: "Dismiss", ru: "Скрыть", zh: "收起" },
