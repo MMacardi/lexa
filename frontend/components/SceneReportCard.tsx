@@ -5,7 +5,7 @@ import { Check, RotateCcw, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-export type SceneCorrection = { original: string; corrected: string; note: string };
+export type SceneCorrection = { original: string; corrected: string; note: string; severity?: "minor" | "wrong" };
 
 // Token-free end-of-scene report, computed entirely on the client: which mission words
 // the learner deployed, which are still to practise (no penalty — they just stay due),

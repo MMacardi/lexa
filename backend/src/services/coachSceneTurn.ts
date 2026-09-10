@@ -76,12 +76,17 @@ export async function coachSceneTurn(params: {
         `context instead.\n` +
         `2) RELEVANCE WITHOUT GRADING: if the learner drifts off the scene or ignores what your character just asked, ` +
         `react IN CHARACTER and steer back naturally (a barista pulls the talk back to the order). NEVER say ` +
-        `"correct"/"wrong" and never break character to grade.\n` +
+        `"correct"/"wrong" and never break character to grade. If they write in ${target} (or any language that is ` +
+        `not ${source}), do NOT reply as if you understood: stay in character, show gentle confusion, and invite ` +
+        `them to try it in ${source} — you may model the ${source} phrasing in character ("Do you mean …?"). ` +
+        `Record that ${source} phrasing as a correction so the app can show them the right wording.\n` +
         `3) GENTLE RECAST: if a mistake blocks meaning or is clearly worth fixing, weave the corrected form naturally ` +
         `into your "say" (model it, don't lecture). ALSO record it in "corrections" as {original (what they wrote), ` +
-        `corrected (the fixed form in ${source}), note (a tiny "why" in ${target}, may be "")}. These are collected for ` +
-        `an end-of-session report and are NOT shown to the learner now. Capture at most 4, only genuine ones; leave the ` +
-        `array empty if their message was fine.\n` +
+        `corrected (the fixed form in ${source}), note (a tiny "why" in ${target}, may be ""), severity ("minor" for ` +
+        `a small slip, "wrong" for an error that breaks meaning or for writing in ${target})}. The app shows the ` +
+        `learner a small colour dot on their own message and, on tap, these fixes — so keep them few and genuinely ` +
+        `useful: at most 4, and leave the array empty if their message was fine. They also roll up into an ` +
+        `end-of-session report.\n` +
         `4) MISSION WORDS: create natural openings for the mission words, but never quiz, list or translate them on ` +
         `demand. If the learner uses a mission word correctly in THIS message (any inflected form counts), put its ` +
         `canonical form — verbatim from the mission list — into "used". Be generous, but ONLY list real mission words ` +
@@ -98,7 +103,8 @@ export async function coachSceneTurn(params: {
         `\n\n` +
         bible +
         `\n\nRespond as JSON with "say" as the FIRST key: {"say": string, "used": string[], ` +
-        `"corrections": [{"original": string, "corrected": string, "note": string}], "sceneDone": boolean}.` +
+        `"corrections": [{"original": string, "corrected": string, "note": string, "severity": "minor"|"wrong"}], ` +
+        `"sceneDone": boolean}.` +
         // --- volatile tail (changes mid-session; kept last so the prefix above caches) ---
         (params.profileNote ? `\n\n${params.profileNote}` : "") +
         (params.wrap
@@ -135,6 +141,7 @@ export async function coachSceneTurn(params: {
       original: (c.original ?? "").trim(),
       corrected: (c.corrected ?? "").trim(),
       note: (c.note ?? "").trim(),
+      severity: (c.severity === "wrong" ? "wrong" : "minor") as "minor" | "wrong",
     }))
     .filter((c) => c.corrected)
     .slice(0, 4);

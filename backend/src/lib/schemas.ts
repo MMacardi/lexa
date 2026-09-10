@@ -102,8 +102,9 @@ export type CoachSceneSetup = z.infer<typeof coachSceneSetupSchema>;
 
 // Scene turn: one in-character reply plus the structured capture for the report card.
 // "used" = mission words the learner used correctly THIS turn (verbatim from the mission
-// set). "corrections" = gentle recasts collected for the END-of-session report (not shown
-// mid-flow). "sceneDone" = the mission resolved or the scene reached a natural end.
+// set). "corrections" = gentle recasts; each carries a severity so the chat can show a
+// small per-message correctness dot (tap to expand), and they also roll up into the
+// end-of-session report. "sceneDone" = the mission resolved or the scene reached a natural end.
 export const coachSceneTurnSchema = z.object({
   say: z.string().min(1),
   used: z.array(z.string()).default([]),
@@ -113,6 +114,7 @@ export const coachSceneTurnSchema = z.object({
         original: z.string().default(""),
         corrected: z.string().default(""),
         note: z.string().default(""),
+        severity: z.enum(["minor", "wrong"]).default("minor"),
       }),
     )
     .default([]),

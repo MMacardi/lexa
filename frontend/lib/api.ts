@@ -295,7 +295,7 @@ export interface CoachSceneTurnPayload {
 export interface CoachSceneTurnResult {
   say: string;
   used: string[];
-  corrections: { original: string; corrected: string; note: string }[];
+  corrections: { original: string; corrected: string; note: string; severity?: "minor" | "wrong" }[];
   sceneDone: boolean;
 }
 
