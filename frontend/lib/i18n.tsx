@@ -1214,10 +1214,9 @@ const DICT: Record<string, Entry> = {
   "add.inputLang": { en: "I type in", ru: "Ввожу на", zh: "我输入" },
   "add.inputStudied": { en: "the word to learn", ru: "слово для изучения", zh: "要学的词" },
   "add.inputKnown": { en: "translate into the other", ru: "переведу на другой", zh: "翻译成另一种" },
-  "add.inputHintNormal": { en: "Card in {card}", ru: "Карточка на {card}", zh: "卡片为{card}" },
-  "add.inputHintReverse": { en: "→ translated & added as a {card} card", ru: "→ переведу и добавлю карточкой на {card}", zh: "→ 翻译后作为{card}卡片添加" },
   "add.inputPreviewWord": { en: "your word", ru: "ваше слово", zh: "你的单词" },
   "add.inputPreviewCard": { en: "Card", ru: "Карточка", zh: "卡片" },
+  "add.inputPreviewTranslate": { en: "translate", ru: "перевод", zh: "翻译" },
   "add.advanced": { en: "Advanced", ru: "Дополнительно", zh: "高级设置" },
   // Pronunciation self-check (browser speech recognition).
   "pron.check": { en: "Check my pronunciation", ru: "Проверить произношение", zh: "检查我的发音" },
