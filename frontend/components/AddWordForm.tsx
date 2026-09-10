@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
+import { ArrowRightLeft, ArrowRight, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -556,44 +556,11 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </div>
       )}
 
-      {/* "I'm typing in…" — the studied side (normal) or the known side (then we
-          translate first). Makes the card's language explicit so the pair is never
-          silently backwards. */}
-      {showInputPicker && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
-          <Select
-            value={inputLang}
-            onChange={(v) => setReverseInput(v === targetLang)}
-            ariaLabel={t("add.inputLang")}
-            className="w-[150px]"
-            options={[
-              { value: sourceLang, label: langLabel(sourceLang), hint: t("add.inputStudied") },
-              { value: targetLang, label: langLabel(targetLang), hint: t("add.inputKnown") },
-            ]}
-          />
-          <span className="text-[12px] font-medium text-ink-faint">
-            {reverseInput
-              ? t("add.inputHintReverse", { card: langLabel(sourceLang) })
-              : t("add.inputHintNormal", { card: langLabel(sourceLang) })}
-          </span>
-        </div>
-      )}
-
-      {/* Example tuning (auto mode): where examples come from + register + level.
-          Collapsed by default so the common path is just pair + word + submit. */}
+      {/* Example tuning (auto mode). The example source is the most-used knob, so it
+          stays visible above "Advanced"; the finer controls (which side you type,
+          register, level, count, synonyms) live under Advanced, collapsed by default. */}
       {mode === "auto" && (
         <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
-          >
-            {t("add.advanced")}
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
-          </button>
-          {showAdvanced && (
-          <div className="space-y-2">
           {/* source of examples: AI-composed, mined from the web, or none */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
@@ -623,6 +590,53 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
               })}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
+          >
+            {t("add.advanced")}
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
+          </button>
+          {showAdvanced && (
+          <div className="space-y-2">
+          {/* "I'm typing in…" — which side of the pair you type. The card is always
+              created in the studied language; typing the known side translates first.
+              Hidden under Advanced, with a live preview so a newcomer never wonders
+              which language the card will end up in. */}
+          {showInputPicker && (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
+                <Select
+                  value={inputLang}
+                  onChange={(v) => setReverseInput(v === targetLang)}
+                  ariaLabel={t("add.inputLang")}
+                  className="w-[150px]"
+                  options={[
+                    { value: sourceLang, label: langLabel(sourceLang), hint: t("add.inputStudied") },
+                    { value: targetLang, label: langLabel(targetLang), hint: t("add.inputKnown") },
+                  ]}
+                />
+              </div>
+              <div className="flex items-center gap-2 rounded-[12px] bg-black/[0.03] px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{langLabel(inputLang)}</div>
+                  <div className="mt-0.5 truncate rounded-lg bg-surface px-2 py-1 text-[13px] font-medium text-ink shadow-sm ring-1 ring-black/[0.05]">
+                    {word.trim() || t("add.inputPreviewWord")}
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-ink-faint" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputPreviewCard")}</div>
+                  <div className="mt-0.5 truncate rounded-lg bg-sage-tint px-2 py-1 text-[13px] font-semibold text-sage-deep">
+                    {langLabel(sourceLang)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {exMode !== "none" && (
             <div className="flex flex-wrap items-center gap-2">
@@ -685,8 +699,8 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
               ]}
             />
-            {synLevel && <span className="text-[11px] font-medium text-ink-faint">{t("syn.hint")}</span>}
           </div>
+          <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
 
           {/* plain-language hint */}
           <p className="text-[12px] leading-snug text-ink-faint">

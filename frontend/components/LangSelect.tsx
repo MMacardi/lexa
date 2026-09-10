@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { LANGS } from "@/lib/langs";
+import { LANGS, langLabel } from "@/lib/langs";
 import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
@@ -38,9 +38,9 @@ export function LangSelect({
   const menuRef = useRef<HTMLDivElement>(null);
   const custom = useCustomLangs();
   const all = [
-    ...(allowAuto ? [{ code: "auto", name: autoLabel }] : []),
-    ...LANGS.map((l) => ({ code: l.code, name: l.name })),
-    ...custom,
+    ...(allowAuto ? [{ code: "auto", label: autoLabel, name: autoLabel }] : []),
+    ...LANGS.map((l) => ({ code: l.code, label: langLabel(l.code), name: l.name })),
+    ...custom.map((c) => ({ code: c.code, label: c.name, name: c.name })),
   ];
   const current = all.find((l) => l.code === value);
 
@@ -73,7 +73,10 @@ export function LangSelect({
 
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? all.filter((l) => l.name.toLowerCase().includes(q) || l.code.includes(q))
+    ? all.filter(
+        (l) =>
+          l.label.toLowerCase().includes(q) || l.name.toLowerCase().includes(q) || l.code.includes(q),
+      )
     : all;
 
   const onAddLanguage = async () => {
@@ -132,7 +135,7 @@ export function LangSelect({
           open ? "border-sage" : "border-black/[0.08] hover:border-black/20",
         )}
       >
-        <span>{current?.name ?? value}</span>
+        <span>{current?.label ?? value}</span>
         <svg
           width="14"
           height="14"
@@ -183,7 +186,7 @@ export function LangSelect({
                         active ? "bg-sage-tint font-semibold text-sage-deep" : "text-ink hover:bg-black/[0.03]",
                       )}
                     >
-                      <span className="truncate">{l.name}</span>
+                      <span className="truncate">{l.label}</span>
                       {manualOnly && (
                         <span className="ml-2 shrink-0 rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] font-semibold text-ink-faint">
                           {t("lang.manualOnly")}
