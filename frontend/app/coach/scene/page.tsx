@@ -26,7 +26,14 @@ import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
 import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
 
-type Turn = { role: "user" | "assistant"; content: string; streaming?: boolean };
+type Turn = {
+  role: "user" | "assistant";
+  content: string;
+  streaming?: boolean;
+  // learner-message feedback, filled once the partner's turn returns
+  grade?: "ok" | "minor" | "wrong";
+  corrections?: SceneCorrection[];
+};
 type PairKey = { source: string; target: string };
 type Mission = { word: string; meaning: string };
 type Scene = {
@@ -534,6 +541,22 @@ export default function CoachScenePage() {
       }
       if (res.corrections?.length) {
         setCorrections((c) => [...c, ...res.corrections].slice(0, 12));
+      }
+      // Inline per-message feedback: grade the learner's own bubble from this turn's
+      // corrections (no extra LLM call — they already come back with the reply).
+      if (opts.userText) {
+        const cs = res.corrections ?? [];
+        const grade: Turn["grade"] = cs.length === 0 ? "ok" : cs.some((c) => c.severity === "wrong") ? "wrong" : "minor";
+        setTurns((cur) => {
+          for (let i = cur.length - 1; i >= 0; i--) {
+            if (cur[i].role === "user") {
+              const next = [...cur];
+              next[i] = { ...next[i], grade, corrections: cs };
+              return next;
+            }
+          }
+          return cur;
+        });
       }
 
       if (res.sceneDone || opts.wrap) {
@@ -1061,15 +1084,53 @@ function Bubble({
   speakLang: string;
   characterName?: string;
 }) {
+  const { t } = useI18n();
+  const [fbOpen, setFbOpen] = useState(false);
   if (turn.role === "user") {
+    const grade = turn.grade;
+    const dotCls = grade === "ok" ? "bg-sage" : grade === "minor" ? "bg-amber-400" : "bg-warn";
+    const gradeLabel = grade === "ok" ? t("scene.fbOk") : grade === "minor" ? t("scene.fbMinor") : t("scene.fbWrong");
     return (
-      <div className="flex items-end justify-end gap-2.5">
-        <div className="max-w-[78%] rounded-[16px] rounded-br-md bg-sage px-3.5 py-2.5 text-[15px] leading-relaxed text-white">
-          {turn.content}
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-end justify-end gap-2.5">
+          {grade && (
+            <button
+              type="button"
+              onClick={() => setFbOpen((v) => !v)}
+              aria-label={gradeLabel}
+              title={gradeLabel}
+              className="mb-1.5 flex h-5 w-5 shrink-0 items-center justify-center"
+            >
+              <span className={cn("h-2.5 w-2.5 rounded-full transition-transform hover:scale-125", dotCls)} />
+            </button>
+          )}
+          <div className="max-w-[78%] rounded-[16px] rounded-br-md bg-sage px-3.5 py-2.5 text-[15px] leading-relaxed text-white">
+            {turn.content}
+          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-taupe/30 text-ink-muted">
+            <User className="h-[17px] w-[17px]" />
+          </span>
         </div>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-taupe/30 text-ink-muted">
-          <User className="h-[17px] w-[17px]" />
-        </span>
+        {grade && fbOpen && (
+          <div className="anim-pop max-w-[78%] rounded-[12px] border border-black/[0.06] bg-surface px-3 py-2 text-[12px] leading-relaxed shadow-sm">
+            {grade === "ok" ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-sage-deep">
+                <Check className="h-3 w-3" strokeWidth={3} /> {t("scene.fbOk")}
+              </span>
+            ) : (
+              <ul className="space-y-1">
+                {(turn.corrections ?? []).map((c, i) => (
+                  <li key={i}>
+                    {c.original && <span className="text-ink-faint line-through">{c.original}</span>}
+                    {c.original && <span className="mx-1.5 text-ink-faint">→</span>}
+                    <span className="font-semibold text-sage-deep">{c.corrected}</span>
+                    {c.note && <span className="ml-2 text-ink-soft">{c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     );
   }
