@@ -36,8 +36,7 @@ type ImportDirection = "en-ru" | "ru-en" | "custom";
 // A little flip-card preview of what the FIRST typed line will become, so the
 // learner sees the shape of a card while composing the list. Client-only, no AI.
 function ImportCardPreview({ text }: { text: string }) {
-  const { t, locale } = useI18n();
-  const ru = locale === "ru";
+  const { t } = useI18n();
   const line = text.split("\n").map((s) => s.trim()).find((s) => s && !s.startsWith("#")) ?? "";
   const parts = line.split(/\s*[—–:=|]\s*|\t| - /);
   const word = (parts[0] ?? "").trim();
@@ -48,7 +47,7 @@ function ImportCardPreview({ text }: { text: string }) {
     return () => clearInterval(id);
   }, []);
   const body = !word ? (
-    <p className="py-3 text-center text-[13px] text-ink-soft">{ru ? "Начните печатать — покажу карточку" : "Start typing — I'll show a card"}</p>
+    <p className="py-3 text-center text-[13px] text-ink-soft">{t("import.previewTyping")}</p>
   ) : (
     <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
       <div className={cn("flip-card", flipped && "is-flipped")}>
@@ -56,13 +55,13 @@ function ImportCardPreview({ text }: { text: string }) {
           <div className="font-serif text-[22px] font-semibold leading-tight text-ink">{word}</div>
         </div>
         <div className="flip-face flip-back flex min-h-[104px] items-center justify-center rounded-[14px] border border-sage/25 bg-sage-tint/25 p-4 text-center">
-          <div className="text-[15px] font-medium leading-snug text-sage-deep">{meaning || (ru ? "значение подберёт ИИ" : "AI will fill the meaning")}</div>
+          <div className="text-[15px] font-medium leading-snug text-sage-deep">{meaning || t("import.previewAiMeaning")}</div>
         </div>
       </div>
     </div>
   );
   return (
-    <HoverPreview label={ru ? "Как будет выглядеть карточка?" : "Preview the card?"} title={t("preview.title")} width={230}>
+    <HoverPreview label={t("preview.want")} title={t("preview.title")} width={230}>
       {body}
     </HoverPreview>
   );
