@@ -32,9 +32,12 @@ import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
 import { recorderSupported } from "@/lib/record";
+import { startLiveMic, liveMicSupported, type LiveMicController } from "@/lib/liveMic";
+import { advanceCursor } from "@/lib/liveAlign";
+import { scorePronunciation } from "@/lib/pronounce";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
+import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, AudioLines, Square } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -146,6 +149,20 @@ export default function ReaderPage() {
   const [readAloud, setReadAloud] = useState(false);
   const [recOk, setRecOk] = useState(false);
   useEffect(() => setRecOk(recorderSupported()), []);
+  // Near-live read-aloud: stream mic clips to the server STT, grow a transcript and
+  // light up the text as it's heard (works on iOS Safari / China, unlike Web Speech).
+  const [liveOk, setLiveOk] = useState(false);
+  const [live, setLive] = useState(false);
+  const [liveHeard, setLiveHeard] = useState("");
+  const [liveCursor, setLiveCursor] = useState(0);
+  const [liveLevel, setLiveLevel] = useState(0);
+  const [liveScore, setLiveScore] = useState<number | null>(null);
+  const [liveErr, setLiveErr] = useState("");
+  const liveRef = useRef<LiveMicController | null>(null);
+  const liveQueue = useRef<Promise<void>>(Promise.resolve()); // serialize STT calls
+  const liveHeardRef = useRef("");
+  const liveCursorRef = useRef(0);
+  useEffect(() => setLiveOk(liveMicSupported()), []);
   // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
   const [rubyOn, setRubyOn] = useState(false);
   const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
@@ -427,6 +444,13 @@ export default function ReaderPage() {
   useEffect(() => setDictSupported(dictationSupported()), []);
   // Stop the mic if the reader unmounts mid-recording.
   useEffect(() => () => dictRef.current?.stop(), []);
+  // Same for the live read-aloud mic.
+  useEffect(() => () => liveRef.current?.stop(), []);
+  // Text changed → the highlight cursor from the previous text is meaningless.
+  useEffect(() => {
+    liveCursorRef.current = 0;
+    setLiveCursor(0);
+  }, [text]);
 
   function startReading() {
     if (!text.trim()) {
@@ -445,6 +469,7 @@ export default function ReaderPage() {
   // the back button starts a FRESH, empty input. An unsaved paste is kept in the
   // box so the user can tweak the text they just wrote.
   function leaveReading() {
+    resetLive();
     if (openText) {
       setText("");
       setTranslation(null);
@@ -461,6 +486,7 @@ export default function ReaderPage() {
   // Open a saved text: restore its content, pair, translation and the words the
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
+    resetLive();
     setText(full.content);
     setTextLevel(full.level ?? null);
     setOpenText(full); // editing this one → Save updates it instead of duplicating
@@ -478,6 +504,90 @@ export default function ReaderPage() {
     setAdded(new Set(full.clickedWords ?? []));
     setSelected(new Set());
     setReading(true);
+  }
+
+  // --- near-live read-aloud -------------------------------------------------
+  // Stop the mic and wipe every trace of the session (used when leaving/switching
+  // text or starting fresh).
+  function resetLive() {
+    liveRef.current?.stop();
+    liveRef.current = null;
+    liveHeardRef.current = "";
+    liveCursorRef.current = 0;
+    setLive(false);
+    setLiveHeard("");
+    setLiveCursor(0);
+    setLiveLevel(0);
+    setLiveScore(null);
+    setLiveErr("");
+  }
+
+  // Stop the mic but KEEP the transcript + highlight, and score the whole attempt.
+  function finishLive() {
+    liveRef.current?.stop();
+    liveRef.current = null;
+    setLive(false);
+    setLiveLevel(0);
+    const heard = liveHeardRef.current.trim();
+    if (heard && text.trim()) {
+      setLiveScore(Math.round(scorePronunciation(text, [heard]).score * 100));
+    }
+  }
+
+  async function startLive() {
+    if (!liveMicSupported()) {
+      setLiveErr(t("reader.liveUnsupported"));
+      return;
+    }
+    // Fresh session.
+    liveHeardRef.current = "";
+    liveCursorRef.current = 0;
+    setLiveHeard("");
+    setLiveCursor(0);
+    setLiveScore(null);
+    setLiveErr("");
+    setLive(true);
+
+    const ctrl = await startLiveMic({
+      chunkMs: 2500,
+      onLevel: (l) => setLiveLevel(l),
+      onError: (kind) => {
+        setLiveErr(
+          kind === "denied" ? t("pron.denied") : kind === "unsupported" ? t("reader.liveUnsupported") : t("pron.checkFailed"),
+        );
+        setLive(false);
+        setLiveLevel(0);
+        liveRef.current = null;
+      },
+      onAutoStop: () => finishLive(),
+      onChunk: (b64) => {
+        // Serialize: never overlap STT calls (keeps order + stays under the rate limit).
+        liveQueue.current = liveQueue.current.then(async () => {
+          if (!liveRef.current) return; // session already stopped
+          try {
+            const { text: piece0 } = await api.stt({ audio: b64, format: "wav", sourceLang });
+            const piece = piece0.trim();
+            if (!piece || !liveRef.current) return;
+            liveHeardRef.current = liveHeardRef.current ? `${liveHeardRef.current} ${piece}` : piece;
+            setLiveHeard(liveHeardRef.current);
+            liveCursorRef.current = advanceCursor(tokens, liveCursorRef.current, piece, sourceLang);
+            setLiveCursor(liveCursorRef.current);
+          } catch {
+            /* one bad clip shouldn't kill the session — keep listening */
+          }
+        });
+      },
+    });
+    if (!ctrl) {
+      setLive(false);
+      return;
+    }
+    liveRef.current = ctrl;
+  }
+
+  function toggleLive() {
+    if (live) finishLive();
+    else void startLive();
   }
 
   function toggle(key: string) {
@@ -1093,6 +1203,24 @@ export default function ReaderPage() {
           </button>
         )}
 
+        {/* near-live read-aloud: words light up as the server STT hears them */}
+        {liveOk && (
+          <HoverTip title={t("reader.liveHint")} className="inline-flex">
+            <button
+              type="button"
+              onClick={toggleLive}
+              aria-pressed={live}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                live ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+              )}
+            >
+              {live ? <Square className="h-3.5 w-3.5 fill-current" /> : <AudioLines className="h-3.5 w-3.5" />}{" "}
+              {t("reader.liveRead")}
+            </button>
+          </HoverTip>
+        )}
+
         {/* translate whole text */}
         <button
           type="button"
@@ -1157,6 +1285,47 @@ export default function ReaderPage() {
         {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
       </p>
 
+      {(live || liveHeard || liveScore !== null) && (
+        <div className="sticky top-[53px] z-10 mb-3 rounded-[16px] border border-black/[0.06] bg-paper/90 px-4 py-3 backdrop-blur sm:top-0">
+          <div className="flex items-center gap-2">
+            {live ? <AudioLines className="h-4 w-4 shrink-0 text-sage-deep" /> : <Mic className="h-4 w-4 shrink-0 text-sage-deep" />}
+            <span className="text-[12.5px] font-semibold text-ink">
+              {live
+                ? t("reader.liveListening")
+                : liveScore !== null
+                  ? t("reader.liveScore", { pct: String(liveScore) })
+                  : t("reader.liveHeard")}
+            </span>
+            {live && (
+              <span className="flex h-3.5 items-end gap-[2px]" aria-hidden>
+                {[0, 1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "w-[3px] rounded-full bg-sage transition-all duration-100",
+                      liveLevel > i * 0.22 ? "h-3.5" : "h-1 opacity-40",
+                    )}
+                  />
+                ))}
+              </span>
+            )}
+            {live && (
+              <button
+                type="button"
+                onClick={finishLive}
+                className="ml-auto inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-2.5 py-1 text-[11px] font-semibold text-ink-muted hover:bg-black/[0.03]"
+              >
+                <Square className="h-3 w-3 fill-current" /> {t("reader.liveStop")}
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
+            {liveHeard || (live ? <span className="text-ink-faint">{t("reader.liveEmpty")}</span> : "")}
+          </p>
+          {liveErr && <p className="mt-1 text-[12px] text-warn-text">{liveErr}</p>}
+        </div>
+      )}
+
       {/* tokenized text (+ optional translation side-by-side) */}
       <div className={cn("grid gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
@@ -1172,6 +1341,10 @@ export default function ReaderPage() {
             const knownId = knownMap.get(key);
             const isAdded = added.has(key);
             const isSel = selected.has(key);
+            // Near-live read-aloud: light up words the STT has already heard. An inset
+            // ring (not a background) so it never fights the sage "selected/added" fills.
+            const spoken = liveCursor > 0 && i < liveCursor;
+            const spokenCls = spoken ? "rounded-[5px] ring-2 ring-inset ring-sage/40" : "";
             // A saved word (including one just added this session) stays clickable:
             // tap = meaning popup, press-and-hold = the card panel. Freshly-added
             // ones keep the green tint so you can see what you just added.
@@ -1196,6 +1369,7 @@ export default function ReaderPage() {
                       isAdded
                         ? "bg-sage-tint px-0.5 text-sage-deep"
                         : "text-ink-faint underline decoration-ink-faint/30",
+                      spokenCls,
                     ),
                   )}
                 </span>
@@ -1203,7 +1377,7 @@ export default function ReaderPage() {
             }
             // Added but its card id hasn't resolved yet (enrichment lag) → green.
             if (isAdded) {
-              return <span key={i}>{wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}</span>;
+              return <span key={i}>{wordNode(tk.text, cn("rounded-[5px] bg-sage-tint px-0.5 text-sage-deep", spokenCls))}</span>;
             }
             const onPick = (el: HTMLElement) => {
               const wasSelected = selected.has(key);
@@ -1232,7 +1406,7 @@ export default function ReaderPage() {
               >
                 {wordNode(
                   tk.text,
-                  cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60"),
+                  cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60", spokenCls),
                 )}
               </span>
             );
