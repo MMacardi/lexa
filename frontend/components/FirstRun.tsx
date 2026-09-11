@@ -222,7 +222,6 @@ export function FirstRun() {
             );
           })}
         </div>
-        {source === "zh" && <p className="mt-2 text-[12px] text-ink-soft">{t("first.zhNote")}</p>}
 
         {/* what you already know + your level */}
         <div className="mt-4 flex flex-wrap items-end gap-3">

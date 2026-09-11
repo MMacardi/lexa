@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { LANGS, langLabel } from "@/lib/langs";
+import { PICKER_LANGS, displayCode, langLabel } from "@/lib/langs";
 import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
@@ -39,10 +39,12 @@ export function LangSelect({
   const custom = useCustomLangs();
   const all = [
     ...(allowAuto ? [{ code: "auto", label: autoLabel, name: autoLabel }] : []),
-    ...LANGS.map((l) => ({ code: l.code, label: langLabel(l.code), name: l.name })),
+    // zh-Hant (legacy traditional records) is not offered anywhere; such a value
+    // still resolves to the plain "Chinese" entry for display.
+    ...PICKER_LANGS.map((l) => ({ code: l.code, label: langLabel(l.code), name: l.name })),
     ...custom.map((c) => ({ code: c.code, label: c.name, name: c.name })),
   ];
-  const current = all.find((l) => l.code === value);
+  const current = all.find((l) => l.code === displayCode(value));
 
   useLayoutEffect(() => {
     if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());

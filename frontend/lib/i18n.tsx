@@ -952,11 +952,6 @@ const DICT: Record<string, Entry> = {
   "first.noDeck": { en: "No starter set for {lang} yet — just add your own word below.", ru: "Для «{lang}» пока нет готового набора — просто добавь своё слово ниже.", zh: "暂无 {lang} 的入门卡组——直接在下方添加你自己的词即可。" },
   "first.manual": { en: "or add your own word", ru: "или добавить своё слово", zh: "或添加你自己的词" },
   "first.pickLang": { en: "What are you learning?", ru: "Какой язык учишь?", zh: "你在学什么语言？" },
-  "first.zhNote": {
-    en: "Chinese is studied in Simplified script 🇨🇳 — Traditional is on the way.",
-    ru: "Китайский учим в упрощённом письме 🇨🇳 — традиционное скоро появится.",
-    zh: "中文以简体 🇨🇳 学习——繁体即将推出。",
-  },
   "first.testTitle": { en: "Tap the words you DON'T know", ru: "Нажми на слова, которые НЕ знаешь", zh: "点出你不认识的词" },
   "first.testSub": {
     en: "We'll build your starter deck from exactly these — skip anything you already know.",

@@ -2,10 +2,15 @@
 // English label (kept for latin-keyboard search); `ru`/`zh` are the localized
 // display names shown when the app language is Russian/Chinese; `native` is the
 // name in that language itself; `flag` is the emoji shown in pickers.
+// Chinese is presented as ONE language ("Chinese"/"Китайский", 🇨🇳) studied in
+// Simplified only — a Simplified/Traditional script setting is backlogged
+// (IDEAS.md). `zh-Hant` below is a legacy DATA code for old records: it is never
+// offered in any picker and renders identically to `zh`; records keep their
+// stored code.
 export const LANGS = [
   { code: "en", name: "English", native: "English", ru: "Английский", zh: "英语", flag: "🇬🇧" },
-  { code: "zh", name: "Chinese (Simplified)", native: "简体中文", ru: "Китайский (упрощ.)", zh: "简体中文", flag: "🇨🇳" },
-  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文", ru: "Китайский (традиц.)", zh: "繁体中文", flag: "🇹🇼" },
+  { code: "zh", name: "Chinese", native: "中文", ru: "Китайский", zh: "中文", flag: "🇨🇳" },
+  { code: "zh-Hant", name: "Chinese", native: "中文", ru: "Китайский", zh: "中文", flag: "🇨🇳" },
   { code: "ru", name: "Russian", native: "Русский", ru: "Русский", zh: "俄语", flag: "🇷🇺" },
   { code: "es", name: "Spanish", native: "Español", ru: "Испанский", zh: "西班牙语", flag: "🇪🇸" },
   { code: "de", name: "German", native: "Deutsch", ru: "Немецкий", zh: "德语", flag: "🇩🇪" },
@@ -14,14 +19,20 @@ export const LANGS = [
   { code: "ko", name: "Korean", native: "한국어", ru: "Корейский", zh: "韩语", flag: "🇰🇷" },
 ] as const;
 
-// Languages offered as the one you LEARN in onboarding. Traditional Chinese is
-// intentionally left out — we study Simplified (🇨🇳) only; it stays available as a
-// language you already KNOW and for existing cards. (Script toggle is backlogged.)
-export const LEARNING_LANGS = LANGS.filter((l) => l.code !== "zh-Hant");
+// Codes offered in pickers (language dropdowns, the onboarding flag grid).
+export const PICKER_LANGS = LANGS.filter((l) => l.code !== "zh-Hant");
+// The language you LEARN in onboarding — the same picker set.
+export const LEARNING_LANGS = PICKER_LANGS;
+
+// Display-only code mapping: legacy `zh-Hant` records render as plain Chinese.
+export function displayCode(code: string): string {
+  return code === "zh-Hant" ? "zh" : code;
+}
 
 // Emoji flag for a language code; custom/auto languages fall back to a globe.
+// Anything Chinese shows the 🇨🇳 flag, always.
 export function langFlag(code: string): string {
-  const built = LANGS.find((l) => l.code === code);
+  const built = LANGS.find((l) => l.code === displayCode(code));
   return built?.flag ?? "🌐";
 }
 
@@ -43,11 +54,12 @@ const AUTO_LABEL: Record<"en" | "ru" | "zh", string> = {
 };
 
 // Custom languages the user added themselves (stored locally). Built-in languages
-// show in the app language; custom ones keep the name the learner typed.
+// show in the app language; custom ones keep the name the learner typed. Legacy
+// `zh-Hant` records display as plain Chinese (displayCode).
 export function langLabel(code: string): string {
   const locale = currentLocale();
   if (code === "auto") return AUTO_LABEL[locale];
-  const built = LANGS.find((l) => l.code === code);
+  const built = LANGS.find((l) => l.code === displayCode(code));
   if (built) return locale === "ru" ? built.ru : locale === "zh" ? built.zh : built.name;
   if (typeof window !== "undefined") {
     try {
