@@ -58,13 +58,16 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
     not scoring accuracy — same word-level transcript. Phoneme scoring comes from the
     evaluation API above via plain REST. Deferred together.
 - ✅ **Reader: near-live read-aloud highlighting** (shipped 2026-09-12). "Живое чтение"
-  toggle streams mic PCM (`lib/liveMic.ts`: AudioWorklet→16 kHz mono WAV, ~2.5 s clips,
-  RMS VAD skips silence, 180 s auto-stop) into the EXISTING `POST /api/coach/stt`
-  (qwen3-asr-flash, `format:"wav"`) — sequential queue, no overlap. Each transcript piece
-  grows a live "heard" bar and advances a token cursor (`lib/liveAlign.ts`: forgiving,
-  monotonic word match) that lights up the text. On stop, `scorePronunciation` gives a final
-  match %. Works on iOS Safari + China (no Google/Web Speech), no new backend/infra. Kept
-  the per-sentence `ReadAloudCheck` as a separate scoring mode.
+  toggle streams mic PCM (`lib/liveMic.ts`: AudioWorklet→16 kHz mono WAV, clips cut on a
+  ~320 ms pause / max ~3.5 s so ASR punctuation lands on real sentence ends, RMS VAD skips
+  silence, 180 s auto-stop) into the EXISTING `POST /api/coach/stt` (qwen3-asr-flash,
+  `format:"wav"`) — sequential queue, no overlap. Each transcript piece grows a live "heard"
+  bar and advances a token cursor (`lib/liveAlign.ts`: forgiving, monotonic word match) that
+  lights up the text. On stop, `scorePronunciation` gives a final match %. Works on iOS
+  Safari + China (no Google/Web Speech), no new backend/infra. Kept the per-sentence
+  `ReadAloudCheck` as a separate scoring mode. The Reader **dictaphone** now uses the same
+  universal server path as a fallback when the on-device Web Speech engine is unavailable or
+  fails at runtime, so dictation works in every browser.
 - ⏭ **True realtime WS read-aloud** (the "instant, word-by-word" upgrade — user-requested,
   backlogged). Near-live has ~2–3 s lag; instant needs a WebSocket bridge to DashScope
   realtime ASR (`paraformer-realtime`). Requires: `ws` dep + `http.createServer`/upgrade in

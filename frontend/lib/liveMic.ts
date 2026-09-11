@@ -14,9 +14,13 @@ export interface LiveMicController {
 }
 
 export interface LiveMicOptions {
-  /** Milliseconds of audio per emitted clip (default 2500). */
+  /** MAX milliseconds of audio per emitted clip (default 3500). */
   chunkMs?: number;
-  /** RMS below which a clip counts as silence and is skipped (default 0.012). */
+  /** Minimum clip length before a pause may cut it (default 1000 ms). */
+  minChunkMs?: number;
+  /** Trailing silence that marks a natural phrase end and cuts the clip (default 320 ms). */
+  pauseMs?: number;
+  /** RMS below which a frame counts as silence (default 0.012). */
   vadThreshold?: number;
   /** Hard session cap, then auto-stop (default 180000 ms). */
   maxMs?: number;
@@ -150,7 +154,9 @@ export async function startLiveMic(opts: LiveMicOptions): Promise<LiveMicControl
     opts.onError?.("unsupported");
     return null;
   }
-  const chunkMs = opts.chunkMs ?? 2500;
+  const chunkMs = opts.chunkMs ?? 3500;
+  const minChunkMs = opts.minChunkMs ?? 1000;
+  const pauseMs = opts.pauseMs ?? 320;
   const vadThreshold = opts.vadThreshold ?? 0.012;
   const maxMs = opts.maxMs ?? 180000;
 
@@ -174,11 +180,14 @@ export async function startLiveMic(opts: LiveMicOptions): Promise<LiveMicControl
   void ctx.resume?.();
 
   const srcRate = ctx.sampleRate;
-  const chunkSamples = Math.max(1, Math.floor((srcRate * chunkMs) / 1000));
+  const maxSamples = Math.max(1, Math.floor((srcRate * chunkMs) / 1000));
+  const minSamples = Math.max(1, Math.floor((srcRate * minChunkMs) / 1000));
+  const pauseSamples = Math.max(1, Math.floor((srcRate * pauseMs) / 1000));
   const source = ctx.createMediaStreamSource(stream);
 
   let buffers: Float32Array[] = [];
   let bufSamples = 0;
+  let silenceSamples = 0; // trailing quiet frames; a long enough run = phrase end
   let stopped = false;
   let lastLevelAt = 0;
   let autoStopTimer: ReturnType<typeof setTimeout> | null = null;
@@ -213,7 +222,15 @@ export async function startLiveMic(opts: LiveMicOptions): Promise<LiveMicControl
     emitLevel(frame);
     buffers.push(frame);
     bufSamples += frame.length;
-    if (bufSamples >= chunkSamples) flush();
+    // Cut on a natural pause (not a fixed timer) so clip boundaries land between
+    // phrases — that keeps the ASR's own punctuation aligned with real sentence
+    // ends instead of sprinkling periods mid-sentence.
+    silenceSamples = rms(frame) < vadThreshold ? silenceSamples + frame.length : 0;
+    const endedOnPause = bufSamples >= minSamples && silenceSamples >= pauseSamples;
+    if (bufSamples >= maxSamples || endedOnPause) {
+      silenceSamples = 0;
+      flush();
+    }
   }
 
   function cleanup() {

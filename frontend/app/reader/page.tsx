@@ -33,6 +33,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
 import { recorderSupported } from "@/lib/record";
 import { startLiveMic, liveMicSupported, type LiveMicController } from "@/lib/liveMic";
+import { micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { advanceCursor } from "@/lib/liveAlign";
 import { scorePronunciation } from "@/lib/pronounce";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
@@ -133,6 +134,8 @@ export default function ReaderPage() {
   const [dictSupported, setDictSupported] = useState(false);
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
+  const dictServerRef = useRef<LiveMicController | null>(null); // universal fallback engine
+  const dictQueue = useRef<Promise<void>>(Promise.resolve());
   // known word: short tap → small popup (meaning + add example); long-press → card panel
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
@@ -412,38 +415,106 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rubyOn, reading, sourceLang, tokens]);
 
-  // Live dictation into the text box. Continuous (auto-restarts on pauses) so a
-  // whole lecture can be captured; the recogniser uses the source language, so
-  // Chinese comes out as 汉字, English as letters, etc.
-  function toggleDictate() {
-    if (dictating) {
-      dictRef.current?.stop();
+  // Live dictation into the text box. Two engines:
+  //  - on-device Web Speech (free, live) where it actually works;
+  //  - the universal server path (liveMic clips → /api/coach/stt) everywhere else,
+  //    including iOS Safari and mainland China where Web Speech is dead. If the
+  //    on-device engine fails at runtime we remember that and continue on the server.
+  function stopDictate() {
+    dictRef.current?.stop();
+    dictRef.current = null;
+    dictServerRef.current?.stop();
+    dictServerRef.current = null;
+    setDictating(false);
+    setDictInterim("");
+  }
+
+  async function startServerDictate() {
+    if (!liveMicSupported()) {
+      show({ icon: "⚠️", title: t("reader.micUnsupported") });
       return;
     }
-    const ctrl = startDictation({
-      lang: speechLang(sourceLang),
-      base: text,
-      onText: setText,
-      onInterim: setDictInterim,
+    setDictating(true);
+    setDictInterim("");
+    const ctrl = await startLiveMic({
+      onLevel: () => {},
       onError: (kind) => {
+        dictServerRef.current = null;
         setDictating(false);
-        setDictInterim("");
-        show({ icon: "⚠️", title: t(kind === "unsupported" ? "reader.micUnsupported" : "reader.micFail") });
+        show({ icon: "⚠️", title: t(kind === "denied" ? "pron.denied" : "reader.micFail") });
       },
-      onEnd: () => {
+      onAutoStop: () => {
+        dictServerRef.current = null;
         setDictating(false);
-        setDictInterim("");
+      },
+      onChunk: (b64) => {
+        dictQueue.current = dictQueue.current.then(async () => {
+          if (!dictServerRef.current) return;
+          try {
+            const { text: piece0 } = await api.stt({ audio: b64, format: "wav", sourceLang });
+            const piece = piece0.trim();
+            if (!piece || !dictServerRef.current) return;
+            setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${piece}` : piece));
+          } catch {
+            /* keep listening; one bad clip shouldn't stop dictation */
+          }
+        });
       },
     });
-    if (ctrl) {
-      dictRef.current = ctrl;
-      setDictating(true);
+    if (!ctrl) {
+      setDictating(false);
+      return;
     }
+    dictServerRef.current = ctrl;
+  }
+
+  function toggleDictate() {
+    if (dictating) {
+      stopDictate();
+      return;
+    }
+    if (dictationSupported() && !micBrowserFailed()) {
+      const ctrl = startDictation({
+        lang: speechLang(sourceLang),
+        base: text,
+        onText: setText,
+        onInterim: setDictInterim,
+        onError: (kind) => {
+          dictRef.current = null;
+          setDictInterim("");
+          if (kind === "fail") {
+            // On-device engine died at runtime (China / iOS) → heal onto the server path.
+            markMicBrowserFailed();
+            void startServerDictate();
+            return;
+          }
+          setDictating(false);
+          show({ icon: "⚠️", title: t("reader.micUnsupported") });
+        },
+        onEnd: () => {
+          dictRef.current = null;
+          setDictating(false);
+          setDictInterim("");
+        },
+      });
+      if (ctrl) {
+        dictRef.current = ctrl;
+        setDictating(true);
+        return;
+      }
+    }
+    void startServerDictate();
   }
 
   useEffect(() => setDictSupported(dictationSupported()), []);
-  // Stop the mic if the reader unmounts mid-recording.
-  useEffect(() => () => dictRef.current?.stop(), []);
+  // Stop the mic if the reader unmounts mid-recording (both dictation engines).
+  useEffect(
+    () => () => {
+      dictRef.current?.stop();
+      dictServerRef.current?.stop();
+    },
+    [],
+  );
   // Same for the live read-aloud mic.
   useEffect(() => () => liveRef.current?.stop(), []);
   // Text changed → the highlight cursor from the previous text is meaningless.
@@ -549,7 +620,6 @@ export default function ReaderPage() {
     setLive(true);
 
     const ctrl = await startLiveMic({
-      chunkMs: 2500,
       onLevel: (l) => setLiveLevel(l),
       onError: (kind) => {
         setLiveErr(
@@ -1065,7 +1135,7 @@ export default function ReaderPage() {
             >
               <Camera className="h-3.5 w-3.5" /> {scanning ? t("reader.scanning") : t("reader.scan")}
             </button>
-            {dictSupported && (
+            {(dictSupported || liveOk) && (
               <button
                 type="button"
                 onClick={toggleDictate}
