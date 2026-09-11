@@ -26,7 +26,8 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   browser STT transcribes it, we score closeness (Great/Almost/Not quite + %) via
   Levenshtein over the recogniser's alternatives. On-device, free. `recognizeOnce`
   + `lib/pronounce.ts`. Could extend to review/practice later.
-- 🧊 **B5+ Phoneme-level pronunciation scoring** (DEFERRED — researched, not built).
+- 🧊 **B5+ Phoneme-level pronunciation scoring** (DEFERRED — researched, not built;
+  reconfirmed 2026-09-12 as the Boldvoice accent-oracle-grade target).
   Today's check is a word-level ASR proxy (did the transcript match?). The upgrade is
   per-phoneme feedback: green/yellow/red highlighting of each sound, for en + zh.
   - **Recommended vendor: Alibaba Cloud 口语评测** (Smart Science-Education Content
@@ -57,24 +58,23 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   - **Why realtime WS ASR was rejected:** it only adds live captions + VAD auto-stop (comfort),
     not scoring accuracy — same word-level transcript. Phoneme scoring comes from the
     evaluation API above via plain REST. Deferred together.
-- ✅ **Reader: near-live read-aloud highlighting** (shipped 2026-09-12). "Живое чтение"
-  toggle streams mic PCM (`lib/liveMic.ts`: AudioWorklet→16 kHz mono WAV, clips cut on a
-  ~320 ms pause / max ~3.5 s so ASR punctuation lands on real sentence ends, RMS VAD skips
-  silence, 180 s auto-stop) into the EXISTING `POST /api/coach/stt` (qwen3-asr-flash,
-  `format:"wav"`) — sequential queue, no overlap. Each transcript piece grows a live "heard"
-  bar and advances a token cursor (`lib/liveAlign.ts`: forgiving, monotonic word match) that
-  lights up the text. On stop, `scorePronunciation` gives a final match %. Works on iOS
-  Safari + China (no Google/Web Speech), no new backend/infra. Kept the per-sentence
-  `ReadAloudCheck` as a separate scoring mode. The Reader **dictaphone** now uses the same
-  universal server path as a fallback when the on-device Web Speech engine is unavailable or
-  fails at runtime, so dictation works in every browser.
+- 🗑 **Reader: near-live read-aloud highlighting** (shipped 2026-09-12, removed the same day).
+  The "Живое чтение" toggle streamed mic PCM clips (`lib/liveMic.ts`) into the existing
+  `POST /api/coach/stt` and lit up the text via a monotonic token cursor (`lib/liveAlign.ts`).
+  In practice the clip + round-trip lag (~2–3 s) couldn't keep up with a fast reader, and the
+  final % came from a different matcher than the highlight, so the two contradicted each
+  other. Removed: `liveAlign.ts` deleted, live UI/state gone. `lib/liveMic.ts` stays — the
+  Reader dictaphone uses it as the universal server fallback when Web Speech is unavailable.
+  Per-sentence `ReadAloudCheck` remains the pronunciation practice ("small chunks").
 - ⏭ **True realtime WS read-aloud** (the "instant, word-by-word" upgrade — user-requested,
-  backlogged). Near-live has ~2–3 s lag; instant needs a WebSocket bridge to DashScope
-  realtime ASR (`paraformer-realtime`). Requires: `ws` dep + `http.createServer`/upgrade in
-  `backend/src/index.ts` (currently `app.listen`, line 57), the native DashScope WS protocol
+  backlogged). The ~2–3 s lag did prove annoying: it's why the clip-based live mode above was
+  removed. A WebSocket bridge to DashScope realtime ASR (`paraformer-realtime`) is the ONLY
+  way to get Chrome-smooth live highlighting everywhere (Firefox has no Web Speech at all;
+  Chrome's is unreachable in mainland China). Requires: `ws` dep + `http.createServer`/upgrade
+  in `backend/src/index.ts` (currently `app.listen`, line 57), the native DashScope WS protocol
   (run-task/continue/finish), a realtime-ASR model enabled on the Bailian key, and WS-upgrade
   pass-through on the Alibaba-HK host (unverified). Cost = continuous ASR audio-seconds.
-  Build only if the ~2–3 s lag proves annoying in practice.
+  If built, re-add the live toggle on top of it (partial results → token cursor → highlight).
 - ✅ **Onboarding placement mini-test** (shipped 2026-09-12). First run is now: a flag grid
   for the language you're learning (`lib/langs.ts` → `LEARNING_LANGS`, zh-Hant excluded so we
   study 🇨🇳 Simplified only) + "I know" + CEFR level, then `POST /api/words/starter-candidates`
