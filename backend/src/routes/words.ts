@@ -18,6 +18,7 @@ import { listTexts, listCollections as listReaderCollections, getText, createTex
 import { listSessions, getSession, createSession, saveSession, deleteSession } from "../services/sceneSession.js";
 import { getImportJobForUser } from "../services/importWorker.js";
 import { suggestDailyPicks } from "../agents/coachSuggest.js";
+import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import {
   addWordForUser,
@@ -51,7 +52,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -100,6 +101,31 @@ wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
   const telegramId = readSession(req) ?? parsed.data.telegramId ?? "anon";
   try {
     res.json(await suggestDailyPicks({ ...parsed.data, telegramId }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/starter-candidates -> onboarding placement mini-test: themed
+// clusters of level-appropriate words in the studied language, so the learner taps
+// the ones they DON'T know and those become their starter deck. Cheap (qwen-flash),
+// deck is empty at first run so there's nothing to dedupe against.
+const starterCandidatesBody = z.object({
+  sourceLang: z.string().min(2),
+  targetLang: z.string().min(2),
+  level: z.string().max(4).optional(),
+  clusters: z.number().int().min(2).max(6).optional(),
+  perCluster: z.number().int().min(3).max(12).optional(),
+});
+wordsRouter.post("/words/starter-candidates", async (req: Request, res: Response) => {
+  const parsed = starterCandidatesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json(await suggestStarterClusters(parsed.data));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });

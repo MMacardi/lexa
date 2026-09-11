@@ -75,6 +75,24 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   (run-task/continue/finish), a realtime-ASR model enabled on the Bailian key, and WS-upgrade
   pass-through on the Alibaba-HK host (unverified). Cost = continuous ASR audio-seconds.
   Build only if the ~2–3 s lag proves annoying in practice.
+- ✅ **Onboarding placement mini-test** (shipped 2026-09-12). First run is now: a flag grid
+  for the language you're learning (`lib/langs.ts` → `LEARNING_LANGS`, zh-Hant excluded so we
+  study 🇨🇳 Simplified only) + "I know" + CEFR level, then `POST /api/words/starter-candidates`
+  (qwen-flash, `agents/starterCandidates.ts`) returns ~4 themed clusters of level-appropriate
+  words. The learner taps the ones they DON'T know and exactly those seed `batchAddWords`
+  (enriched). Clusters cached in `localStorage` (`lexa.starterCandidates`, per lang+level, 7 d)
+  so repeat runs cost nothing; on AI failure it falls back to the curated `STARTER_DECKS` set
+  with a "Try again". Fixes the old bug where the starter set ignored the chosen level.
+- 🧊 **Traditional Chinese script toggle** (user-conditional, deferred). Onboarding offers only
+  🇨🇳 Simplified. The wanted UX: pick Chinese → choose Simplified/Traditional (with a sample
+  character + "changeable later in settings") → flip it any time in Account. **Token-free path:**
+  the AI already emits Simplified, so convert at the DISPLAY layer with a local opencc-style
+  dictionary (`opencc-js`, `Converter({from:'cn',to:'tw'})`) — no extra model calls. **Why
+  deferred:** it isn't a 1:1 Unicode map (needs the dictionary) and, more importantly, the
+  conversion has to be threaded through EVERY rendered Han string (cards, reader, coach, quiz)
+  plus a persisted `lexa.hanScript` pref + an Account toggle — a wide display-layer change.
+  If we ever do it, store cards in Simplified (source of truth) and render Traditional on the
+  fly; never re-generate via AI. Keep `zh-Hant` in `LANGS` as a *known* language either way.
 - 💡 **B6 Fresh example per review / difficulty adaptation** — behind a toggle (tokens).
 - 💡 **B7 Meaning backfill** — shorten old long meanings on demand.
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill

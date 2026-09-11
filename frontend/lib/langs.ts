@@ -1,18 +1,29 @@
 // Languages a user can pick for a card pair (source -> target). `name` is the
 // English label (kept for latin-keyboard search); `ru`/`zh` are the localized
 // display names shown when the app language is Russian/Chinese; `native` is the
-// name in that language itself.
+// name in that language itself; `flag` is the emoji shown in pickers.
 export const LANGS = [
-  { code: "en", name: "English", native: "English", ru: "Английский", zh: "英语" },
-  { code: "zh", name: "Chinese (Simplified)", native: "简体中文", ru: "Китайский (упрощ.)", zh: "简体中文" },
-  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文", ru: "Китайский (традиц.)", zh: "繁体中文" },
-  { code: "ru", name: "Russian", native: "Русский", ru: "Русский", zh: "俄语" },
-  { code: "es", name: "Spanish", native: "Español", ru: "Испанский", zh: "西班牙语" },
-  { code: "de", name: "German", native: "Deutsch", ru: "Немецкий", zh: "德语" },
-  { code: "fr", name: "French", native: "Français", ru: "Французский", zh: "法语" },
-  { code: "ja", name: "Japanese", native: "日本語", ru: "Японский", zh: "日语" },
-  { code: "ko", name: "Korean", native: "한국어", ru: "Корейский", zh: "韩语" },
+  { code: "en", name: "English", native: "English", ru: "Английский", zh: "英语", flag: "🇬🇧" },
+  { code: "zh", name: "Chinese (Simplified)", native: "简体中文", ru: "Китайский (упрощ.)", zh: "简体中文", flag: "🇨🇳" },
+  { code: "zh-Hant", name: "Chinese (Traditional)", native: "繁體中文", ru: "Китайский (традиц.)", zh: "繁体中文", flag: "🇹🇼" },
+  { code: "ru", name: "Russian", native: "Русский", ru: "Русский", zh: "俄语", flag: "🇷🇺" },
+  { code: "es", name: "Spanish", native: "Español", ru: "Испанский", zh: "西班牙语", flag: "🇪🇸" },
+  { code: "de", name: "German", native: "Deutsch", ru: "Немецкий", zh: "德语", flag: "🇩🇪" },
+  { code: "fr", name: "French", native: "Français", ru: "Французский", zh: "法语", flag: "🇫🇷" },
+  { code: "ja", name: "Japanese", native: "日本語", ru: "Японский", zh: "日语", flag: "🇯🇵" },
+  { code: "ko", name: "Korean", native: "한국어", ru: "Корейский", zh: "韩语", flag: "🇰🇷" },
 ] as const;
+
+// Languages offered as the one you LEARN in onboarding. Traditional Chinese is
+// intentionally left out — we study Simplified (🇨🇳) only; it stays available as a
+// language you already KNOW and for existing cards. (Script toggle is backlogged.)
+export const LEARNING_LANGS = LANGS.filter((l) => l.code !== "zh-Hant");
+
+// Emoji flag for a language code; custom/auto languages fall back to a globe.
+export function langFlag(code: string): string {
+  const built = LANGS.find((l) => l.code === code);
+  return built?.flag ?? "🌐";
+}
 
 const CUSTOM_KEY = "lexa.customLangs";
 const LOCALE_KEY = "lexa.locale";
