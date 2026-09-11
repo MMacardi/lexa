@@ -4,13 +4,11 @@
 // name in that language itself; `flag` is the emoji shown in pickers.
 // Chinese is presented as ONE language ("Chinese"/"Китайский", 🇨🇳) studied in
 // Simplified only — a Simplified/Traditional script setting is backlogged
-// (IDEAS.md). `zh-Hant` below is a legacy DATA code for old records: it is never
-// offered in any picker and renders identically to `zh`; records keep their
-// stored code.
+// (IDEAS.md). The legacy `zh-Hant` code is NOT a picker entry anymore; old
+// records carrying it still render as plain Chinese via displayCode().
 export const LANGS = [
   { code: "en", name: "English", native: "English", ru: "Английский", zh: "英语", flag: "🇬🇧" },
   { code: "zh", name: "Chinese", native: "中文", ru: "Китайский", zh: "中文", flag: "🇨🇳" },
-  { code: "zh-Hant", name: "Chinese", native: "中文", ru: "Китайский", zh: "中文", flag: "🇨🇳" },
   { code: "ru", name: "Russian", native: "Русский", ru: "Русский", zh: "俄语", flag: "🇷🇺" },
   { code: "es", name: "Spanish", native: "Español", ru: "Испанский", zh: "西班牙语", flag: "🇪🇸" },
   { code: "de", name: "German", native: "Deutsch", ru: "Немецкий", zh: "德语", flag: "🇩🇪" },
@@ -20,7 +18,7 @@ export const LANGS = [
 ] as const;
 
 // Codes offered in pickers (language dropdowns, the onboarding flag grid).
-export const PICKER_LANGS = LANGS.filter((l) => l.code !== "zh-Hant");
+export const PICKER_LANGS = LANGS;
 // The language you LEARN in onboarding — the same picker set.
 export const LEARNING_LANGS = PICKER_LANGS;
 
@@ -85,7 +83,8 @@ export function pairLabel(source: string, target: string): string {
 // entry only rather than getting confident nonsense from the model.
 const AI_LANGS = new Set<string>(LANGS.map((l) => l.code));
 export function isAiSupported(code: string): boolean {
-  if (code === "auto" || AI_LANGS.has(code)) return true;
+  // displayCode: a legacy zh-Hant record keeps full AI support under the zh entry.
+  if (code === "auto" || AI_LANGS.has(displayCode(code))) return true;
   if (typeof window === "undefined") return false;
   try {
     const custom = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]") as { code: string; ai?: boolean }[];
