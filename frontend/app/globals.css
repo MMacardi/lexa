@@ -195,7 +195,14 @@ textarea::-webkit-resizer {
   grid-area: 1 / 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  /* Firefox ignores backface-visibility on grid-stacked faces inside a
+     preserve-3d container, so both sides showed at once. As a cross-browser
+     guarantee, also swap WHICH face is visible exactly at the flip midpoint
+     (0.275s of the 0.55s turn); where backface-visibility works this is a no-op. */
+  transition: visibility 0s linear 0.275s;
 }
+.flip-card:not(.is-flipped) .flip-back { visibility: hidden; }
+.flip-card.is-flipped .flip-face:not(.flip-back) { visibility: hidden; }
 .flip-back { transform: rotateY(180deg); }
 
 /* ---- Confetti (session-complete celebration) ---- */
@@ -256,6 +263,7 @@ textarea::-webkit-resizer {
 
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece, .flip-card { animation: none; transition: none; }
+  .flip-face { transition: none; }
   .skeleton::after { animation: none; }
 }
 
