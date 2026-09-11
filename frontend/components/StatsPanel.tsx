@@ -10,6 +10,7 @@ import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Achievements } from "@/components/Achievements";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Flame } from "lucide-react";
 
@@ -283,7 +284,7 @@ export function StatsPanel() {
   const [goal] = useDailyGoal();
   const [range, setRange] = useState<string>("14");
   const [metric, setMetric] = useState<"collected" | "mastered">("collected");
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["stats", accountId],
     queryFn: () => api.stats(accountId),
   });
@@ -291,6 +292,29 @@ export function StatsPanel() {
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
+
+  // Hold the panel's shape with shimmer blocks while stats load, so the lower half
+  // of the dashboard isn't a blank gap (and doesn't jump when data lands).
+  if (isLoading)
+    return (
+      <section className="anim-fade-up space-y-7 rounded-[24px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+        <div className="flex items-baseline justify-between">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-[16px]" />
+          ))}
+        </div>
+        <Skeleton className="h-[140px] w-full rounded-[16px]" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-[16px]" />
+          ))}
+        </div>
+      </section>
+    );
 
   if (!data) return null;
 

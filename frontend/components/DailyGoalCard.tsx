@@ -6,6 +6,7 @@ import { useAccount } from "@/lib/account";
 import { useDailyGoal } from "@/lib/goal";
 import { useI18n } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/HoverTip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PartyPopper, Target } from "lucide-react";
 
 // A standalone, prominent daily-goal panel: a big progress ring, encouragement,
@@ -14,10 +15,31 @@ export function DailyGoalCard() {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
   const [goal, setGoal] = useDailyGoal();
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["stats", accountId],
     queryFn: () => api.stats(accountId),
   });
+
+  // Keep the panel's footprint while stats load so the page doesn't jump and the
+  // gap never reads as a blank/empty block.
+  if (isLoading)
+    return (
+      <section className="anim-fade-up overflow-hidden rounded-[24px] border border-black/[0.06] bg-surface">
+        <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
+          <Skeleton className="mx-auto h-[140px] w-[140px] shrink-0 rounded-full sm:mx-0" />
+          <div className="min-w-0 flex-1 space-y-3">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-64" />
+            <div className="flex gap-1.5 pt-2">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 flex-1 rounded-[10px]" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+
   if (!data) return null;
 
   const done = data.trainedToday;

@@ -237,8 +237,26 @@ textarea::-webkit-resizer {
   100% { background-position: 220% 0; }
 }
 
+/* Loading placeholder: a soft neutral block with a light sweep, so an in-flight
+   section reads clearly as "loading" instead of an empty gray square. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-track);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.6) 50%, transparent 80%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: lexaShine 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece, .flip-card { animation: none; transition: none; }
+  .skeleton::after { animation: none; }
 }
 
 /* ---- Landing: scroll-reveal + drifting aurora background ---- */
