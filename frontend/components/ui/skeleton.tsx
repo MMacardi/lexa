@@ -1,12 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { HTMLAttributes } from "react";
 
-// Subtle shimmer placeholder shown while data loads.
+// Shimmer placeholder shown while data loads (see `.skeleton` in globals.css).
 export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-md bg-slate-200/70", className)}
-      {...props}
-    />
-  );
+  return <div className={cn("skeleton rounded-md", className)} {...props} />;
 }
