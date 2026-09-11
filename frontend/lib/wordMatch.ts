@@ -36,11 +36,16 @@ export function buildWordMatcher(pool: string[]): WordMatcher {
   if (!entries.length) return { regex: null, canonical: () => null };
 
   // Letter-aware boundaries (\b misbehaves around apostrophes and non-Latin script).
-  const B = "(?<![\\p{L}\\p{M}])";
-  const A = "(?![\\p{L}\\p{M}])";
+  // A hyphen joins compounds, so count it like a letter here: "clear" must NOT light
+  // up inside "clear-cut" — the compound carries its own meaning.
+  const B = "(?<![\\p{L}\\p{M}-])";
+  const A = "(?![\\p{L}\\p{M}-])";
   let regex: RegExp | null;
   try {
-    regex = new RegExp(`${B}(${entries.map((e) => e.pattern).join("|")})${A}`, "giu");
+    // Alternation is first-match-wins, so longest patterns go first: a multi-word
+    // entry ("piece of cake") must beat its own sub-words ("cake") at the same spot.
+    const ordered = [...entries].sort((a, b) => b.pattern.length - a.pattern.length);
+    regex = new RegExp(`${B}(${ordered.map((e) => e.pattern).join("|")})${A}`, "giu");
   } catch {
     regex = null; // very old engines without lookbehind — degrade to no highlight
   }

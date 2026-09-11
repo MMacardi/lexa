@@ -36,12 +36,20 @@ export async function glossInContext(params: {
   // Same style as the working translateText: the word to translate goes in the
   // USER message; the sentence is only optional context in the system prompt.
   const ctx = sentence && sentence !== word ? ` (For sense, it appears in: "${sentence}".)` : "";
+  // Idioms: a single tapped token can be part of a fixed expression whose meaning is
+  // not the literal word meaning ("cake" in "piece of cake"), so prefer the whole
+  // expression's sense when the sentence shows one.
+  const idiomNote =
+    ` If the word forms part of an idiom, phrasal verb or compound in that sentence ` +
+    `(e.g. "cake" in "piece of cake", "clear" in "clear-cut"), give the meaning of the WHOLE ` +
+    `expression as used there, not the literal single-word meaning.`;
 
   if (!wantTr) {
     const result = await chatJson({
       system:
         `You are a professional ${source}-to-${target} translator. Reply with the ${target} meaning ` +
         `of the ${source} word or phrase the user sends — a few words, no explanation.${ctx}` +
+        idiomNote +
         scriptNote(params.targetLang ?? "zh") +
         ` Respond as JSON: {"translation": string}.`,
       user: word,
@@ -59,6 +67,7 @@ export async function glossInContext(params: {
       `You are a professional ${source}-to-${target} translator. For the ${source} word or phrase the ` +
       `user sends, reply with "translation" — its ${target} meaning (a few words, no explanation)${ctx} ` +
       `— and "transcription" — its ${trName}.` +
+      idiomNote +
       scriptNote(params.targetLang ?? "zh") +
       ` Respond as JSON: {"translation": string, "transcription": string}.`,
     user: word,
