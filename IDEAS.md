@@ -57,6 +57,21 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   - **Why realtime WS ASR was rejected:** it only adds live captions + VAD auto-stop (comfort),
     not scoring accuracy — same word-level transcript. Phoneme scoring comes from the
     evaluation API above via plain REST. Deferred together.
+- ✅ **Reader: near-live read-aloud highlighting** (shipped 2026-09-12). "Живое чтение"
+  toggle streams mic PCM (`lib/liveMic.ts`: AudioWorklet→16 kHz mono WAV, ~2.5 s clips,
+  RMS VAD skips silence, 180 s auto-stop) into the EXISTING `POST /api/coach/stt`
+  (qwen3-asr-flash, `format:"wav"`) — sequential queue, no overlap. Each transcript piece
+  grows a live "heard" bar and advances a token cursor (`lib/liveAlign.ts`: forgiving,
+  monotonic word match) that lights up the text. On stop, `scorePronunciation` gives a final
+  match %. Works on iOS Safari + China (no Google/Web Speech), no new backend/infra. Kept
+  the per-sentence `ReadAloudCheck` as a separate scoring mode.
+- ⏭ **True realtime WS read-aloud** (the "instant, word-by-word" upgrade — user-requested,
+  backlogged). Near-live has ~2–3 s lag; instant needs a WebSocket bridge to DashScope
+  realtime ASR (`paraformer-realtime`). Requires: `ws` dep + `http.createServer`/upgrade in
+  `backend/src/index.ts` (currently `app.listen`, line 57), the native DashScope WS protocol
+  (run-task/continue/finish), a realtime-ASR model enabled on the Bailian key, and WS-upgrade
+  pass-through on the Alibaba-HK host (unverified). Cost = continuous ASR audio-seconds.
+  Build only if the ~2–3 s lag proves annoying in practice.
 - 💡 **B6 Fresh example per review / difficulty adaptation** — behind a toggle (tokens).
 - 💡 **B7 Meaning backfill** — shorten old long meanings on demand.
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
