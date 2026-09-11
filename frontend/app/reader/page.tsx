@@ -34,7 +34,7 @@ import { speechLang, dictationSupported, startDictation, type DictationControlle
 import { recorderSupported } from "@/lib/record";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2 } from "lucide-react";
+import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -1034,6 +1034,20 @@ export default function ReaderPage() {
         >
           <Save className="h-3.5 w-3.5" /> {t("reader.save")}
         </button>
+
+        {/* edit the text on screen: back to the input view with THIS text loaded
+            (openText kept, so Save updates it instead of creating a duplicate).
+            Only meaningful for a saved text — an unsaved paste already keeps its
+            text on "back". */}
+        {openText && (
+          <button
+            type="button"
+            onClick={() => setReading(false)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          >
+            <PenLine className="h-3.5 w-3.5" /> {t("reader.edit")}
+          </button>
+        )}
 
         {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
         <HoverTip title={t("reader.autoGlossHint")} className="inline-flex">

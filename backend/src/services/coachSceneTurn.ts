@@ -81,7 +81,10 @@ export async function coachSceneTurn(params: {
         `them to try it in ${source} — you may model the ${source} phrasing in character ("Do you mean …?"). ` +
         `Record that ${source} phrasing as a correction so the app can show them the right wording.\n` +
         `3) GENTLE RECAST: if a mistake blocks meaning or is clearly worth fixing, weave the corrected form naturally ` +
-        `into your "say" (model it, don't lecture). ALSO record it in "corrections" as {original (what they wrote), ` +
+        `into your "say" (model it, don't lecture). ALSO record it in "corrections" — but ONLY for the learner's MOST ` +
+        `RECENT message: judge that message in the full conversation context, never repeat a fix you already gave on ` +
+        `an earlier turn, and if they have since corrected themselves, leave the array empty. Each entry is ` +
+        `{original (what they wrote), ` +
         `corrected (the fixed form in ${source}), note (a one-line, factually correct "why" in ${target} — if you ` +
         `cannot state the rule cleanly, leave it ""), severity ("minor" for ` +
         `a small slip, "wrong" for an error that breaks meaning or for writing in ${target})}. The app shows the ` +

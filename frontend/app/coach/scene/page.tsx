@@ -24,7 +24,7 @@ import { TappableText, type WordEntry } from "@/components/TappableText";
 import { PracticeBar } from "@/components/PracticeBar";
 import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
-import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
+import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
 
 type Turn = {
   role: "user" | "assistant";
@@ -540,7 +540,11 @@ export default function CoachScenePage() {
         }
       }
       if (res.corrections?.length) {
-        setCorrections((c) => [...c, ...res.corrections].slice(0, 12));
+        setCorrections((c) => {
+          const seen = new Set(c.map((x) => `${x.original}→${x.corrected}`));
+          const fresh = res.corrections.filter((x) => !seen.has(`${x.original}→${x.corrected}`));
+          return [...c, ...fresh].slice(0, 12);
+        });
       }
       // Inline per-message feedback: grade the learner's own bubble from this turn's
       // corrections (no extra LLM call — they already come back with the reply).
@@ -1088,7 +1092,6 @@ function Bubble({
   const [fbOpen, setFbOpen] = useState(false);
   if (turn.role === "user") {
     const grade = turn.grade;
-    const dotCls = grade === "ok" ? "bg-sage" : grade === "minor" ? "bg-amber-400" : "bg-warn";
     const gradeLabel = grade === "ok" ? t("scene.fbOk") : grade === "minor" ? t("scene.fbMinor") : t("scene.fbWrong");
     return (
       <div className="flex flex-col items-end gap-1">
@@ -1099,9 +1102,18 @@ function Bubble({
               onClick={() => setFbOpen((v) => !v)}
               aria-label={gradeLabel}
               title={gradeLabel}
-              className="mb-1.5 flex h-5 w-5 shrink-0 items-center justify-center"
+              className={cn(
+                "mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/[0.05] transition-colors hover:bg-black/[0.1]",
+                grade === "ok" ? "text-sage" : grade === "minor" ? "text-amber-500" : "text-warn",
+              )}
             >
-              <span className={cn("h-2.5 w-2.5 rounded-full transition-transform hover:scale-125", dotCls)} />
+              {grade === "ok" ? (
+                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              ) : grade === "minor" ? (
+                <Minus className="h-3.5 w-3.5" strokeWidth={3} />
+              ) : (
+                <X className="h-3.5 w-3.5" strokeWidth={3} />
+              )}
             </button>
           )}
           <div className="max-w-[78%] rounded-[16px] rounded-br-md bg-sage px-3.5 py-2.5 text-[15px] leading-relaxed text-white">
