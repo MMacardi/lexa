@@ -1,8 +1,11 @@
 // Supported languages for vocabulary cards. Any pair (source -> target) is allowed.
+// Chinese ships as ONE language (Simplified script, 🇨🇳). `zh-Hant` is a legacy data
+// code kept for old records: it still resolves to plain "Chinese" in prompts (the
+// scriptNote below keeps such cards' output in their own script).
 export const LANG_NAMES: Record<string, string> = {
   en: "English",
-  zh: "Simplified Chinese",
-  "zh-Hant": "Traditional Chinese",
+  zh: "Chinese",
+  "zh-Hant": "Chinese",
   ru: "Russian",
   es: "Spanish",
   de: "German",
