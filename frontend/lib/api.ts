@@ -322,7 +322,7 @@ export interface AddAuto {
   synonymLevel?: string; // target CEFR level for the card's synonyms (exam prep)
   exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
   exampleSource?: "ai" | "web";
-  exampleCount?: number; // how many examples to generate (1–3)
+  exampleCount?: number; // how many examples to generate (1–2)
   meaningPrompt?: string; // learner override for how the meaning is written
 }
 

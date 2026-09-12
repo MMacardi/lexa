@@ -66,7 +66,7 @@ export async function addWordForUser(params: {
   synonymLevel?: string; // tune the card's synonyms to a target CEFR level (exam prep)
   exampleStyle?: string;
   exampleSource?: string;
-  exampleCount?: number; // how many examples to generate (1–3); default 1
+  exampleCount?: number; // how many examples to generate (1–2); default 1
   meaningPrompt?: string; // learner override for how the meaning is written
 }) {
   const user = await ensureUser(params.telegramId);
@@ -74,7 +74,7 @@ export async function addWordForUser(params: {
   const targetLang = params.targetLang ?? "zh";
   const useWeb = params.exampleSource === "web";
   const withExample = params.exampleStyle !== "none";
-  const count = Math.max(1, Math.min(3, Math.round(params.exampleCount ?? 1)));
+  const count = Math.max(1, Math.min(2, Math.round(params.exampleCount ?? 1)));
 
   let wordId: string;
 
@@ -256,6 +256,11 @@ export async function addProvidedExample(id: string, sentenceEn: string, sentenc
     data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Onomika AI", sourceUrl: "" },
   });
   return getWord(id);
+}
+
+/** How many AI-generated examples a card holds (the cap is two, second is Pro). */
+export async function countAiExamples(id: string): Promise<number> {
+  return prisma.example.count({ where: { wordId: id, sourceName: "Onomika AI" } });
 }
 
 /** Delete a word (its examples cascade via the schema's onDelete: Cascade). */
