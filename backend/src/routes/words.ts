@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
-import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance } from "../lib/entitlements.js";
+import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, requestIsPro } from "../lib/entitlements.js";
 import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
@@ -30,6 +30,7 @@ import {
   updateWord,
   addExampleToWord,
   addProvidedExample,
+  countAiExamples,
   explainWord,
   askAboutWord,
   getStats,
@@ -284,7 +285,7 @@ const addBody = z.object({
   synonymLevel: z.string().max(4).optional(), // tune synonyms to a CEFR level (exam prep)
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
-  exampleCount: z.number().int().min(1).max(3).optional(),
+  exampleCount: z.number().int().min(1).max(2).optional(),
   meaningPrompt: z.string().max(400).optional(), // learner override for meaning style
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
@@ -498,6 +499,19 @@ wordsRouter.post("/words/:id/example", async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
+  }
+  // A card holds at most two AI examples; the second one is a Pro feature.
+  // `replace` (regenerate) never grows the count, so it stays open to everyone.
+  if (!parsed.data.replace) {
+    const aiCount = await countAiExamples(String(req.params.id));
+    if (aiCount >= 2) {
+      res.status(403).json({ error: "A card holds at most two AI examples.", code: "examples_cap" });
+      return;
+    }
+    if (aiCount >= 1 && !(await requestIsPro(req))) {
+      res.status(403).json({ error: "That's a Pro feature. Upgrade to use it.", code: "pro_only", features: ["multi_example"] });
+      return;
+    }
   }
   try {
     res.json(await addExampleToWord(String(req.params.id), parsed.data));

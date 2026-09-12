@@ -397,7 +397,6 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   <span className="mx-1.5 text-ink-faint">·</span>
                   <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtSyn")}</code>
                   <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
-                  <div className="text-ink-faint">{t("import.fmtExport")}</div>
                   <ImportCardPreview text={text} />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">

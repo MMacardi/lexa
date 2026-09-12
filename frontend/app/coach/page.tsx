@@ -14,7 +14,7 @@ import { isAiSupported, langLabel } from "@/lib/langs";
 import { LangSelect } from "@/components/LangSelect";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft, Flame, ArrowRight } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft, ArrowRight } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
 
@@ -109,6 +109,11 @@ export default function CoachPage() {
     queryFn: () => api.stats(accountId),
     enabled: !!accountId,
   });
+  // This week's pulse for the recap card — pure arithmetic over stats.days, no tokens.
+  const weekDays = (stats?.days ?? []).slice(-7);
+  const weekAdded = weekDays.reduce((s, d) => s + d.added, 0);
+  const weekReviewed = weekDays.reduce((s, d) => s + d.reviews, 0);
+  const weekMax = Math.max(1, ...weekDays.map((d) => d.reviews));
   // Best streak BEFORE this session, frozen — so a new record is celebrated all day
   // and quietly retired tomorrow. Persisted below when the current streak beats it.
   const [bestStreak] = useState<number>(() => {
@@ -353,33 +358,56 @@ export default function CoachPage() {
         </div>
       </div>
 
-      {/* Slipping words — the Home nudge, but with the actual words on show */}
-      {weakTop.length > 0 && (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-warn/25 bg-warn-bg/50 px-4 py-3.5">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-warn-text">
-              <Flame className="h-3.5 w-3.5" /> {t("coach.weakStripTitle")}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {weakTop.map((w) => (
-                <span
-                  key={w.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-warn/30 bg-surface px-2.5 py-1 text-[13px] font-semibold text-ink"
-                >
-                  <span className={srcFont(pair.source)}>{w.word}</span>
-                  <span className="text-[11px] font-bold text-warn-text">
-                    {t("coach.weakLapses", { n: String(w.lapses ?? 0) })}
-                  </span>
-                </span>
-              ))}
-            </div>
+      {/* This week — a token-free recap: activity bars + the words slipping right now */}
+      {stats && ((weekAdded + weekReviewed > 0) || weakTop.length > 0) && (
+        <section className="rounded-[20px] border border-black/[0.07] bg-surface p-4 sm:p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.weekTitle")}</div>
+          <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
+            {t("coach.weekLine", {
+              added: String(weekAdded),
+              reviewed: String(weekReviewed),
+              mastered: String(stats.mastered ?? 0),
+            })}
+          </p>
+          <div className="mt-3.5 flex items-end gap-1.5">
+            {weekDays.map((d, i) => (
+              <div key={d.date} className="min-w-0 flex-1" title={`${d.date} · ${d.reviews}`}>
+                <div
+                  className={cn(
+                    "w-full rounded-full",
+                    d.reviews ? (i === weekDays.length - 1 ? "bg-sage-deep" : "bg-sage") : "bg-sage/15",
+                  )}
+                  style={{ height: d.reviews ? 8 + Math.round((24 * d.reviews) / weekMax) : 4 }}
+                />
+              </div>
+            ))}
           </div>
-          <button
-            onClick={focusWeak}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
-          >
-            {t("coach.briefWeakCta")} <ArrowRight className="h-4 w-4" />
-          </button>
+          {weakTop.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-3.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-warn-text">
+                  {t("coach.weekWatch")}
+                </span>
+                {weakTop.map((w) => (
+                  <span
+                    key={w.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-warn/30 bg-warn-bg/60 px-2.5 py-1 text-[13px] font-semibold text-ink"
+                  >
+                    <span className={srcFont(pair.source)}>{w.word}</span>
+                    <span className="text-[11px] font-bold text-warn-text">
+                      {t("coach.weakLapses", { n: String(w.lapses ?? 0) })}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={focusWeak}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep"
+              >
+                {t("coach.weekDrill")} <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </section>
       )}
 

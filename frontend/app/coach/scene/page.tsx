@@ -58,6 +58,12 @@ const PRESETS: { id: string; img: string; idea: string }[] = [
   { id: "cafe", img: "/scenes/cafe.webp", idea: "meeting a friend for coffee at a café" },
   { id: "travel", img: "/scenes/travel.webp", idea: "checking into a hotel while travelling" },
   { id: "interview", img: "/scenes/interview.webp", idea: "a job interview" },
+  { id: "market", img: "/scenes/market.webp", idea: "buying fruit and vegetables at an open-air market" },
+  { id: "restaurant", img: "/scenes/restaurant.webp", idea: "ordering dinner at a restaurant and asking for the bill" },
+  { id: "doctor", img: "/scenes/doctor.webp", idea: "describing symptoms at a doctor's appointment" },
+  { id: "gym", img: "/scenes/gym.webp", idea: "asking a trainer for help at the gym" },
+  { id: "airport", img: "/scenes/airport.webp", idea: "checking in and asking about a flight at the airport" },
+  { id: "hairdresser", img: "/scenes/hairdresser.webp", idea: "asking for a haircut at the hairdresser's" },
 ];
 
 // Recent scene themes, kept client-side so auto-generation stops repeating itself.

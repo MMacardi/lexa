@@ -730,8 +730,8 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 onChange={(v) => setExampleCount(Number(v))}
                 ariaLabel={t("count.label")}
                 className="w-[92px]"
-                // Free plan can only add 1 example per word; 2-3 is Pro.
-                options={(pro ? [1, 2, 3] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
+                // Free plan can only add 1 example per word; 2 is Pro.
+                options={(pro ? [1, 2] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
               />
             </div>
           )}

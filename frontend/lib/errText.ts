@@ -8,6 +8,7 @@ const CODE_KEYS: Record<string, string> = {
   ai_quota: "err.aiQuota",
   quota_monthly: "err.quotaMonthly",
   pro_only: "err.proOnly",
+  examples_cap: "err.examplesCap",
   import_limit: "err.importLimit",
   rate_limit: "err.rateLimit",
   own_code: "friends.errOwnCode",

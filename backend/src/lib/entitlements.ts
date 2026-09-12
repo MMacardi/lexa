@@ -46,6 +46,11 @@ export async function isPro(telegramId: string): Promise<boolean> {
   return u.plan === "pro" && (!u.planUntil || u.planUntil.getTime() > Date.now());
 }
 
+/** Pro status of the current request, honouring the "test the free tier" toggle. */
+export async function requestIsPro(req: Request): Promise<boolean> {
+  return !simulatingFree(req) && (await isPro(callerId(req)));
+}
+
 // Persistent usage counters (Postgres): a restart or a second instance can't
 // reset or multiply a user's allowance — required for real billing. The `key`
 // encodes the period + user (+ feature), so each new day/month is a fresh row.
