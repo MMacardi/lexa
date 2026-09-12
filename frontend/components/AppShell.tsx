@@ -6,6 +6,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 import { GuestExperience } from "@/components/GuestExperience";
+import { InviteGate } from "@/components/InviteGate";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 
 // Routes that render without the auth gate (session-establishing or public legal).
@@ -22,7 +23,7 @@ const BugReport = dynamic(() => import("@/components/BugReport").then((m) => m.B
 // loading state; signed-out users get the login screen; signed-in users get the
 // full sidebar + content shell.
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, authed } = useAccount();
+  const { ready, authed, profile } = useAccount();
   const { t } = useI18n();
   const pathname = usePathname();
 
@@ -37,6 +38,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
 
   if (!authed) return <GuestExperience />;
+
+  // Closed beta: a signed-in user who hasn't redeemed an invite code is gated here
+  // (the backend enforces the same rule on every /api route).
+  if (!profile?.invited) return <InviteGate />;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

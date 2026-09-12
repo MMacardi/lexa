@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
-import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, requestIsPro } from "../lib/entitlements.js";
+import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, requestIsPro, callerId } from "../lib/entitlements.js";
 import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
@@ -79,7 +79,7 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
 
 // GET /api/ai/usage -> the caller's plan + today's AI-action usage (for the UI).
 wordsRouter.get("/ai/usage", async (req: Request, res: Response) => {
-  const id = readSession(req) ?? String(req.query.telegramId ?? "anon");
+  const id = callerId(req);
   res.json(await usageStatus(id, simulatingFree(req)));
 });
 
@@ -99,7 +99,7 @@ wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const telegramId = readSession(req) ?? parsed.data.telegramId ?? "anon";
+  const telegramId = callerId(req);
   try {
     res.json(await suggestDailyPicks({ ...parsed.data, telegramId }));
   } catch (err) {
@@ -1088,7 +1088,6 @@ wordsRouter.post("/transcribe", async (req, res) => {
 });
 
 // ---------------- Reader: saved texts ----------------
-const callerId = (req: Request) => readSession(req) ?? String((req.body?.telegramId ?? req.query.telegramId ?? "dev-user"));
 
 // GET /api/reader/texts?q=&collection=  -> the user's saved reading texts
 wordsRouter.get("/reader/texts", async (req, res) => {

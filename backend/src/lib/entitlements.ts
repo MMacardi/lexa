@@ -16,16 +16,16 @@ const PRO_ALLOWLIST = new Set(
   env.PRO_ALLOWLIST.split(",").map((s) => s.trim()).filter(Boolean),
 );
 
-// The caller's identity for quota purposes: the verified session, else the
-// telegramId a server-to-server caller sends, else "anon".
-function callerId(req: Request): string {
-  const s = readSession(req);
-  if (s) return s;
-  const b = req.body as { telegramId?: unknown } | undefined;
-  if (b && typeof b.telegramId === "string" && b.telegramId.trim()) return b.telegramId.trim();
-  const q = req.query?.telegramId;
-  if (typeof q === "string" && q.trim()) return q.trim();
-  return "anon";
+/** Is this id on the always-Pro owner allowlist (never locked out of the beta)? */
+export function isProAllowlisted(id: string): boolean {
+  return PRO_ALLOWLIST.has(id);
+}
+
+// The caller's identity: the verified session cookie, else "anon". There is no
+// body/query telegramId fallback — a request can never impersonate another user.
+// (requireIdentity in lib/gate.ts blocks "anon" callers from every data/AI route.)
+export function callerId(req: Request): string {
+  return readSession(req) ?? "anon";
 }
 
 // A client can ask to be treated as a FREE user for this request (the "test the

@@ -130,6 +130,7 @@ export interface Profile {
   authVia?: string; // "telegram" | "google" | "email" | "dev"
   hideEmail?: boolean;
   hideTag?: boolean;
+  invited?: boolean; // closed-beta gate: has the user redeemed an invite code?
   identities?: AuthIdentity[];
 }
 
@@ -522,6 +523,9 @@ export const api = {
     http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
   updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean }) =>
     http<{ hideEmail: boolean; hideTag: boolean }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
+  // Closed-beta gate: redeem an invite code, unlocking the app. Returns the fresh profile.
+  redeemInvite: (code: string) =>
+    http<Profile>(`/api/invites/redeem`, { method: "POST", body: JSON.stringify({ code }) }),
   loginTelegram: (data: Record<string, unknown>) =>
     http<Profile>(`/api/auth/telegram`, {
       method: "POST",

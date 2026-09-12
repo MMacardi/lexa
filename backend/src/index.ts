@@ -6,8 +6,15 @@ import { wordsRouter } from "./routes/words.js";
 import { authRouter } from "./routes/auth.js";
 import { friendsRouter } from "./routes/friends.js";
 import { feedbackRouter } from "./routes/feedback.js";
+import { invitesRouter } from "./routes/invites.js";
+import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
+
+// Fail closed: never boot a production server with the guessable dev signing key.
+if (process.env.NODE_ENV === "production" && env.JWT_SECRET === "dev-insecure-secret-change-me") {
+  throw new Error("JWT_SECRET must be set to a strong secret in production");
+}
 
 const app = express();
 
@@ -48,8 +55,23 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+// Closed-beta gate. Mounted at /api, so req.path here is the un-prefixed route
+// ("/auth/me", "/words", …). Identity is required everywhere except the login
+// routes (they establish the session); the invite check additionally exempts the
+// redeem endpoint (a signed-in-but-uninvited user must reach it) and feedback (so
+// anyone can still report "I can't get in").
+const EXEMPT_IDENTITY = /^\/auth\//;
+const EXEMPT_INVITED = /^\/(auth\/|invites\/redeem$|feedback$)/;
+app.use("/api", (req, res, next) =>
+  EXEMPT_IDENTITY.test(req.path) ? next() : requireIdentity(req, res, next),
+);
+app.use("/api", (req, res, next) =>
+  EXEMPT_INVITED.test(req.path) ? next() : requireInvited(req, res, next),
+);
+
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);
+app.use("/api", invitesRouter);
 app.use("/api", friendsRouter);
 app.use("/api", feedbackRouter);
 app.use("/api", wordsRouter);
