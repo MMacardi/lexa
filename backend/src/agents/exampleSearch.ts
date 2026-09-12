@@ -1,7 +1,7 @@
 import { prisma } from "../services/db.js";
 import { searchNews } from "../services/search.js";
 import { chatJson } from "../services/llm.js";
-import { sentenceSelectionSchema, translationSchema, exampleSentenceSchema } from "../lib/schemas.js";
+import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 
 // Does the sentence actually use the source language's script? Catches the case
@@ -123,6 +123,7 @@ export async function runExampleSearch(params: {
   const preferAi = (params.exampleSource ?? "ai") !== "web";
 
   let sentence = "";
+  let translation = "";
   let composed = avoidList.length > 0 || preferAi; // AI mode / "add another" → compose fresh
   let source: { url: string } | null = null;
 
@@ -171,6 +172,9 @@ export async function runExampleSearch(params: {
   }
 
   if (composed) {
+    // ONE call: compose the sentence (or dialogue) in the source language AND its
+    // target-language translation together — no second call to translate what the
+    // model just wrote.
     const composedSystem =
       style === "dialogue"
         ? `Write a short, natural ${sourceName} DIALOGUE of 2-3 turns between two people that uses ` +
@@ -181,7 +185,10 @@ export async function runExampleSearch(params: {
           (levelLine || "") +
           `It MUST be written in ${sourceName} and contain "${word}".` +
           scriptNote(sourceLang) +
-          'Respond as JSON: {"sentence": string} where sentence is the whole dialogue with line breaks (\\n).'
+          ` Then translate the whole dialogue into natural ${targetName}, keeping each turn on its own line.` +
+          scriptNote(targetLang) +
+          'Respond as JSON: {"sentence": string, "translation": string}, where sentence is the ' +
+          `${sourceName} dialogue with line breaks (\\n) and translation is its ${targetName} rendering.`
         : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
           `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
           RICHNESS_RULE +
@@ -189,28 +196,34 @@ export async function runExampleSearch(params: {
           (levelLine || "") +
           `The sentence MUST be written in ${sourceName} and contain "${word}".` +
           scriptNote(sourceLang) +
-          'Respond as JSON: {"sentence": string}.';
+          ` Then translate that sentence into natural ${targetName}.` +
+          scriptNote(targetLang) +
+          'Respond as JSON: {"sentence": string, "translation": string}, where sentence is the ' +
+          `${sourceName} sentence and translation is its ${targetName} rendering.`;
     const written = await chatJson({
       system: composedSystem,
       user: word,
-      schema: exampleSentenceSchema,
+      schema: composedExampleSchema,
       label: "example.compose",
     });
     sentence = written.sentence.trim();
+    translation = written.translation.trim();
     source = null;
+  } else {
+    // A web-mined sentence is a real excerpt we picked, so it still needs its own
+    // translate call (the compose+translate merge above only covers AI-written ones).
+    const translated = await chatJson({
+      system:
+        `Translate the ${sourceName} text into natural ${targetName}. Keep any line breaks ` +
+        `(dialogue turns stay on separate lines).` +
+        scriptNote(targetLang) +
+        ` Respond as JSON: {"translation": string}.`,
+      user: sentence,
+      schema: translationSchema,
+      label: "example.translate",
+    });
+    translation = translated.translation;
   }
-
-  // 3. LLM step 2: translate the chosen sentence to the target language.
-  const translation = await chatJson({
-    system:
-      `Translate the ${sourceName} text into natural ${targetName}. Keep any line breaks ` +
-      `(dialogue turns stay on separate lines).` +
-      scriptNote(targetLang) +
-      ` Respond as JSON: {"translation": string}.`,
-    user: sentence,
-    schema: translationSchema,
-    label: "example.translate",
-  });
 
   // 4. Persist. Attach to an existing card when a wordId is given (import
   // enrichment); otherwise create a fresh row (single add — duplicates allowed).
@@ -222,7 +235,7 @@ export async function runExampleSearch(params: {
     data: {
       wordId,
       sentenceEn: sentence,
-      sentenceZh: translation.translation,
+      sentenceZh: translation,
       // A composed sentence has no web source — attribute it to the AI instead.
       sourceName: source ? sourceNameFromUrl(source.url) : "Onomika AI",
       sourceUrl: source ? source.url : "",
