@@ -32,7 +32,6 @@ import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
 import { recorderSupported } from "@/lib/record";
-import { startLiveMic, liveMicSupported, type LiveMicController } from "@/lib/liveMic";
 import { micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
@@ -132,8 +131,6 @@ export default function ReaderPage() {
   const [dictSupported, setDictSupported] = useState(false);
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
-  const dictServerRef = useRef<LiveMicController | null>(null); // universal fallback engine
-  const dictQueue = useRef<Promise<void>>(Promise.resolve());
   // known word: short tap → small popup (meaning + add example); long-press → card panel
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
@@ -399,57 +396,17 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rubyOn, reading, sourceLang, tokens]);
 
-  // Live dictation into the text box. Two engines:
-  //  - on-device Web Speech (free, live) where it actually works;
-  //  - the universal server path (liveMic clips → /api/coach/stt) everywhere else,
-  //    including iOS Safari and mainland China where Web Speech is dead. If the
-  //    on-device engine fails at runtime we remember that and continue on the server.
+  // Live dictation into the text box — on-device Web Speech only (free, live interim
+  // text). The clip-based server fallback was removed: every ~3 s clip made the ASR
+  // append a period, littering the text, and it burned ASR seconds. Where Web Speech
+  // is dead (iOS Safari, mainland China) the button simply isn't offered; a runtime
+  // failure sticks lexa.micBrowserFailed so the other mics self-heal to the
+  // record-then-STT engine and this button hides.
   function stopDictate() {
     dictRef.current?.stop();
     dictRef.current = null;
-    dictServerRef.current?.stop();
-    dictServerRef.current = null;
     setDictating(false);
     setDictInterim("");
-  }
-
-  async function startServerDictate() {
-    if (!liveMicSupported()) {
-      show({ icon: "⚠️", title: t("reader.micUnsupported") });
-      return;
-    }
-    setDictating(true);
-    setDictInterim("");
-    const ctrl = await startLiveMic({
-      onLevel: () => {},
-      onError: (kind) => {
-        dictServerRef.current = null;
-        setDictating(false);
-        show({ icon: "⚠️", title: t(kind === "denied" ? "pron.denied" : "reader.micFail") });
-      },
-      onAutoStop: () => {
-        dictServerRef.current = null;
-        setDictating(false);
-      },
-      onChunk: (b64) => {
-        dictQueue.current = dictQueue.current.then(async () => {
-          if (!dictServerRef.current) return;
-          try {
-            const { text: piece0 } = await api.stt({ audio: b64, format: "wav", sourceLang });
-            const piece = piece0.trim();
-            if (!piece || !dictServerRef.current) return;
-            setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${piece}` : piece));
-          } catch {
-            /* keep listening; one bad clip shouldn't stop dictation */
-          }
-        });
-      },
-    });
-    if (!ctrl) {
-      setDictating(false);
-      return;
-    }
-    dictServerRef.current = ctrl;
   }
 
   function toggleDictate() {
@@ -457,45 +414,41 @@ export default function ReaderPage() {
       stopDictate();
       return;
     }
-    if (dictationSupported() && !micBrowserFailed()) {
-      const ctrl = startDictation({
-        lang: speechLang(sourceLang),
-        base: text,
-        onText: setText,
-        onInterim: setDictInterim,
-        onError: (kind) => {
-          dictRef.current = null;
-          setDictInterim("");
-          if (kind === "fail") {
-            // On-device engine died at runtime (China / iOS) → heal onto the server path.
-            markMicBrowserFailed();
-            void startServerDictate();
-            return;
-          }
-          setDictating(false);
-          show({ icon: "⚠️", title: t("reader.micUnsupported") });
-        },
-        onEnd: () => {
-          dictRef.current = null;
-          setDictating(false);
-          setDictInterim("");
-        },
-      });
-      if (ctrl) {
-        dictRef.current = ctrl;
-        setDictating(true);
-        return;
-      }
+    const ctrl = startDictation({
+      lang: speechLang(sourceLang),
+      base: text,
+      onText: setText,
+      onInterim: setDictInterim,
+      onError: (kind) => {
+        dictRef.current = null;
+        setDictInterim("");
+        setDictating(false);
+        if (kind === "fail") {
+          // On-device engine died at runtime (China / iOS) → remember, hide the button.
+          markMicBrowserFailed();
+          setDictSupported(false);
+          show({ icon: "⚠️", title: t("reader.micFail") });
+          return;
+        }
+        show({ icon: "⚠️", title: t("reader.micUnsupported") });
+      },
+      onEnd: () => {
+        dictRef.current = null;
+        setDictating(false);
+        setDictInterim("");
+      },
+    });
+    if (ctrl) {
+      dictRef.current = ctrl;
+      setDictating(true);
     }
-    void startServerDictate();
   }
 
-  useEffect(() => setDictSupported(dictationSupported()), []);
-  // Stop the mic if the reader unmounts mid-recording (both dictation engines).
+  useEffect(() => setDictSupported(dictationSupported() && !micBrowserFailed()), []);
+  // Stop the mic if the reader unmounts mid-recording.
   useEffect(
     () => () => {
       dictRef.current?.stop();
-      dictServerRef.current?.stop();
     },
     [],
   );
