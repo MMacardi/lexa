@@ -63,18 +63,26 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   `POST /api/coach/stt` and lit up the text via a monotonic token cursor (`lib/liveAlign.ts`).
   In practice the clip + round-trip lag (~2–3 s) couldn't keep up with a fast reader, and the
   final % came from a different matcher than the highlight, so the two contradicted each
-  other. Removed: `liveAlign.ts` deleted, live UI/state gone. `lib/liveMic.ts` stays — the
-  Reader dictaphone uses it as the universal server fallback when Web Speech is unavailable.
+  other. Removed: `liveAlign.ts` deleted, live UI/state gone.
   Per-sentence `ReadAloudCheck` remains the pronunciation practice ("small chunks").
+- 🗑 **Reader dictaphone: server-clip dictation fallback** (shipped 2026-09-12, removed
+  2026-09-13). The fallback reused the live-mic clipper (`lib/liveMic.ts`) so dictation worked
+  on iOS Safari / China, but every ~3 s clip made the ASR append a period — the text came out
+  littered with sentence breaks — and it burned ASR audio-seconds for a free feature. Removed:
+  `liveMic.ts` deleted, the dictaphone is on-device Web Speech ONLY and the button is hidden
+  where Web Speech is unavailable; a runtime failure sticks `lexa.micBrowserFailed` (toast +
+  hide), which also self-heals the other mics onto the record-then-STT engine (coach/word mics
+  keep that path — they send ONE clip per utterance, so no stray punctuation).
 - ⏭ **True realtime WS read-aloud** (the "instant, word-by-word" upgrade — user-requested,
   backlogged). The ~2–3 s lag did prove annoying: it's why the clip-based live mode above was
   removed. A WebSocket bridge to DashScope realtime ASR (`paraformer-realtime`) is the ONLY
-  way to get Chrome-smooth live highlighting everywhere (Firefox has no Web Speech at all;
-  Chrome's is unreachable in mainland China). Requires: `ws` dep + `http.createServer`/upgrade
+  way to get Chrome-smooth live highlighting AND live dictation everywhere (Firefox has no Web
+  Speech at all; Chrome's is unreachable in mainland China). Requires: `ws` dep + `http.createServer`/upgrade
   in `backend/src/index.ts` (currently `app.listen`, line 57), the native DashScope WS protocol
   (run-task/continue/finish), a realtime-ASR model enabled on the Bailian key, and WS-upgrade
   pass-through on the Alibaba-HK host (unverified). Cost = continuous ASR audio-seconds.
-  If built, re-add the live toggle on top of it (partial results → token cursor → highlight).
+  If built, re-add the live toggle on top of it (partial results → token cursor → highlight)
+  and restore the Reader dictaphone for iOS/China (stream partials straight into the text box).
 - ✅ **Onboarding placement mini-test** (shipped 2026-09-12). First run is now: a flag grid
   for the language you're learning (`lib/langs.ts` → `LEARNING_LANGS`, zh-Hant excluded so we
   study 🇨🇳 Simplified only) + "I know" + CEFR level, then `POST /api/words/starter-candidates`

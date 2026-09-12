@@ -188,7 +188,10 @@ textarea::-webkit-resizer {
 .flip-card {
   display: grid;
   transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.26, 1);
+  /* Symmetric ease-in-out ON PURPOSE: the visibility swap below fires at half the
+     duration, so the turn must cross 90deg exactly then. A fast-out curve crosses
+     90deg early → the outgoing face shows mirrored and the incoming one pops in. */
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
 }
 .flip-card.is-flipped { transform: rotateY(180deg); }
 .flip-face {
