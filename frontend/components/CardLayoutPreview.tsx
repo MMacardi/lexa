@@ -76,13 +76,21 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
   const [pinned, setPinned] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [auto, setAuto] = useState(true);
+  // Bumped on every manual flip so the auto interval restarts — otherwise a hand
+  // flip right before the next tick gets an auto flip on top of it mid-animation.
+  const [flipNonce, setFlipNonce] = useState(0);
   const open = hover || pinned;
+
+  const manualFlip = () => {
+    setFlipped((f) => !f);
+    setFlipNonce((n) => n + 1);
+  };
 
   useEffect(() => {
     if (!open || !auto) return;
     const id = setInterval(() => setFlipped((f) => !f), 2400);
     return () => clearInterval(id);
-  }, [open, auto]);
+  }, [open, auto, flipNonce]);
 
   return (
     <div className="relative mt-3 inline-block" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
@@ -113,7 +121,7 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
             </HoverTip>
           </div>
 
-          <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
+          <div className="flip-scene cursor-pointer" onClick={manualFlip}>
             <div className={cn("flip-card", flipped && "is-flipped")}>
               <Face fields={layout.front} w={w} t={t} />
               <Face fields={layout.back} w={w} t={t} back />
@@ -121,7 +129,7 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
           </div>
 
           <div className="mt-2.5 flex items-center justify-between">
-            <button type="button" onClick={() => setFlipped((f) => !f)} className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-muted hover:text-sage-deep">
+            <button type="button" onClick={manualFlip} className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-muted hover:text-sage-deep">
               <RotateCw className="h-3.5 w-3.5" /> {t("preview.flip")}
             </button>
             <button
