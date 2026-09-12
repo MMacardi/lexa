@@ -1109,6 +1109,11 @@ const DICT: Record<string, Entry> = {
     ru: "…или просто вставьте любой текст, слова с фото или сырой список — Onomika разберётся.",
     zh: "……或直接粘贴任意文本、照片里的词或杂乱列表，Onomika 会自动整理。",
   },
+  "import.fmtExport": {
+    en: "An Onomika export file (with Example:/Synonyms: lines) imports as-is — share it with friends.",
+    ru: "Файл экспорта Onomika (со строками Example:/Synonyms:) импортируется как есть — делитесь с друзьями.",
+    zh: "Onomika 导出的 .txt（含 Example:/Synonyms: 行）可直接导入——可以分享给朋友。",
+  },
   "import.paste": { en: "Paste your list here…", ru: "Вставьте список сюда…", zh: "在此粘贴词表…" },
   "import.file": { en: "File / photo", ru: "Файл / фото", zh: "文件 / 照片" },
   "import.extracting": { en: "Reading…", ru: "Распознаю…", zh: "识别中…" },
