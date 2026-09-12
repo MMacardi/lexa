@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
@@ -130,8 +130,19 @@ export default function WordsPage() {
     due: (a, b) => dueAt(a) - dueAt(b),
   };
 
-  // Distinct language pairs present in the collection.
-  const pairs = Array.from(new Set(words.map((w) => `${w.sourceLang}>${w.targetLang}`)));
+  // Distinct language pairs with how many words use each, most-used first. The
+  // dropdown lists them all (reader-style, with counts); the quick chips below
+  // surface only the top few so the row never overflows on a big collection.
+  const pairCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of data ?? []) {
+      const key = `${w.sourceLang}>${w.targetLang}`;
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [data]);
+  const pairs = pairCounts.map(([key]) => key);
+  const topPairs = pairCounts.slice(0, 3);
 
   const q = query.trim().toLowerCase();
   const filtered = words
@@ -209,34 +220,53 @@ export default function WordsPage() {
             </div>
           )}
 
-          {/* language-pair filter (only when more than one pair exists) */}
+          {/* language-pair filter: a reader-style dropdown listing every pair with
+              its word count, plus quick chips for the ≤3 most-used pairs so the
+              common cases are one tap away. Only shown when >1 pair exists. */}
           {pairs.length > 1 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.pair")}</span>
-              <button
-                onClick={() => setPair("all")}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                  pair === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                )}
-              >
-                {t("common.all")}
-              </button>
-              {pairs.map((p) => {
-                const [s, t] = p.split(">");
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPair(p)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                      pair === p ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                    )}
-                  >
-                    {pairLabel(s, t)}
-                  </button>
-                );
-              })}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.pair")}</span>
+                <Select
+                  value={pair}
+                  onChange={setPair}
+                  ariaLabel={t("words.pair")}
+                  className="w-[210px]"
+                  options={[
+                    { value: "all", label: t("reader.allLangs") },
+                    ...pairCounts.map(([key, n]) => {
+                      const [s, tg] = key.split(">");
+                      return { value: key, label: `${pairLabel(s, tg)} · ${n}` };
+                    }),
+                  ]}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setPair("all")}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                    pair === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                  )}
+                >
+                  {t("common.all")}
+                </button>
+                {topPairs.map(([key]) => {
+                  const [s, tg] = key.split(">");
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setPair(key)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                        pair === key ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+                      )}
+                    >
+                      {pairLabel(s, tg)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
