@@ -280,22 +280,21 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   pinyin + one-tap save carrying the sentence it came from. Owned words resolve from
   the deck with no request; the rest hit the localStorage gloss cache or one cheap
   `/api/gloss`. Togglable in the PracticeBar.
-- ⏭ **Fold the Reader onto `resolveMeaning.ts`** — the lookup chain was extracted for
-  the Coach but `reader/page.tsx` still carries its own inline copy.
+- ✅ **Fold the Reader onto `resolveMeaning.ts`** — `reader/page.tsx` `openGloss` now
+  delegates the whole cache → local-transcribe → gloss → cache-write chain to the shared
+  `resolveMeaning` helper (the per-token in-memory fast path stays). One small change:
+  pinyin/romaji now arrives together with the gloss instead of a beat earlier.
 
 ## Monetization / paywall
 - ✅ **Gates** — daily "generation" pool (add/example/tutor, 20/day), monthly
   quotas (reader-gen 3, OCR 5), Pro-only params (web examples / detailed+custom
-  meaning / 2-3 examples), free import cap (25). Gloss/read stays free.
-- ⏭ **Free example-cap leak (word page)** — "1 example on free" is only enforced via
-  the `exampleCount` field on `POST /words` (add form). The word page's
-  `POST /words/:id/example` (`AddExampleInline` / `EditWordForm`) carries no such
-  field, so `requireProFeature` never trips and a free user can append unlimited AI
-  examples. Harmless while `BETA_ALL_PRO=true`; must close before the flip.
-  Decided rule: free = **1 AI example/word** (replace/regenerate stays free);
-  manual (user-typed) examples are unlimited (cost $0). Fix server-side in
-  `addExampleToWord`/route (cap total AI examples per word for non-Pro when
-  `!replace`); mirror with a ProTag/upsell on "+ add example" once at the cap.
+  meaning / 2 examples), free import cap (25). Gloss/read stays free.
+- ✅ **Free example-cap leak (word page)** — CLOSED 2026-09-13. `POST /words/:id/example`
+  now enforces the cap server-side: a card holds at most **2 AI examples**, the **2nd is Pro**
+  (`multi_example`), free stays at 1, and `replace`/regenerate is exempt (never grows the
+  count). 403 codes `examples_cap` / `pro_only`. Frontend mirrors it: `AddExampleInline` +
+  `EditWordForm` show a ProTag/upsell at 1 (free) and a hard-cap caption at 2; the add-form
+  count picker is [1] free / [1,2] Pro. Manual (user-typed) examples stay unlimited ($0).
 - ✅ **Simulate-free toggle** (Account → Plan) to preview the free tier on a Pro
   account, via `X-Simulate-Free` header.
 - ✅ **Upfront UI locks** — free users see "Pro" tags on locked knobs (+ request
@@ -313,7 +312,9 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
   (routes through `enrichWordEntry`). The only 2-call cases left are Reader-context
   (details + a cheap translate) and web examples (Pro; needs a separate web
   search) — not worth merging. Note was stale.
-- ⏭ **Extra "+ add example"** — merge compose+translate into one call (2→1).
+- ✅ **Extra "+ add example"** — the AI-compose path now writes the sentence AND its
+  translation in ONE call (`composedExampleSchema`); only a web-mined excerpt still needs
+  the separate translate call. 2→1 for the default "+ add example".
 
 ## Pre-launch checklist
 - 💡 **Comparison table on the landing** (competitors vs us, checkmarks) — PARKED:

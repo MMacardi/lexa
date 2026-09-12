@@ -13,7 +13,6 @@ import { useToast } from "@/lib/toast";
 import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
   getReaderSource,
-  getShowTranscription,
   hasTranscription,
   pushRecentPair,
   setReaderSource,
@@ -24,7 +23,7 @@ import {
 } from "@/lib/learnPrefs";
 import { segment, wordKey } from "@/lib/segment";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
-import { getGloss as getCachedGloss, setGloss as setCachedGloss } from "@/lib/glossCache";
+import { resolveMeaning } from "@/lib/resolveMeaning";
 import { Button } from "@/components/ui/button";
 import { LangSelect } from "@/components/LangSelect";
 import { HoverTip } from "@/components/ui/HoverTip";
@@ -535,11 +534,11 @@ export default function ReaderPage() {
     setGloss({ key, word: wordText, x, y: rect.bottom });
     glossKeyRef.current = key;
     glossElRef.current = el;
-    // In-memory first, then the cross-session localStorage cache (a repeat tap of
-    // the same word, even later, costs no model call).
-    const cached = glossCache.current.get(key) ?? getCachedGloss(wordText, sourceLang, targetLang) ?? undefined;
+    // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
+    // the cross-session cache, inflight dedupe, local zh/ko transcription and the
+    // gloss request — so the Reader no longer carries its own copy of it.
+    const cached = glossCache.current.get(key) ?? undefined;
     if (cached != null) {
-      glossCache.current.set(key, cached);
       setGlossText(cached.gloss);
       setGlossTr(cached.tr);
       setGlossLoading(false);
@@ -548,26 +547,13 @@ export default function ReaderPage() {
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
-    const local = isLocalTr(sourceLang);
-    const showTr = getShowTranscription() && hasTranscription(sourceLang);
-    // Chinese/Korean transcription: computed locally (instant, no model call).
-    if (local && showTr) {
-      localTranscribe(wordText).then((p) => {
-        if (glossKeyRef.current === key) setGlossTr(p);
-      });
-    }
-    // Only ask the model for a transcription for Japanese.
-    const wantTr = showTr && !local;
-    api
-      .gloss({ word: wordText, sentence: wordText, sourceLang, targetLang, withTranscription: wantTr })
+    resolveMeaning({ word: wordText, sentence: wordText, sourceLang, targetLang })
       .then((r) => {
-        const tr = local ? rubyCache.current.get(`${sourceLang}:${wordText}`) ?? "" : r.transcription ?? "";
-        const entry = { gloss: r.gloss, tr };
+        const entry = { gloss: r.meaning, tr: r.transcription };
         glossCache.current.set(key, entry);
-        setCachedGloss(wordText, sourceLang, targetLang, entry);
         if (glossKeyRef.current === key) {
           setGlossText(entry.gloss);
-          if (tr) setGlossTr(tr);
+          if (entry.tr) setGlossTr(entry.tr);
           setGlossLoading(false);
         }
       })

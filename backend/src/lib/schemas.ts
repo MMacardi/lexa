@@ -22,11 +22,14 @@ export const glossSchema = z.object({
   transcription: z.string().nullish().transform((v) => v ?? ""),
 });
 
-// A single composed example sentence — used as a fallback when the web search
-// yields nothing usable in the target script/language.
-export const exampleSentenceSchema = z.object({
+// Compose + translate in ONE call (the AI-example path): the model writes the
+// source-language sentence and its target-language translation together, so we
+// don't spend a second call just translating what it already produced.
+export const composedExampleSchema = z.object({
   sentence: z.string().min(1),
+  translation: z.string().min(1),
 });
+export type ComposedExample = z.infer<typeof composedExampleSchema>;
 
 // Global tutor chat (not tied to a card): a reply plus optional vocabulary the
 // learner wants saved / that the tutor suggests to study.
