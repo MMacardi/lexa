@@ -391,12 +391,37 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   placeholder={`hello — ${targetLang === "ru" ? "привет" : targetLang === "zh" ? "你好" : "meaning"}\ngoodbye — ${targetLang === "ru" ? "пока" : targetLang === "zh" ? "再见" : "meaning"}`}
                   className="min-h-56 w-full resize-y rounded-[18px] border border-black/[0.08] bg-surface p-4 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
-                <div className="rounded-[14px] border border-black/[0.06] bg-surface/70 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft">
-                  <span className="font-semibold text-ink-muted">{t("import.fmtTitle")}: </span>
-                  <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtPair")}</code>
-                  <span className="mx-1.5 text-ink-faint">·</span>
-                  <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtSyn")}</code>
-                  <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
+                <div className="rounded-[14px] border border-black/[0.06] bg-surface/70 px-3.5 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.11em] text-ink-faint">{t("import.fmtTitle")}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{t("import.fmtRich")}</p>
+                  {/* Concrete sample of the rich format the parser understands: a
+                      "word — meaning" line with indented Example/Translation/Synonyms
+                      beneath it. The keywords stay English — that's literally what the
+                      importer recognises and what the .txt export writes — so the block
+                      is a faithful, copyable template; only the caption is localized. */}
+                  <pre className="mt-2 overflow-x-auto rounded-[10px] border border-black/[0.06] bg-paper px-3 py-2.5 font-mono text-[12px] leading-[1.75]">
+                    <div>
+                      <span className="font-semibold text-ink">hello</span>
+                      <span className="text-ink-faint"> — </span>
+                      <span className="text-sage-deep">привет</span>
+                    </div>
+                    <div>
+                      <span className="text-ink-faint">{"  "}</span>
+                      <span className="font-semibold text-sage-deep">Example:</span>
+                      <span className="text-ink-muted">{" Hello, how are you?"}</span>
+                    </div>
+                    <div>
+                      <span className="text-ink-faint">{"  "}</span>
+                      <span className="font-semibold text-sage-deep">Translation:</span>
+                      <span className="text-ink-muted">{" Привет, как дела?"}</span>
+                    </div>
+                    <div>
+                      <span className="text-ink-faint">{"  "}</span>
+                      <span className="font-semibold text-sage-deep">Synonyms:</span>
+                      <span className="text-ink-muted">{" hi, hey"}</span>
+                    </div>
+                  </pre>
+                  <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">{t("import.fmtFree")}</p>
                   <ImportCardPreview text={text} />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">

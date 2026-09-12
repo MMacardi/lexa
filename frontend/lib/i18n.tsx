@@ -1112,11 +1112,10 @@ const DICT: Record<string, Entry> = {
   "import.dir.custom": { en: "Custom", ru: "Другое", zh: "自定义" },
   "import.pair": { en: "Selected pair:", ru: "Выбранная пара:", zh: "当前语言对：" },
   "import.fmtTitle": { en: "How to write", ru: "Как писать", zh: "书写格式" },
-  "import.fmtPair": { en: "word — translation", ru: "слово — перевод", zh: "单词 — 翻译" },
-  "import.fmtSyn": {
-    en: "word — synonym, synonym (same language = synonyms)",
-    ru: "слово — синоним, синоним (тот же язык = синонимы)",
-    zh: "单词 — 同义词, 同义词（同种语言 = 同义词）",
+  "import.fmtRich": {
+    en: "One card per line. Indent Example:, Translation: and Synonyms: under a word to keep them — the same shape as an Onomika export:",
+    ru: "По карточке на строку. Напишите Example:, Translation: и Synonyms: с отступом под словом, чтобы сохранить их — тот же формат, что и экспорт Onomika:",
+    zh: "每行一张卡片。在单词下方缩进写出 Example:、Translation: 和 Synonyms: 即可保留 —— 与 Onomika 导出格式相同：",
   },
   "import.fmtFree": {
     en: "…or just paste any text, a photo's words or a messy list — Onomika sorts it out.",
