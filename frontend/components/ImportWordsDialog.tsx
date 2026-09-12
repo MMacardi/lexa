@@ -42,14 +42,23 @@ function ImportCardPreview({ text }: { text: string }) {
   const word = (parts[0] ?? "").trim();
   const meaning = parts.slice(1).join(", ").replace(/\s+/g, " ").trim();
   const [flipped, setFlipped] = useState(false);
+  // A hand flip restarts the auto-flip interval, so a click right before a tick
+  // doesn't stack two flips on the same animation.
+  const [flipNonce, setFlipNonce] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setFlipped((f) => !f), 2200);
     return () => clearInterval(id);
-  }, []);
+  }, [flipNonce]);
   const body = !word ? (
     <p className="py-3 text-center text-[13px] text-ink-soft">{t("import.previewTyping")}</p>
   ) : (
-    <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
+    <div
+      className="flip-scene cursor-pointer"
+      onClick={() => {
+        setFlipped((f) => !f);
+        setFlipNonce((n) => n + 1);
+      }}
+    >
       <div className={cn("flip-card", flipped && "is-flipped")}>
         <div className="flip-face flex min-h-[104px] items-center justify-center rounded-[14px] border border-black/[0.06] bg-paper p-4 text-center">
           <div className="font-serif text-[22px] font-semibold leading-tight text-ink">{word}</div>
@@ -388,6 +397,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                   <span className="mx-1.5 text-ink-faint">·</span>
                   <code className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[12px] text-ink">{t("import.fmtSyn")}</code>
                   <div className="mt-1.5 text-ink-faint">{t("import.fmtFree")}</div>
+                  <div className="text-ink-faint">{t("import.fmtExport")}</div>
                   <ImportCardPreview text={text} />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
@@ -601,6 +611,8 @@ export function exportWords(words: Word[]) {
     ...words.flatMap((word) => {
       const lines = [`${word.word} — ${word.meaningZh ?? ""}`];
       if (word.examples[0]?.sentenceEn) lines.push(`  Example: ${word.examples[0].sentenceEn}`);
+      // The translation line keeps the file lossless when a friend re-imports it.
+      if (word.examples[0]?.sentenceZh) lines.push(`  Translation: ${word.examples[0].sentenceZh}`);
       if (word.synonyms.length) lines.push(`  Synonyms: ${word.synonyms.join(", ")}`);
       return lines;
     }),

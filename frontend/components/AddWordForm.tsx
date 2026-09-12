@@ -10,7 +10,7 @@ import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
 import { ArrowRightLeft, ArrowRight, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
-import { isAiSupported, isAmbiguousHan, langLabel, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
+import { isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
@@ -155,6 +155,13 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
   const inputLang = reverseInput && sourceLang !== "auto" ? targetLang : sourceLang;
   // The reverse selector only makes sense for a concrete two-language pair.
   const showInputPicker = mode === "auto" && sourceLang !== "auto" && sourceLang !== targetLang;
+  // A concrete "ты → you"-style pair for the picker hints and the preview strip —
+  // abstract labels never explained which side of the pair ends up on the card.
+  const inputExample = (code: string) => {
+    const from = sampleWord(code);
+    const to = sampleWord(sourceLang);
+    return from && to ? `${from} → ${to}` : "";
+  };
 
   // learner prefs (example difficulty + register)
   const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
@@ -623,14 +630,24 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   ariaLabel={t("add.inputLang")}
                   className="w-[150px]"
                   options={[
-                    { value: sourceLang, label: langLabel(sourceLang), hint: t("add.inputStudied") },
-                    { value: targetLang, label: langLabel(targetLang), hint: t("add.inputKnown") },
+                    {
+                      value: sourceLang,
+                      label: langLabel(sourceLang),
+                      hint: [t("add.inputStudied"), inputExample(sourceLang)].filter(Boolean).join(" · "),
+                    },
+                    {
+                      value: targetLang,
+                      label: langLabel(targetLang),
+                      hint: [t("add.inputKnown"), inputExample(targetLang)].filter(Boolean).join(" · "),
+                    },
                   ]}
                 />
               </div>
               <div className="flex items-center gap-2 rounded-[12px] bg-black/[0.03] px-3 py-2 text-[13px]">
                 {/* typed word — labelled with its language only when it differs from the
-                    card's (reverse mode), otherwise the "→ Карточка" flow is unambiguous */}
+                    card's (reverse mode), otherwise the "→ Карточка" flow is unambiguous.
+                    With nothing typed yet the strip shows a concrete sample pair
+                    ("ты" → "you") so it reads as an example, not two empty boxes. */}
                 <div className="flex min-w-0 flex-1 flex-col">
                   {reverseInput && (
                     <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -639,11 +656,12 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   )}
                   <span
                     className={cn(
-                      "min-w-0 truncate rounded-lg bg-surface px-2.5 py-1 font-medium text-ink shadow-sm ring-1 ring-black/[0.05]",
+                      "min-w-0 truncate rounded-lg px-2.5 py-1 font-medium ring-1 ring-black/[0.05]",
                       reverseInput && "mt-0.5",
+                      word.trim() ? "bg-surface text-ink shadow-sm" : "text-ink-faint",
                     )}
                   >
-                    {word.trim() || t("add.inputPreviewWord")}
+                    {word.trim() || sampleWord(inputLang) || t("add.inputPreviewWord")}
                   </span>
                 </div>
                 <div className="flex shrink-0 flex-col items-center leading-none">
@@ -656,10 +674,15 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-                    {t("add.inputPreviewCard")}
+                    {t("add.inputPreviewCard")} · {langLabel(sourceLang)}
                   </span>
-                  <span className="mt-0.5 truncate rounded-lg bg-sage-tint px-2.5 py-1 font-semibold text-sage-deep">
-                    {langLabel(sourceLang)}
+                  <span
+                    className={cn(
+                      "mt-0.5 truncate rounded-lg px-2.5 py-1 font-semibold",
+                      word.trim() && !reverseInput ? "bg-sage-tint text-sage-deep" : "bg-sage-tint/60 text-sage-deep/70",
+                    )}
+                  >
+                    {(word.trim() && !reverseInput ? word.trim() : sampleWord(sourceLang)) || langLabel(sourceLang)}
                   </span>
                 </div>
               </div>

@@ -77,6 +77,25 @@ export function pairLabel(source: string, target: string): string {
   return `${langLabel(source)} → ${langLabel(target)}`;
 }
 
+// One tiny familiar word per language ("you"), used to illustrate language
+// pickers with a concrete pair — "ты → you" reads faster than any label.
+// Custom languages have no sample; callers fall back to plain labels.
+const SAMPLE_WORDS: Record<string, string> = {
+  en: "you",
+  zh: "你",
+  "zh-Hant": "你",
+  ru: "ты",
+  es: "tú",
+  de: "du",
+  fr: "tu",
+  ja: "あなた",
+  ko: "당신",
+};
+
+export function sampleWord(code: string): string {
+  return SAMPLE_WORDS[displayCode(code)] ?? "";
+}
+
 // AI cards work for the built-in languages AND any custom language the AI recognised
 // when it was added (Qwen is broadly multilingual — e.g. it knows Hindi, Arabic,
 // Turkish…). A custom language flagged `ai: false` failed that check, so it is manual

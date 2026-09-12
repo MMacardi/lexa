@@ -42,11 +42,17 @@ export async function previewImportedWords(params: {
       `4) free-form ${sourceName} text / a sentence with no translations → split it into its distinct ` +
       `words (and obvious phrases) and make one card per word, generating each ${targetName} meaning. ` +
       `Keep the words the user actually wrote; only skip pure punctuation/numbers.\n` +
+      `5) an Onomika export file (friends share these): lines starting with "#" are header comments — ` +
+      `ignore them. A card is "word — meaning" followed by INDENTED lines that belong to the card above: ` +
+      `"Example: <sentence>", optional "Translation: <sentence>", "Synonyms: a, b, c". Attach them to that ` +
+      `card's "example"/"exampleTranslation"/"synonyms" — never treat an indented line as a new word.\n` +
       `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
       `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
-      `CRITICAL: NEVER invent an example or its translation. Fill "example" and "exampleTranslation" ONLY ` +
-      `with values the user explicitly wrote; if none, return "". For "synonyms", use ONLY ${sourceName} ` +
-      `words the user actually wrote (as in form 2) — never invent synonyms; if none, return []. ` +
+      `CRITICAL: NEVER invent an example. Fill "example" ONLY with a sentence the user explicitly wrote; ` +
+      `if none, return "". If the user wrote an example but no translation, translate THAT example into ` +
+      `${targetName} yourself; otherwise fill "exampleTranslation" only with what the user wrote. ` +
+      `For "synonyms", use ONLY ${sourceName} ` +
+      `words the user actually wrote (as in forms 2 and 5) — never invent synonyms; if none, return []. ` +
       scriptNote(params.sourceLang) +
       scriptNote(params.targetLang) +
       " " +

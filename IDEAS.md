@@ -106,6 +106,36 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
   Legal placeholders, bump Next.js (audit), gate Coach behind Pro Plus + flip
   `BETA_ALL_PRO=false`.
+- 💡 **Social layer: shareable collections, friends' profiles, community decks**
+  (recorded in full 2026-09-13 — the user's Quizlet-style vision; NOT scheduled).
+  The ask in spirit: friends should be able to pass vocabulary to each other and
+  browse each other's progress without leaving Onomika.
+  - **Collection visibility.** Every collection gets a visibility mode at creation
+    (editable later): private (today's behaviour) / friends-only / password-protected
+    (share the code with anyone) / public. Others can READ a shared collection;
+    writing stays owner-only (co-authoring = a separate, later idea if ever).
+  - **Folders / grouping.** Collections group into folders, Quizlet-style: a folder
+    "HSK4" holding decks "adjectives", "nouns", "verbs". ONE nesting level only
+    (folders contain collections, never folders) to keep UI + mental model cheap.
+  - **Taking content.** From any shared/public collection: add the WHOLE collection
+    (copies the words you don't own yet, with examples/synonyms) or pick individual
+    words; imported cards keep attribution ("from @friend's HSK4").
+  - **Community surface.** A "Community" tab (Home or the Friends page): popular
+    public collections (by adds/subscribers this week), search by language + topic;
+    a person's other public decks listed on their profile.
+  - **Friends & profiles.** Friends already exist (invite code, friends' languages/
+    streak/achievements). Extend with a per-friend profile page: activity graph
+    (reviews/day), streak, mastered count, current languages — plus per-user privacy
+    switches (profile and collections visible to friends / everyone / hidden).
+  - **Cheap bridge shipped meanwhile (2026-09-13):** the Onomika .txt export now
+    round-trips through the import (`Example:` / `Translation:` / `Synonyms:` lines
+    re-attach to their card), so friends can already pass whole decks to each other
+    as files — no server state, no accounts involved.
+  - **Why NOT for the beta:** this is a second product surface (community) on top of
+    the solo-learner core. It needs server-side sharing state (visibility +
+    membership columns, a folder table, a public index + search, profile endpoints),
+    copy-on-add semantics, and abuse/moderation for public content. The beta must
+    prove the AI-mentor loop and the paywall first; revisit after launch cluster C.
 
 ---
 
