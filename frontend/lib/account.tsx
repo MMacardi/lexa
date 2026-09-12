@@ -70,9 +70,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const loginDev = async (id: string) => {
-    const r = await api.loginDev(id.trim());
-    setAccountId(r.telegramId);
-    setProfile({ telegramId: r.telegramId, authVia: "dev" });
+    await api.loginDev(id.trim());
+    // The dev endpoint only returns { telegramId }; load the full profile (incl.
+    // the `invited` beta-gate flag) from /auth/me so the gate sees the real value.
+    await refresh();
   };
   const loginTelegram = async (data: Record<string, unknown>) => {
     const r = await api.loginTelegram(data);

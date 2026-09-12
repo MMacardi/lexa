@@ -106,6 +106,14 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
   Legal placeholders, bump Next.js (audit), gate Coach behind Pro Plus + flip
   `BETA_ALL_PRO=false`.
+- ⏭ **AI prompt-injection hardening** (deferred 2026-09-13; audit findings H2/M1) —
+  the AI endpoints splice user free-text (the word, a custom meaning style, reader
+  text, coach/scene messages) straight into LLM prompts. An invited user could try to
+  override the system prompt, exfiltrate it, or coerce off-task generation that spends
+  tokens. Bounded for the closed beta by the new invite gate + per-user rate limits +
+  the daily AI cap, so deferred rather than blocking the beta. Before public launch:
+  delimit/escape untrusted spans, refuse meta-instructions ("ignore previous…"), never
+  echo the system prompt back, and consider a cheap classifier on coach/scene input.
 - 💡 **Social layer: shareable collections, friends' profiles, community decks**
   (recorded in full 2026-09-13 — the user's Quizlet-style vision; NOT scheduled).
   The ask in spirit: friends should be able to pass vocabulary to each other and

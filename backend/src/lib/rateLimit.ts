@@ -31,13 +31,12 @@ const sweep = setInterval(() => {
 }, 60_000);
 sweep.unref?.();
 
+// Keyed by the caller's identity (verified session, else IP) so one noisy client
+// can't exhaust the budget for everyone, and nobody can spin up fresh buckets by
+// rotating a body telegramId.
 function callerKey(req: Request): string {
   const session = readSession(req);
   if (session) return `s:${session}`;
-  const body = req.body as { telegramId?: unknown } | undefined;
-  if (body && typeof body.telegramId === "string" && body.telegramId.trim()) {
-    return `t:${body.telegramId.trim()}`;
-  }
   return `ip:${req.ip ?? "anon"}`;
 }
 

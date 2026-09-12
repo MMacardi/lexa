@@ -42,6 +42,7 @@ async function finishLogin(res: import("express").Response, telegramId: string) 
       photoUrl: true,
       email: true,
       authVia: true,
+      invited: true,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
@@ -241,6 +242,7 @@ authRouter.get("/auth/me", async (req, res) => {
       authVia: true,
       hideEmail: true,
       hideTag: true,
+      invited: true,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });

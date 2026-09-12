@@ -8,6 +8,7 @@ What to prepare before inviting testers. Grouped by priority.
 - [ ] `ALLOW_DEV_LOGIN` **unset or `false`** on Railway (default is now `false`; never `true` in prod — it lets anyone log in as anyone and leaks email login links).
 - [ ] `COOKIE_SECURE=true` (cross-site cookies Vercel → Railway need Secure + SameSite=None).
 - [ ] `JWT_SECRET` = long random string (not the dev default). Rotating it logs everyone out.
+- [ ] **Mint invite codes** before inviting testers: `docker exec onomika-backend node scripts/generate-invites.mjs 10 "beta wave 1"` (prints single-use `ONM-XXXX-XXXX` codes). The whole app is gated behind redeeming one; existing users are grandfathered by the migration and `PRO_ALLOWLIST` accounts always pass.
 - [ ] `CORS_ORIGIN` / `FRONTEND_URL` = the real Vercel URL (no localhost).
 - [ ] Secrets set as env vars, never committed: `BAILIAN_API_KEY`, `TAVILY_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `SMTP_URL`.
 - [ ] Confirm only **one** process polls the Telegram token (the tutor bot vs OpenClaw) — two pollers fight.
@@ -49,3 +50,5 @@ What to prepare before inviting testers. Grouped by priority.
 - Passwordless auth (Telegram / Google / email), multi-method account linking.
 - Timing-safe Telegram HMAC; `javascript:` links blocked; CORS allowlist.
 - Secure-by-default dev login (off unless explicitly enabled).
+- **Closed-beta invite gate** — every non-auth `/api` route requires a verified session (`requireIdentity`) and a redeemed invite (`requireInvited`); single-use codes, race-safe atomic claim, `PRO_ALLOWLIST` never locked out, existing users grandfathered.
+- **Session-only identity** — `callerId`/`callerKey` trust the session cookie alone (no body/query `telegramId`), closing the impersonation + rate-limit-bucket-rotation holes; prod boot fails closed on the dev `JWT_SECRET`.

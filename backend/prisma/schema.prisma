@@ -40,6 +40,10 @@ model User {
   // Social: a short code others use to add you as a friend, and who referred you.
   referralCode String?     @unique
   referredById String?
+  // Closed-beta gate: a user must redeem an invite code before the app's data/AI
+  // routes open up. Grandfathered to true for everyone present at launch.
+  invited     Boolean      @default(false)
+  invitedAt   DateTime?
   createdAt   DateTime     @default(now())
   words       Word[]
   collections Collection[]
@@ -50,6 +54,7 @@ model User {
   recvFriendships Friendship[] @relation("RecvFriendships")
   coachMemories CoachMemory[]
   sceneSessions SceneSession[]
+  inviteCodes InviteCode[]
 }
 
 // Coach memory — what the personal mentor remembers about the learner across
@@ -101,6 +106,23 @@ model AuthIdentity {
 
   @@unique([provider, subject])
   @@index([userId])
+}
+
+// A single-use closed-beta invite code. The owner generates a batch offline
+// (scripts/generate-invites.mjs) and sends them to testers; redeeming one marks
+// the user `invited` and consumes the code. `redeemedById` is SET NULL (not
+// cascade) so deleting a user keeps the code's audit trail.
+model InviteCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  note         String? // optional human label ("for Anya", "TG group")
+  createdBy    String?
+  redeemedById String?
+  redeemedBy   User?     @relation(fields: [redeemedById], references: [id], onDelete: SetNull)
+  redeemedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([redeemedById])
 }
 
 model Collection {
