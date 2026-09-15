@@ -549,6 +549,11 @@ export const api = {
   // Closed-beta gate: redeem an invite code, unlocking the app. Returns the fresh profile.
   redeemInvite: (code: string) =>
     http<Profile>(`/api/invites/redeem`, { method: "POST", body: JSON.stringify({ code }) }),
+  // Pre-login shared beta key: unlock sets a signed httpOnly cookie; status reports
+  // whether this guest already unlocked (so we don't re-prompt a returning visitor).
+  unlockBeta: (code: string) =>
+    http<{ ok: true }>(`/api/beta/unlock`, { method: "POST", body: JSON.stringify({ code }) }),
+  betaStatus: () => http<{ unlocked: boolean }>(`/api/beta/status`),
   loginTelegram: (data: Record<string, unknown>) =>
     http<Profile>(`/api/auth/telegram`, {
       method: "POST",

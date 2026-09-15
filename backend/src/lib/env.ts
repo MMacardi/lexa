@@ -50,6 +50,11 @@ const schema = z.object({
   // (/api/admin/*, /admin). When empty, falls back to PRO_ALLOWLIST so the owner
   // is never locked out of their own stats.
   ADMIN_TELEGRAM_IDS: z.string().default(""),
+  // The single shared beta code a guest enters BEFORE choosing TG/email login.
+  // On success the server sets a signed httpOnly "beta" cookie; logging in with
+  // that cookie present marks the user invited. Empty disables the pre-login
+  // unlock endpoint (single-use invite codes still work via /invites/redeem).
+  BETA_KEY: z.string().default(""),
   // Beta bug reports (the in-app "report a bug" form) are delivered here. Email
   // needs SMTP_URL to actually send; the Telegram channel needs TELEGRAM_BOT_TOKEN.
   // FEEDBACK_TELEGRAM_CHAT falls back to the first PRO_ALLOWLIST id when empty.
