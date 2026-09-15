@@ -131,6 +131,7 @@ export interface Profile {
   hideEmail?: boolean;
   hideTag?: boolean;
   invited?: boolean; // closed-beta gate: has the user redeemed an invite code?
+  isAdmin?: boolean; // owner allowlist: may open the /admin dashboard
   identities?: AuthIdentity[];
 }
 
@@ -145,6 +146,28 @@ export interface Stats {
   languages: string[]; // distinct source languages studied
   days: { date: string; added: number; reviews: number }[];
   heat: { date: string; count: number }[];
+}
+
+// Owner-only admin dashboard snapshot (GET /api/admin/stats).
+export interface AdminStats {
+  users: { total: number; invited: number; newToday: number; new7d: number; new30d: number };
+  signups: { date: string; count: number }[];
+  content: {
+    words: number;
+    examples: number;
+    readerTexts: number;
+    sceneSessions: number;
+    importJobs: number;
+    collections: number;
+  };
+  engagement: { reviewsTotal: number; reviewsToday: number; dau: number; wau: number };
+  invites: { minted: number; redeemed: number };
+  tokens: {
+    totals: { calls: number; prompt: number; completion: number; total: number; costCny: number };
+    byModel: { model: string; calls: number; prompt: number; completion: number; total: number; costCny: number }[];
+    byFeature: { feature: string; calls: number; total: number; costCny: number }[];
+    byDay: { date: string; calls: number; total: number; costCny: number }[];
+  };
 }
 
 // Learner's FSRS desired retention, stored locally (see lib/learnPrefs). Read
@@ -744,6 +767,8 @@ export const api = {
   ) => http<{ id: string }>(`/api/scene/sessions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSceneSession: (id: string, telegramId: string) =>
     http<{ ok: true }>(`/api/scene/sessions/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
+  // Owner-only admin dashboard snapshot.
+  adminStats: () => http<AdminStats>(`/api/admin/stats`),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

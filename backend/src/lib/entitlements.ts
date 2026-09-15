@@ -15,10 +15,20 @@ const FREE_IMPORT_MAX = env.FREE_IMPORT_MAX;
 const PRO_ALLOWLIST = new Set(
   env.PRO_ALLOWLIST.split(",").map((s) => s.trim()).filter(Boolean),
 );
+// Owner-only admin dashboard allowlist. Falls back to PRO_ALLOWLIST when
+// ADMIN_TELEGRAM_IDS is unset, so the owner is never locked out of their stats.
+const ADMIN_IDS = new Set(
+  (env.ADMIN_TELEGRAM_IDS || env.PRO_ALLOWLIST).split(",").map((s) => s.trim()).filter(Boolean),
+);
 
 /** Is this id on the always-Pro owner allowlist (never locked out of the beta)? */
 export function isProAllowlisted(id: string): boolean {
   return PRO_ALLOWLIST.has(id);
+}
+
+/** Is this id allowed to open the owner-only admin dashboard (/api/admin/*)? */
+export function isAdmin(id: string): boolean {
+  return ADMIN_IDS.has(id);
 }
 
 // The caller's identity: the verified session cookie, else "anon". There is no
