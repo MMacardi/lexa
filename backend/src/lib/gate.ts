@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../services/db.js";
 import { readSession } from "./auth.js";
-import { callerId, isProAllowlisted } from "./entitlements.js";
+import { callerId, isProAllowlisted, isAdmin } from "./entitlements.js";
 
 // Two layers that protect every non-auth /api route during the closed beta.
 //
@@ -32,4 +32,10 @@ export async function requireInvited(req: Request, res: Response, next: NextFunc
     error: "Onomika is in closed beta. Enter your invite code to continue.",
     code: "invite_required",
   });
+}
+
+/** Reject anyone who isn't on the owner admin allowlist (guards /api/admin/*). */
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (isAdmin(callerId(req))) return next();
+  res.status(403).json({ error: "Forbidden", code: "forbidden" });
 }

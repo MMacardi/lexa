@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth.js";
 import { friendsRouter } from "./routes/friends.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { invitesRouter } from "./routes/invites.js";
+import { adminRouter } from "./routes/admin.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
@@ -72,6 +73,7 @@ app.use("/api", (req, res, next) =>
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);
 app.use("/api", invitesRouter);
+app.use("/api", adminRouter);
 app.use("/api", friendsRouter);
 app.use("/api", feedbackRouter);
 app.use("/api", wordsRouter);

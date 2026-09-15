@@ -16,6 +16,7 @@ import { createEmailToken, consumeEmailToken } from "../services/emailLink.js";
 import { sendEmail, emailConfigured } from "../services/mailer.js";
 import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/authIdentity.js";
 import { rateLimit, take } from "../lib/rateLimit.js";
+import { isAdmin } from "../lib/entitlements.js";
 
 export const authRouter = Router();
 
@@ -47,7 +48,8 @@ async function finishLogin(res: import("express").Response, telegramId: string) 
     },
   });
   setSessionCookie(res, telegramId);
-  res.json(user ? user : { telegramId, identities: [] });
+  const admin = isAdmin(telegramId);
+  res.json(user ? { ...user, isAdmin: admin } : { telegramId, identities: [], isAdmin: admin });
 }
 
 // POST /api/auth/telegram — verify the Telegram Login Widget payload, start a session.
@@ -246,7 +248,8 @@ authRouter.get("/auth/me", async (req, res) => {
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
-  res.json(user ?? { telegramId, identities: [] });
+  const admin = isAdmin(telegramId);
+  res.json(user ? { ...user, isAdmin: admin } : { telegramId, identities: [], isAdmin: admin });
 });
 
 // PATCH /api/auth/me — update the learner's own display name / privacy flags.

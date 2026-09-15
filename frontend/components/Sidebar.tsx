@@ -9,7 +9,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
-import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, type LucideIcon } from "lucide-react";
+import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, type LucideIcon } from "lucide-react";
 
 const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
   { href: "/", key: "nav.today", Icon: Home },
@@ -31,7 +31,7 @@ const isActive = (href: string, pathname: string) =>
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { accountId } = useAccount();
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
   const { data } = useQuery({
@@ -76,6 +76,18 @@ export function Sidebar() {
               </Link>
             );
           })}
+          {profile?.isAdmin && (
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-[11px] rounded-xl px-3.5 py-2.5 text-[15px] font-semibold transition-colors",
+                isActive("/admin", pathname) ? "bg-sage-tint text-sage-deep" : "text-ink-muted hover:bg-black/[0.03]",
+              )}
+            >
+              <Gauge className={cn("h-[18px] w-[18px] shrink-0", isActive("/admin", pathname) ? "text-sage-deep" : "text-ink-faint")} strokeWidth={2} />
+              {t("nav.admin")}
+            </Link>
+          )}
         </nav>
 
         <div className="mt-auto rounded-[18px] bg-onyx p-[18px]">
@@ -130,7 +142,7 @@ export function Sidebar() {
         <>
           <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setMoreOpen(false)} />
           <div className="anim-fade-up fixed inset-x-3 bottom-[calc(58px_+_env(safe-area-inset-bottom))] z-40 rounded-[18px] border border-black/[0.08] bg-surface p-2 shadow-[0_18px_44px_rgba(46,42,38,0.26)] md:hidden">
-            {[...moreItems, { href: "/account", key: "side.account", Icon: Settings }].map((n) => {
+            {[...moreItems, ...(profile?.isAdmin ? [{ href: "/admin", key: "nav.admin", Icon: Gauge }] : []), { href: "/account", key: "side.account", Icon: Settings }].map((n) => {
               const active = isActive(n.href, pathname);
               return (
                 <Link
