@@ -280,3 +280,25 @@ model ImportJob {
   @@index([status, createdAt])
   @@index([userId, createdAt])
 }
+
+// Per-call LLM token log, so the owner admin dashboard can show real tokens +
+// ¥ cost broken down by day / feature / model. Append-only and never queried by
+// id (a BigInt isn't JSON-serializable), only aggregated — hence no relation.
+// Written fire-and-forget from llm.ts logUsage; a DB hiccup must never break a
+// request, so inserts swallow their own errors.
+model TokenUsage {
+  id               BigInt   @id @default(autoincrement())
+  createdAt        DateTime @default(now())
+  feature          String // coarse label, e.g. "gloss", "example.compose", "coachChat", "ocr", "asr"
+  model            String // qwen-plus | qwen-flash | qwen-vl-plus | qwen3-asr-flash
+  kind             String   @default("text") // text | ocr | asr
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  cachedTokens     Int      @default(0)
+  ms               Int      @default(0)
+
+  @@index([createdAt])
+  @@index([model])
+  @@index([feature])
+}

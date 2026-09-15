@@ -3,6 +3,7 @@ import type { ZodSchema } from "zod";
 import { env } from "../lib/env.js";
 import { langName } from "../lib/langs.js";
 import { createSayExtractor } from "../lib/sayStream.js";
+import { prisma } from "./db.js";
 
 // Qwen on Alibaba Bailian speaks the OpenAI Chat Completions protocol via its
 // "compatible-mode" endpoint, so we reuse the official OpenAI SDK and just point
@@ -58,11 +59,17 @@ const MODEL = "qwen-plus";
 export const FAST_MODEL = process.env.BAILIAN_FAST_MODEL || "qwen-flash";
 
 // Log per-call token usage so we can compare prompt strategies (combined vs
-// separate) with real numbers. Bailian returns OpenAI-style `usage`.
+// separate) with real numbers, AND persist a row so the owner admin dashboard can
+// show real spend by day/feature/model. Bailian returns OpenAI-style `usage`.
 // `cached` comes from prompt_tokens_details.cached_tokens on implicit-cache hits;
 // `ms` is wall-clock latency around the create() call.
+//
+// The DB write is fire-and-forget: usage logging must never block or break the
+// request, so it is not awaited and swallows its own errors.
 function logUsage(
   label: string,
+  model: string,
+  kind: "text" | "ocr" | "asr",
   completion: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } },
   ms: number,
 ) {
@@ -72,6 +79,21 @@ function logUsage(
   const cached = (u as any).prompt_tokens_details?.cached_tokens as number | undefined;
   const cachedStr = cached ? ` cached=${cached}` : "";
   console.log(`[llm usage] ${label} in=${u.prompt_tokens ?? "?"} out=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}${cachedStr} ms=${ms}`);
+  const feature = label.replace(/\.stream$/, "");
+  void prisma.tokenUsage
+    .create({
+      data: {
+        feature,
+        model,
+        kind,
+        promptTokens: u.prompt_tokens ?? 0,
+        completionTokens: u.completion_tokens ?? 0,
+        totalTokens: u.total_tokens ?? 0,
+        cachedTokens: cached ?? 0,
+        ms,
+      },
+    })
+    .catch(() => {});
 }
 
 /**
@@ -107,7 +129,7 @@ export async function chatJson<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
-  logUsage(opts.label ?? "chatJson", completion, Date.now() - t0);
+  logUsage(opts.label ?? "chatJson", opts.model ?? MODEL, "text", completion, Date.now() - t0);
 
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
@@ -129,6 +151,7 @@ const VISION_MODEL = process.env.BAILIAN_VISION_MODEL || "qwen-vl-plus";
 export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): Promise<string> {
   const langHint = opts.sourceLang && opts.sourceLang !== "auto" ? ` The text is mostly in ${langName(opts.sourceLang)}.` : "";
   let completion;
+  const t0 = Date.now();
   try {
     completion = await getClient().chat.completions.create(
       {
@@ -157,6 +180,7 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
   } catch (err) {
     throw friendlyLlmError(err);
   }
+  logUsage("ocr", VISION_MODEL, "ocr", completion, Date.now() - t0);
   return (completion.choices[0]?.message?.content ?? "").trim();
 }
 
@@ -189,6 +213,7 @@ export async function transcribeAudio(opts: { base64: string; format?: string; s
           { role: "user", content },
         ]
       : [{ role: "user", content }];
+    const t0 = Date.now();
     const completion = await getClient().chat.completions.create(
       {
         model: AUDIO_MODEL,
@@ -200,6 +225,7 @@ export async function transcribeAudio(opts: { base64: string; format?: string; s
       } as any,
       { timeout: 45_000 },
     );
+    logUsage("asr", AUDIO_MODEL, "asr", completion, Date.now() - t0);
     return (completion.choices[0]?.message?.content ?? "").trim();
   } catch (err) {
     console.error("transcribeAudio failed:", (err as Error).message);
@@ -232,7 +258,7 @@ export async function chatJsonConversation<T>(opts: {
   } catch (err) {
     throw friendlyLlmError(err);
   }
-  logUsage(opts.label ?? "chatJsonConversation", completion, Date.now() - t0);
+  logUsage(opts.label ?? "chatJsonConversation", opts.model ?? MODEL, "text", completion, Date.now() - t0);
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;
   try {
@@ -308,7 +334,7 @@ export async function chatJsonConversationStream<T>(opts: {
 
   if (opts.signal?.aborted) throw abortError();
 
-  logUsage(opts.label ?? "chatJsonConversationStream", { usage }, Date.now() - t0);
+  logUsage(opts.label ?? "chatJsonConversationStream", opts.model ?? MODEL, "text", { usage }, Date.now() - t0);
 
   let parsed: unknown;
   try {
