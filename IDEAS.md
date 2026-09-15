@@ -217,7 +217,24 @@ USD and differs.) Numbers below use measured token counts where we have them.
 Rules of thumb: **~10,000 added cards ≈ ¥7 (~$1)**. A free user at 20 adds/day ≈
 **¥0.4/mo**; a heavy Pro user ≈ **¥2–3/mo** — so at ~$4–5/mo Pro the margin is >90%.
 Token cost is negligible: the paywall is a **conversion** lever, not a cost one.
-`[llm usage]` logs give real per-call numbers to refine this during the beta.
+Per-call tokens are now persisted to the `TokenUsage` table (not just `[llm usage]`
+console logs) and shown with real ¥ cost in `/admin` — refine the table above from
+those numbers during the beta.
+
+## Admin dashboard & token accounting — follow-ups
+- ⏭ **Per-user token attribution** — `logUsage` records feature/model/kind/tokens but
+  no `userId`, so spend is only sliceable by day/feature/model. Thread the caller's id
+  through (request-context / AsyncLocalStorage, since `llm.ts` has no `req`) to see
+  cost per user — needed before charging real money or spotting an abuser burning tokens.
+- ⏭ **Accurate ASR/OCR cost** — `qwen3-asr-flash` is priced ¥0 in `pricing.ts` because
+  ASR bills per **audio-second**, not tokens; OCR (`qwen-vl-plus`) bills image tokens we
+  don't yet capture separately. Both currently under-report spend. Add the real formulas
+  (audio duration → ¥, image-token estimate) once the Bailian line items are confirmed.
+- 💡 **Admin charts + CSV export** — `/admin` renders tables only. A token/cost timeseries
+  chart and a CSV download (by day/model/feature) would make trends and reconciliation easier.
+- 💡 **Owner alert emails** — proactive pings on new signup, a weekly usage/spend digest, or
+  a low-balance warning. The delivery path already exists (`deliverFeedback` in
+  `services/feedback.ts` sends email and/or Telegram); reuse it with a small scheduler.
 
 ## Coach (Pro Plus) — the "personal AI mentor" layer
 Positioning wedge vs Quizlet: it tells you WHAT to learn, plans, adapts to weak
