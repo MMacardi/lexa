@@ -10,6 +10,7 @@ const CODE_KEYS: Record<string, string> = {
   pro_only: "err.proOnly",
   examples_cap: "err.examplesCap",
   invite_invalid: "invite.invalid",
+  beta_invalid: "beta.invalid",
   import_limit: "err.importLimit",
   rate_limit: "err.rateLimit",
   own_code: "friends.errOwnCode",

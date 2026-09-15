@@ -8,6 +8,7 @@ import { friendsRouter } from "./routes/friends.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { invitesRouter } from "./routes/invites.js";
 import { adminRouter } from "./routes/admin.js";
+import { betaRouter } from "./routes/beta.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
@@ -58,11 +59,12 @@ app.get("/health", (_req, res) => {
 
 // Closed-beta gate. Mounted at /api, so req.path here is the un-prefixed route
 // ("/auth/me", "/words", …). Identity is required everywhere except the login
-// routes (they establish the session); the invite check additionally exempts the
+// routes (they establish the session) and the pre-login beta unlock (a guest has
+// no session yet); the invite check additionally exempts the beta unlock, the
 // redeem endpoint (a signed-in-but-uninvited user must reach it) and feedback (so
 // anyone can still report "I can't get in").
-const EXEMPT_IDENTITY = /^\/auth\//;
-const EXEMPT_INVITED = /^\/(auth\/|invites\/redeem$|feedback$)/;
+const EXEMPT_IDENTITY = /^\/(auth|beta)\//;
+const EXEMPT_INVITED = /^\/(auth\/|beta\/|invites\/redeem$|feedback$)/;
 app.use("/api", (req, res, next) =>
   EXEMPT_IDENTITY.test(req.path) ? next() : requireIdentity(req, res, next),
 );
@@ -72,6 +74,7 @@ app.use("/api", (req, res, next) =>
 
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);
+app.use("/api", betaRouter);
 app.use("/api", invitesRouter);
 app.use("/api", adminRouter);
 app.use("/api", friendsRouter);

@@ -17,6 +17,7 @@ import { sendEmail, emailConfigured } from "../services/mailer.js";
 import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/authIdentity.js";
 import { rateLimit, take } from "../lib/rateLimit.js";
 import { isAdmin } from "../lib/entitlements.js";
+import { readBetaCookie } from "./beta.js";
 
 export const authRouter = Router();
 
@@ -32,7 +33,16 @@ authRouter.use((req, res, next) => {
 
 // Load the resolved account and reply with its profile + linked methods, setting
 // the session cookie. Shared by every login route.
-async function finishLogin(res: import("express").Response, telegramId: string) {
+async function finishLogin(req: import("express").Request, res: import("express").Response, telegramId: string) {
+  // A guest who unlocked with the shared beta key is invited automatically, so
+  // they skip the post-login single-use invite gate. updateMany(where invited:false)
+  // never touches an already-invited account's invitedAt.
+  if (readBetaCookie(req)) {
+    await prisma.user.updateMany({
+      where: { telegramId, invited: false },
+      data: { invited: true, invitedAt: new Date() },
+    });
+  }
   const user = await prisma.user.findUnique({
     where: { telegramId },
     select: {
@@ -75,7 +85,7 @@ authRouter.post("/auth/telegram", async (req, res) => {
     authVia: "telegram",
     sessionTelegramId: readSession(req),
   });
-  await finishLogin(res, telegramId);
+  await finishLogin(req, res, telegramId);
 });
 
 // POST /api/auth/telegram/webapp — sign in from inside the Telegram Mini App
@@ -99,7 +109,7 @@ authRouter.post("/auth/telegram/webapp", async (req, res) => {
     authVia: "telegram",
     sessionTelegramId: readSession(req),
   });
-  await finishLogin(res, telegramId);
+  await finishLogin(req, res, telegramId);
 });
 
 // POST /api/auth/telegram/start — begin "login via the bot". Returns a one-time
@@ -128,7 +138,7 @@ authRouter.get("/auth/telegram/poll", async (req, res) => {
     authVia: "telegram",
     sessionTelegramId: readSession(req),
   });
-  await finishLogin(res, telegramId);
+  await finishLogin(req, res, telegramId);
 });
 
 // POST /api/auth/google — verify a Google Sign-In ID token, start a session.
@@ -148,7 +158,7 @@ authRouter.post("/auth/google", async (req, res) => {
       authVia: "google",
       sessionTelegramId: readSession(req),
     });
-    await finishLogin(res, telegramId);
+    await finishLogin(req, res, telegramId);
   } catch (err) {
     res.status(401).json({ error: (err as Error).message });
   }
@@ -201,7 +211,7 @@ authRouter.get("/auth/email/verify", async (req, res) => {
     authVia: "email",
     sessionTelegramId: readSession(req),
   });
-  await finishLogin(res, telegramId);
+  await finishLogin(req, res, telegramId);
 });
 
 // POST /api/auth/dev — local-only shortcut to log in without the Telegram widget
@@ -221,7 +231,7 @@ authRouter.post("/auth/dev", async (req, res) => {
   // Route dev sign-in through the identity system so it converges with a real
   // Telegram account of the same id and gets a listed identity.
   const { telegramId } = await resolveIdentity({ provider: "dev", subject, authVia: "dev" });
-  await finishLogin(res, telegramId);
+  await finishLogin(req, res, telegramId);
 });
 
 // GET /api/auth/me — current session profile (+ linked methods), or 401.
