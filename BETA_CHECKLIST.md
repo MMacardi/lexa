@@ -9,6 +9,8 @@ What to prepare before inviting testers. Grouped by priority.
 - [ ] `COOKIE_SECURE=true` (cross-site cookies Vercel → Railway need Secure + SameSite=None).
 - [ ] `JWT_SECRET` = long random string (not the dev default). Rotating it logs everyone out.
 - [ ] **Mint invite codes** before inviting testers: `docker exec onomika-backend node scripts/generate-invites.mjs 10 "beta wave 1"` (prints single-use `ONM-XXXX-XXXX` codes). The whole app is gated behind redeeming one; existing users are grandfathered by the migration and `PRO_ALLOWLIST` accounts always pass.
+- [ ] **`BETA_KEY`** (optional shared gate) — set ONE code guests type *before* logging in (`POST /api/beta/unlock` → signed `beta` cookie → next login flips `invited`). Leave empty to rely on single-use codes only. Share it however you invite people; it's a coarse gate, single-use codes are the fine-grained one.
+- [ ] **`ADMIN_TELEGRAM_IDS`** = your Telegram id (`865277762`) so `/admin` + `GET /api/admin/stats` (usage + token/cost dashboard) open for you. Falls back to `PRO_ALLOWLIST` if unset; everyone else gets 403 / a 404 page.
 - [ ] `CORS_ORIGIN` / `FRONTEND_URL` = the real Vercel URL (no localhost).
 - [ ] Secrets set as env vars, never committed: `BAILIAN_API_KEY`, `TAVILY_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `SMTP_URL`.
 - [ ] Confirm only **one** process polls the Telegram token (the tutor bot vs OpenClaw) — two pollers fight.
@@ -52,3 +54,5 @@ What to prepare before inviting testers. Grouped by priority.
 - Secure-by-default dev login (off unless explicitly enabled).
 - **Closed-beta invite gate** — every non-auth `/api` route requires a verified session (`requireIdentity`) and a redeemed invite (`requireInvited`); single-use codes, race-safe atomic claim, `PRO_ALLOWLIST` never locked out, existing users grandfathered.
 - **Session-only identity** — `callerId`/`callerKey` trust the session cookie alone (no body/query `telegramId`), closing the impersonation + rate-limit-bucket-rotation holes; prod boot fails closed on the dev `JWT_SECRET`.
+- **Shared `BETA_KEY` pre-login gate** — a guest can enter one shared code (`BetaGate`, before login) to unlock the app; on the next login the user is auto-flagged `invited`. Coexists with single-use `InviteCode`s (post-login `InviteGate`): the gate has a "personal code" link that skips the shared code so one-off-code testers still reach the single-use redeem. Constant-time compare + rate-limited; disabled when `BETA_KEY` is empty.
+- **Owner admin dashboard** — `/admin` (frontend) + `GET /api/admin/stats` (backend, `requireAdmin` via `ADMIN_TELEGRAM_IDS`→`PRO_ALLOWLIST` fallback): users/signups, content + engagement counts, invites, and **per-call LLM token & ¥ cost** by model/feature/day. Every LLM call (text, OCR, ASR) is logged fire-and-forget to the `TokenUsage` table; prices in `backend/src/lib/pricing.ts` (verify against Bailian).

@@ -88,6 +88,49 @@ Render is a good fit for the backend + worker pair; Vercel can stay on the front
 
 ---
 
+## Making email arrive
+
+Transactional mail (magic-link sign-in + the in-app bug-report form) is already
+wired through `nodemailer` in `backend/src/services/mailer.ts` and
+`backend/src/services/feedback.ts` — **no code change is needed**, only env vars.
+
+- `SMTP_URL` — `smtp://user:pass@host:port` of any SMTP provider (Yandex, QQ,
+  163, Resend, Postmark, …). **If empty, mail is not sent: the message is only
+  written to the backend log** (handy in dev, useless in prod). Set it for the beta.
+- `EMAIL_FROM` — the `From:` header, e.g. `Onomika <no-reply@yourdomain>`. Use a
+  real domain you control once you have one; some providers reject a mismatched sender.
+- `FEEDBACK_EMAIL` — inbox that receives the in-app bug reports. If empty, feedback
+  falls back to Telegram (`FEEDBACK_TELEGRAM_CHAT`, else the first id in `PRO_ALLOWLIST`).
+
+Dev behaviour: with `SMTP_URL` empty the magic-link email is logged, not sent. The
+sign-in link is only surfaced to the client when `ALLOW_DEV_LOGIN=true` (the
+`devLink` field) — keep that **off in prod** (it would leak login links).
+
+Smoke test: set the four vars, restart the backend, request an email login and
+confirm the message lands; then submit the in-app bug form and confirm it reaches
+`FEEDBACK_EMAIL` (or the Telegram fallback).
+
+## Closed beta & admin env
+
+Two access layers ship together (see `BETA_CHECKLIST.md`):
+
+- `BETA_KEY` — ONE shared code a guest types **before** logging in
+  (`POST /api/beta/unlock`, sets a signed `beta` cookie; the next login flips the
+  user to `invited`). Constant-time compare, rate-limited. **Leave empty to disable
+  the shared-code gate** (single-use `InviteCode`s still work). Case-insensitive.
+- `ADMIN_TELEGRAM_IDS` — comma-separated Telegram ids allowed to open `/admin` and
+  `GET /api/admin/stats` (usage + token/cost dashboard). **Falls back to
+  `PRO_ALLOWLIST`** when empty, so the owner is never locked out. Non-admins get a
+  403 (`code: forbidden`) and the `/admin` page renders a 404.
+
+Token spend is recorded per LLM call in the `TokenUsage` table (migration
+`20260915120000_token_usage`, applied automatically by `prisma migrate deploy` on
+boot). Prices live in `backend/src/lib/pricing.ts` (¥ per 1M tokens) — verify them
+against the Bailian price page; ASR (`qwen3-asr-flash`) is billed per audio-second,
+not tokens, so it's priced ¥0 there for now.
+
+---
+
 ## Local development
 ```bash
 # From repo root: start Postgres + backend + frontend
