@@ -36,7 +36,12 @@ import {
   getStats,
   listCollections,
   createCollection,
-  renameCollection,
+  updateCollection,
+  listFolders,
+  createFolder,
+  renameFolder,
+  deleteFolder,
+  userOwnsFolder,
   deleteCollection,
   setWordInCollection,
   userOwnsWord,
@@ -44,6 +49,7 @@ import {
 } from "../services/vocab.js";
 import type { Request, Response, NextFunction } from "express";
 import { rateLimit } from "../lib/rateLimit.js";
+import { VISIBILITIES } from "../services/community.js";
 
 // REST API consumed by the Next.js frontend. All word endpoints live here.
 export const wordsRouter = Router();
@@ -206,16 +212,28 @@ wordsRouter.post("/collections", async (req, res) => {
   }
 });
 
-// PATCH /api/collections/:id  -> rename
+// PATCH /api/collections/:id  -> owner edits: rename, description, folder, visibility
+const collectionPatch = z.object({
+  name: z.string().min(1).max(60).optional(),
+  description: z.string().max(300).nullish(),
+  folderId: z.string().min(1).nullish(),
+  visibility: z.enum(VISIBILITIES).optional(),
+});
 wordsRouter.patch("/collections/:id", async (req, res) => {
   if (!(await guardCollection(req, res))) return;
-  const name = z.string().min(1).max(60).safeParse(req.body?.name);
-  if (!name.success) {
-    res.status(400).json({ error: "Invalid name" });
+  const parsed = collectionPatch.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid collection update" });
+    return;
+  }
+  const { folderId } = parsed.data;
+  // A collection can only be filed into one of the caller's own folders.
+  if (folderId && !(await userOwnsFolder(folderId, readSession(req)))) {
+    res.status(404).json({ error: "Folder not found" });
     return;
   }
   try {
-    res.json(await renameCollection(req.params.id, name.data));
+    res.json(await updateCollection(req.params.id, parsed.data));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
@@ -230,6 +248,58 @@ wordsRouter.delete("/collections/:id", async (req, res) => {
   } catch {
     res.status(404).json({ error: "Collection not found" });
   }
+});
+
+// ---------------- Folders ----------------
+
+// GET /api/folders -> the caller's folders (one level; they hold collections)
+wordsRouter.get("/folders", async (req, res) => {
+  res.json(await listFolders(callerId(req)));
+});
+
+const folderName = z.string().min(1).max(60);
+
+// POST /api/folders { name }
+wordsRouter.post("/folders", async (req, res) => {
+  const name = folderName.safeParse(req.body?.name);
+  if (!name.success) {
+    res.status(400).json({ error: "Invalid name" });
+    return;
+  }
+  try {
+    res.status(201).json(await createFolder(callerId(req), name.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+async function guardFolder(req: Request, res: Response): Promise<boolean> {
+  if (!(await userOwnsFolder(String(req.params.id), readSession(req)))) {
+    res.status(404).json({ error: "Folder not found" });
+    return false;
+  }
+  return true;
+}
+
+// PATCH /api/folders/:id { name } -> rename
+wordsRouter.patch("/folders/:id", async (req, res) => {
+  if (!(await guardFolder(req, res))) return;
+  const name = folderName.safeParse(req.body?.name);
+  if (!name.success) {
+    res.status(400).json({ error: "Invalid name" });
+    return;
+  }
+  try {
+    res.json(await renameFolder(req.params.id, name.data));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// DELETE /api/folders/:id -> remove the folder (its collections are kept, unfiled)
+wordsRouter.delete("/folders/:id", async (req, res) => {
+  if (!(await guardFolder(req, res))) return;
+  res.json(await deleteFolder(req.params.id));
 });
 
 // PUT/DELETE /api/collections/:id/words/:wordId  -> add / remove a word.

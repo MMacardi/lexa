@@ -10,6 +10,19 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [x] **1a. Mika page.** A full `/mika` page (sidebar entry) reusing the floating tutor's
       chat + "add these words" logic, with a welcome screen of preset prompts that double
       as a tour of the app. IDEAS: "Mika page".
+- [x] **1b. Social layer + Community tab.** Collection visibility (private / friends-only /
+      share code / public; others read-only, owner edits). One-level folders (folders hold
+      collections, never folders). Copy a whole deck (only words you don't have, with
+      examples + synonyms) or single words, keeping a "from @friend's HSK4" credit.
+      Community tab: popular this week, search by language + topic. Seed it with curated starter decks (IELTS, HSK 1–4, core
+      adjectives, travel, phrasal verbs…) under an "Onomika Library" author with an
+      "Official" badge (some decks "Picked by Mika, your AI tutor"), never fake users.
+      Real-use counters: "added by N learners", "popular this week". Seed words are
+      written by hand into a seed file (no Qwen cost). IDEAS: "Social layer".
+- [ ] **1c. Friend profiles + privacy.** Per-friend profile page: reviews-per-day graph,
+      streak, mastered count, current languages, their public decks. Per-user privacy
+      switches (profile and collections visible to friends / everyone / hidden).
+      IDEAS: "Social layer".
 - [ ] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".
 - [ ] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're
@@ -34,5 +47,4 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [ ] 14. Meaning backfill (shorten old meanings). IDEAS: "B7".
 
 ## Parked (🧊, only if asked)
-Phoneme-level pronunciation scoring · Traditional Chinese toggle · Social layer (shared
-collections, folders, community) · OpenClaw revival · Custom free-text scenes · Anki export.
+Phoneme-level pronunciation scoring · Traditional Chinese toggle · OpenClaw revival · Custom free-text scenes · Anki export.

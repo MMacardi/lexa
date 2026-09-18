@@ -9,6 +9,8 @@ import { feedbackRouter } from "./routes/feedback.js";
 import { invitesRouter } from "./routes/invites.js";
 import { adminRouter } from "./routes/admin.js";
 import { betaRouter } from "./routes/beta.js";
+import { communityRouter } from "./routes/community.js";
+import { seedLibrary } from "./services/librarySeed.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { readSession } from "./lib/auth.js";
 import { runAsUser } from "./lib/usageContext.js";
@@ -94,11 +96,14 @@ app.use("/api", invitesRouter);
 app.use("/api", adminRouter);
 app.use("/api", friendsRouter);
 app.use("/api", feedbackRouter);
+app.use("/api", communityRouter);
 app.use("/api", wordsRouter);
 
 app.listen(env.PORT, () => {
   console.log(`Backend listening on http://localhost:${env.PORT}`);
   startImportWorker();
+  // Onomika Library starter decks for the Community tab (skips unchanged decks).
+  seedLibrary().catch((err) => console.error("[library] seed failed:", err));
   // No-op unless ENABLE_TELEGRAM_BOT=true (keeps OpenClaw as the default poller).
   launchBot();
 });

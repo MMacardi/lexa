@@ -200,6 +200,18 @@ export default function WordDetailPage() {
             {t("word.reviewedTimes", { n: word.reviewCount })}
           </span>
         </div>
+        {word.sharedFrom && (
+          <p className="text-[13px] text-ink-soft">
+            {t("community.creditFrom")}{" "}
+            {word.sharedDeckId ? (
+              <Link href={`/community/${word.sharedDeckId}`} className="font-semibold text-sage-deep hover:underline">
+                {t("community.credit", { author: word.sharedFrom, deck: word.sharedDeck ?? "" })}
+              </Link>
+            ) : (
+              <span className="font-semibold">{t("community.credit", { author: word.sharedFrom, deck: word.sharedDeck ?? "" })}</span>
+            )}
+          </p>
+        )}
       </div>
 
       <CollectionChips word={word} />

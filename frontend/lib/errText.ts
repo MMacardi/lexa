@@ -17,6 +17,8 @@ const CODE_KEYS: Record<string, string> = {
   no_code: "friends.errNoCode",
   not_found: "friends.errNotFound",
   no_input: "friends.errNoInput",
+  no_deck: "community.errNoDeck",
+  own_deck: "community.errOwnDeck",
 };
 
 export function errText(e: unknown, t: T): string {

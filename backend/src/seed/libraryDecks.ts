@@ -1,0 +1,285 @@
+// Onomika Library — curated starter decks that seed the Community tab so it isn't
+// empty on day one. Written by hand (no Qwen cost) and published under an openly
+// labelled "Onomika Library" author with an Official badge — never as fake users.
+//
+// Each deck lists its words once, with the meaning and example translation per
+// target language; the seeder (services/librarySeed.ts) creates one public
+// collection per (deck, target). Bump `version` after editing a deck so the next
+// boot rebuilds it.
+
+export interface SeedWord {
+  w: string;
+  ph?: string; // phonetic / pinyin
+  pos?: string;
+  m: Record<string, string>; // meaning per target language
+  ex: string; // example in the studied language
+  exT: Record<string, string>; // example translation per target language
+  syn?: string[];
+}
+
+export interface SeedDeck {
+  slug: string;
+  version: number;
+  sourceLang: string;
+  targets: string[];
+  mikaPick?: boolean;
+  name: Record<string, string>; // per target language
+  description: Record<string, string>;
+  words: SeedWord[];
+}
+
+export const LIBRARY_DECKS: SeedDeck[] = [
+  {
+    slug: "ielts-core",
+    version: 1,
+    sourceLang: "en",
+    targets: ["ru", "zh"],
+    mikaPick: true,
+    name: { ru: "IELTS Academic: ключевые слова", zh: "雅思学术核心词" },
+    description: {
+      ru: "20 слов, которые постоянно встречаются в эссе и reading на IELTS Academic.",
+      zh: "雅思学术类写作和阅读中反复出现的 20 个词。",
+    },
+    words: [
+      { w: "analyse", pos: "verb", m: { ru: "анализировать", zh: "分析" }, ex: "The report analyses data from 40 countries.", exT: { ru: "В докладе анализируются данные из 40 стран.", zh: "这份报告分析了 40 个国家的数据。" }, syn: ["examine", "study"] },
+      { w: "significant", pos: "adjective", m: { ru: "значительный, важный", zh: "显著的；重要的" }, ex: "There was a significant rise in prices.", exT: { ru: "Цены значительно выросли.", zh: "价格显著上涨。" }, syn: ["considerable", "notable"] },
+      { w: "approach", pos: "noun", m: { ru: "подход", zh: "方法；途径" }, ex: "We need a new approach to the problem.", exT: { ru: "Нам нужен новый подход к проблеме.", zh: "我们需要用新方法解决这个问题。" }, syn: ["method", "strategy"] },
+      { w: "assess", pos: "verb", m: { ru: "оценивать", zh: "评估" }, ex: "Teachers assess students in different ways.", exT: { ru: "Учителя оценивают учеников по-разному.", zh: "老师用不同方式评估学生。" }, syn: ["evaluate", "judge"] },
+      { w: "consequence", pos: "noun", m: { ru: "последствие", zh: "后果" }, ex: "Pollution has serious consequences for health.", exT: { ru: "Загрязнение имеет серьёзные последствия для здоровья.", zh: "污染对健康有严重后果。" }, syn: ["result", "outcome"] },
+      { w: "contribute", pos: "verb", m: { ru: "вносить вклад, способствовать", zh: "贡献；促成" }, ex: "Many factors contribute to stress.", exT: { ru: "Стрессу способствует множество факторов.", zh: "许多因素都会导致压力。" }, syn: ["add to", "lead to"] },
+      { w: "crucial", pos: "adjective", m: { ru: "решающий, крайне важный", zh: "至关重要的" }, ex: "Sleep is crucial for memory.", exT: { ru: "Сон крайне важен для памяти.", zh: "睡眠对记忆至关重要。" }, syn: ["vital", "essential"] },
+      { w: "decline", pos: "verb", m: { ru: "снижаться, сокращаться", zh: "下降；减少" }, ex: "Birth rates have declined since 1990.", exT: { ru: "С 1990 года рождаемость снизилась.", zh: "自 1990 年以来出生率一直在下降。" }, syn: ["decrease", "fall"] },
+      { w: "evidence", pos: "noun", m: { ru: "доказательства, данные", zh: "证据" }, ex: "There is little evidence that it works.", exT: { ru: "Доказательств того, что это работает, мало.", zh: "几乎没有证据表明它有效。" }, syn: ["proof", "data"] },
+      { w: "factor", pos: "noun", m: { ru: "фактор", zh: "因素" }, ex: "Cost is the main factor in their decision.", exT: { ru: "Цена — главный фактор в их решении.", zh: "成本是他们做决定的主要因素。" }, syn: ["element", "cause"] },
+      { w: "impact", pos: "noun", m: { ru: "влияние, воздействие", zh: "影响；冲击" }, ex: "Technology has a huge impact on education.", exT: { ru: "Технологии сильно влияют на образование.", zh: "科技对教育有巨大影响。" }, syn: ["effect", "influence"] },
+      { w: "issue", pos: "noun", m: { ru: "проблема, вопрос", zh: "问题；议题" }, ex: "Housing is a key issue in big cities.", exT: { ru: "Жильё — ключевая проблема больших городов.", zh: "住房是大城市的关键问题。" }, syn: ["problem", "matter"] },
+      { w: "maintain", pos: "verb", m: { ru: "поддерживать, сохранять", zh: "维持；保持" }, ex: "It is hard to maintain a healthy diet.", exT: { ru: "Трудно поддерживать здоровое питание.", zh: "保持健康饮食很难。" }, syn: ["keep", "preserve"] },
+      { w: "perspective", pos: "noun", m: { ru: "точка зрения", zh: "观点；视角" }, ex: "Travel gives you a new perspective.", exT: { ru: "Путешествия дают новый взгляд на вещи.", zh: "旅行会给你新的视角。" }, syn: ["viewpoint", "outlook"] },
+      { w: "phenomenon", pos: "noun", m: { ru: "явление", zh: "现象" }, ex: "Remote work is a recent phenomenon.", exT: { ru: "Удалённая работа — недавнее явление.", zh: "远程办公是近来才出现的现象。" }, syn: ["occurrence", "trend"] },
+      { w: "reluctant", pos: "adjective", m: { ru: "неохотный, не желающий", zh: "不情愿的" }, ex: "People are reluctant to change their habits.", exT: { ru: "Люди неохотно меняют привычки.", zh: "人们不愿意改变习惯。" }, syn: ["unwilling", "hesitant"] },
+      { w: "substantial", pos: "adjective", m: { ru: "существенный, значительный", zh: "大量的；可观的" }, ex: "The project needs substantial investment.", exT: { ru: "Проекту нужны существенные инвестиции.", zh: "这个项目需要大量投资。" }, syn: ["considerable", "large"] },
+      { w: "sustainable", pos: "adjective", m: { ru: "устойчивый, экологичный", zh: "可持续的" }, ex: "Cities need sustainable transport.", exT: { ru: "Городам нужен экологичный транспорт.", zh: "城市需要可持续的交通。" }, syn: ["eco-friendly", "renewable"] },
+      { w: "trend", pos: "noun", m: { ru: "тенденция", zh: "趋势" }, ex: "The graph shows an upward trend.", exT: { ru: "График показывает тенденцию к росту.", zh: "图表显示出上升趋势。" }, syn: ["tendency", "pattern"] },
+      { w: "widespread", pos: "adjective", m: { ru: "широко распространённый", zh: "普遍的；广泛的" }, ex: "Smartphone use is widespread among teenagers.", exT: { ru: "Смартфоны широко распространены среди подростков.", zh: "智能手机在青少年中非常普遍。" }, syn: ["common", "prevalent"] },
+    ],
+  },
+  {
+    slug: "core-adjectives",
+    version: 1,
+    sourceLang: "en",
+    targets: ["ru", "zh"],
+    name: { ru: "Английские прилагательные: основа", zh: "英语核心形容词" },
+    description: {
+      ru: "20 прилагательных о людях и ситуациях, которые нужны каждый день.",
+      zh: "描述人和情境的 20 个日常形容词。",
+    },
+    words: [
+      { w: "reliable", pos: "adjective", m: { ru: "надёжный", zh: "可靠的" }, ex: "She is the most reliable person on the team.", exT: { ru: "Она самый надёжный человек в команде.", zh: "她是团队里最可靠的人。" }, syn: ["dependable", "trustworthy"] },
+      { w: "generous", pos: "adjective", m: { ru: "щедрый", zh: "慷慨的" }, ex: "It was generous of you to help.", exT: { ru: "Очень щедро с твоей стороны помочь.", zh: "你肯帮忙真是太慷慨了。" }, syn: ["kind", "giving"] },
+      { w: "curious", pos: "adjective", m: { ru: "любопытный", zh: "好奇的" }, ex: "Children are curious about everything.", exT: { ru: "Детям всё любопытно.", zh: "孩子们对什么都好奇。" }, syn: ["inquisitive", "interested"] },
+      { w: "stubborn", pos: "adjective", m: { ru: "упрямый", zh: "固执的" }, ex: "My brother is too stubborn to apologise.", exT: { ru: "Мой брат слишком упрям, чтобы извиниться.", zh: "我哥哥太固执了，不肯道歉。" }, syn: ["obstinate", "headstrong"] },
+      { w: "confident", pos: "adjective", m: { ru: "уверенный", zh: "自信的" }, ex: "I feel confident about the exam.", exT: { ru: "Я уверен насчёт экзамена.", zh: "我对这次考试很有信心。" }, syn: ["sure", "self-assured"] },
+      { w: "anxious", pos: "adjective", m: { ru: "тревожный, взволнованный", zh: "焦虑的" }, ex: "He gets anxious before interviews.", exT: { ru: "Он волнуется перед собеседованиями.", zh: "他面试前会焦虑。" }, syn: ["nervous", "worried"] },
+      { w: "exhausted", pos: "adjective", m: { ru: "измученный, без сил", zh: "精疲力竭的" }, ex: "I was exhausted after the flight.", exT: { ru: "После перелёта я был без сил.", zh: "飞行之后我累坏了。" }, syn: ["worn out", "drained"] },
+      { w: "awkward", pos: "adjective", m: { ru: "неловкий", zh: "尴尬的" }, ex: "There was an awkward silence.", exT: { ru: "Повисла неловкая тишина.", zh: "出现了一阵尴尬的沉默。" }, syn: ["uncomfortable", "embarrassing"] },
+      { w: "brilliant", pos: "adjective", m: { ru: "блестящий, отличный", zh: "出色的；绝妙的" }, ex: "What a brilliant idea!", exT: { ru: "Какая отличная идея!", zh: "多棒的主意！" }, syn: ["excellent", "outstanding"] },
+      { w: "genuine", pos: "adjective", m: { ru: "искренний, подлинный", zh: "真诚的；真正的" }, ex: "She showed genuine interest in my work.", exT: { ru: "Она проявила искренний интерес к моей работе.", zh: "她对我的工作表现出真正的兴趣。" }, syn: ["sincere", "authentic"] },
+      { w: "harsh", pos: "adjective", m: { ru: "суровый, резкий", zh: "严厉的；恶劣的" }, ex: "The criticism was a bit harsh.", exT: { ru: "Критика была немного резкой.", zh: "这批评有点严厉。" }, syn: ["severe", "strict"] },
+      { w: "humble", pos: "adjective", m: { ru: "скромный", zh: "谦虚的" }, ex: "He stayed humble despite his success.", exT: { ru: "Несмотря на успех, он остался скромным.", zh: "尽管成功了，他依然很谦虚。" }, syn: ["modest", "unassuming"] },
+      { w: "obvious", pos: "adjective", m: { ru: "очевидный", zh: "明显的" }, ex: "The answer seems obvious now.", exT: { ru: "Теперь ответ кажется очевидным.", zh: "现在答案似乎很明显。" }, syn: ["clear", "evident"] },
+      { w: "rare", pos: "adjective", m: { ru: "редкий", zh: "罕见的" }, ex: "Snow is rare in this city.", exT: { ru: "Снег в этом городе — редкость.", zh: "这座城市很少下雪。" }, syn: ["uncommon", "unusual"] },
+      { w: "reasonable", pos: "adjective", m: { ru: "разумный; приемлемый", zh: "合理的" }, ex: "The prices here are reasonable.", exT: { ru: "Цены здесь приемлемые.", zh: "这里的价格很合理。" }, syn: ["fair", "sensible"] },
+      { w: "vague", pos: "adjective", m: { ru: "расплывчатый, смутный", zh: "模糊的" }, ex: "His answer was deliberately vague.", exT: { ru: "Его ответ был намеренно расплывчатым.", zh: "他的回答故意含糊其辞。" }, syn: ["unclear", "fuzzy"] },
+      { w: "vivid", pos: "adjective", m: { ru: "яркий, живой", zh: "生动的；鲜艳的" }, ex: "I have vivid memories of that summer.", exT: { ru: "У меня яркие воспоминания о том лете.", zh: "那个夏天的记忆我至今历历在目。" }, syn: ["bright", "lively"] },
+      { w: "clumsy", pos: "adjective", m: { ru: "неуклюжий", zh: "笨手笨脚的" }, ex: "I'm so clumsy — I broke another cup.", exT: { ru: "Я такой неуклюжий — разбил ещё одну чашку.", zh: "我太笨手笨脚了——又打碎了一个杯子。" }, syn: ["awkward", "careless"] },
+      { w: "eager", pos: "adjective", m: { ru: "жаждущий, полный желания", zh: "渴望的" }, ex: "The students were eager to start.", exT: { ru: "Студентам не терпелось начать.", zh: "学生们迫不及待地想开始。" }, syn: ["keen", "enthusiastic"] },
+      { w: "fragile", pos: "adjective", m: { ru: "хрупкий", zh: "易碎的；脆弱的" }, ex: "Be careful, the vase is fragile.", exT: { ru: "Осторожно, ваза хрупкая.", zh: "小心，这个花瓶易碎。" }, syn: ["delicate", "breakable"] },
+    ],
+  },
+  {
+    slug: "travel-english",
+    version: 1,
+    sourceLang: "en",
+    targets: ["ru", "zh"],
+    name: { ru: "Английский для путешествий", zh: "旅行英语" },
+    description: {
+      ru: "Аэропорт, отель и прогулки по городу — 18 слов для первой поездки.",
+      zh: "机场、酒店、城市观光——第一次出行需要的 18 个词。",
+    },
+    words: [
+      { w: "itinerary", pos: "noun", m: { ru: "маршрут, план поездки", zh: "行程" }, ex: "Our itinerary includes three cities.", exT: { ru: "Наш маршрут включает три города.", zh: "我们的行程包括三座城市。" }, syn: ["schedule", "route"] },
+      { w: "boarding pass", pos: "noun", m: { ru: "посадочный талон", zh: "登机牌" }, ex: "Please show your boarding pass at the gate.", exT: { ru: "Пожалуйста, покажите посадочный талон у выхода.", zh: "请在登机口出示登机牌。" } },
+      { w: "layover", pos: "noun", m: { ru: "пересадка (со стыковкой)", zh: "中转停留" }, ex: "We have a four-hour layover in Dubai.", exT: { ru: "У нас пересадка в Дубае на четыре часа.", zh: "我们在迪拜要中转停留四个小时。" }, syn: ["stopover", "connection"] },
+      { w: "luggage", pos: "noun", m: { ru: "багаж", zh: "行李" }, ex: "My luggage didn't arrive.", exT: { ru: "Мой багаж не прибыл.", zh: "我的行李没到。" }, syn: ["baggage", "suitcases"] },
+      { w: "customs", pos: "noun", m: { ru: "таможня", zh: "海关" }, ex: "It took an hour to get through customs.", exT: { ru: "Пройти таможню заняло час.", zh: "过海关花了一个小时。" } },
+      { w: "reservation", pos: "noun", m: { ru: "бронь, бронирование", zh: "预订" }, ex: "I have a reservation for two nights.", exT: { ru: "У меня бронь на две ночи.", zh: "我预订了两晚。" }, syn: ["booking"] },
+      { w: "check in", pos: "phrasal verb", m: { ru: "зарегистрироваться, заселиться", zh: "办理入住；值机" }, ex: "You can check in after 2 p.m.", exT: { ru: "Заселиться можно после 14:00.", zh: "下午两点后可以办理入住。" }, syn: ["register"] },
+      { w: "sightseeing", pos: "noun", m: { ru: "осмотр достопримечательностей", zh: "观光" }, ex: "We spent the day sightseeing.", exT: { ru: "Мы весь день осматривали достопримечательности.", zh: "我们花了一整天观光。" }, syn: ["touring"] },
+      { w: "souvenir", pos: "noun", m: { ru: "сувенир", zh: "纪念品" }, ex: "I bought a small souvenir for my mum.", exT: { ru: "Я купил маме маленький сувенир.", zh: "我给妈妈买了一个小纪念品。" }, syn: ["keepsake", "memento"] },
+      { w: "delay", pos: "noun", m: { ru: "задержка", zh: "延误" }, ex: "There is a two-hour delay on our flight.", exT: { ru: "Наш рейс задерживается на два часа.", zh: "我们的航班延误了两个小时。" }, syn: ["hold-up"] },
+      { w: "destination", pos: "noun", m: { ru: "пункт назначения", zh: "目的地" }, ex: "Bali is a popular destination.", exT: { ru: "Бали — популярное направление.", zh: "巴厘岛是热门目的地。" } },
+      { w: "round trip", pos: "noun", m: { ru: "поездка туда и обратно", zh: "往返旅程" }, ex: "A round trip ticket is cheaper.", exT: { ru: "Билет туда и обратно дешевле.", zh: "往返票更便宜。" }, syn: ["return trip"] },
+      { w: "accommodation", pos: "noun", m: { ru: "жильё, размещение", zh: "住宿" }, ex: "The price includes accommodation.", exT: { ru: "В цену входит проживание.", zh: "价格包含住宿。" }, syn: ["lodging", "housing"] },
+      { w: "landmark", pos: "noun", m: { ru: "достопримечательность, ориентир", zh: "地标" }, ex: "The tower is the city's best-known landmark.", exT: { ru: "Башня — самая известная достопримечательность города.", zh: "这座塔是城市最著名的地标。" }, syn: ["monument", "sight"] },
+      { w: "currency exchange", pos: "noun", m: { ru: "обмен валюты", zh: "货币兑换" }, ex: "Where is the nearest currency exchange?", exT: { ru: "Где ближайший обмен валюты?", zh: "最近的货币兑换处在哪里？" } },
+      { w: "aisle seat", pos: "noun", m: { ru: "место у прохода", zh: "靠过道的座位" }, ex: "Could I have an aisle seat, please?", exT: { ru: "Можно мне место у прохода?", zh: "请给我一个靠过道的座位好吗？" } },
+      { w: "jet lag", pos: "noun", m: { ru: "синдром смены часовых поясов", zh: "时差反应" }, ex: "I couldn't sleep because of jet lag.", exT: { ru: "Я не мог уснуть из-за смены часовых поясов.", zh: "因为时差我睡不着。" } },
+      { w: "travel insurance", pos: "noun", m: { ru: "туристическая страховка", zh: "旅游保险" }, ex: "Don't travel without travel insurance.", exT: { ru: "Не путешествуйте без страховки.", zh: "出行别忘了买旅游保险。" } },
+    ],
+  },
+  {
+    slug: "phrasal-verbs",
+    version: 1,
+    sourceLang: "en",
+    targets: ["ru", "zh"],
+    mikaPick: true,
+    name: { ru: "Фразовые глаголы: топ-18", zh: "高频短语动词 18 个" },
+    description: {
+      ru: "Самые частые фразовые глаголы разговорного английского.",
+      zh: "英语口语中最常用的短语动词。",
+    },
+    words: [
+      { w: "give up", pos: "phrasal verb", m: { ru: "сдаваться; бросить", zh: "放弃" }, ex: "Don't give up — you're almost there.", exT: { ru: "Не сдавайся — ты почти у цели.", zh: "别放弃——你快成功了。" }, syn: ["quit", "stop"] },
+      { w: "look forward to", pos: "phrasal verb", m: { ru: "ждать с нетерпением", zh: "期待" }, ex: "I look forward to meeting you.", exT: { ru: "С нетерпением жду встречи с вами.", zh: "我期待与你见面。" }, syn: ["anticipate"] },
+      { w: "put off", pos: "phrasal verb", m: { ru: "откладывать", zh: "推迟" }, ex: "Stop putting off your homework.", exT: { ru: "Хватит откладывать домашнее задание.", zh: "别再拖延你的作业了。" }, syn: ["postpone", "delay"] },
+      { w: "figure out", pos: "phrasal verb", m: { ru: "разобраться, понять", zh: "弄明白" }, ex: "I can't figure out how this works.", exT: { ru: "Не могу понять, как это работает.", zh: "我搞不明白这个是怎么用的。" }, syn: ["work out", "understand"] },
+      { w: "run out of", pos: "phrasal verb", m: { ru: "израсходовать, закончиться", zh: "用完" }, ex: "We've run out of milk.", exT: { ru: "У нас закончилось молоко.", zh: "我们的牛奶喝完了。" } },
+      { w: "come across", pos: "phrasal verb", m: { ru: "наткнуться, случайно встретить", zh: "偶然遇到" }, ex: "I came across an old photo of us.", exT: { ru: "Я наткнулся на нашу старую фотографию.", zh: "我偶然发现了一张我们的旧照片。" }, syn: ["stumble upon", "find"] },
+      { w: "get over", pos: "phrasal verb", m: { ru: "оправиться, пережить", zh: "从……中恢复" }, ex: "It took weeks to get over the flu.", exT: { ru: "Чтобы оправиться от гриппа, понадобились недели.", zh: "花了好几周才从流感中恢复过来。" }, syn: ["recover from"] },
+      { w: "turn down", pos: "phrasal verb", m: { ru: "отклонить; убавить", zh: "拒绝；调低" }, ex: "She turned down the job offer.", exT: { ru: "Она отклонила предложение о работе.", zh: "她拒绝了这份工作邀请。" }, syn: ["reject", "decline"] },
+      { w: "bring up", pos: "phrasal verb", m: { ru: "поднимать (тему); воспитывать", zh: "提出（话题）；抚养" }, ex: "Don't bring up politics at dinner.", exT: { ru: "Не поднимай тему политики за ужином.", zh: "吃饭时别提政治。" }, syn: ["raise", "mention"] },
+      { w: "carry on", pos: "phrasal verb", m: { ru: "продолжать", zh: "继续" }, ex: "Carry on, I'm listening.", exT: { ru: "Продолжай, я слушаю.", zh: "继续说，我在听。" }, syn: ["continue", "keep going"] },
+      { w: "set up", pos: "phrasal verb", m: { ru: "основать, настроить", zh: "建立；设置" }, ex: "They set up a small business.", exT: { ru: "Они открыли небольшой бизнес.", zh: "他们开了一家小公司。" }, syn: ["establish", "start"] },
+      { w: "find out", pos: "phrasal verb", m: { ru: "узнать, выяснить", zh: "查明；发现" }, ex: "I found out the truth yesterday.", exT: { ru: "Вчера я узнал правду.", zh: "我昨天才知道真相。" }, syn: ["discover", "learn"] },
+      { w: "look after", pos: "phrasal verb", m: { ru: "присматривать, заботиться", zh: "照顾" }, ex: "Can you look after my cat this weekend?", exT: { ru: "Присмотришь за моей кошкой на выходных?", zh: "这个周末你能帮我照顾猫吗？" }, syn: ["take care of"] },
+      { w: "take off", pos: "phrasal verb", m: { ru: "взлетать; снимать (одежду)", zh: "起飞；脱下" }, ex: "The plane takes off at noon.", exT: { ru: "Самолёт взлетает в полдень.", zh: "飞机中午起飞。" } },
+      { w: "show up", pos: "phrasal verb", m: { ru: "появиться, прийти", zh: "出现；露面" }, ex: "He showed up an hour late.", exT: { ru: "Он появился на час позже.", zh: "他晚了一个小时才出现。" }, syn: ["turn up", "arrive"] },
+      { w: "break down", pos: "phrasal verb", m: { ru: "сломаться", zh: "出故障" }, ex: "Our car broke down on the highway.", exT: { ru: "Наша машина сломалась на трассе.", zh: "我们的车在高速上抛锚了。" } },
+      { w: "catch up", pos: "phrasal verb", m: { ru: "догнать; наверстать", zh: "赶上；叙旧" }, ex: "Let's meet for coffee and catch up.", exT: { ru: "Давай встретимся за кофе и поболтаем.", zh: "我们约个咖啡叙叙旧吧。" } },
+      { w: "point out", pos: "phrasal verb", m: { ru: "указать, отметить", zh: "指出" }, ex: "She pointed out a mistake in my essay.", exT: { ru: "Она указала на ошибку в моём эссе.", zh: "她指出了我文章里的一个错误。" }, syn: ["indicate", "note"] },
+    ],
+  },
+  {
+    slug: "hsk1",
+    version: 1,
+    sourceLang: "zh",
+    targets: ["en", "ru"],
+    name: { en: "HSK 1 essentials", ru: "HSK 1: основа" },
+    description: {
+      en: "20 everyday HSK 1 words to start Chinese with.",
+      ru: "20 повседневных слов HSK 1, чтобы начать китайский.",
+    },
+    words: [
+      { w: "爱", ph: "ài", pos: "verb", m: { en: "to love", ru: "любить" }, ex: "我爱我的家。", exT: { en: "I love my family.", ru: "Я люблю свою семью." } },
+      { w: "吃", ph: "chī", pos: "verb", m: { en: "to eat", ru: "есть, кушать" }, ex: "你想吃什么？", exT: { en: "What do you want to eat?", ru: "Что ты хочешь съесть?" } },
+      { w: "喝", ph: "hē", pos: "verb", m: { en: "to drink", ru: "пить" }, ex: "我喝茶，不喝咖啡。", exT: { en: "I drink tea, not coffee.", ru: "Я пью чай, а не кофе." } },
+      { w: "朋友", ph: "péngyou", pos: "noun", m: { en: "friend", ru: "друг" }, ex: "他是我的好朋友。", exT: { en: "He is my good friend.", ru: "Он мой хороший друг." } },
+      { w: "学习", ph: "xuéxí", pos: "verb", m: { en: "to study, to learn", ru: "учиться, изучать" }, ex: "我在学习汉语。", exT: { en: "I'm studying Chinese.", ru: "Я изучаю китайский." }, syn: ["学"] },
+      { w: "工作", ph: "gōngzuò", pos: "noun / verb", m: { en: "work, job; to work", ru: "работа; работать" }, ex: "你在哪儿工作？", exT: { en: "Where do you work?", ru: "Где ты работаешь?" } },
+      { w: "今天", ph: "jīntiān", pos: "noun", m: { en: "today", ru: "сегодня" }, ex: "今天很热。", exT: { en: "It's very hot today.", ru: "Сегодня очень жарко." } },
+      { w: "明天", ph: "míngtiān", pos: "noun", m: { en: "tomorrow", ru: "завтра" }, ex: "明天见！", exT: { en: "See you tomorrow!", ru: "До завтра!" } },
+      { w: "喜欢", ph: "xǐhuan", pos: "verb", m: { en: "to like", ru: "нравиться, любить" }, ex: "我喜欢看书。", exT: { en: "I like reading.", ru: "Я люблю читать." } },
+      { w: "漂亮", ph: "piàoliang", pos: "adjective", m: { en: "pretty, beautiful", ru: "красивый" }, ex: "这件衣服很漂亮。", exT: { en: "This piece of clothing is very pretty.", ru: "Эта одежда очень красивая." }, syn: ["美"] },
+      { w: "认识", ph: "rènshi", pos: "verb", m: { en: "to know (a person), to meet", ru: "знать (человека), познакомиться" }, ex: "认识你很高兴。", exT: { en: "Nice to meet you.", ru: "Приятно познакомиться." } },
+      { w: "飞机", ph: "fēijī", pos: "noun", m: { en: "airplane", ru: "самолёт" }, ex: "我坐飞机去北京。", exT: { en: "I'm flying to Beijing.", ru: "Я лечу в Пекин на самолёте." } },
+      { w: "医生", ph: "yīshēng", pos: "noun", m: { en: "doctor", ru: "врач" }, ex: "我妈妈是医生。", exT: { en: "My mum is a doctor.", ru: "Моя мама врач." } },
+      { w: "商店", ph: "shāngdiàn", pos: "noun", m: { en: "shop, store", ru: "магазин" }, ex: "商店几点开门？", exT: { en: "What time does the shop open?", ru: "Во сколько открывается магазин?" } },
+      { w: "天气", ph: "tiānqì", pos: "noun", m: { en: "weather", ru: "погода" }, ex: "今天天气怎么样？", exT: { en: "What's the weather like today?", ru: "Какая сегодня погода?" } },
+      { w: "电影", ph: "diànyǐng", pos: "noun", m: { en: "film, movie", ru: "фильм, кино" }, ex: "我们去看电影吧。", exT: { en: "Let's go and see a film.", ru: "Пойдём в кино." } },
+      { w: "米饭", ph: "mǐfàn", pos: "noun", m: { en: "cooked rice", ru: "варёный рис" }, ex: "我要一碗米饭。", exT: { en: "I'd like a bowl of rice.", ru: "Мне миску риса." } },
+      { w: "水果", ph: "shuǐguǒ", pos: "noun", m: { en: "fruit", ru: "фрукты" }, ex: "多吃水果对身体好。", exT: { en: "Eating more fruit is good for you.", ru: "Есть больше фруктов полезно." } },
+      { w: "睡觉", ph: "shuìjiào", pos: "verb", m: { en: "to sleep, to go to bed", ru: "спать, ложиться спать" }, ex: "我十一点睡觉。", exT: { en: "I go to bed at eleven.", ru: "Я ложусь спать в одиннадцать." } },
+      { w: "学校", ph: "xuéxiào", pos: "noun", m: { en: "school", ru: "школа" }, ex: "学校离我家很近。", exT: { en: "The school is close to my home.", ru: "Школа недалеко от моего дома." } },
+    ],
+  },
+  {
+    slug: "hsk2",
+    version: 1,
+    sourceLang: "zh",
+    targets: ["en", "ru"],
+    name: { en: "HSK 2 essentials", ru: "HSK 2: основа" },
+    description: {
+      en: "18 HSK 2 words for talking about plans, feelings and daily life.",
+      ru: "18 слов HSK 2 о планах, чувствах и повседневной жизни.",
+    },
+    words: [
+      { w: "准备", ph: "zhǔnbèi", pos: "verb", m: { en: "to prepare, to plan to", ru: "готовить(ся), собираться" }, ex: "我准备明天去上海。", exT: { en: "I plan to go to Shanghai tomorrow.", ru: "Я собираюсь завтра поехать в Шанхай." } },
+      { w: "旅游", ph: "lǚyóu", pos: "verb", m: { en: "to travel, tourism", ru: "путешествовать, туризм" }, ex: "暑假我们去云南旅游。", exT: { en: "We're travelling to Yunnan in the summer holidays.", ru: "Летом мы поедем путешествовать в Юньнань." } },
+      { w: "已经", ph: "yǐjīng", pos: "adverb", m: { en: "already", ru: "уже" }, ex: "我已经吃饭了。", exT: { en: "I've already eaten.", ru: "Я уже поел." } },
+      { w: "希望", ph: "xīwàng", pos: "verb", m: { en: "to hope", ru: "надеяться" }, ex: "希望你喜欢这个礼物。", exT: { en: "I hope you like this gift.", ru: "Надеюсь, тебе понравится подарок." } },
+      { w: "觉得", ph: "juéde", pos: "verb", m: { en: "to feel, to think", ru: "чувствовать, считать" }, ex: "我觉得这个办法很好。", exT: { en: "I think this is a good way.", ru: "Мне кажется, это хороший способ." }, syn: ["认为"] },
+      { w: "介绍", ph: "jièshào", pos: "verb", m: { en: "to introduce", ru: "представлять, знакомить" }, ex: "我来介绍一下，这是小王。", exT: { en: "Let me introduce you — this is Xiao Wang.", ru: "Позвольте представить: это Сяо Ван." } },
+      { w: "帮助", ph: "bāngzhù", pos: "verb", m: { en: "to help", ru: "помогать" }, ex: "谢谢你的帮助！", exT: { en: "Thank you for your help!", ru: "Спасибо за помощь!" }, syn: ["帮"] },
+      { w: "懂", ph: "dǒng", pos: "verb", m: { en: "to understand", ru: "понимать" }, ex: "你懂我的意思吗？", exT: { en: "Do you understand what I mean?", ru: "Ты понимаешь, что я имею в виду?" }, syn: ["明白"] },
+      { w: "快乐", ph: "kuàilè", pos: "adjective", m: { en: "happy, joyful", ru: "радостный, счастливый" }, ex: "生日快乐！", exT: { en: "Happy birthday!", ru: "С днём рождения!" }, syn: ["高兴"] },
+      { w: "便宜", ph: "piányi", pos: "adjective", m: { en: "cheap", ru: "дешёвый" }, ex: "这家店的东西很便宜。", exT: { en: "Things in this shop are cheap.", ru: "В этом магазине всё дёшево." } },
+      { w: "考试", ph: "kǎoshì", pos: "noun / verb", m: { en: "exam; to take an exam", ru: "экзамен; сдавать экзамен" }, ex: "下周我们有考试。", exT: { en: "We have an exam next week.", ru: "На следующей неделе у нас экзамен." } },
+      { w: "运动", ph: "yùndòng", pos: "noun / verb", m: { en: "sport, exercise; to exercise", ru: "спорт; заниматься спортом" }, ex: "你喜欢什么运动？", exT: { en: "What sports do you like?", ru: "Какой спорт тебе нравится?" } },
+      { w: "生病", ph: "shēngbìng", pos: "verb", m: { en: "to fall ill", ru: "заболеть" }, ex: "他生病了，今天没来。", exT: { en: "He's ill, so he didn't come today.", ru: "Он заболел и сегодня не пришёл." } },
+      { w: "休息", ph: "xiūxi", pos: "verb", m: { en: "to rest", ru: "отдыхать" }, ex: "累了就休息一下。", exT: { en: "Take a rest if you're tired.", ru: "Устал — отдохни немного." } },
+      { w: "开始", ph: "kāishǐ", pos: "verb", m: { en: "to begin, to start", ru: "начинать(ся)" }, ex: "电影七点开始。", exT: { en: "The film starts at seven.", ru: "Фильм начинается в семь." } },
+      { w: "知道", ph: "zhīdao", pos: "verb", m: { en: "to know (a fact)", ru: "знать (факт)" }, ex: "我不知道他在哪儿。", exT: { en: "I don't know where he is.", ru: "Я не знаю, где он." } },
+      { w: "可能", ph: "kěnéng", pos: "adverb", m: { en: "maybe, possibly", ru: "возможно" }, ex: "明天可能下雨。", exT: { en: "It might rain tomorrow.", ru: "Завтра, возможно, будет дождь." }, syn: ["也许"] },
+      { w: "一起", ph: "yìqǐ", pos: "adverb", m: { en: "together", ru: "вместе" }, ex: "我们一起去吧。", exT: { en: "Let's go together.", ru: "Пойдём вместе." } },
+    ],
+  },
+  {
+    slug: "hsk3",
+    version: 1,
+    sourceLang: "zh",
+    targets: ["en", "ru"],
+    name: { en: "HSK 3 essentials", ru: "HSK 3: основа" },
+    description: {
+      en: "16 HSK 3 words for opinions, decisions and habits.",
+      ru: "16 слов HSK 3 о мнениях, решениях и привычках.",
+    },
+    words: [
+      { w: "担心", ph: "dānxīn", pos: "verb", m: { en: "to worry", ru: "беспокоиться" }, ex: "别担心，一切都会好的。", exT: { en: "Don't worry, everything will be fine.", ru: "Не волнуйся, всё будет хорошо." } },
+      { w: "发现", ph: "fāxiàn", pos: "verb", m: { en: "to discover, to notice", ru: "обнаружить, заметить" }, ex: "我发现钱包不见了。", exT: { en: "I noticed my wallet was gone.", ru: "Я обнаружил, что кошелёк пропал." } },
+      { w: "关心", ph: "guānxīn", pos: "verb", m: { en: "to care about", ru: "заботиться, интересоваться" }, ex: "谢谢你这么关心我。", exT: { en: "Thank you for caring about me so much.", ru: "Спасибо, что так обо мне заботишься." } },
+      { w: "环境", ph: "huánjìng", pos: "noun", m: { en: "environment, surroundings", ru: "окружающая среда, обстановка" }, ex: "这里的环境很安静。", exT: { en: "It's very quiet around here.", ru: "Здесь очень спокойная обстановка." } },
+      { w: "机会", ph: "jīhuì", pos: "noun", m: { en: "opportunity, chance", ru: "шанс, возможность" }, ex: "这是一个很好的机会。", exT: { en: "This is a great opportunity.", ru: "Это отличная возможность." } },
+      { w: "检查", ph: "jiǎnchá", pos: "verb", m: { en: "to check, to inspect", ru: "проверять" }, ex: "交之前再检查一遍。", exT: { en: "Check it once more before handing it in.", ru: "Проверь ещё раз перед сдачей." } },
+      { w: "经常", ph: "jīngcháng", pos: "adverb", m: { en: "often", ru: "часто" }, ex: "我经常去那家咖啡馆。", exT: { en: "I often go to that café.", ru: "Я часто хожу в то кафе." }, syn: ["常常"] },
+      { w: "决定", ph: "juédìng", pos: "verb", m: { en: "to decide", ru: "решать" }, ex: "我决定学中文。", exT: { en: "I've decided to learn Chinese.", ru: "Я решил учить китайский." } },
+      { w: "满意", ph: "mǎnyì", pos: "adjective", m: { en: "satisfied", ru: "довольный" }, ex: "你对结果满意吗？", exT: { en: "Are you satisfied with the result?", ru: "Ты доволен результатом?" } },
+      { w: "清楚", ph: "qīngchu", pos: "adjective", m: { en: "clear", ru: "ясный, понятный" }, ex: "老师讲得很清楚。", exT: { en: "The teacher explained it very clearly.", ru: "Учитель объяснил очень понятно." } },
+      { w: "认为", ph: "rènwéi", pos: "verb", m: { en: "to think, to believe", ru: "считать, полагать" }, ex: "我认为他说得对。", exT: { en: "I think he's right.", ru: "Я считаю, что он прав." }, syn: ["觉得"] },
+      { w: "习惯", ph: "xíguàn", pos: "noun / verb", m: { en: "habit; to be used to", ru: "привычка; привыкнуть" }, ex: "我还不习惯这里的天气。", exT: { en: "I'm not used to the weather here yet.", ru: "Я ещё не привык к здешней погоде." } },
+      { w: "需要", ph: "xūyào", pos: "verb", m: { en: "to need", ru: "нуждаться, нужно" }, ex: "你需要帮忙吗？", exT: { en: "Do you need help?", ru: "Тебе нужна помощь?" } },
+      { w: "影响", ph: "yǐngxiǎng", pos: "noun / verb", m: { en: "influence; to affect", ru: "влияние; влиять" }, ex: "手机影响了我的睡眠。", exT: { en: "My phone has affected my sleep.", ru: "Телефон повлиял на мой сон." } },
+      { w: "着急", ph: "zháojí", pos: "adjective", m: { en: "anxious, in a hurry", ru: "взволнованный, торопливый" }, ex: "别着急，慢慢来。", exT: { en: "Don't rush, take your time.", ru: "Не торопись, давай потихоньку." } },
+      { w: "重要", ph: "zhòngyào", pos: "adjective", m: { en: "important", ru: "важный" }, ex: "健康最重要。", exT: { en: "Health matters most.", ru: "Здоровье важнее всего." } },
+    ],
+  },
+  {
+    slug: "hsk4",
+    version: 1,
+    sourceLang: "zh",
+    targets: ["en", "ru"],
+    mikaPick: true,
+    name: { en: "HSK 4 essentials", ru: "HSK 4: основа" },
+    description: {
+      en: "16 HSK 4 words that turn simple sentences into real opinions.",
+      ru: "16 слов HSK 4, с которыми простые фразы превращаются в настоящие мнения.",
+    },
+    words: [
+      { w: "保护", ph: "bǎohù", pos: "verb", m: { en: "to protect", ru: "защищать" }, ex: "我们要保护环境。", exT: { en: "We must protect the environment.", ru: "Мы должны защищать окружающую среду." } },
+      { w: "表扬", ph: "biǎoyáng", pos: "verb", m: { en: "to praise", ru: "хвалить" }, ex: "老师表扬了他。", exT: { en: "The teacher praised him.", ru: "Учитель его похвалил." } },
+      { w: "成功", ph: "chénggōng", pos: "noun / verb", m: { en: "success; to succeed", ru: "успех; добиться успеха" }, ex: "祝你成功！", exT: { en: "I wish you success!", ru: "Желаю успеха!" } },
+      { w: "诚实", ph: "chéngshí", pos: "adjective", m: { en: "honest", ru: "честный" }, ex: "他是个诚实的人。", exT: { en: "He's an honest person.", ru: "Он честный человек." } },
+      { w: "反对", ph: "fǎnduì", pos: "verb", m: { en: "to oppose, to object", ru: "возражать, быть против" }, ex: "父母反对我去国外。", exT: { en: "My parents are against me going abroad.", ru: "Родители против моей поездки за границу." } },
+      { w: "感动", ph: "gǎndòng", pos: "verb", m: { en: "to be moved, to touch", ru: "растрогать(ся)" }, ex: "这个故事让我很感动。", exT: { en: "This story really moved me.", ru: "Эта история меня очень тронула." } },
+      { w: "估计", ph: "gūjì", pos: "verb", m: { en: "to estimate, to reckon", ru: "предполагать, оценивать" }, ex: "我估计他不会来了。", exT: { en: "I reckon he's not coming.", ru: "Думаю, он уже не придёт." } },
+      { w: "积累", ph: "jīlěi", pos: "verb", m: { en: "to accumulate", ru: "накапливать" }, ex: "学语言要慢慢积累词汇。", exT: { en: "Learning a language means building vocabulary bit by bit.", ru: "При изучении языка словарный запас копится постепенно." } },
+      { w: "竞争", ph: "jìngzhēng", pos: "noun / verb", m: { en: "competition; to compete", ru: "конкуренция; соревноваться" }, ex: "这个行业竞争很激烈。", exT: { en: "Competition in this industry is fierce.", ru: "В этой отрасли жёсткая конкуренция." } },
+      { w: "坚持", ph: "jiānchí", pos: "verb", m: { en: "to persist, to keep at", ru: "упорно продолжать" }, ex: "每天坚持跑步。", exT: { en: "Keep running every day.", ru: "Бегай каждый день, не бросай." } },
+      { w: "困难", ph: "kùnnan", pos: "noun / adjective", m: { en: "difficulty; difficult", ru: "трудность; трудный" }, ex: "遇到困难不要放弃。", exT: { en: "Don't give up when things get hard.", ru: "Не сдавайся, когда трудно." } },
+      { w: "浪费", ph: "làngfèi", pos: "verb", m: { en: "to waste", ru: "тратить впустую" }, ex: "别浪费时间了。", exT: { en: "Stop wasting time.", ru: "Хватит тратить время впустую." } },
+      { w: "提醒", ph: "tíxǐng", pos: "verb", m: { en: "to remind", ru: "напоминать" }, ex: "明天提醒我带护照。", exT: { en: "Remind me to bring my passport tomorrow.", ru: "Напомни мне завтра взять паспорт." } },
+      { w: "原因", ph: "yuányīn", pos: "noun", m: { en: "reason, cause", ru: "причина" }, ex: "你迟到的原因是什么？", exT: { en: "Why were you late?", ru: "По какой причине ты опоздал?" } },
+      { w: "仔细", ph: "zǐxì", pos: "adjective", m: { en: "careful, thorough", ru: "внимательный, тщательный" }, ex: "请仔细读题。", exT: { en: "Please read the question carefully.", ru: "Пожалуйста, внимательно прочитайте задание." } },
+      { w: "值得", ph: "zhídé", pos: "verb", m: { en: "to be worth", ru: "стоить (того)" }, ex: "这本书值得一读。", exT: { en: "This book is worth reading.", ru: "Эту книгу стоит прочитать." } },
+    ],
+  },
+];
