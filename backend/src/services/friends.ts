@@ -115,6 +115,18 @@ export async function listRequests(telegramId: string) {
   return links.map((l) => ({ friendshipId: l.id, telegramId: l.requester.telegramId, name: displayName(l.requester) }));
 }
 
+// Outgoing requests (people I added who haven't accepted yet), so I can cancel them.
+export async function listSentRequests(telegramId: string) {
+  const me = await userByTelegramId(telegramId);
+  if (!me) return [];
+  const links = await prisma.friendship.findMany({
+    where: { status: "pending", requesterId: me.id },
+    orderBy: { createdAt: "desc" },
+    include: { addressee: true },
+  });
+  return links.map((l) => ({ friendshipId: l.id, telegramId: l.addressee.telegramId, name: displayName(l.addressee) }));
+}
+
 // Send a friend request by referral code. If the other person already sent me one,
 // this accepts it instead (mutual add = instant friends).
 export async function sendRequestByCode(telegramId: string, code: string) {

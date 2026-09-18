@@ -733,6 +733,7 @@ export const api = {
   // Friends + referral (session-authenticated).
   friends: () => http<Friend[]>(`/api/friends`),
   friendRequests: () => http<FriendRequest[]>(`/api/friends/requests`),
+  sentFriendRequests: () => http<FriendRequest[]>(`/api/friends/sent`),
   referral: () => http<{ code: string; link: string }>(`/api/friends/referral`),
   addFriend: (code: string) => http<{ status: "pending" | "accepted" }>(`/api/friends/add`, { method: "POST", body: JSON.stringify({ code }) }),
   acceptFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}/accept`, { method: "POST" }),

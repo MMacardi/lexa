@@ -6,6 +6,7 @@ import {
   getReferral,
   listFriends,
   listRequests,
+  listSentRequests,
   sendRequestByCode,
   acceptRequest,
   removeFriendship,
@@ -39,6 +40,13 @@ friendsRouter.get("/friends/requests", async (req, res) => {
   const id = requireSession(req, res);
   if (!id) return;
   res.json(await listRequests(id));
+});
+
+// GET /api/friends/sent -> my outgoing friend requests, still pending
+friendsRouter.get("/friends/sent", async (req, res) => {
+  const id = requireSession(req, res);
+  if (!id) return;
+  res.json(await listSentRequests(id));
 });
 
 // GET /api/friends/referral -> my invite code + link
