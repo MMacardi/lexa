@@ -809,7 +809,16 @@ export function launchBot(): void {
       .setChatMenuButton({ menuButton: { type: "web_app", text: "Открыть Onomika", web_app: { url: env.FRONTEND_URL } } })
       .catch((err) => console.error("setChatMenuButton failed:", (err as Error).message));
   }
-  void bot.launch(() => console.log("Telegram tutor bot started (long polling)."));
+  // A 409 means another process polls this token (e.g. the old container during a
+  // Railway redeploy overlap). Don't let it crash the API — wait and retry.
+  const start = (): void => {
+    bot.launch(() => console.log("Telegram tutor bot started (long polling).")).catch((err) => {
+      const code = (err as { response?: { error_code?: number } }).response?.error_code;
+      console.error(`Telegram bot polling stopped${code ? ` (${code})` : ""}: ${(err as Error).message}. Retrying in 15s.`);
+      setTimeout(start, 15_000);
+    });
+  };
+  start();
   // Reminders are per-user opt-in (via /remind), so the sweep always runs.
   startReminderLoop(bot);
 
