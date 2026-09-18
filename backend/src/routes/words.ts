@@ -235,7 +235,7 @@ wordsRouter.patch("/collections/:id", async (req, res) => {
   try {
     res.json(await updateCollection(req.params.id, parsed.data));
   } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+    res.status(400).json({ error: (err as Error).message, code: (err as { code?: string }).code });
   }
 });
 

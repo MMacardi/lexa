@@ -672,6 +672,7 @@ export async function listCollections(telegramId: string) {
     folderId: c.folderId,
     visibility: c.visibility,
     shareCode: c.shareCode,
+    delisted: Boolean(c.delistedAt),
     learners: c._count.adds,
     copiedFrom: c.copiedFromId ? (credits.get(c.copiedFromId) ?? null) : null,
   }));
@@ -701,7 +702,11 @@ export async function updateCollection(
   id: string,
   patch: { name?: string; description?: string | null; folderId?: string | null; visibility?: Visibility },
 ) {
-  const current = await prisma.collection.findUniqueOrThrow({ where: { id }, select: { shareCode: true } });
+  const current = await prisma.collection.findUniqueOrThrow({ where: { id }, select: { shareCode: true, delistedAt: true } });
+  // A deck the admin took out of Community can't be republished there.
+  if (patch.visibility === "public" && current.delistedAt) {
+    throw Object.assign(new Error("This deck was removed from Community"), { code: "deck_delisted" });
+  }
   const shareCode =
     patch.visibility && patch.visibility !== "private" && !current.shareCode ? await mintShareCode() : undefined;
   try {

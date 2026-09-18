@@ -28,7 +28,8 @@ export async function seedLibrary(): Promise<void> {
       const meta = {
         name: deck.name[target],
         description: deck.description[target] ?? null,
-        visibility: "public",
+        // A library deck the admin delisted stays out of Community across reseeds.
+        visibility: existing?.delistedAt ? "private" : "public",
         mikaPick: Boolean(deck.mikaPick),
         seedVersion: deck.version,
       };

@@ -7,7 +7,8 @@ import { getStats } from "./vocab.js";
 // Per-learner profile page: progress (review activity graph, streak, mastered,
 // languages) + their shared decks. Two privacy switches on the user decide who
 // sees what — "hidden" | "friends" | "everyone" — and the owner always sees all.
-// Aggregates only: a profile never exposes the person's actual cards.
+// Aggregates only: a profile never exposes the person's actual cards. There is
+// deliberately no "add friend" from a profile: friends are added by referral code only.
 
 export const PRIVACY_LEVELS = ["hidden", "friends", "everyone"] as const;
 export type PrivacyLevel = (typeof PRIVACY_LEVELS)[number];

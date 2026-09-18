@@ -4,8 +4,8 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus } from "lucide-react";
-import { api, type DeckWord } from "@/lib/api";
+import { Check, Flag, Plus } from "lucide-react";
+import { api, type DeckWord, type ReportReason } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { pairLabel } from "@/lib/langs";
@@ -127,6 +127,7 @@ function DeckView() {
         {(copyAll.isError || copyOne.isError) && (
           <p className="text-sm font-medium text-warn-text">{errText(copyAll.error ?? copyOne.error, t)}</p>
         )}
+        {!deck.mine && <ReportDeck id={id} code={code} />}
       </div>
 
       <div className="divide-y divide-black/[0.05] overflow-hidden rounded-[16px] border border-black/[0.06] bg-surface">
@@ -150,6 +151,68 @@ function BackLink() {
     <Link href="/community" className="text-sm font-semibold text-ink-soft hover:text-ink">
       ← {t("nav.community")}
     </Link>
+  );
+}
+
+const REASONS: ReportReason[] = ["spam", "offensive", "wrong", "other"];
+
+/** Quiet "Report" link under the deck header; opens a small reason picker. */
+function ReportDeck({ id, code }: { id: string; code?: string }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [note, setNote] = useState("");
+  const send = useMutation({
+    mutationFn: () => api.reportDeck(id, { reason: reason!, note: note.trim() || undefined, code }),
+  });
+
+  if (send.isSuccess) return <p className="text-[13px] font-medium text-sage-deep">{t("report.thanks")}</p>;
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint hover:text-ink-soft"
+      >
+        <Flag className="h-3.5 w-3.5" /> {t("report.button")}
+      </button>
+    );
+  return (
+    <div className="space-y-3 rounded-[14px] border border-black/[0.06] bg-paper/60 p-4">
+      <p className="text-sm font-semibold text-ink">{t("report.title")}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {REASONS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setReason(r)}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors",
+              r === reason ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            {t(`report.${r}`)}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder={t("report.notePh")}
+        maxLength={500}
+        rows={2}
+        className="w-full resize-none rounded-[14px] border border-black/[0.1] bg-surface px-3 py-2.5 text-[14px] text-ink outline-none placeholder:text-ink-faint focus:border-sage/60"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => send.mutate()} disabled={!reason || send.isPending}>
+          {send.isPending ? t("report.sending") : t("report.send")}
+        </Button>
+        <button type="button" onClick={() => setOpen(false)} className="text-sm font-semibold text-ink-soft hover:text-ink">
+          {t("report.cancel")}
+        </button>
+      </div>
+      {send.isError && <p className="text-sm font-medium text-warn-text">{errText(send.error, t)}</p>}
+    </div>
   );
 }
 

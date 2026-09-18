@@ -63,6 +63,7 @@ export interface Collection {
   folderId?: string | null;
   visibility?: Visibility;
   shareCode?: string | null;
+  delisted?: boolean; // taken out of Community by the admin; can't go public again
   learners?: number; // real learners who took words from it
   copiedFrom?: { deck: string; author: string; official: boolean } | null;
 }
@@ -231,6 +232,23 @@ export interface Stats {
 }
 
 // Owner-only admin dashboard snapshot (GET /api/admin/stats).
+export type ReportReason = "spam" | "offensive" | "wrong" | "other";
+
+export interface ModeratedDeck {
+  id: string;
+  name: string;
+  visibility: Visibility;
+  words: number;
+  author: { id: string | null; name: string; official: boolean };
+  delisted: boolean;
+}
+
+export interface ModerationQueue {
+  hideAt: number; // open reports that hold a deck out of the Community lists
+  reported: { deck: ModeratedDeck; reports: { reason: ReportReason; note: string | null; by: string; at: string }[] }[];
+  delisted: ModeratedDeck[];
+}
+
 export interface AdminStats {
   users: { total: number; invited: number; newToday: number; new7d: number; new30d: number };
   signups: { date: string; count: number }[];
@@ -653,6 +671,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  reportDeck: (id: string, body: { reason: ReportReason; note?: string; code?: string }) =>
+    http<{ ok: true }>(`/api/community/decks/${id}/report`, { method: "POST", body: JSON.stringify(body) }),
   addWordToCollection: (collectionId: string, wordId: string) =>
     http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "PUT" }),
   removeWordFromCollection: (collectionId: string, wordId: string) =>
@@ -892,6 +912,9 @@ export const api = {
     http<{ ok: true }>(`/api/scene/sessions/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   // Owner-only admin dashboard snapshot.
   adminStats: () => http<AdminStats>(`/api/admin/stats`),
+  adminReports: () => http<ModerationQueue>(`/api/admin/reports`),
+  moderateDeck: (id: string, action: "dismiss" | "delist" | "restore") =>
+    http<{ ok: true }>(`/api/admin/decks/${id}/moderate`, { method: "POST", body: JSON.stringify({ action }) }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
 };
 

@@ -1,8 +1,10 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { z } from "zod";
 import { prisma } from "../services/db.js";
 import { requireAdmin } from "../lib/gate.js";
 import { costCny } from "../lib/pricing.js";
+import { moderateDeck, moderationQueue } from "../services/moderation.js";
 
 // Owner-only operations dashboard: one aggregated snapshot of how the beta is
 // being used (users, content, engagement, invites) and exactly what the AI is
@@ -214,5 +216,31 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
   } catch (err) {
     console.error("[admin] stats error", err);
     res.status(500).json({ error: "Couldn't load admin stats", code: "server_error" });
+  }
+});
+
+// GET /api/admin/reports -> reported decks (grouped, most reports first) + delisted decks
+adminRouter.get("/admin/reports", async (_req: Request, res: Response) => {
+  try {
+    res.json(await moderationQueue());
+  } catch (err) {
+    console.error("[admin] reports error", err);
+    res.status(500).json({ error: "Couldn't load reports", code: "server_error" });
+  }
+});
+
+// POST /api/admin/decks/:id/moderate { action: dismiss | delist | restore }
+const moderateBody = z.object({ action: z.enum(["dismiss", "delist", "restore"]) });
+adminRouter.post("/admin/decks/:id/moderate", async (req: Request, res: Response) => {
+  const parsed = moderateBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid action" });
+    return;
+  }
+  try {
+    res.json(await moderateDeck(String(req.params.id), parsed.data.action));
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    res.status(code === "no_deck" ? 404 : 500).json({ error: (err as Error).message, code });
   }
 });
