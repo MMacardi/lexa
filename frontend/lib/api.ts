@@ -1,6 +1,10 @@
 // Typed client for the Express backend. One place that knows the URL shape.
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+// When NEXT_PUBLIC_API_URL is set (local dev), call the backend directly. When it's
+// empty/unset (Vercel prod), BASE is "" so every request is same-origin (/api/…) and
+// the Next rewrite proxies it to the backend (see next.config.ts). Same-origin keeps
+// the session/beta cookies first-party, so Safari ITP won't drop them.
+const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 // Default account when the user hasn't picked one yet (see lib/account.tsx).
 export const DEFAULT_TELEGRAM_ID = process.env.NEXT_PUBLIC_TELEGRAM_ID ?? "dev-user";

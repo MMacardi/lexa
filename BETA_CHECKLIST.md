@@ -6,19 +6,20 @@ What to prepare before inviting testers. Grouped by priority.
 
 ### Security / config (prod env)
 - [ ] `ALLOW_DEV_LOGIN` **unset or `false`** on Railway (default is now `false`; never `true` in prod — it lets anyone log in as anyone and leaks email login links).
-- [ ] `COOKIE_SECURE=true` (cross-site cookies Vercel → Railway need Secure + SameSite=None).
+- [ ] `COOKIE_SECURE=true` (cookies are sent `Secure` + `SameSite=None`; required whenever frontend and backend are on different origins).
+- [ ] **Same-origin `/api` proxy (recommended on Vercel)** — set `BACKEND_URL` = the Railway URL and leave `NEXT_PUBLIC_API_URL` **empty**. The browser then calls `/api/*` on the Vercel domain and Next proxies it to Railway (`next.config.ts`), so the session/beta cookies are **first-party**. Without this, a split Vercel↔Railway call makes the cookie cross-site and Safari (ITP) silently drops it — users can't stay logged in. See `DEPLOY.md` §2.
 - [ ] `JWT_SECRET` = long random string (not the dev default). Rotating it logs everyone out.
-- [ ] **Mint invite codes** before inviting testers: `docker exec onomika-backend node scripts/generate-invites.mjs 10 "beta wave 1"` (prints single-use `ONM-XXXX-XXXX` codes). The whole app is gated behind redeeming one; existing users are grandfathered by the migration and `PRO_ALLOWLIST` accounts always pass.
-- [ ] **`BETA_KEY`** (optional shared gate) — set ONE code guests type *before* logging in (`POST /api/beta/unlock` → signed `beta` cookie → next login flips `invited`). Leave empty to rely on single-use codes only. Share it however you invite people; it's a coarse gate, single-use codes are the fine-grained one.
+- [ ] **Mint invite codes** (if you hand out personal codes): from `backend/`, point `DATABASE_URL` at Railway's `DATABASE_PUBLIC_URL` and run `node scripts/generate-invites.mjs 10 "beta wave 1"`. It prints single-use `ONM-XXXX-XXXX` codes; see `DEPLOY.md` §5. Locally: `docker exec onomika-backend node scripts/generate-invites.mjs 10`. The whole app is gated behind an invite (shared `BETA_KEY` or a code); existing users are grandfathered by the migration and `PRO_ALLOWLIST` accounts always pass.
+- [ ] **`BETA_KEY`** — set ONE code guests type *before* logging in (`POST /api/beta/unlock` → signed `beta` cookie → next login flips `invited`). Set it even if you mostly use single-use codes: the landing always shows the beta-code screen, and with it empty, testers can only get past it through the small "I have a personal invite code" link.
 - [ ] **`ADMIN_TELEGRAM_IDS`** = your Telegram id (`123456789`) so `/admin` + `GET /api/admin/stats` (usage + token/cost dashboard) open for you. Falls back to `PRO_ALLOWLIST` if unset; everyone else gets 403 / a 404 page.
 - [ ] `CORS_ORIGIN` / `FRONTEND_URL` = the real Vercel URL (no localhost).
 - [ ] Secrets set as env vars, never committed: `BAILIAN_API_KEY`, `TAVILY_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `SMTP_URL`.
-- [ ] Confirm only **one** process polls the Telegram token (the tutor bot vs OpenClaw) — two pollers fight.
+- [ ] Confirm only **one** process polls the Telegram token (prod backend vs your local backend) — two pollers fight (`409 Conflict`). OpenClaw is not deployed.
 
 ### Auth delivery
 - [ ] **Email login**: set `SMTP_URL` + `EMAIL_FROM` (e.g. Resend/Postmark), or email sign-in won't deliver in prod. Send a test link.
 - [ ] **Google login** (optional): create an OAuth client, authorise the Vercel origin, set `GOOGLE_CLIENT_ID` (backend) + `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Vercel).
-- [ ] **Telegram login**: `NEXT_PUBLIC_BOT_USERNAME` = the bot that runs the backend (`llmlangcardlearnerbot`); the bot must be running with `ENABLE_TELEGRAM_BOT=true`.
+- [ ] **Telegram login**: `NEXT_PUBLIC_BOT_USERNAME` = the bot that runs the backend (`onomikabot`); the backend must run with `ENABLE_TELEGRAM_BOT=true`, and no other process may poll the same token (your local backend included).
 
 ### Legal (pages exist at /privacy and /terms — fill the placeholders)
 - [ ] Replace every `[ЗАПОЛНИТЬ: …]` in `/privacy` and `/terms` (operator name, contact email, jurisdiction, min age).
@@ -27,7 +28,7 @@ What to prepare before inviting testers. Grouped by priority.
 - [ ] (If EU/RU users) confirm the privacy basics fit GDPR / 152-ФЗ: purpose, processors, deletion, rights — the template covers these; a lawyer review is recommended for a public launch.
 
 ### Data safety
-- [ ] Enable **database backups** on Railway (Postgres). Take one before the beta.
+- [ ] Enable **database backups** on Railway (Postgres), or `pg_dump` via `DATABASE_PUBLIC_URL`. Take one before the beta.
 - [ ] Know how to delete a user on request (account delete cascades words/texts/identities).
 
 ## 🟠 Strongly recommended
