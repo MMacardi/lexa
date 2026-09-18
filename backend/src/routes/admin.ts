@@ -9,7 +9,9 @@ import { costCny } from "../lib/pricing.js";
 // costing (real tokens + ¥ by model / feature / user / day). Guarded by requireAdmin,
 // which is itself behind the global identity + invite gate in index.ts.
 export const adminRouter = Router();
-adminRouter.use(requireAdmin);
+// Scoped to /admin paths: this router is mounted at /api alongside the others, so
+// an unscoped use() would 403 every later /api route for non-admins.
+adminRouter.use("/admin", requireAdmin);
 
 const DAY = 86_400_000;
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
