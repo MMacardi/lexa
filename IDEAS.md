@@ -471,3 +471,19 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 ## Smaller wins
 - ✅ **Cache AI explanation** on the card (avoid re-spending tokens on re-open).
 - ✅ **Quiz hotkeys** — 1–4 pick answers, Enter/Space to continue; number badges on options.
+
+## Mika page
+Status: planned (BACKLOG 1a, asked 2026-09-18).
+Mika today is only the floating widget (`components/GlobalTutor.tsx`, `api.tutorAsk`).
+Learners want to have longer talks with it ("I'm preparing for IELTS, check my level and suggest
+words"), and it's the free, voice-friendly entry point, so give it a proper page:
+- `/mika` route + sidebar item; big, calm chat layout (not the cramped widget), same
+  message rendering, same "add suggested words/cards" buttons, mic input if the widget has it.
+- Extract the chat state/logic from GlobalTutor into a shared hook/component so the
+  widget and the page don't fork. The widget could get an "open full page" button.
+- Empty state = preset cards that also explain the app's features, e.g.:
+  "Check my level for IELTS and suggest words", "Explain the difference between X and Y",
+  "Give me 10 words on a topic → add to a collection", "How do reviews (FSRS) work?",
+  "Make me a short text to read" (→ Reader), "Let's role-play a scene" (→ Coach scenes),
+  "What should I study today?" (due cards / Coach picks).
+- Presets fill the input (editable) rather than sending right away. All strings en/ru/zh.
