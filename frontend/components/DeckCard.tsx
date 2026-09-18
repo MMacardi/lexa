@@ -8,12 +8,21 @@ import { pairLabel } from "@/lib/langs";
 
 // Author line for a shared deck: the Onomika Library gets an "Official" badge,
 // real learners just their name. "Picked by Mika" marks the tutor's picks.
-export function DeckAuthor({ deck }: { deck: Pick<DeckSummary, "author" | "mikaPick"> }) {
+// `link` turns a learner's name into a link to their profile (not inside a card,
+// which is itself a link).
+export function DeckAuthor({ deck, link }: { deck: Pick<DeckSummary, "author" | "mikaPick">; link?: boolean }) {
   const { t } = useI18n();
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-soft">
       <span>
-        {t("community.by")} <span className="font-semibold text-ink-muted">{deck.author.name}</span>
+        {t("community.by")}{" "}
+        {link && deck.author.id ? (
+          <Link href={`/profile/${deck.author.id}`} className="font-semibold text-sage-deep hover:underline">
+            {deck.author.name}
+          </Link>
+        ) : (
+          <span className="font-semibold text-ink-muted">{deck.author.name}</span>
+        )}
       </span>
       {deck.author.official && (
         <span className="inline-flex items-center gap-1 rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">

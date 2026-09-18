@@ -19,6 +19,7 @@ const CODE_KEYS: Record<string, string> = {
   no_input: "friends.errNoInput",
   no_deck: "community.errNoDeck",
   own_deck: "community.errOwnDeck",
+  no_profile: "profile.errClosed",
 };
 
 export function errText(e: unknown, t: T): string {

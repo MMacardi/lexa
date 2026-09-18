@@ -17,6 +17,7 @@ import { sendEmail, emailConfigured } from "../services/mailer.js";
 import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/authIdentity.js";
 import { rateLimit, take } from "../lib/rateLimit.js";
 import { isAdmin } from "../lib/entitlements.js";
+import { PRIVACY_LEVELS } from "../services/profiles.js";
 import { readBetaCookie } from "./beta.js";
 
 export const authRouter = Router();
@@ -244,6 +245,7 @@ authRouter.get("/auth/me", async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { telegramId },
     select: {
+      id: true,
       telegramId: true,
       firstName: true,
       lastName: true,
@@ -254,6 +256,8 @@ authRouter.get("/auth/me", async (req, res) => {
       authVia: true,
       hideEmail: true,
       hideTag: true,
+      profileVisibility: true,
+      decksVisibility: true,
       invited: true,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
@@ -270,15 +274,24 @@ authRouter.patch("/auth/me", async (req, res) => {
     return;
   }
   const b = req.body ?? {};
-  const data: { displayName?: string | null; hideEmail?: boolean; hideTag?: boolean } = {};
+  const data: {
+    displayName?: string | null;
+    hideEmail?: boolean;
+    hideTag?: boolean;
+    profileVisibility?: string;
+    decksVisibility?: string;
+  } = {};
+  const privacy = (v: unknown) => (PRIVACY_LEVELS as readonly string[]).includes(v as string);
   if (typeof b.displayName === "string") data.displayName = b.displayName.trim().slice(0, 60) || null;
   if (typeof b.hideEmail === "boolean") data.hideEmail = b.hideEmail;
   if (typeof b.hideTag === "boolean") data.hideTag = b.hideTag;
+  if (privacy(b.profileVisibility)) data.profileVisibility = b.profileVisibility;
+  if (privacy(b.decksVisibility)) data.decksVisibility = b.decksVisibility;
   try {
     const user = await prisma.user.update({
       where: { telegramId },
       data,
-      select: { displayName: true, hideEmail: true, hideTag: true },
+      select: { displayName: true, hideEmail: true, hideTag: true, profileVisibility: true, decksVisibility: true },
     });
     res.json(user);
   } catch (err) {

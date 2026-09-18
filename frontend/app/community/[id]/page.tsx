@@ -88,7 +88,7 @@ function DeckView() {
             {pairLabel(deck.sourceLang, deck.targetLang)}
           </span>
         </div>
-        <DeckAuthor deck={deck} />
+        <DeckAuthor deck={deck} link />
         {deck.description && <p className="text-ink-soft">{deck.description}</p>}
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[13px] font-medium text-ink-soft">

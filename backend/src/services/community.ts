@@ -17,11 +17,12 @@ function fail(code: string, message: string): never {
   throw Object.assign(new Error(message), { code });
 }
 
-type AuthorRow = { telegramId: string; firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean };
+type AuthorRow = { id: string; telegramId: string; firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean };
 
 function author(u: AuthorRow) {
   const official = u.telegramId === LIBRARY_TELEGRAM_ID;
-  return { name: official ? LIBRARY_NAME : displayName(u), official };
+  // `id` opens the author's profile page; the library has none.
+  return { id: official ? null : u.id, name: official ? LIBRARY_NAME : displayName(u), official };
 }
 
 async function viewer(telegramId: string) {
@@ -30,7 +31,7 @@ async function viewer(telegramId: string) {
   return u.id;
 }
 
-async function friendIds(userId: string): Promise<string[]> {
+export async function friendIds(userId: string): Promise<string[]> {
   const links = await prisma.friendship.findMany({
     where: { status: "accepted", OR: [{ requesterId: userId }, { addresseeId: userId }] },
     select: { requesterId: true, addresseeId: true },
@@ -71,7 +72,7 @@ async function canView(deck: DeckRow, viewerId: string, code?: string): Promise<
 
 // Summaries: counts, the deck's (dominant) language pair, a few preview words and
 // the real-use counters. One query per list, grouped in JS — fine at beta scale.
-const summarySelect = {
+export const summarySelect = {
   id: true,
   userId: true,
   name: true,
@@ -80,7 +81,7 @@ const summarySelect = {
   shareCode: true,
   mikaPick: true,
   createdAt: true,
-  user: { select: { telegramId: true, firstName: true, lastName: true, displayName: true, username: true, hideTag: true } },
+  user: { select: { id: true, telegramId: true, firstName: true, lastName: true, displayName: true, username: true, hideTag: true } },
   words: { select: { word: true, sourceLang: true, targetLang: true }, orderBy: { createdAt: "asc" as const } },
   adds: { select: { lastAt: true } },
 };
@@ -91,7 +92,7 @@ type SummaryRow = DeckRow & {
   adds: { lastAt: Date }[];
 };
 
-function summarize(c: SummaryRow, viewerId: string) {
+export function summarize(c: SummaryRow, viewerId: string) {
   const pairs = new Map<string, number>();
   for (const w of c.words) {
     const k = `${w.sourceLang}>${w.targetLang}`;
@@ -163,7 +164,9 @@ export async function listFriendDecks(telegramId: string) {
   const ids = await friendIds(me);
   if (!ids.length) return [];
   const rows = await prisma.collection.findMany({
-    where: { userId: { in: ids }, visibility: { in: ["friends", "public"] } },
+    // A friend who hides their decks (privacy switch) drops out of this feed; their
+    // public decks still appear in the public Community list.
+    where: { userId: { in: ids }, visibility: { in: ["friends", "public"] }, user: { decksVisibility: { not: "hidden" } } },
     select: summarySelect,
     orderBy: { createdAt: "desc" },
     take: 100,

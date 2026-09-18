@@ -80,7 +80,7 @@ export interface DeckSummary {
   targetLang: string;
   count: number;
   preview: string[];
-  author: { name: string; official: boolean };
+  author: { id: string | null; name: string; official: boolean }; // id → /profile/<id>
   mikaPick: boolean;
   visibility: Visibility;
   mine: boolean;
@@ -99,6 +99,25 @@ export interface DeckWord {
   synonyms: string[];
   example: { sentenceEn: string; sentenceZh: string } | null;
   owned: boolean;
+}
+
+export interface LearnerProfile {
+  id: string;
+  name: string;
+  since: string;
+  isMe: boolean;
+  isFriend: boolean;
+  stats: {
+    total: number;
+    mastered: number;
+    streak: number;
+    reviews: number;
+    languages: string[];
+    heat: { date: string; count: number }[];
+  } | null; // null = their profile stats are closed to you
+  decks: DeckSummary[];
+  decksHidden: boolean;
+  privacy: { profile: PrivacyLevel; decks: PrivacyLevel } | null; // only on your own profile
 }
 
 export interface DeckDetail extends DeckSummary {
@@ -161,7 +180,9 @@ export interface SceneSessionFull extends SceneSessionSummary {
 
 export interface Friend {
   friendshipId: string;
+  userId: string;
   telegramId: string;
+  profileHidden?: boolean; // they set their profile to hidden: name only
   name: string;
   total: number;
   mastered: number;
@@ -175,7 +196,10 @@ export interface FriendRequest {
   name: string;
 }
 
+export type PrivacyLevel = "hidden" | "friends" | "everyone";
+
 export interface Profile {
+  id?: string; // user id (opens /profile/<id>)
   telegramId: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -186,6 +210,8 @@ export interface Profile {
   authVia?: string; // "telegram" | "google" | "email" | "dev"
   hideEmail?: boolean;
   hideTag?: boolean;
+  profileVisibility?: PrivacyLevel; // who sees my stats / activity
+  decksVisibility?: PrivacyLevel; // who sees my shared decks listed on my profile
   invited?: boolean; // closed-beta gate: has the user redeemed an invite code?
   isAdmin?: boolean; // owner allowlist: may open the /admin dashboard
   identities?: AuthIdentity[];
@@ -617,6 +643,7 @@ export const api = {
     const qs = p.toString();
     return http<DeckSummary[]>(`/api/community/decks${qs ? `?${qs}` : ""}`);
   },
+  learnerProfile: (userId: string) => http<LearnerProfile>(`/api/profiles/${userId}`),
   friendDecks: () => http<DeckSummary[]>(`/api/community/friends`),
   deckByCode: (code: string) => http<{ id: string }>(`/api/community/code/${encodeURIComponent(code.trim())}`),
   deck: (id: string, code?: string) =>
@@ -635,8 +662,8 @@ export const api = {
   me: () => http<Profile>(`/api/auth/me`),
   updateName: (displayName: string) =>
     http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
-  updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean }) =>
-    http<{ hideEmail: boolean; hideTag: boolean }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
+  updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean; profileVisibility?: PrivacyLevel; decksVisibility?: PrivacyLevel }) =>
+    http<{ hideEmail: boolean; hideTag: boolean; profileVisibility: PrivacyLevel; decksVisibility: PrivacyLevel }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
   // Closed-beta gate: redeem an invite code, unlocking the app. Returns the fresh profile.
   redeemInvite: (code: string) =>
     http<Profile>(`/api/invites/redeem`, { method: "POST", body: JSON.stringify({ code }) }),

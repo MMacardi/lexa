@@ -17,6 +17,11 @@ model User {
   // Privacy: hide the email / @username from what friends can see.
   hideEmail   Boolean   @default(false)
   hideTag     Boolean   @default(false)
+  // Social privacy: who can open my profile (stats, activity graph, languages) and
+  // who sees my shared decks listed on it / in friends' Community feed.
+  // "hidden" | "friends" | "everyone". A deck's own visibility still gates access.
+  profileVisibility String @default("friends")
+  decksVisibility   String @default("friends")
   username    String?
   photoUrl    String?
   email       String?      // set for Google / email-magic-link accounts

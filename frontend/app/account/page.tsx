@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "@/lib/api";
+import Link from "next/link";
+import { api, type PrivacyLevel } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n, LOCALES } from "@/lib/i18n";
@@ -379,6 +380,45 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// One privacy switch: hidden / friends / everyone as a segmented control.
+function PrivacyRow({
+  label,
+  hint,
+  value,
+  onChange,
+  t,
+}: {
+  label: string;
+  hint: string;
+  value: PrivacyLevel;
+  onChange: (v: PrivacyLevel) => void;
+  t: (k: string) => string;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink">{label}</p>
+        <p className="text-[12px] text-ink-soft">{hint}</p>
+      </div>
+      <div className="flex shrink-0 gap-1 rounded-full border border-black/[0.07] bg-paper/60 p-1">
+        {(["hidden", "friends", "everyone"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => v !== value && onChange(v)}
+            className={cn(
+              "rounded-full px-3 py-1 text-[13px] font-semibold transition-colors",
+              v === value ? "bg-sage text-white" : "text-ink-muted hover:bg-black/[0.04]",
+            )}
+          >
+            {t(`privacy.${v}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // A small eye toggle next to email / @tag: hide it from what friends can see.
 function PrivacyEye({ hidden, onClick, t }: { hidden: boolean; onClick: () => void; t: (k: string) => string }) {
   return (
@@ -428,7 +468,7 @@ export default function AccountPage() {
       setSavingName(false);
     }
   }
-  async function togglePrivacy(patch: { hideEmail?: boolean; hideTag?: boolean }) {
+  async function togglePrivacy(patch: Parameters<typeof api.updatePrivacy>[0]) {
     try {
       await api.updatePrivacy(patch);
       await refresh();
@@ -532,6 +572,33 @@ export default function AccountPage() {
           </Button>
         </div>
       </Section>
+
+      {/* social privacy: who sees my profile page and my shared decks */}
+      <div id="privacy" className="scroll-mt-6">
+        <Section title={t("privacy.title")}>
+          <div className="space-y-4">
+            <PrivacyRow
+              label={t("privacy.profile")}
+              hint={t("privacy.profileHint")}
+              value={profile?.profileVisibility ?? "friends"}
+              onChange={(v) => togglePrivacy({ profileVisibility: v })}
+              t={t}
+            />
+            <PrivacyRow
+              label={t("privacy.decks")}
+              hint={t("privacy.decksHint")}
+              value={profile?.decksVisibility ?? "friends"}
+              onChange={(v) => togglePrivacy({ decksVisibility: v })}
+              t={t}
+            />
+            {profile?.id && (
+              <Link href={`/profile/${profile.id}`} className="inline-block text-sm font-semibold text-sage-deep hover:underline">
+                {t("privacy.viewMine")} →
+              </Link>
+            )}
+          </div>
+        </Section>
+      </div>
 
       {/* plan + today's AI usage */}
       <PlanUsage />

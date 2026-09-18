@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Friend, type Stats } from "@/lib/api";
@@ -199,9 +200,11 @@ function FriendsInner() {
                 <div key={f.friendshipId} className="rounded-[18px] border border-black/[0.06] bg-surface p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate font-serif text-[19px] font-semibold text-ink">{f.name}</div>
+                      <Link href={`/profile/${f.userId}`} className="block truncate font-serif text-[19px] font-semibold text-ink hover:text-sage-deep">
+                        {f.name}
+                      </Link>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {f.languages.length === 0 ? (
+                        {f.profileHidden ? null : f.languages.length === 0 ? (
                           <span className="text-[12px] text-ink-faint">{t("friends.noLangs")}</span>
                         ) : (
                           f.languages.map((l) => (
@@ -222,14 +225,21 @@ function FriendsInner() {
                     </button>
                   </div>
 
+                  {f.profileHidden ? (
+                    <p className="mt-3 text-[13px] text-ink-faint">{t("profile.friendHidden")}</p>
+                  ) : (
                   <div className="mt-3 flex flex-wrap gap-4 text-[13px] text-ink-soft">
                     <span className="inline-flex items-center gap-1.5"><BookOpen className="h-4 w-4 text-ink-faint" /> {t("friends.statWords", { n: f.total })}</span>
                     <span className="inline-flex items-center gap-1.5"><GraduationCap className="h-4 w-4 text-ink-faint" /> {t("friends.statMastered", { n: f.mastered })}</span>
                     <span className="inline-flex items-center gap-1.5"><Flame className="h-4 w-4 text-orange-500" /> {t("friends.statStreak", { n: f.streak })}</span>
                     <span className="inline-flex items-center gap-1.5"><Trophy className="h-4 w-4 text-sage-deep" /> {t("friends.statBadges", { n: badges.length })}</span>
+                    <Link href={`/profile/${f.userId}`} className="font-semibold text-sage-deep hover:underline">
+                      {t("profile.open")} →
+                    </Link>
                   </div>
+                  )}
 
-                  {badges.length > 0 && (
+                  {!f.profileHidden && badges.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[0.06] pt-3">
                       {badges.map((b) => (
                         <HoverTip key={b.id} title={t(b.labelKey)} subtitle={t(b.descKey)} className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-tint">

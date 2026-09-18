@@ -83,8 +83,10 @@ export async function getReferral(telegramId: string) {
 async function friendCard(otherUserId: string, friendshipId: string) {
   const u = await prisma.user.findUnique({ where: { id: otherUserId } });
   if (!u) return null;
-  const stats = await publicStats(otherUserId);
-  return { friendshipId, telegramId: u.telegramId, name: displayName(u), ...stats };
+  // A friend who set their profile to "hidden" shows up by name only.
+  const hidden = u.profileVisibility === "hidden";
+  const stats = hidden ? { total: 0, mastered: 0, reviews: 0, languages: [] as string[], streak: 0 } : await publicStats(otherUserId);
+  return { friendshipId, userId: u.id, telegramId: u.telegramId, name: displayName(u), profileHidden: hidden, ...stats };
 }
 
 // Accepted friends, each with their public stats.
