@@ -1188,7 +1188,7 @@ function Bubble({
               onUnknown={(token, el) => onUnknown(token, turn.content, el)}
             />
           </div>
-          <SpeakButton text={turn.content} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
+          <SpeakButton text={turn.content} lang={speakLang} size="sm" className="hover-reveal" />
         </div>
       </div>
     </div>

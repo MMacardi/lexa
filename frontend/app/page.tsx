@@ -168,10 +168,10 @@ export default function TodayPage() {
               </span>
             )}
           </div>
-          <div className="mt-4 flex items-baseline gap-2.5">
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <Link
               href={`/word/${wotd.id}`}
-              className="font-serif text-[34px] font-semibold text-ink hover:text-sage-deep"
+              className="break-words font-serif text-[30px] font-semibold text-ink hover:text-sage-deep sm:text-[34px]"
             >
               {wotd.word}
             </Link>
@@ -222,8 +222,8 @@ export default function TodayPage() {
                 className="anim-fade-up flex min-h-[110px] flex-col rounded-[18px] border border-black/[0.06] bg-surface p-[18px] transition-shadow hover:shadow-[0_10px_30px_rgba(46,42,38,0.08)]"
                 style={{ animationDelay: `${180 + i * 50}ms` }}
               >
-                <div className="flex items-baseline gap-2.5">
-                  <span className="font-serif text-[22px] font-semibold text-ink">{w.word}</span>
+                <div className="flex flex-wrap items-baseline gap-x-2.5">
+                  <span className="break-words font-serif text-[22px] font-semibold text-ink">{w.word}</span>
                   {w.meaningZh && (
                     <span className={`text-sm text-sage ${w.targetLang === "zh" || w.targetLang === "zh-Hant" ? "font-zh" : ""}`}>
                       {w.meaningZh}

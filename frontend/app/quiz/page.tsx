@@ -430,7 +430,7 @@ export default function QuizPage() {
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
-            <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+            <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
               {(["choice", "type", "cloze", "mixed"] as const).map((m) => (
                 <button
                   key={m}
@@ -513,7 +513,7 @@ export default function QuizPage() {
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         {score / total >= 0.6 && <Confetti />}
         <Target className="mx-auto h-9 w-9 text-sage" />
-        <h2 className="mt-4 font-serif text-[32px] font-medium text-ink">{t("quiz.done")}</h2>
+        <h2 className="mt-4 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("quiz.done")}</h2>
         <p className="mt-2 text-ink-soft">{t("quiz.score", { x: score, y: total })}</p>
         <Button variant="dark" className="mt-7" onClick={() => setStarted(false)}>
           {t("review.backToSetup")}
@@ -596,7 +596,7 @@ export default function QuizPage() {
 
       <div
         key={index}
-        className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-9 text-center"
+        className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-6 text-center sm:p-9"
       >
         <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
         {q.kind === "cloze" ? (
@@ -610,7 +610,7 @@ export default function QuizPage() {
           <div
             className={cn(
               "mt-2.5 font-bold leading-tight text-sage-deep",
-              q.promptTarget ? cn("text-[44px]", tFont) : "font-serif text-[40px] text-ink",
+              q.promptTarget ? cn("text-[44px]", tFont) : "font-serif text-[32px] break-words text-ink sm:text-[40px]",
             )}
           >
             {q.prompt}

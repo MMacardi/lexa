@@ -83,7 +83,7 @@ export default function CollectionDetailPage() {
           ← {t("nav.collections")}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">
+          <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">
             {collection?.name ?? "—"}
           </h1>
           <div className="flex gap-2">

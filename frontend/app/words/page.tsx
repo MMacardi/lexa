@@ -200,7 +200,7 @@ export default function WordsPage() {
     <div className="space-y-6">
       <div className="anim-fade-up flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-3">
-          <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{t("words.title")}</h1>
+          <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{t("words.title")}</h1>
           <span className="text-[15px] font-semibold text-sage">{t("words.count", { n: words.length })}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">

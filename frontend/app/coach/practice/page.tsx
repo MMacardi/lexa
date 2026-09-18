@@ -542,7 +542,7 @@ function Bubble({ turn, t, speakLang }: { turn: Turn; t: (k: string) => string; 
             <Rich text={turn.content} />
           </div>
           {/* hear the coach's line (free browser TTS; renders nothing if no engine) */}
-          <SpeakButton text={turn.content.replace(/[*]/g, "")} lang={speakLang} size="sm" className="opacity-0 transition-opacity group-hover:opacity-100" />
+          <SpeakButton text={turn.content.replace(/[*]/g, "")} lang={speakLang} size="sm" className="hover-reveal" />
         </div>
       </div>
     </div>
