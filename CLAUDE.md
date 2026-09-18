@@ -21,7 +21,8 @@ Graded university final project; the student is the sole author.
 - New migration: `cd backend && npx prisma migrate dev --name <name>`
 
 ## Rules
-- Commits: plain messages, **no Co-Authored-By trailer**. Don't push/merge without asking.
+- Commits: plain messages, **no Co-Authored-By trailer**. Solo phase (until beta testers
+  arrive): after a finished task, push to `main` (prod auto-deploys) without asking.
 - Match surrounding code style and comment density; every new UI string goes in all 3 languages.
 - Closed beta: every `/api` route needs a session + invite (`lib/gate.ts`); identity comes
   from the session cookie only, never from a body/query `telegramId`.
