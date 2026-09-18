@@ -461,11 +461,15 @@ export function useSynonymLevel(): CefrLevel | "" {
 
 export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
+// Everyday sentences suit most learners; the backend defaults to the same.
+export const DEFAULT_EXAMPLE_STYLE: ExampleStyle = "casual";
+// Order the pickers show the registers in (most common first).
+export const STYLE_ORDER: ExampleStyle[] = ["casual", "dialogue", "news", "literary"];
 
 export function getExampleStyle(): ExampleStyle {
-  if (typeof window === "undefined") return "news";
+  if (typeof window === "undefined") return DEFAULT_EXAMPLE_STYLE;
   const v = localStorage.getItem(STYLE_KEY);
-  return (EXAMPLE_STYLES as readonly string[]).includes(v ?? "") ? (v as ExampleStyle) : "news";
+  return (EXAMPLE_STYLES as readonly string[]).includes(v ?? "") ? (v as ExampleStyle) : DEFAULT_EXAMPLE_STYLE;
 }
 
 export function setExampleStyle(style: ExampleStyle) {
@@ -474,7 +478,7 @@ export function setExampleStyle(style: ExampleStyle) {
 }
 
 export function useExampleStyle(): ExampleStyle {
-  const [style, setState] = useState<ExampleStyle>("news");
+  const [style, setState] = useState<ExampleStyle>(DEFAULT_EXAMPLE_STYLE);
   useEffect(() => {
     const sync = () => setState(getExampleStyle());
     sync();

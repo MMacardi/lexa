@@ -38,6 +38,10 @@ import {
   useMicEngine,
   type CefrLevel,
   type ExampleSource,
+  STYLE_ORDER,
+  DEFAULT_EXAMPLE_STYLE,
+  setExampleStyle,
+  useExampleStyle,
   type MeaningMode,
   type GraphAddMethod,
   type MicEngine,
@@ -147,6 +151,7 @@ function RetentionSection() {
 function ExampleSourceSection() {
   const { t } = useI18n();
   const source = useExampleSource();
+  const style = useExampleStyle();
   const options: { value: ExampleSource; label: string }[] = [
     { value: "ai", label: t("exsrc.ai") },
     { value: "web", label: t("exsrc.web") },
@@ -174,6 +179,32 @@ function ExampleSourceSection() {
         </div>
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
+
+      {/* register of the sentences (AI-composed examples only; the web miner
+          searches news, so the picker is hidden there) */}
+      {source === "ai" && (
+        <div className="mt-5 border-t border-black/[0.06] pt-4">
+          <span className="text-[15px] font-medium text-ink">{t("style.label")}</span>
+          <div className="scroll-row mt-2 flex w-fit gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:text-sm">
+            {STYLE_ORDER.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setExampleStyle(s)}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 transition-colors",
+                  style === s ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {t(`style.${s}`)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[13px] leading-snug text-ink-soft">
+            {t(`style.desc.${style === "none" ? DEFAULT_EXAMPLE_STYLE : style}`)}
+          </p>
+        </div>
+      )}
     </section>
   );
 }
