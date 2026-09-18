@@ -320,8 +320,17 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - 🧊 **Custom scene ideas (free text)** — parked. The learner can write nonsense
   and we'd burn tokens on it; `/coach/scene` offers curated presets only (grid,
   all visible at once). Revisit once presets are exhausted.
-- ⏭ **More presets** — grow the set; if it outgrows one screen, add a "more"
-  button rather than bringing the carousel back.
+- ✅ **More presets** — 10 extra scenes (neighbour, lost parcel, directions, flat, pharmacy,
+  taxi, returns, party, lost luggage, detective) behind a "More scenes" toggle as emoji chips
+  (no artwork yet), so the photo grid stays one screen.
+- ✅ **Scenes: fun + bug pass (2026-09-18)** — setup now gives the character one vivid trait and
+  a hidden `twist` (sold out, wrong name …) the turn engine springs after the 2nd–3rd reply.
+  Fixes: long scenes 400'd (>24 messages; client now sends the last 16), stale corrections
+  re-sent on the next turn (server keeps only fixes quoting the latest message; language-only,
+  missing article = minor), FSRS grading missed cards that left the candidate pool, IME Enter
+  sent half-typed pinyin, composer lost focus each turn, history list never refreshed, pending
+  save dropped on leave, half-streamed turns persisted, Finish before speaking spent a call,
+  coach memory silently skipped scenes >30 messages, phone height hid the composer.
 - ✅ **Coach landing dedup** — `/coach` dropped "Today's plan", "This week" and
   the pace slider (they contradicted Home's daily goal). Home owns pacing;
   `/coach` = greeting + scene/chat entry + "Words for you".

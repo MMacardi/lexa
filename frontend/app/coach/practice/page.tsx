@@ -235,7 +235,7 @@ export default function CoachPracticePage() {
   const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
 
   return (
-    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
+    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-176px)] max-w-[720px] flex-col md:h-[calc(100dvh-140px)]">
       <div className="mb-3">
         <Link href="/coach" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
           <ArrowLeft className="h-4 w-4" /> {t("coach.title")}
@@ -453,7 +453,7 @@ export default function CoachPracticePage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       sendText(input);
                     }

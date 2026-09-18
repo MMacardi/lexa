@@ -100,6 +100,8 @@ export const coachSceneSetupSchema = z.object({
     .array(z.object({ word: z.string(), meaning: z.string().default("") }))
     .default([]),
   opening: z.string().default(""), // the character's FIRST line, in the SOURCE language
+  // A hidden complication the character springs mid-scene (never shown to the learner).
+  twist: z.string().default(""),
 });
 export type CoachSceneSetup = z.infer<typeof coachSceneSetupSchema>;
 

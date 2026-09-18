@@ -409,6 +409,7 @@ export interface CoachSceneTurnPayload {
     characterName?: string;
     learnerRole?: string;
     goal?: string;
+    twist?: string;
     missionWords: { word: string; meaning: string }[];
     newWords?: { word: string; meaning: string }[];
   };
@@ -817,6 +818,7 @@ export const api = {
       missionWords: { word: string; meaning: string }[];
       newWords: { word: string; meaning: string }[];
       opening: string;
+      twist?: string;
     }>(`/api/coach/scene/setup`, { method: "POST", body: JSON.stringify(payload) }),
 
   coachSceneTurn: (payload: CoachSceneTurnPayload) =>

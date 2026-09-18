@@ -12,6 +12,7 @@ export interface SceneBible {
   characterName?: string;
   learnerRole?: string;
   goal?: string;
+  twist?: string; // hidden complication, sprung mid-scene (absent on older saved scenes)
   missionWords: { word: string; meaning: string }[];
   newWords?: { word: string; meaning: string }[];
 }
@@ -52,6 +53,7 @@ export async function coachSceneTurn(params: {
     `- You play: ${params.scene.character || params.scene.characterName || "a character"}\n` +
     `- The learner plays: ${params.scene.learnerRole || "themselves"}\n` +
     `- The learner's objective: ${params.scene.goal || "—"}\n` +
+    (params.scene.twist ? `- Hidden complication (the learner does NOT know it): ${params.scene.twist}\n` : "") +
     `- Mission words the learner is practising:\n${missionList || "(none)"}` +
     (newList ? `\n- New words to introduce naturally (the learner does NOT know these yet):\n${newList}` : "");
 
@@ -83,11 +85,14 @@ export async function coachSceneTurn(params: {
         `3) GENTLE RECAST: if a mistake blocks meaning or is clearly worth fixing, weave the corrected form naturally ` +
         `into your "say" (model it, don't lecture). ALSO record it in "corrections" — but ONLY for the learner's MOST ` +
         `RECENT message: judge that message in the full conversation context, never repeat a fix you already gave on ` +
-        `an earlier turn, and if they have since corrected themselves, leave the array empty. Each entry is ` +
+        `an earlier turn, and if they have since corrected themselves, leave the array empty. Corrections are about ` +
+        `LANGUAGE only (grammar, word choice, writing in the wrong language) — never about story facts: if what they ` +
+        `say contradicts the scene, react to it in character instead. Each entry is ` +
         `{original (what they wrote), ` +
         `corrected (the fixed form in ${source}), note (a one-line, factually correct "why" in ${target} — if you ` +
         `cannot state the rule cleanly, leave it ""), severity ("minor" for ` +
-        `a small slip, "wrong" for an error that breaks meaning or for writing in ${target})}. The app shows the ` +
+        `a small slip that still reads clearly — a missing article, a wrong ending or tense; "wrong" only for an ` +
+        `error that breaks meaning or for writing in ${target})}. The app shows the ` +
         `learner a small colour dot on their own message and, on tap, these fixes — so keep them few and genuinely ` +
         `useful: at most 4, and leave the array empty if their message was fine. They also roll up into an ` +
         `end-of-session report.\n` +
@@ -100,7 +105,10 @@ export async function coachSceneTurn(params: {
         `(the first time, make its meaning obvious from context — never append a ${target} translation). Never quiz ` +
         `or translate it on demand, and never put a new ` +
         `word in "used" — that array is only for mission words.\n` +
-        `5) ENDING: set "sceneDone" to true once the objective is resolved or the scene reaches a natural end (or the ` +
+        `5) COMPLICATION: if the scene below lists a hidden complication, spring it IN CHARACTER once, after the ` +
+        `learner's 2nd or 3rd reply — never in your first turn and never twice — and let them work around it. ` +
+        `Keep your character's personality consistent every turn; that is what makes the scene feel alive.\n` +
+        `6) ENDING: set "sceneDone" to true once the objective is resolved or the scene reaches a natural end (or the ` +
         `learner says goodbye / asks to stop). On that turn, "say" a short, warm in-character closing line and do not ` +
         `ask a new question.\n` +
         scriptNote(params.sourceLang ?? "en") +
@@ -135,7 +143,12 @@ export async function coachSceneTurn(params: {
         label: "coachSceneTurn",
       });
 
-  // Post-filter "used" to genuine mission words; keep corrections that actually have a fix.
+  // Post-filter "used" to genuine mission words; keep corrections that actually have a fix
+  // AND quote the learner's latest message — models tend to re-send the previous turn's
+  // fix, which put a red dot on a perfectly good reply.
+  const lastUser = [...params.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const norm = (x: string) => x.toLowerCase().replace(/[\s\p{P}]+/gu, "");
+  const lastNorm = norm(lastUser);
   const pool = new Set((params.scene.missionWords ?? []).map((w) => w.word.trim().toLowerCase()));
   const used = [
     ...new Set((result.used ?? []).map((w) => w.trim()).filter((w) => pool.has(w.toLowerCase()))),
@@ -147,7 +160,7 @@ export async function coachSceneTurn(params: {
       note: (c.note ?? "").trim(),
       severity: (c.severity === "wrong" ? "wrong" : "minor") as "minor" | "wrong",
     }))
-    .filter((c) => c.corrected)
+    .filter((c) => c.corrected && (!c.original || lastNorm.includes(norm(c.original))))
     .slice(0, 4);
 
   return {
