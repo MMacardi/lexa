@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input";
 
 // Pre-login shared beta gate. A guest enters the single BETA_KEY, which sets a
 // signed httpOnly cookie; logging in afterwards marks the account invited (see
-// finishLogin in the backend). A tester handed a personal single-use code skips
-// this screen via the "personal code" link and redeems it after login through
-// InviteGate — so the two gates never double-prompt.
+// finishLogin in the backend). Everyone gets the one shared code; there is no
+// personal-code path on this screen.
 export function BetaGate({ onUnlock }: { onUnlock: () => void }) {
   const { t } = useI18n();
   const [code, setCode] = useState("");
@@ -78,14 +77,6 @@ export function BetaGate({ onUnlock }: { onUnlock: () => void }) {
         </form>
 
         {err && <p className="mt-3 text-sm text-warn-text">{err}</p>}
-
-        <button
-          type="button"
-          onClick={onUnlock}
-          className="mt-6 text-xs font-semibold text-ink-faint hover:text-ink"
-        >
-          {t("beta.personal")} →
-        </button>
       </div>
     </main>
   );

@@ -240,7 +240,8 @@ export function LoginScreen() {
           )}
         </div>
 
-        {/* Developer sign-in — tucked away; only useful locally (ALLOW_DEV_LOGIN). */}
+        {/* Developer sign-in — local `next dev` only (backend also needs ALLOW_DEV_LOGIN). */}
+        {process.env.NODE_ENV !== "production" && (
         <details className="mt-6 text-left">
           <summary className="cursor-pointer text-center text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {t("login.devToggle")}
@@ -258,17 +259,18 @@ export function LoginScreen() {
           </div>
           <p className="mt-2 text-xs text-ink-faint">{t("login.devNote")}</p>
         </details>
+        )}
 
         {err && <p className="mt-3 text-sm text-warn-text">{err}</p>}
 
         <p className="mt-6 text-[11px] leading-relaxed text-ink-faint">
-          Входя, вы соглашаетесь с{" "}
+          {t("login.agree")}{" "}
           <a href="/terms" className="font-semibold text-ink-soft hover:text-ink hover:underline">
-            Условиями
+            {t("login.terms")}
           </a>{" "}
-          и{" "}
+          {t("login.and")}{" "}
           <a href="/privacy" className="font-semibold text-ink-soft hover:text-ink hover:underline">
-            Политикой конфиденциальности
+            {t("login.privacy")}
           </a>
           .
         </p>

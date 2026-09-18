@@ -7,8 +7,7 @@ import { BetaGate } from "@/components/BetaGate";
 
 // What a signed-out visitor sees: the marketing landing first, then the shared
 // beta-code gate, then login. Unlocking the beta gate sets a signed cookie so the
-// subsequent login marks the account invited; a tester with a personal single-use
-// code skips the gate (its "personal code" link) and redeems it after login.
+// subsequent login marks the account invited.
 export function GuestExperience() {
   const [stage, setStage] = useState<"landing" | "beta" | "login">("landing");
   if (stage === "login") return <LoginScreen />;

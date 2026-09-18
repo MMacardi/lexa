@@ -263,6 +263,10 @@ const DICT: Record<string, Entry> = {
   "login.dev": { en: "dev sign-in", ru: "вход для разработки", zh: "开发登录" },
   "login.idPlaceholder": { en: "Telegram ID (e.g. 865277762)", ru: "Telegram ID (напр. 865277762)", zh: "Telegram ID（如 865277762）" },
   "login.enter": { en: "Enter", ru: "Войти", zh: "进入" },
+  "login.agree": { en: "By signing in, you agree to the", ru: "Входя, вы соглашаетесь с", zh: "登录即表示您同意" },
+  "login.terms": { en: "Terms", ru: "Условиями", zh: "服务条款" },
+  "login.and": { en: "and", ru: "и", zh: "和" },
+  "login.privacy": { en: "Privacy Policy", ru: "Политикой конфиденциальности", zh: "隐私政策" },
   "login.devNote": { en: "The dev sign-in is for local testing; production uses Telegram login.", ru: "Этот вход нужен для локального теста; в продакшене — вход через Telegram.", zh: "开发登录用于本地测试；生产环境使用 Telegram 登录。" },
   "login.telegram": { en: "Continue with Telegram", ru: "Войти через Telegram", zh: "使用 Telegram 登录" },
   "login.telegramHint": { en: "One tap — no password. First sign-in creates your account.", ru: "В один тап — без пароля. Первый вход создаёт аккаунт.", zh: "一键登录，无需密码。首次登录即注册。" },
@@ -362,7 +366,6 @@ const DICT: Record<string, Entry> = {
   "beta.submit": { en: "Continue", ru: "Продолжить", zh: "继续" },
   "beta.invalid": { en: "That beta code isn't valid.", ru: "Этот код доступа недействителен.", zh: "该访问码无效。" },
   "beta.loading": { en: "Checking…", ru: "Проверяем…", zh: "正在验证…" },
-  "beta.personal": { en: "I have a personal invite code", ru: "У меня персональный код приглашения", zh: "我有个人邀请码" },
   // --- owner admin dashboard ---
   "nav.admin": { en: "Admin", ru: "Админка", zh: "管理" },
   "admin.title": { en: "Admin", ru: "Админка", zh: "管理后台" },
