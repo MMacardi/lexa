@@ -691,7 +691,7 @@ export const api = {
   // whether this guest already unlocked (so we don't re-prompt a returning visitor).
   unlockBeta: (code: string) =>
     http<{ ok: true }>(`/api/beta/unlock`, { method: "POST", body: JSON.stringify({ code }) }),
-  betaStatus: () => http<{ unlocked: boolean }>(`/api/beta/status`),
+  betaStatus: () => http<{ enabled: boolean; unlocked: boolean }>(`/api/beta/status`),
   loginTelegram: (data: Record<string, unknown>) =>
     http<Profile>(`/api/auth/telegram`, {
       method: "POST",

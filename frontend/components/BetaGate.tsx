@@ -10,25 +10,32 @@ import { Input } from "@/components/ui/input";
 // Pre-login shared beta gate. A guest enters the single BETA_KEY, which sets a
 // signed httpOnly cookie; logging in afterwards marks the account invited (see
 // finishLogin in the backend). Everyone gets the one shared code; there is no
-// personal-code path on this screen.
+// personal-code path on this screen. With BETA_KEY empty the screen is skipped.
 export function BetaGate({ onUnlock }: { onUnlock: () => void }) {
   const { t } = useI18n();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Hold the form back until /beta/status answers, so a guest who will skip the
+  // gate never sees it flash.
+  const [ready, setReady] = useState(false);
   const checked = useRef(false);
 
-  // Returning guest whose beta cookie is still valid: skip straight to login.
+  // Gate off (no BETA_KEY on the server) or a returning guest whose beta cookie
+  // is still valid: skip straight to login.
   useEffect(() => {
     if (checked.current) return;
     checked.current = true;
     api
       .betaStatus()
       .then((s) => {
-        if (s.unlocked) onUnlock();
+        if (!s.enabled || s.unlocked) onUnlock();
+        else setReady(true);
       })
-      .catch(() => {});
+      .catch(() => setReady(true));
   }, [onUnlock]);
+
+  if (!ready) return <main className="min-h-screen bg-paper" />;
 
   async function submit() {
     const value = code.trim();

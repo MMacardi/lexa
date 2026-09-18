@@ -60,6 +60,10 @@ const schema = z.object({
   // FEEDBACK_TELEGRAM_CHAT falls back to the first PRO_ALLOWLIST id when empty.
   FEEDBACK_EMAIL: z.string().default(""),
   FEEDBACK_TELEGRAM_CHAT: z.string().default(""),
+  // How many reverse-proxy hops sit in front of Express, so req.ip (and the
+  // per-IP rate limits for guests) is the real client, not the proxy. Empty =
+  // 2 in production (Vercel rewrite → Railway edge), 0 locally.
+  TRUST_PROXY_HOPS: z.string().default(""),
 });
 
 export const env = schema.parse(process.env);
