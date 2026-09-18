@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
+    "country-flag-emoji-polyfill": "^0.1.10",
     "es-hangul": "^2.4.0",
     "html2canvas-pro": "^2.3.9",
     "lucide-react": "^1.33.0",

@@ -29,9 +29,9 @@ html {
   --color-onyx: #2e2a26; /* decorative dark panels (stays dark in dark mode) */
   --color-quote: #544e45; /* example-sentence body text */
 
-  --font-serif: "Newsreader", Georgia, serif;
-  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
-  --font-zh: "Noto Sans SC", "Hanken Grotesk", sans-serif;
+  --font-serif: "Twemoji Country Flags", "Newsreader", Georgia, serif;
+  --font-sans: "Twemoji Country Flags", "Hanken Grotesk", system-ui, sans-serif;
+  --font-zh: "Twemoji Country Flags", "Noto Sans SC", "Hanken Grotesk", sans-serif;
 }
 
 :root {
