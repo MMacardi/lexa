@@ -38,6 +38,10 @@ export interface Word {
   createdAt: string;
   examples: Example[];
   collections?: { id: string; name: string }[];
+  // Credit when the card was copied from someone's shared deck.
+  sharedFrom?: string | null;
+  sharedDeck?: string | null;
+  sharedDeckId?: string | null;
   // FSRS scheduler state (used to preview intervals on the grade buttons)
   stability?: number | null;
   difficulty?: number | null;
@@ -49,10 +53,58 @@ export interface Word {
   lastReview?: string | null;
 }
 
+export type Visibility = "private" | "friends" | "code" | "public";
+
 export interface Collection {
   id: string;
   name: string;
   count: number;
+  description?: string | null;
+  folderId?: string | null;
+  visibility?: Visibility;
+  shareCode?: string | null;
+  learners?: number; // real learners who took words from it
+  copiedFrom?: { deck: string; author: string; official: boolean } | null;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+}
+
+export interface DeckSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  sourceLang: string;
+  targetLang: string;
+  count: number;
+  preview: string[];
+  author: { name: string; official: boolean };
+  mikaPick: boolean;
+  visibility: Visibility;
+  mine: boolean;
+  learners: number;
+  weekLearners: number;
+}
+
+export interface DeckWord {
+  id: string;
+  word: string;
+  sourceLang: string;
+  targetLang: string;
+  phonetic: string | null;
+  partOfSpeech: string | null;
+  meaning: string | null;
+  synonyms: string[];
+  example: { sentenceEn: string; sentenceZh: string } | null;
+  owned: boolean;
+}
+
+export interface DeckDetail extends DeckSummary {
+  shareCode: string | null;
+  copiedCollectionId: string | null;
+  words: DeckWord[];
 }
 
 export interface AuthIdentity {
@@ -540,8 +592,40 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ name }),
     }),
+  updateCollection: (
+    id: string,
+    patch: { name?: string; description?: string | null; folderId?: string | null; visibility?: Visibility },
+  ) =>
+    http<{ id: string; name: string; visibility: Visibility; shareCode: string | null; folderId: string | null }>(
+      `/api/collections/${id}`,
+      { method: "PATCH", body: JSON.stringify(patch) },
+    ),
   deleteCollection: (id: string) =>
     http<{ ok: true }>(`/api/collections/${id}`, { method: "DELETE" }),
+  // --- folders (one level; they hold collections) ---
+  folders: () => http<Folder[]>(`/api/folders`),
+  createFolder: (name: string) => http<Folder>(`/api/folders`, { method: "POST", body: JSON.stringify({ name }) }),
+  renameFolder: (id: string, name: string) =>
+    http<Folder>(`/api/folders/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  deleteFolder: (id: string) => http<{ ok: true }>(`/api/folders/${id}`, { method: "DELETE" }),
+  // --- community (shared decks) ---
+  communityDecks: (f: { q?: string; lang?: string; target?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (f.q) p.set("q", f.q);
+    if (f.lang) p.set("lang", f.lang);
+    if (f.target) p.set("target", f.target);
+    const qs = p.toString();
+    return http<DeckSummary[]>(`/api/community/decks${qs ? `?${qs}` : ""}`);
+  },
+  friendDecks: () => http<DeckSummary[]>(`/api/community/friends`),
+  deckByCode: (code: string) => http<{ id: string }>(`/api/community/code/${encodeURIComponent(code.trim())}`),
+  deck: (id: string, code?: string) =>
+    http<DeckDetail>(`/api/community/decks/${id}${code ? `?code=${encodeURIComponent(code)}` : ""}`),
+  copyDeck: (id: string, body: { code?: string; wordIds?: string[] } = {}) =>
+    http<{ added: number; skipped: number; collectionId: string | null }>(`/api/community/decks/${id}/copy`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   addWordToCollection: (collectionId: string, wordId: string) =>
     http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "PUT" }),
   removeWordFromCollection: (collectionId: string, wordId: string) =>

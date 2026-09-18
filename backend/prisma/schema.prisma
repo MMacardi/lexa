@@ -55,6 +55,8 @@ model User {
   coachMemories CoachMemory[]
   sceneSessions SceneSession[]
   inviteCodes InviteCode[]
+  folders     Folder[]
+  collectionAdds CollectionAdd[]
 }
 
 // Coach memory — what the personal mentor remembers about the learner across
@@ -125,6 +127,20 @@ model InviteCode {
   @@index([redeemedById])
 }
 
+// A one-level folder of collections ("HSK4" holding "adjectives", "verbs"…).
+// Folders hold collections, never other folders.
+model Folder {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  createdAt   DateTime     @default(now())
+  collections Collection[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
 model Collection {
   id        String   @id @default(cuid())
   userId    String
@@ -132,9 +148,42 @@ model Collection {
   name      String
   createdAt DateTime @default(now())
   words     Word[]   @relation("CollectionWords")
+  // Social layer. Others can only READ a shared collection; writing stays owner-only.
+  //   private — owner only (default) · friends — accepted friends
+  //   code    — anyone holding `shareCode` · public — listed in Community
+  visibility  String  @default("private")
+  shareCode   String? @unique // minted the first time the collection is shared
+  description String?
+  folderId    String?
+  folder      Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  // Set when this collection was made by copying someone's deck (credit + dedupe).
+  copiedFromId String?
+  // Onomika Library seed decks: `slug` keys the seed entry, `seedVersion` lets a
+  // redeploy refresh an edited deck; `mikaPick` shows "Picked by Mika".
+  slug        String?  @unique
+  seedVersion Int?
+  mikaPick    Boolean  @default(false)
+  adds        CollectionAdd[]
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([visibility])
+}
+
+// A real learner took words from a shared deck (whole deck or single words). One
+// row per (deck, learner); `lastAt` is bumped on every take, so "added by N
+// learners" = row count and "popular this week" = rows with a recent lastAt.
+model CollectionAdd {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  lastAt       DateTime   @default(now())
+
+  @@unique([collectionId, userId])
+  @@index([lastAt])
 }
 
 model Word {
@@ -164,6 +213,11 @@ model Word {
   learningSteps Int       @default(0)
   lastReview    DateTime?
   createdAt    DateTime  @default(now())
+  // Credit for a card copied from someone's shared deck ("from @anya's HSK4").
+  // Snapshotted as text so it survives the source deck being renamed or deleted.
+  sharedFrom   String?
+  sharedDeck   String?
+  sharedDeckId String?
   examples     Example[]
   collections  Collection[] @relation("CollectionWords")
 

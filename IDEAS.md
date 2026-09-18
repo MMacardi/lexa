@@ -114,8 +114,18 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   the daily AI cap, so deferred rather than blocking the beta. Before public launch:
   delimit/escape untrusted spans, refuse meta-instructions ("ignore previous…"), never
   echo the system prompt back, and consider a cheap classifier on coach/scene input.
-- 💡 **Social layer: shareable collections, friends' profiles, community decks**
-  (recorded in full 2026-09-13 — the user's Quizlet-style vision; NOT scheduled).
+- 🔨 **Social layer: shareable collections, friends' profiles, community decks**
+  (recorded in full 2026-09-13 — the user's Quizlet-style vision; SCHEDULED 2026-09-18
+  as BACKLOG 1b, with seeded starter decks under an openly labelled "Onomika Library"
+  author so the Community tab isn't empty on day one).
+  - **✅ Shipped 2026-09-18 (BACKLOG 1b):** visibility (private/friends/code/public) +
+    share code/link, one-level folders, copy whole deck or single words with a
+    "from X's deck" credit, `/community` (friends' decks, popular this week, Onomika
+    Library, search by topic/word + language chips), real "added by N" counters
+    (`CollectionAdd`), 16 hand-written library decks seeded at boot
+    (`backend/src/seed/libraryDecks.ts`, bump `version` to rebuild). Still open:
+    friend profile pages + per-user privacy switches (BACKLOG 1c), moderation of
+    public decks.
   The ask in spirit: friends should be able to pass vocabulary to each other and
   browse each other's progress without leaving Onomika.
   - **Collection visibility.** Every collection gets a visibility mode at creation

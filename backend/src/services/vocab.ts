@@ -7,6 +7,7 @@ import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { explanationSchema, wordChatSchema, type WordChatResult } from "../lib/schemas.js";
+import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -653,16 +654,27 @@ export async function getStats(telegramId: string) {
 
 // ---------------- Collections (word sets like "IELTS", "adjectives") ----------------
 
-/** A user's collections, each with how many words it holds. */
+/** A user's collections, each with how many words it holds + its sharing state. */
 export async function listCollections(telegramId: string) {
   const user = await prisma.user.findUnique({ where: { telegramId } });
   if (!user) return [];
   const cols = await prisma.collection.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
-    include: { _count: { select: { words: true } } },
+    include: { _count: { select: { words: true, adds: true } } },
   });
-  return cols.map((c) => ({ id: c.id, name: c.name, count: c._count.words }));
+  const credits = await copiedCredits(cols.map((c) => c.copiedFromId).filter((id): id is string => Boolean(id)));
+  return cols.map((c) => ({
+    id: c.id,
+    name: c.name,
+    count: c._count.words,
+    description: c.description,
+    folderId: c.folderId,
+    visibility: c.visibility,
+    shareCode: c.shareCode,
+    learners: c._count.adds,
+    copiedFrom: c.copiedFromId ? (credits.get(c.copiedFromId) ?? null) : null,
+  }));
 }
 
 /** Create a named collection for a user. */
@@ -681,9 +693,84 @@ export async function createCollection(telegramId: string, name: string) {
   }
 }
 
-export async function renameCollection(id: string, name: string) {
-  const c = await prisma.collection.update({ where: { id }, data: { name: name.trim() } });
-  return { id: c.id, name: c.name };
+/**
+ * Owner edits: rename, description, folder and visibility. Sharing (any mode but
+ * private) mints a share code the first time, so the owner can pass a link/code.
+ */
+export async function updateCollection(
+  id: string,
+  patch: { name?: string; description?: string | null; folderId?: string | null; visibility?: Visibility },
+) {
+  const current = await prisma.collection.findUniqueOrThrow({ where: { id }, select: { shareCode: true } });
+  const shareCode =
+    patch.visibility && patch.visibility !== "private" && !current.shareCode ? await mintShareCode() : undefined;
+  try {
+    const c = await prisma.collection.update({
+      where: { id },
+      data: {
+        ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+        ...(patch.description !== undefined ? { description: patch.description?.trim() || null } : {}),
+        ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}),
+        ...(patch.visibility ? { visibility: patch.visibility } : {}),
+        ...(shareCode ? { shareCode } : {}),
+      },
+    });
+    return { id: c.id, name: c.name, visibility: c.visibility, shareCode: c.shareCode, folderId: c.folderId, description: c.description };
+  } catch (err) {
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      throw new Error(`You already have a collection called “${patch.name?.trim()}”.`);
+    }
+    throw err;
+  }
+}
+
+// ---------------- Folders (one level: folders hold collections, never folders) ----------------
+
+export async function userOwnsFolder(folderId: string, telegramId: string | null | undefined): Promise<boolean> {
+  if (!telegramId) return false;
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return false;
+  const f = await prisma.folder.findFirst({ where: { id: folderId, userId: user.id }, select: { id: true } });
+  return Boolean(f);
+}
+
+export async function listFolders(telegramId: string) {
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return [];
+  const rows = await prisma.folder.findMany({ where: { userId: user.id }, orderBy: { name: "asc" } });
+  return rows.map((f) => ({ id: f.id, name: f.name }));
+}
+
+function folderClash(err: unknown, name: string): never {
+  if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+    throw new Error(`You already have a folder called “${name.trim()}”.`);
+  }
+  throw err;
+}
+
+export async function createFolder(telegramId: string, name: string) {
+  const user = await ensureUser(telegramId);
+  try {
+    const f = await prisma.folder.create({ data: { userId: user.id, name: name.trim() } });
+    return { id: f.id, name: f.name };
+  } catch (err) {
+    folderClash(err, name);
+  }
+}
+
+export async function renameFolder(id: string, name: string) {
+  try {
+    const f = await prisma.folder.update({ where: { id }, data: { name: name.trim() } });
+    return { id: f.id, name: f.name };
+  } catch (err) {
+    folderClash(err, name);
+  }
+}
+
+/** Delete a folder; its collections fall back to "no folder" (SET NULL). */
+export async function deleteFolder(id: string) {
+  await prisma.folder.delete({ where: { id } });
+  return { ok: true };
 }
 
 /** Delete a collection (words themselves are untouched). */

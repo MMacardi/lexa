@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Collection, type Word } from "@/lib/api";
+import { api, type Collection, type Folder, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { X, Pencil, GraduationCap, Target } from "lucide-react";
+import { X, Pencil, GraduationCap, Target, FolderPlus, FolderOpen, Share2, Globe } from "lucide-react";
+import { CollectionShare, VISIBILITY_ICON } from "@/components/CollectionShare";
 import { useDialog } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +28,36 @@ export default function CollectionsPage() {
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
+  const { data: folders } = useQuery({
+    queryKey: ["folders", accountId],
+    queryFn: () => api.folders(),
+  });
+  const { prompt, confirm } = useDialog();
+  const [folderError, setFolderError] = useState<string | null>(null);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["collections"] });
     qc.invalidateQueries({ queryKey: ["words"] });
+    qc.invalidateQueries({ queryKey: ["folders"] });
   };
+  const folderDone = {
+    onSuccess: () => {
+      setFolderError(null);
+      invalidate();
+    },
+    onError: (e: unknown) => setFolderError((e as Error).message),
+  };
+  const newFolder = useMutation({ mutationFn: (n: string) => api.createFolder(n), ...folderDone });
+  const renameFolder = useMutation({
+    mutationFn: ({ id, n }: { id: string; n: string }) => api.renameFolder(id, n),
+    ...folderDone,
+  });
+  const removeFolder = useMutation({ mutationFn: (id: string) => api.deleteFolder(id), onSuccess: invalidate });
+
+  async function askNewFolder() {
+    const n = await prompt({ title: t("folder.newTitle"), placeholder: t("folder.namePlaceholder"), confirmLabel: t("col.create") });
+    if (n?.trim()) newFolder.mutate(n.trim().slice(0, 60));
+  }
 
   const create = useMutation({
     mutationFn: () => api.createCollection(name.trim(), accountId),
@@ -43,6 +69,15 @@ export default function CollectionsPage() {
 
   const wordsByColl = (id: string) =>
     (words ?? []).filter((w) => (w.collections ?? []).some((c) => c.id === id));
+  const folderIds = new Set((folders ?? []).map((f) => f.id));
+
+  const grid = (cols: Collection[]) => (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {cols.map((c) => (
+        <CollectionCard key={c.id} collection={c} words={wordsByColl(c.id)} folders={folders ?? []} onChanged={invalidate} />
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-7">
@@ -69,10 +104,23 @@ export default function CollectionsPage() {
         <Button type="submit" disabled={!name.trim() || create.isPending} className="shrink-0">
           {create.isPending ? t("col.creating") : t("col.create")}
         </Button>
+        <Button type="button" variant="outline" onClick={askNewFolder} className="shrink-0">
+          <FolderPlus className="h-4 w-4" /> {t("folder.new")}
+        </Button>
         {create.isError && (
           <p className="w-full text-sm font-medium text-warn-text">{(create.error as Error).message}</p>
         )}
+        {folderError && <p className="w-full text-sm font-medium text-warn-text">{folderError}</p>}
       </form>
+
+      <Link
+        href="/community"
+        className="anim-fade-up flex items-center gap-3 rounded-[18px] border border-sage/30 bg-sage-tint/40 px-4 py-3 text-sm text-sage-deep transition-colors hover:bg-sage-tint"
+      >
+        <Globe className="h-5 w-5 shrink-0" />
+        <span className="flex-1">{t("community.promo")}</span>
+        <span className="font-semibold">→</span>
+      </Link>
 
       {isLoading && (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -88,18 +136,54 @@ export default function CollectionsPage() {
         </p>
       )}
 
-      {collections && collections.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {collections.map((c) => (
-            <CollectionCard
-              key={c.id}
-              collection={c}
-              words={wordsByColl(c.id)}
-              onChanged={invalidate}
-            />
-          ))}
-        </div>
-      )}
+      {collections && collections.length > 0 && grid(collections.filter((c) => !c.folderId || !folderIds.has(c.folderId)))}
+
+      {(folders ?? []).map((f) => {
+        const inFolder = (collections ?? []).filter((c) => c.folderId === f.id);
+        return (
+          <section key={f.id} className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-sage-deep" />
+              <h2 className="font-serif text-[22px] font-semibold text-ink">{f.name}</h2>
+              <span className="text-[13px] font-medium text-ink-faint">{t("folder.nSets", { n: inFolder.length })}</span>
+              <button
+                onClick={async () => {
+                  const n = await prompt({ title: t("folder.renameTitle"), defaultValue: f.name, confirmLabel: t("common.save") });
+                  if (n?.trim() && n.trim() !== f.name) renameFolder.mutate({ id: f.id, n: n.trim().slice(0, 60) });
+                }}
+                aria-label={t("folder.renameTitle")}
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04]"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: t("folder.deleteTitle"),
+                      message: t("folder.deleteConfirm", { name: f.name }),
+                      confirmLabel: t("common.delete"),
+                      tone: "danger",
+                    })
+                  )
+                    removeFolder.mutate(f.id);
+                }}
+                aria-label={t("folder.deleteTitle")}
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-warn-text"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {inFolder.length === 0 ? (
+              <p className="rounded-[16px] border border-dashed border-black/[0.12] bg-surface/60 p-5 text-center text-sm text-ink-soft">
+                {t("folder.empty")}
+              </p>
+            ) : (
+              grid(inFolder)
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -107,15 +191,20 @@ export default function CollectionsPage() {
 function CollectionCard({
   collection,
   words,
+  folders,
   onChanged,
 }: {
   collection: Collection;
   words: Word[];
+  folders: Folder[];
   onChanged: () => void;
 }) {
   const { t } = useI18n();
   const { confirm } = useDialog();
   const [editing, setEditing] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const visibility = collection.visibility ?? "private";
+  const VisIcon = VISIBILITY_ICON[visibility];
   const [name, setName] = useState(collection.name);
 
   const rename = useMutation({
@@ -167,11 +256,31 @@ function CollectionCard({
               >
                 {collection.name}
               </Link>
-              <p className="text-[13px] font-medium text-ink-soft">
-                {count === 1 ? t("col.word", { n: count }) : t("col.words", { n: count })}
+              <p className="flex flex-wrap items-center gap-x-2 text-[13px] font-medium text-ink-soft">
+                <span>{count === 1 ? t("col.word", { n: count }) : t("col.words", { n: count })}</span>
+                {visibility !== "private" && (
+                  <span className="inline-flex items-center gap-1 text-sage-deep">
+                    <VisIcon className="h-3.5 w-3.5" /> {t(`share.${visibility}`)}
+                  </span>
+                )}
+                {!!collection.learners && <span className="text-ink-faint">{t("community.addedBy", { n: collection.learners })}</span>}
               </p>
+              {collection.copiedFrom && (
+                <p className="text-[12px] text-ink-faint">
+                  {t("community.creditFrom")}{" "}
+                  {t("community.credit", { author: collection.copiedFrom.author, deck: collection.copiedFrom.deck })}
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              <button
+                onClick={() => setSharing((v) => !v)}
+                aria-label={t("share.title")}
+                title={t("share.title")}
+                className={cn("rounded-lg p-1.5 hover:bg-black/[0.04]", sharing ? "text-sage-deep" : "text-ink-faint")}
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setEditing(true)}
                 aria-label="Rename"
@@ -200,6 +309,8 @@ function CollectionCard({
           </>
         )}
       </div>
+
+      {sharing && <CollectionShare collection={collection} folders={folders} onChanged={onChanged} />}
 
       {/* word preview */}
       <div className="mt-3 flex min-h-[28px] flex-wrap gap-1.5">

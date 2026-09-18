@@ -16,7 +16,7 @@ async function userByTelegramId(telegramId: string) {
   return prisma.user.findUnique({ where: { telegramId } });
 }
 
-function displayName(u: { firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean }): string {
+export function displayName(u: { firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean }): string {
   const custom = (u.displayName ?? "").trim();
   if (custom) return custom;
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
