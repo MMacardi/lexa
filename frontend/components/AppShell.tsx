@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { GuestExperience } from "@/components/GuestExperience";
 import { InviteGate } from "@/components/InviteGate";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
+import { useViewportVars } from "@/lib/mobileNav";
 
 // Routes that render without the auth gate (session-establishing or public legal).
 const PUBLIC_ROUTES = ["/login/verify", "/privacy", "/terms"];
@@ -26,6 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { ready, authed, profile } = useAccount();
   const { t } = useI18n();
   const pathname = usePathname();
+  useViewportVars();
 
   // Public routes (e.g. the email-verify landing) render without the gate.
   if (PUBLIC_ROUTES.some((r) => pathname?.startsWith(r))) return <>{children}</>;

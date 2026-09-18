@@ -291,18 +291,18 @@ function GraphAddSection() {
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("graphadd.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("graphadd.hint")}</p>
-      <div className="mt-3 inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+      <div className="mt-3 flex gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:inline-flex sm:text-sm">
         {opts.map((o) => (
           <button
             key={o.id}
             type="button"
             onClick={() => setGraphAddMethod(o.id)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors",
+              "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1.5 transition-colors sm:flex-none sm:px-4",
               method === o.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
             )}
           >
-            {o.icon && <o.icon className="h-3.5 w-3.5" />}
+            {o.icon && <o.icon className="hidden h-3.5 w-3.5 sm:block" />}
             {o.label}
           </button>
         ))}
@@ -336,16 +336,16 @@ function MeaningStyleSection() {
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("meaning.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("meaning.hint")}</p>
-      <div className="mt-3 inline-flex flex-wrap gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
+      <div className="mt-3 flex gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:inline-flex sm:text-sm">
         {modes.map((m) => {
           const locked = m.proOnly && !pro;
           return (
-            <HoverTip key={m.id} title={locked ? t("pro.locked") : ""} className="inline-flex">
+            <HoverTip key={m.id} title={locked ? t("pro.locked") : ""} className="inline-flex flex-1 sm:flex-none">
               <button
                 type="button"
                 onClick={() => (locked ? upsell() : setMeaningMode(m.id))}
                 className={cn(
-                  "inline-flex items-center rounded-full px-4 py-1.5 transition-colors",
+                  "inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full px-2 py-1.5 transition-colors sm:px-4",
                   effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
                   locked && "opacity-60",
                 )}

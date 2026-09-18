@@ -270,7 +270,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
             role="dialog"
             aria-modal="true"
             aria-label={t("import.title")}
-            className="fixed inset-0 z-[200] flex items-end bg-black/55 p-0 backdrop-blur-[3px] sm:items-start sm:justify-center sm:p-5 sm:pt-[11vh]"
+            className="vv-overlay z-[200] flex items-end bg-black/55 p-0 backdrop-blur-[3px] sm:items-start sm:justify-center sm:p-5 sm:pt-[11vh]"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target) close();
             }}

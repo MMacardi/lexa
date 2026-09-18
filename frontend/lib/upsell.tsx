@@ -59,7 +59,7 @@ export function UpsellProvider({ children }: { children: React.ReactNode }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="anim-fade-in fixed inset-0 z-[95] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
+            className="anim-fade-in vv-overlay z-[95] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) setOpen(false);
             }}

@@ -30,7 +30,7 @@ export function EditWordModal({
 
   return createPortal(
     <div
-      className="anim-fade-in fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-onyx/45 p-4 backdrop-blur-sm sm:p-8"
+      className="anim-fade-in vv-overlay z-[120] flex items-start justify-center overflow-y-auto bg-onyx/45 p-4 backdrop-blur-sm sm:p-8"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
