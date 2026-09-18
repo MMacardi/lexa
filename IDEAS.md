@@ -238,11 +238,12 @@ console logs) and shown with real ¥ cost in `/admin` — refine the table above
 those numbers during the beta.
 
 ## Admin dashboard & token accounting — follow-ups
-- ⏭ **Per-user token attribution** — `logUsage` records feature/model/kind/tokens but
+- ✅ **Per-user token attribution** — (done: `TokenUsage.telegramId` via
+  `lib/usageContext.ts`; /admin "By user" table.) `logUsage` records feature/model/kind/tokens but
   no `userId`, so spend is only sliceable by day/feature/model. Thread the caller's id
   through (request-context / AsyncLocalStorage, since `llm.ts` has no `req`) to see
   cost per user — needed before charging real money or spotting an abuser burning tokens.
-- ⏭ **Accurate ASR/OCR cost** — `qwen3-asr-flash` is priced ¥0 in `pricing.ts` because
+- ✅ **Accurate ASR/OCR cost** — `qwen3-asr-flash` is priced ¥0 in `pricing.ts` because
   ASR bills per **audio-second**, not tokens; OCR (`qwen-vl-plus`) bills image tokens we
   don't yet capture separately. Both currently under-report spend. Add the real formulas
   (audio duration → ¥, image-token estimate) once the Bailian line items are confirmed.

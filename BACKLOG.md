@@ -16,7 +16,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       fun; fix bugs; add more presets. IDEAS: "Scenes — backlog".
 
 ## Before public launch
-- [ ] **4. Per-user token cost + real ASR/OCR pricing.** IDEAS: "Per-user token attribution",
+- [x] **4. Per-user token cost + real ASR/OCR pricing.** IDEAS: "Per-user token attribution",
       "Accurate ASR/OCR cost".
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
 - [ ] **6. Domain + email.** Buy a domain, set `SMTP_URL` (Resend/Postmark), attach it to

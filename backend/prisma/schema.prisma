@@ -297,8 +297,12 @@ model TokenUsage {
   totalTokens      Int      @default(0)
   cachedTokens     Int      @default(0)
   ms               Int      @default(0)
+  // Caller's telegramId (the session identity), from lib/usageContext. Null for
+  // rows logged before per-user attribution or for calls outside any user's context.
+  telegramId       String?
 
   @@index([createdAt])
   @@index([model])
   @@index([feature])
+  @@index([telegramId])
 }

@@ -8,6 +8,7 @@ import { transcribeAudio } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
 import { take } from "../lib/rateLimit.js";
+import { runAsUser } from "../lib/usageContext.js";
 import {
   ensureBotUser,
   resolveUserPair,
@@ -384,6 +385,8 @@ async function handlePracticeAnswer(ctx: Context, st: ChatState, text: string): 
 /** Build the bot. Not launched here — see launchBot(). */
 export function createBot(): Telegraf {
   const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN);
+  // Attribute any LLM spend in this update to the Telegram user who sent it.
+  bot.use((ctx, next) => (ctx.from ? runAsUser(String(ctx.from.id), next) : next()));
 
   bot.start(async (ctx) => {
     const telegramId = String(ctx.from.id);
