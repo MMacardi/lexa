@@ -64,8 +64,10 @@ betaRouter.post("/beta/unlock", unlockLimiter, (req: Request, res: Response) => 
   res.json({ ok: true });
 });
 
-// GET /api/beta/status — has this guest already unlocked? Lets the frontend skip
-// re-prompting a returning visitor whose beta cookie is still valid.
+// GET /api/beta/status — is the shared gate on, and has this guest already
+// unlocked? Lets the frontend skip the screen entirely when BETA_KEY is empty
+// (guests go straight to login; the post-login personal-code gate still applies),
+// and skip re-prompting a returning visitor whose beta cookie is still valid.
 betaRouter.get("/beta/status", (req: Request, res: Response) => {
-  res.json({ unlocked: readBetaCookie(req) });
+  res.json({ enabled: Boolean(env.BETA_KEY), unlocked: readBetaCookie(req) });
 });

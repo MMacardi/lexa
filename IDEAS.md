@@ -166,13 +166,14 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 ---
 
 ## Deploy / beta follow-ups (found 2026-09-18 while writing the new DEPLOY.md)
-- ⏭ **BetaGate shows even when `BETA_KEY` is empty** — `/beta/unlock` then 404s and
+- ✅ **BetaGate shows even when `BETA_KEY` is empty** — `/beta/unlock` then 404s and
   `/beta/status` says `unlocked:false`, so a guest can only pass through the small
   "personal code" link. Have `/beta/status` report `enabled` and skip the screen when off.
-- ⏭ **Anonymous rate limits share one bucket behind the proxy** — no `trust proxy`, so
+- ✅ **Anonymous rate limits share one bucket behind the proxy** — no `trust proxy`, so
   `req.ip` is Railway's edge for every guest: `/beta/unlock` (10/min) and auth start
   (30/min) are global, not per-person. Fine for a small beta; one brute-forcer locks
   everyone out. Fix by trusting the Vercel→Railway hops, or keying on `x-real-ip`.
+  Done: `trust proxy` = 2 hops in production (`TRUST_PROXY_HOPS` overrides).
 - 💡 **OpenClaw revival** — its skill scripts send `telegramId` in the body, which the
   session-only API now rejects (401). Needs a server-to-server auth (shared-secret header
   → user) plus its own bot token. Not deployed; the built-in bot covers the same ground.

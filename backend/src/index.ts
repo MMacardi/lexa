@@ -24,6 +24,16 @@ if (process.env.NODE_ENV === "production" && env.JWT_SECRET === "dev-insecure-se
 
 const app = express();
 
+// Guests reach us via Vercel's /api rewrite, which sets X-Forwarded-For to the
+// client IP, then Railway's edge appends Vercel's IP. Trusting exactly those hops
+// makes req.ip the real guest, so /beta/unlock and auth-start limits are
+// per-person instead of one shared bucket. (A request aimed straight at the
+// Railway domain can still forge that header; accepted for a closed beta.)
+const trustHops = env.TRUST_PROXY_HOPS
+  ? Number(env.TRUST_PROXY_HOPS)
+  : process.env.NODE_ENV === "production" ? 2 : 0;
+if (trustHops > 0) app.set("trust proxy", trustHops);
+
 function normalizeOrigin(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
