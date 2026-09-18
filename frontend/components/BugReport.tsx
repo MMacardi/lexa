@@ -13,6 +13,7 @@ import {
   type CapturedError,
 } from "@/lib/bugContext";
 import { cn } from "@/lib/utils";
+import { OPEN_BUG } from "@/lib/mobileNav";
 
 type Kind = "bug" | "idea" | "other";
 type ShotState = "idle" | "capturing" | "ready" | "failed";
@@ -110,6 +111,13 @@ export function BugReport() {
     if (attachShot) void grabShot();
   }
 
+  // Phones have no floating button — the header's bug icon fires this instead.
+  useEffect(() => {
+    const on = () => openForm();
+    window.addEventListener(OPEN_BUG, on);
+    return () => window.removeEventListener(OPEN_BUG, on);
+  });
+
   function toggleShot() {
     const next = !attachShot;
     setAttachShot(next);
@@ -160,7 +168,7 @@ export function BugReport() {
         aria-label={t("bug.button")}
         title={t("bug.button")}
         style={{ transform: `translate(${pos.x}px, ${pos.y}px)`, touchAction: "none" }}
-        className="fixed right-4 bottom-[calc(132px_+_env(safe-area-inset-bottom))] z-50 flex h-12 w-12 cursor-grab touch-none select-none items-center justify-center rounded-full border border-black/[0.08] bg-surface text-warn-text shadow-[0_10px_28px_rgba(46,42,38,0.24)] transition-shadow hover:shadow-[0_14px_34px_rgba(46,42,38,0.3)] active:cursor-grabbing md:bottom-[92px]"
+        className="fixed right-4 bottom-[calc(132px_+_env(safe-area-inset-bottom))] z-50 hidden h-12 w-12 cursor-grab touch-none select-none items-center justify-center rounded-full border border-black/[0.08] bg-surface text-warn-text shadow-[0_10px_28px_rgba(46,42,38,0.24)] transition-shadow hover:shadow-[0_14px_34px_rgba(46,42,38,0.3)] active:cursor-grabbing md:bottom-[92px] md:flex"
       >
         <Bug className="h-5 w-5" />
       </button>
@@ -169,13 +177,13 @@ export function BugReport() {
         createPortal(
           <div
             className={cn(
-              "fixed inset-0 z-[95] flex items-end justify-center bg-black/40 p-4 sm:items-center",
+              "vv-overlay z-[95] flex items-end justify-center bg-black/40 p-4 sm:items-center",
               shotState === "capturing" && "opacity-0", // keep the modal out of its own screenshot
             )}
             onClick={() => status !== "sending" && setOpen(false)}
           >
             <div
-              className="anim-pop flex max-h-[92vh] w-full max-w-[460px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
+              className="anim-pop flex max-h-full w-full max-w-[460px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-2 flex items-center justify-between">

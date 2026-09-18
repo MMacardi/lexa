@@ -122,7 +122,7 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[14vh] backdrop-blur-sm"
+      className="vv-overlay z-50 flex items-start justify-center bg-black/30 p-4 pt-[14vh] backdrop-blur-sm"
       onClick={close}
     >
       <div

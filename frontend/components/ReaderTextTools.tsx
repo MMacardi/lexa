@@ -68,11 +68,11 @@ export function ReaderTextTools({
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"
+      className="vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="anim-pop max-h-[80vh] w-full max-w-[440px] overflow-hidden rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)]"
+        className="anim-pop max-h-full w-full max-w-[440px] overflow-y-auto rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)]"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

@@ -140,7 +140,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="anim-fade-in fixed inset-0 z-[90] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
+            className="anim-fade-in vv-overlay z-[90] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) cancel();
             }}

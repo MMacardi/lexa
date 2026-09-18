@@ -55,7 +55,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         className="anim-pop flex max-h-[94vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
         onClick={(e) => e.stopPropagation()}

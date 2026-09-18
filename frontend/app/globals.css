@@ -7,6 +7,32 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Full-screen overlay sized to the *visible* viewport (vars set by
+   useViewportVars), so dialogs and bottom sheets sit above the phone keyboard
+   instead of under it. Falls back to the dynamic viewport height. */
+.vv-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--vv-top, 0px);
+  height: var(--vv-h, 100dvh);
+}
+
+/* Bottom sheets slide up from the edge on phones. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.anim-sheet {
+  animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Lexa design tokens — calm editorial palette */
 @theme {
   --color-paper: #f4f1ec;
@@ -180,7 +206,7 @@ textarea::-webkit-resizer {
 .anim-popover-out { animation: lexaPopoverOut 0.16s ease both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out { animation: none; }
+  .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out, .anim-sheet { animation: none; }
 }
 
 /* 3D flip card — grid stacking lets the card size to the taller face (no overlap) */

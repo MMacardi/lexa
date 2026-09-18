@@ -51,7 +51,7 @@ export function SyncStatus() {
   if (online && pending === 0) return null;
 
   return (
-    <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom))] left-1/2 z-[70] -translate-x-1/2 md:bottom-4">
+    <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-1/2 z-[70] -translate-x-1/2 md:bottom-4">
       <div
         className={
           "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold shadow-[0_10px_30px_rgba(46,42,38,0.2)] backdrop-blur " +

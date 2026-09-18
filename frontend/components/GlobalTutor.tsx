@@ -8,11 +8,22 @@ import { useTutorChat } from "@/lib/useTutorChat";
 import { LangSelect } from "@/components/LangSelect";
 import { TutorThread } from "@/components/TutorThread";
 import { HoverTip } from "@/components/ui/HoverTip";
+import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2 } from "lucide-react";
 
 export function GlobalTutor() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  // Phones get a bottom sheet opened from the tab bar's centre button; desktop
+  // keeps the floating, draggable panel.
+  const mobile = useIsMobile();
+  useLockScroll(open && mobile);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(OPEN_MIKA, on);
+    return () => window.removeEventListener(OPEN_MIKA, on);
+  }, []);
   const chat = useTutorChat({ active: open });
   const { pair, changePair, messages, input, setInput, send, reset, busy } = chat;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -102,19 +113,27 @@ export function GlobalTutor() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={t("tutor.open")}
-          className="fixed bottom-[calc(64px_+_env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:bottom-6"
+          className="fixed bottom-6 right-4 z-50 hidden h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-white shadow-[0_12px_32px_rgba(46,42,38,0.32)] transition-transform hover:scale-105 active:scale-95 md:flex"
         >
           <Sparkles className="h-6 w-6" />
         </button>
       )}
 
-      {/* chat panel */}
+      {/* chat panel — a bottom sheet over a scrim on phones */}
       {open && (
+        <SheetScrim mobile={mobile} onClose={() => setOpen(false)}>
         <div
-          ref={panelRef}
-          className="fixed inset-x-2 bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-50 mx-auto flex max-h-[75vh] w-auto max-w-[420px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:inset-x-auto sm:right-4 sm:bottom-6 sm:w-[400px]"
-          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+          ref={mobile ? undefined : panelRef}
+          className={cn(
+            "z-[60] flex flex-col overflow-hidden bg-surface",
+            mobile
+              ? "anim-sheet max-h-[calc(100%-12px)] min-h-[min(420px,calc(100%-12px))] rounded-t-[24px] border-t border-black/[0.08] shadow-[0_-12px_40px_rgba(46,42,38,0.25)]"
+              : "fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
+          )}
+          style={mobile ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
+          onClick={(e) => e.stopPropagation()}
         >
+          {mobile && <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-black/15" />}
           {/* header — title, centered drag handle, clickable language pair, actions */}
           <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
             <div className="relative flex items-center justify-between gap-2">
@@ -122,7 +141,7 @@ export function GlobalTutor() {
                 <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
                 {t("tutor.title")}
               </div>
-              <div
+              {!mobile && <div
                 onPointerDown={startDrag}
                 onPointerMove={moveDrag}
                 onPointerUp={endDrag}
@@ -130,9 +149,9 @@ export function GlobalTutor() {
                 className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
               >
                 <GripHorizontal className="h-4 w-4" />
-              </div>
+              </div>}
               <div className="flex items-center gap-1.5">
-                {moved && (
+                {moved && !mobile && (
                   <HoverTip title={t("tutor.resetPos")} className="inline-flex">
                     <button
                       type="button"
@@ -199,7 +218,7 @@ export function GlobalTutor() {
           </div>
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
-          <div className="border-t border-black/[0.06] px-3 py-2.5">
+          <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "pb-[calc(10px+env(safe-area-inset-bottom))]")}>
             <form
               className="flex items-center gap-2"
               onSubmit={(e) => {
@@ -225,8 +244,20 @@ export function GlobalTutor() {
             </form>
           </div>
         </div>
+        </SheetScrim>
       )}
     </>
+  );
+}
+
+// Phones: dim the page and dock the panel to the bottom of the visible viewport
+// (above the keyboard). Desktop: render the floating panel as-is.
+function SheetScrim({ mobile, onClose, children }: { mobile: boolean; onClose: () => void; children: React.ReactNode }) {
+  if (!mobile) return <>{children}</>;
+  return (
+    <div className="vv-overlay anim-fade-in z-[60] flex flex-col justify-end bg-black/35" onClick={onClose}>
+      {children}
+    </div>
   );
 }
 
