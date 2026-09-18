@@ -63,6 +63,14 @@ app.get("/health", (_req, res) => {
 // no session yet); the invite check additionally exempts the beta unlock, the
 // redeem endpoint (a signed-in-but-uninvited user must reach it) and feedback (so
 // anyone can still report "I can't get in").
+// Every /api response is per-user. In prod the browser reaches us through Vercel's
+// /api rewrite, and Vercel's CDN honours upstream cache headers on external
+// rewrites — so say "never store" explicitly rather than rely on their absence.
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 const EXEMPT_IDENTITY = /^\/(auth|beta)\//;
 const EXEMPT_INVITED = /^\/(auth\/|beta\/|invites\/redeem$|feedback$)/;
 app.use("/api", (req, res, next) =>
