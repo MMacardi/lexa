@@ -20,6 +20,7 @@ const CODE_KEYS: Record<string, string> = {
   no_deck: "community.errNoDeck",
   own_deck: "community.errOwnDeck",
   no_profile: "profile.errClosed",
+  deck_delisted: "share.errDelisted",
 };
 
 export function errText(e: unknown, t: T): string {

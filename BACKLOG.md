@@ -23,6 +23,8 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       streak, mastered count, current languages, their public decks. Per-user privacy
       switches (profile and collections visible to friends / everyone / hidden).
       IDEAS: "Social layer".
+- [x] **1d. Deck reports + moderation.** Report a shared deck; admin queue to keep or
+      delist; no "add friend" on strangers' profiles (referral code only). IDEAS: "Social layer".
 - [ ] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".
 - [ ] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're

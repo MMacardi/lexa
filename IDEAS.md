@@ -127,8 +127,13 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   - **✅ Shipped 2026-09-18 (BACKLOG 1c):** `/profile/[id]` (words, mastered, streak,
     reviews, 119-day review heatmap, languages, badges, shared decks), linked from
     friend cards and deck authors; Account → Privacy with two switches (profile /
-    decks: nobody · friends · everyone, default friends). Still open: moderation /
-    reporting of public decks, "add friend" from a stranger's profile.
+    decks: nobody · friends · everyone, default friends).
+  - **✅ Shipped 2026-09-18 (BACKLOG 1d):** "Report" on any deck you can see (spam /
+    offensive / wrong words / other + note, one per learner, 10/h). 3 open reports
+    hold a public deck out of Community until reviewed; Admin → Reported decks:
+    keep (dismiss) or remove from Community (made private + `delistedAt`, owner
+    can't republish it) and "allow public again". Decided: no "add friend" button
+    on a stranger's profile — friends are added with a referral code only.
   The ask in spirit: friends should be able to pass vocabulary to each other and
   browse each other's progress without leaving Onomika.
   - **Collection visibility.** Every collection gets a visibility mode at creation

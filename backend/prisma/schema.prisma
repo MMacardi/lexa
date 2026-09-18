@@ -62,6 +62,7 @@ model User {
   inviteCodes InviteCode[]
   folders     Folder[]
   collectionAdds CollectionAdd[]
+  deckReports    DeckReport[]
 }
 
 // Coach memory — what the personal mentor remembers about the learner across
@@ -169,6 +170,10 @@ model Collection {
   seedVersion Int?
   mikaPick    Boolean  @default(false)
   adds        CollectionAdd[]
+  // Moderation: set when an admin took this deck out of Community. The owner can
+  // still share it with friends or by code, but can't make it public again.
+  delistedAt  DateTime?
+  reports     DeckReport[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -189,6 +194,25 @@ model CollectionAdd {
 
   @@unique([collectionId, userId])
   @@index([lastAt])
+}
+
+// A learner flagged a deck they can see (spam, offensive, wrong content). One row
+// per (deck, reporter). Decks with several open reports drop out of the Community
+// lists until the admin reviews them: dismiss (keep) or delist (take it down).
+model DeckReport {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  reporterId   String
+  reporter     User       @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason       String // spam | offensive | wrong | other
+  note         String?
+  status       String     @default("open") // open | dismissed | delisted
+  createdAt    DateTime   @default(now())
+  resolvedAt   DateTime?
+
+  @@unique([collectionId, reporterId])
+  @@index([status])
 }
 
 model Word {

@@ -53,9 +53,9 @@ export function CollectionShare({
                 key={m}
                 type="button"
                 onClick={() => m !== visibility && update.mutate({ visibility: m })}
-                disabled={update.isPending}
+                disabled={update.isPending || (m === "public" && collection.delisted)}
                 className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition-colors",
+                  "flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                   m === visibility ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
                 )}
               >
@@ -65,6 +65,7 @@ export function CollectionShare({
           })}
         </div>
         <p className="mt-1.5 text-[12px] text-ink-soft">{t(`share.${visibility}Hint`)}</p>
+        {collection.delisted && <p className="mt-1 text-[12px] font-medium text-warn-text">{t("share.delistedNote")}</p>}
       </div>
 
       {visibility !== "private" && link && (

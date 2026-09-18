@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, type ModeratedDeck } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,6 +66,80 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
   );
 }
 
+/** Deck moderation queue: reported decks (keep / remove) and removed ones (restore). */
+function Reports() {
+  const { t, locale } = useI18n();
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["admin-reports"], queryFn: () => api.adminReports() });
+  const act = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "dismiss" | "delist" | "restore" }) => api.moderateDeck(id, action),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-reports"] }),
+  });
+  if (!data) return null;
+
+  const btn = "rounded-full border border-black/[0.08] bg-surface px-3 py-1 text-[12px] font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50";
+  const deckLine = (d: ModeratedDeck) => (
+    <div className="flex flex-wrap items-baseline gap-2">
+      <Link href={`/community/${d.id}`} className="font-semibold text-ink hover:underline">{d.name}</Link>
+      <span className="text-[12px] text-ink-faint">{d.author.name} · {d.words} · {d.visibility}</span>
+    </div>
+  );
+
+  return (
+    <Section title={t("admin.reports")}>
+      {data.reported.length === 0 ? (
+        <p className="text-sm text-ink-faint">{t("admin.noReports")}</p>
+      ) : (
+        <div className="divide-y divide-black/[0.05]">
+          {data.reported.map(({ deck, reports }) => (
+            <div key={deck.id} className="space-y-2 py-3 first:pt-0">
+              {deckLine(deck)}
+              <p className="text-[12px] font-semibold text-warn-text">
+                {t("admin.reportsN", { n: reports.length })}
+                {reports.length >= data.hideAt && ` · ${t("admin.heldOut")}`}
+              </p>
+              <ul className="space-y-1 text-[13px] text-ink-soft">
+                {reports.map((r, i) => (
+                  <li key={i}>
+                    <span className="font-semibold">{t(`report.${r.reason}`)}</span> — {r.by},{" "}
+                    {new Date(r.at).toLocaleDateString(locale)}
+                    {r.note && <span className="text-ink-faint"> · “{r.note}”</span>}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <button className={btn} disabled={act.isPending} onClick={() => act.mutate({ id: deck.id, action: "dismiss" })}>
+                  {t("admin.dismiss")}
+                </button>
+                <button
+                  className={cn(btn, "text-warn-text")}
+                  disabled={act.isPending}
+                  onClick={() => act.mutate({ id: deck.id, action: "delist" })}
+                >
+                  {t("admin.delist")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {data.delisted.length > 0 && (
+        <div className="mt-4 space-y-2 border-t border-black/[0.05] pt-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("admin.delisted")}</p>
+          {data.delisted.map((d) => (
+            <div key={d.id} className="flex flex-wrap items-center justify-between gap-2">
+              {deckLine(d)}
+              <button className={btn} disabled={act.isPending} onClick={() => act.mutate({ id: d.id, action: "restore" })}>
+                {t("admin.restore")}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export default function AdminPage() {
   const { ready, profile } = useAccount();
   const { t } = useI18n();
@@ -99,6 +174,8 @@ export default function AdminPage() {
           <span className="text-ink-faint"> · {fmtInt(tokens.totals.total)} {t("admin.tokens")}</span>
         </p>
       </div>
+
+      <Reports />
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

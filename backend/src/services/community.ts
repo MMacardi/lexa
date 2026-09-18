@@ -1,4 +1,5 @@
 import { prisma } from "./db.js";
+import { isAdmin } from "../lib/entitlements.js";
 import { displayName } from "./friends.js";
 import { LIBRARY_TELEGRAM_ID, LIBRARY_NAME } from "./librarySeed.js";
 
@@ -12,6 +13,9 @@ export type Visibility = (typeof VISIBILITIES)[number];
 
 const WEEK_MS = 7 * 86400_000;
 const MAX_COPY = 500; // a deck bigger than this is copied in its first 500 words
+// This many open reports hide a public deck from the Community lists until the
+// admin reviews it (the deck itself stays reachable by link).
+export const REPORT_HIDE_AT = 3;
 
 function fail(code: string, message: string): never {
   throw Object.assign(new Error(message), { code });
@@ -19,7 +23,7 @@ function fail(code: string, message: string): never {
 
 type AuthorRow = { id: string; telegramId: string; firstName: string | null; lastName: string | null; displayName: string | null; username: string | null; hideTag: boolean };
 
-function author(u: AuthorRow) {
+export function author(u: AuthorRow) {
   const official = u.telegramId === LIBRARY_TELEGRAM_ID;
   // `id` opens the author's profile page; the library has none.
   return { id: official ? null : u.id, name: official ? LIBRARY_NAME : displayName(u), official };
@@ -61,7 +65,7 @@ type DeckRow = {
 };
 
 /** Can this user read the deck? Owner always; otherwise by visibility (+ code). */
-async function canView(deck: DeckRow, viewerId: string, code?: string): Promise<boolean> {
+export async function canView(deck: DeckRow, viewerId: string, code?: string): Promise<boolean> {
   if (deck.userId === viewerId) return true;
   if (deck.visibility === "public") return true;
   const codeOk = Boolean(code && deck.shareCode && code.trim().toUpperCase() === deck.shareCode);
@@ -124,6 +128,16 @@ function byPopularity(a: DeckSummary, b: DeckSummary) {
   return b.weekLearners - a.weekLearners || b.learners - a.learners || a.name.localeCompare(b.name);
 }
 
+/** Decks with enough open reports to be held out of the lists pending review. */
+export async function heldForReview(): Promise<string[]> {
+  const rows = await prisma.deckReport.groupBy({
+    by: ["collectionId"],
+    where: { status: "open" },
+    _count: { _all: true },
+  });
+  return rows.filter((r) => r._count._all >= REPORT_HIDE_AT).map((r) => r.collectionId);
+}
+
 /**
  * Public decks for the Community tab, optionally filtered by studied language,
  * translation language and a free-text topic (matches name, description or a word).
@@ -137,6 +151,7 @@ export async function listPublicDecks(
   const rows = await prisma.collection.findMany({
     where: {
       visibility: "public",
+      id: { notIn: await heldForReview() },
       ...(q
         ? {
             OR: [
@@ -217,7 +232,8 @@ export async function getDeck(telegramId: string, deckId: string, code?: string)
       },
     },
   });
-  if (!c || !(await canView(c, me, code))) fail("no_deck", "Deck not found");
+  // The admin can open any deck, so reported and delisted ones can be reviewed.
+  if (!c || !(isAdmin(telegramId) || (await canView(c, me, code)))) fail("no_deck", "Deck not found");
   const owned = await ownedKeys(me);
   const copy = await prisma.collection.findFirst({ where: { userId: me, copiedFromId: c.id }, select: { id: true } });
   return {

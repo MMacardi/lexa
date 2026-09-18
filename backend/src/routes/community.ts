@@ -3,6 +3,7 @@ import { z } from "zod";
 import { callerId } from "../lib/entitlements.js";
 import { rateLimit } from "../lib/rateLimit.js";
 import { listPublicDecks, listFriendDecks, findByCode, getDeck, copyFromDeck } from "../services/community.js";
+import { REPORT_REASONS, reportDeck } from "../services/moderation.js";
 
 // Community tab + shared decks. Behind the same session + invite gate as every
 // /api route; identity is the session (callerId), never a body/query telegramId.
@@ -74,6 +75,26 @@ communityRouter.post("/community/decks/:id/copy", async (req, res) => {
   }
   try {
     res.json(await copyFromDeck(callerId(req), String(req.params.id), parsed.data));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// POST /api/community/decks/:id/report { reason, note?, code? } -> flag a deck for the admin
+const reportLimiter = rateLimit({ windowMs: 60 * 60_000, max: 10, name: "deck-report" });
+const reportBody = z.object({
+  reason: z.enum(REPORT_REASONS),
+  note: z.string().max(500).optional(),
+  code: z.string().max(16).optional(),
+});
+communityRouter.post("/community/decks/:id/report", (req, res, next) => reportLimiter(req, res, next), async (req, res) => {
+  const parsed = reportBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid report" });
+    return;
+  }
+  try {
+    res.json(await reportDeck(callerId(req), String(req.params.id), parsed.data));
   } catch (err) {
     sendError(res, err);
   }
