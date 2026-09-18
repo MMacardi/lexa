@@ -47,6 +47,7 @@ import { HoverTip } from "@/components/ui/HoverTip";
 import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
+import { useEnsureStyle } from "@/lib/useEnsureStyle";
 
 type Mode = "auto" | "manual";
 
@@ -319,6 +320,8 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
     },
   });
 
+  const ensureStyle = useEnsureStyle();
+
   // Ask (once) for the l2earner's level in a concrete language; store it.
   async function ensureLevel(lang: string): Promise<string | undefined> {
     const stored = getLevel(lang);
@@ -346,6 +349,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       // First-time picker dismissed without a choice → don't proceed.
       if (!had && !level) return;
     }
+    // …then (once) what AI-written examples should sound like, shown with sample
+    // sentences in the language being learned. Never blocks the add.
+    let exampleStyle = style;
+    if (!vars.manual && exMode === "ai") exampleStyle = await ensureStyle(effLang);
 
     // Duplicate warning. Manual-from-form: only when the same translation
     // already exists; otherwise: any card with the same spelling.
@@ -373,7 +380,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       }
     }
 
-    mutation.mutate({ ...vars, level, exampleStyle: style });
+    mutation.mutate({ ...vars, level, exampleStyle });
   }
 
   // Live "you typed your own language" detection, shown under the field BEFORE

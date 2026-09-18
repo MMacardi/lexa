@@ -472,6 +472,17 @@ export function getExampleStyle(): ExampleStyle {
   return (EXAMPLE_STYLES as readonly string[]).includes(v ?? "") ? (v as ExampleStyle) : DEFAULT_EXAMPLE_STYLE;
 }
 
+// Has the learner ever picked a register (vs running on the default)? The
+// first AI add asks once when not (useEnsureStyle).
+export function hasChosenExampleStyle(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(STYLE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
 export function setExampleStyle(style: ExampleStyle) {
   localStorage.setItem(STYLE_KEY, style);
   window.dispatchEvent(new Event(EVT));

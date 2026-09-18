@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { setLevel as setPrefLevel, pushRecentPair, CEFR_LEVELS, LEVEL_HINT, STYLE_ORDER, setExampleStyle, useExampleStyle, type CefrLevel, type ExampleStyle } from "@/lib/learnPrefs";
+import { setLevel as setPrefLevel, pushRecentPair, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { starterWords } from "@/lib/starterDecks";
 import { LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
 import { useCustomLangs } from "@/lib/customLangs";
@@ -73,7 +73,6 @@ export function FirstRun() {
   const [source, setSource] = useState(native === "en" ? "es" : "en"); // language you're learning
   const [target, setTarget] = useState(native); // language you already know (meanings)
   const [level, setLevel] = useState<CefrLevel>("B1");
-  const exStyle = useExampleStyle();
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState(false);
 
@@ -238,17 +237,6 @@ export function FirstRun() {
               ariaLabel={t("first.level")}
               className="w-[130px]"
               options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
-            />
-          </label>
-          {/* what the example sentences on your cards sound like (changeable in Settings) */}
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
-            <Select
-              value={exStyle === "none" ? "casual" : exStyle}
-              onChange={(v) => setExampleStyle(v as ExampleStyle)}
-              ariaLabel={t("style.label")}
-              className="w-[150px]"
-              options={STYLE_ORDER.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
             />
           </label>
         </div>

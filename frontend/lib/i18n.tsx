@@ -997,6 +997,12 @@ const DICT: Record<string, Entry> = {
   "dialog.addLanguageTitle": { en: "Add language", ru: "Добавить язык", zh: "添加语言" },
 
   // --- example source style ---
+  "style.askTitle": { en: "How should examples sound?", ru: "Какими сделать примеры?", zh: "例句要什么风格？" },
+  "style.askQuestion": {
+    en: "Every new card gets an example sentence. Here's the same word in each style ({lang}) — pick the one you'd like. You can change it later in Settings.",
+    ru: "К каждой новой карточке добавляется пример. Вот одно и то же слово в разных стилях ({lang}) — выберите подходящий. Потом можно поменять в настройках.",
+    zh: "每张新卡片都会配一个例句。下面是同一个词的不同风格（{lang}）——选一个你喜欢的。之后可以在设置里更改。",
+  },
   "style.label": { en: "Examples", ru: "Примеры", zh: "例句" },
   "count.label": { en: "How many", ru: "Сколько", zh: "数量" },
   "exmode.label": { en: "Examples", ru: "Примеры", zh: "例句" },

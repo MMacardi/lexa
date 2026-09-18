@@ -34,12 +34,21 @@ interface ChooseOption {
   value: string;
   label: string;
   hint?: string;
+  // "list" layout only: a sample line under the label (+ a smaller gloss), with
+  // optional font classes (CJK), and a "recommended" badge.
+  example?: string;
+  exampleClass?: string;
+  exampleNote?: string;
+  exampleNoteClass?: string;
+  recommended?: boolean;
 }
 
 interface ChooseOptions {
   title: string;
   message?: string;
   options: ChooseOption[];
+  // "grid" (default): compact tiles; "list": full-width rows with sample lines.
+  layout?: "grid" | "list";
   cancelLabel?: string;
   // Optional "remember this / don't ask again" checkbox; its state is reported
   // via onResult alongside the chosen value.
@@ -145,7 +154,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               if (e.target === e.currentTarget) cancel();
             }}
           >
-            <div className="anim-scale-in w-full max-w-[400px] overflow-hidden rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.28)]">
+            <div className={cn("anim-scale-in max-h-full w-full overflow-y-auto rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.28)]", pending.kind === "choose" && pending.opts.layout === "list" ? "max-w-[480px]" : "max-w-[400px]")}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -170,7 +179,40 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   />
                 )}
 
-                {pending.kind === "choose" && (
+                {pending.kind === "choose" && pending.opts.layout === "list" && (
+                  <div className="mt-4 space-y-2">
+                    {pending.opts.options.map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => settle(o.value)}
+                        className="block w-full rounded-[14px] border border-black/[0.08] bg-surface px-4 py-3 text-left transition-colors hover:border-sage hover:bg-sage-tint"
+                      >
+                        <span className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="font-serif text-[17px] font-semibold text-ink">{o.label}</span>
+                          {o.hint && <span className="text-[12px] text-ink-faint">{o.hint}</span>}
+                          {o.recommended && (
+                            <span className="ml-auto rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
+                              {t("exsrc.recommended")}
+                            </span>
+                          )}
+                        </span>
+                        {o.example && (
+                          <span className={cn("mt-1.5 block font-serif text-[15px] italic leading-snug text-quote", o.exampleClass)}>
+                            {o.example}
+                          </span>
+                        )}
+                        {o.exampleNote && (
+                          <span className={cn("mt-0.5 block text-[12px] leading-snug text-ink-faint", o.exampleNoteClass)}>
+                            {o.exampleNote}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {pending.kind === "choose" && pending.opts.layout !== "list" && (
                   <div className={cn("mt-4 grid gap-2", pending.opts.options.length <= 2 ? "grid-cols-2" : "grid-cols-3")}>
                     {pending.opts.options.map((o) => (
                       <button
