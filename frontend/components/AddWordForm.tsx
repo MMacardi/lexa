@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
+import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -376,6 +376,27 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
     mutation.mutate({ ...vars, level, exampleStyle: style });
   }
 
+  // Live "you typed your own language" detection, shown under the field BEFORE
+  // submitting (instead of a prompt after). Script-based, so no model call: a word
+  // in the known language's script but not the studied one's gets translated into
+  // the studied language. For same-script pairs the Advanced "I type in" choice
+  // drives the same line. `keepAsTyped` is the one-tap override.
+  const [keepAsTyped, setKeepAsTyped] = useState(false);
+  useEffect(() => {
+    if (!word.trim()) setKeepAsTyped(false);
+  }, [word]);
+  const typedNow = word.trim();
+  const typedFamNow = typedNow ? scriptFamilyOfText(typedNow) : null;
+  const srcFamNow = sourceLang === "auto" ? null : scriptFamily(sourceLang);
+  const tgtFamNow = scriptFamily(targetLang);
+  const distinctScripts = srcFamNow !== tgtFamNow;
+  const looksNative =
+    mode === "auto" && sourceLang !== targetLang && !!typedFamNow && typedFamNow === tgtFamNow && typedFamNow !== srcFamNow;
+  const looksStudied = !!typedFamNow && typedFamNow === srcFamNow && distinctScripts;
+  const flipCandidate = looksNative || (mode === "auto" && reverseInput && showInputPicker && !looksStudied && !!typedNow);
+  const willTranslate = flipCandidate && !keepAsTyped;
+  const flipLearn = sourceLang !== "auto" ? sourceLang : guessLearnLang(targetLang, recentPairs);
+
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
   const busy = mutation.isPending || checking || reversing;
@@ -438,22 +459,11 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       addWithChecks({ chosen: typed, manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang });
       return;
     }
-    // Explicit "I'm typing in the target (known) side" → translate into the
-    // studied language and add that card. No prompt, no guessing.
-    if (!skipReverse && reverseInput && sourceLang !== "auto" && sourceLang !== targetLang) {
-      void translateAndAdd(typed, targetLang, sourceLang, false);
-      return;
-    }
-    // Reverse-translation catch (script-based, no LLM call): the word is written
-    // in the native (target) language's script and NOT the studied one — the user
-    // typed their own word wanting its translation. Offer to flip instead of
-    // spell-checking a native word as if it were the studied language.
-    const typedFam = scriptFamilyOfText(typed);
-    const tgtFam = scriptFamily(targetLang);
-    const srcFam = sourceLang === "auto" ? null : scriptFamily(sourceLang);
-    if (!skipReverse && typedFam && typedFam === tgtFam && typedFam !== srcFam && sourceLang !== targetLang) {
-      setReverseTo(sourceLang !== "auto" ? sourceLang : guessLearnLang(targetLang, recentPairs));
-      setReverse({ native: typed, nativeLang: targetLang });
+    // Known-language input (announced live under the field, see `willTranslate`):
+    // translate into the studied language and add that card. Under Auto the pair is
+    // re-pointed so the studied language becomes the source.
+    if (!skipReverse && willTranslate) {
+      void translateAndAdd(typed, targetLang, flipLearn, sourceLang === "auto");
       return;
     }
     setChecking(true);
@@ -578,15 +588,37 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
-          {checking
+          {reversing
+            ? t("add.reversing")
+            : checking
             ? t("add.checking")
-            : mutation.isPending
+            : willTranslate
+              ? `${t("add.reverseGo")} →`
+              : mutation.isPending
               ? mode === "auto"
                 ? t("add.searching")
                 : t("add.saving")
               : t("add.submit")}
         </Button>
       </div>
+
+      {flipCandidate && (
+        <div className="anim-fade-up -mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13px] leading-snug">
+          <Languages className="h-3.5 w-3.5 shrink-0 text-sage-deep" />
+          <span className="text-ink-soft">
+            {willTranslate
+              ? t("add.flipOn", { from: langLabel(targetLang), to: langLabel(flipLearn) })
+              : t("add.flipOff", { lang: langLabel(targetLang) })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setKeepAsTyped((v) => !v)}
+            className="font-semibold text-sage-deep underline decoration-sage/40 underline-offset-2 hover:decoration-sage-deep"
+          >
+            {willTranslate ? t("add.flipKeep", { lang: langLabel(targetLang) }) : t("add.flipUndo", { lang: langLabel(flipLearn) })}
+          </button>
+        </div>
+      )}
 
       {/* Ideograph language picker — appears only for kanji-only input in
           auto-detect; disappears the moment kana/hangul is typed. */}

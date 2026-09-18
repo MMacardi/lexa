@@ -1402,6 +1402,15 @@ const DICT: Record<string, Entry> = {
   "add.reverseGo": { en: "Translate & add", ru: "Перевести и добавить", zh: "翻译并添加" },
   "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
   "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
+  // Live line under the add field when the typed word is in the known language.
+  "add.flipOn": {
+    en: "{from} word — we'll add its {to} translation.",
+    ru: "Слово на языке «{from}» — добавим перевод на «{to}».",
+    zh: "这是{from}单词——将添加它的{to}翻译。",
+  },
+  "add.flipOff": { en: "Adding it as a {lang} word.", ru: "Добавим как слово на языке «{lang}».", zh: "将按{lang}单词添加。" },
+  "add.flipKeep": { en: "Keep as {lang}", ru: "Оставить на «{lang}»", zh: "保留为{lang}" },
+  "add.flipUndo": { en: "Translate into {lang}", ru: "Перевести на «{lang}»", zh: "翻译成{lang}" },
   "add.reverseError": { en: "Couldn't translate — try again.", ru: "Не удалось перевести — попробуйте ещё раз.", zh: "翻译失败——请重试。" },
   // "I'm typing in…" selector — pick which side of the pair you type. Choosing the
   // known side translates your input into the studied language first.
