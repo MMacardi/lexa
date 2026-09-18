@@ -83,7 +83,7 @@ function DeckView() {
       <div className="space-y-3">
         <BackLink />
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-serif text-[34px] font-medium leading-tight tracking-[-0.01em] text-ink">{deck.name}</h1>
+          <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] leading-tight tracking-[-0.01em] text-ink">{deck.name}</h1>
           <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
             {pairLabel(deck.sourceLang, deck.targetLang)}
           </span>

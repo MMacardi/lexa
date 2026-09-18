@@ -12,7 +12,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
         <Link href="/" className="text-sm font-semibold text-sage hover:text-sage-deep">
           ← Onomika
         </Link>
-        <h1 className="mt-4 font-serif text-[32px] font-medium tracking-[-0.01em] text-ink">{title}</h1>
+        <h1 className="mt-4 font-serif text-[28px] font-medium tracking-[-0.01em] text-ink sm:text-[32px]">{title}</h1>
         <p className="mt-1 text-[13px] text-ink-faint">Обновлено: {updated}</p>
         <div className="legal mt-6 space-y-5 text-[15px] leading-relaxed text-ink-soft">{children}</div>
       </article>

@@ -245,7 +245,7 @@ export default function FlashcardsPage() {
           {/* card layout: presets + custom front/back fields */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.cardLayout")}</p>
-            <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+            <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
               {CARD_PRESETS.map((p) => (
                 <button
                   key={p.id}
@@ -374,7 +374,7 @@ export default function FlashcardsPage() {
             <path d="M9 17.5l5 5L25 11" stroke="#7c9885" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="mt-5 font-serif text-[32px] font-medium text-ink">{t("review.complete")}</h2>
+        <h2 className="mt-5 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("review.complete")}</h2>
         <p className="mt-2 text-ink-soft">{t("review.reviewed", { n: total })}</p>
         <div className="mt-6 flex gap-3.5">
           <div className="rounded-[18px] border border-black/[0.07] bg-paper px-7 py-4">
@@ -590,7 +590,7 @@ export default function FlashcardsPage() {
         </div>
       </div>
 
-      <div className="relative flex w-full items-center justify-center py-8">
+      <div className="relative flex w-full items-center justify-center py-5 sm:py-8">
         <div
           className="pointer-events-none absolute left-1 top-12 z-10 -rotate-12 rounded-xl border-[3px] border-sage bg-paper/70 px-4 py-2 text-lg font-bold tracking-wider text-sage-deep"
           style={{ opacity: clamp(dragX / 110) }}
@@ -621,7 +621,7 @@ export default function FlashcardsPage() {
           <div className="flip-scene">
             <div className={cn("flip-card", flipped && "is-flipped")}>
               {/* FRONT — the layout's front fields, first one as the hero */}
-              <div className="flip-face relative flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+              <div className="flip-face relative flex min-h-[300px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 sm:p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 {/* on-card mic: stopPropagation or the tap would swipe/flip the card */}
                 <span
                   className="absolute right-4 top-4"

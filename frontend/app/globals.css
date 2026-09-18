@@ -18,6 +18,48 @@ html {
   height: var(--vv-h, 100dvh);
 }
 
+/* Phones: a chip/toolbar row that would wrap into several lines becomes one
+   horizontally swipeable line instead (desktop keeps wrapping). */
+@media (max-width: 639px) {
+  .scroll-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    max-width: 100%;
+  }
+  .scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-row > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+/* Touch screens: iOS Safari zooms the page into any field under 16px on focus —
+   keep every text field at 16px there. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Actions revealed on hover are invisible on touch screens — only hide them
+   where hovering is possible (inside a `.group`). */
+@media (hover: hover) {
+  .hover-reveal {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .group:hover .hover-reveal,
+  .hover-reveal:focus-within {
+    opacity: 1;
+  }
+}
+
 /* Bottom sheets slide up from the edge on phones. */
 @keyframes sheet-up {
   from {

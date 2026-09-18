@@ -28,7 +28,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [x] **1e. Mobile shell, pass 1.** Tab bar with Mika in the centre + 3 user-picked tabs
       (customize in More), header "+" quick-add sheet and bug button (no floating FABs on
       phones), Mika / More as bottom sheets, all dialogs keyboard-aware (visual viewport).
-- [ ] **1f. Mobile polish, pass 2.** Walk every page at 375px and fix cramped/overlapping
+- [x] **1f. Mobile polish, pass 2.** Walk every page at 375px and fix cramped/overlapping
       layouts (reader toolbars, review/quiz controls, word page, collections).
 - [ ] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".

@@ -143,7 +143,7 @@ export function Sidebar() {
       </aside>
 
       {/* ---------- Mobile top bar ---------- */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-black/[0.07] bg-surface/95 px-4 py-2.5 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-black/[0.07] bg-surface/95 px-4 backdrop-blur md:hidden">
         <Link href="/" aria-label={t("nav.today")} className="flex items-baseline gap-2">
           <span className="font-serif text-[22px] font-semibold tracking-[-0.02em] text-ink">Onomika</span>
           <span className="h-[6px] w-[6px] rounded-full bg-sage" />

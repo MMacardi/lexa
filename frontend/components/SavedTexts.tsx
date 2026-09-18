@@ -185,7 +185,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                   )}
                 </div>
               </button>
-              <div className="absolute right-2 top-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute right-2 top-2 flex gap-0.5 hover-reveal">
                 {it.status === "ready" && (
                   <button
                     type="button"
@@ -229,7 +229,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <span className="hidden w-[190px] truncate text-right font-medium text-ink-faint sm:block">{pair(it.sourceLang, it.targetLang)}</span>
                 {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-ink-muted md:inline">{it.collection}</span>}
               </div>
-              <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 gap-0.5 hover-reveal">
                 {it.status === "ready" && (
                   <button
                     type="button"

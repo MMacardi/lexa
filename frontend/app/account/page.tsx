@@ -491,7 +491,7 @@ export default function AccountPage() {
   return (
     <div className="anim-fade-up mx-auto max-w-[640px] space-y-6">
       <div>
-        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{t("account.title")}</h1>
+        <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{t("account.title")}</h1>
         <p className="mt-1.5 text-ink-soft">{t("account.subtitle")}</p>
       </div>
 

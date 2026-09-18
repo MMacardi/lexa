@@ -72,7 +72,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
         <img src={preview} alt="card preview" className="mb-3 max-h-[38vh] w-full rounded-[14px] border border-black/[0.06] object-contain" />
 
         {/* presets */}
-        <div className="mb-2 flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
+        <div className="scroll-row mb-2 flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
           {CARD_PRESETS.map((p) => (
             <button
               key={p.id}

@@ -71,7 +71,7 @@ export default function ProfilePage() {
           ← {t("nav.friends")}
         </Link>
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{p.name}</h1>
+          <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{p.name}</h1>
           {p.isFriend && (
             <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">{t("profile.friend")}</span>
           )}

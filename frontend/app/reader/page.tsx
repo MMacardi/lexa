@@ -1019,7 +1019,7 @@ export default function ReaderPage() {
   return (
     <div className="mx-auto max-w-[720px] pb-28 md:pb-6">
       {/* sticky toolbar */}
-      <div className="sticky top-[53px] z-20 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-paper/95 px-4 py-2.5 backdrop-blur sm:top-0 sm:mx-0 sm:rounded-[14px] sm:border sm:px-4">
+      <div className="scroll-row sticky top-14 z-20 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-paper/95 px-4 py-2.5 backdrop-blur sm:top-0 sm:mx-0 sm:rounded-[14px] sm:border sm:px-4">
         <button
           type="button"
           onClick={leaveReading}
@@ -1033,7 +1033,7 @@ export default function ReaderPage() {
         {textLevel && (
           <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">~{textLevel}</span>
         )}
-        <span className="ml-auto text-xs font-medium text-ink-faint">
+        <span className="text-xs font-medium text-ink-faint sm:ml-auto">
           {t("reader.wordCount", { n: wordCount })} · {t("reader.newCount", { n: newKeys.size })}
         </span>
 

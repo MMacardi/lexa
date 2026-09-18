@@ -352,7 +352,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
               >
                 <div className="space-y-2 rounded-[16px] border border-black/[0.07] bg-surface p-3.5 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.11em] text-ink-faint">{t("import.direction")}</p>
-                  <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
+                  <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
                     <button
                       type="button"
                       onClick={() => applyDirection("en-ru")}

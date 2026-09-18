@@ -59,7 +59,7 @@ export default function CommunityPage() {
   return (
     <div className="space-y-7">
       <div className="anim-fade-up">
-        <h1 className="font-serif text-[34px] font-medium tracking-[-0.01em] text-ink">{t("nav.community")}</h1>
+        <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{t("nav.community")}</h1>
         <p className="mt-1.5 text-ink-soft">{t("community.subtitle")}</p>
       </div>
 
