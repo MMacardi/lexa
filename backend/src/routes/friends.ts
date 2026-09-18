@@ -10,6 +10,7 @@ import {
   acceptRequest,
   removeFriendship,
 } from "../services/friends.js";
+import { getProfile } from "../services/profiles.js";
 
 export const friendsRouter = Router();
 
@@ -84,4 +85,17 @@ friendsRouter.delete("/friends/:id", async (req, res) => {
   const id = requireSession(req, res);
   if (!id) return;
   res.json(await removeFriendship(id, String(req.params.id)));
+});
+
+// GET /api/profiles/:userId -> a learner's profile (progress + shared decks), as far
+// as their privacy switches allow this viewer; 404 when closed.
+friendsRouter.get("/profiles/:userId", async (req, res) => {
+  const id = requireSession(req, res);
+  if (!id) return;
+  try {
+    res.json(await getProfile(id, String(req.params.userId)));
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    res.status(code === "no_profile" ? 404 : 400).json({ error: (err as Error).message, code });
+  }
 });

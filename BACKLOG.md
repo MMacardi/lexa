@@ -19,7 +19,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       "Official" badge (some decks "Picked by Mika, your AI tutor"), never fake users.
       Real-use counters: "added by N learners", "popular this week". Seed words are
       written by hand into a seed file (no Qwen cost). IDEAS: "Social layer".
-- [ ] **1c. Friend profiles + privacy.** Per-friend profile page: reviews-per-day graph,
+- [x] **1c. Friend profiles + privacy.** Per-friend profile page: reviews-per-day graph,
       streak, mastered count, current languages, their public decks. Per-user privacy
       switches (profile and collections visible to friends / everyone / hidden).
       IDEAS: "Social layer".
