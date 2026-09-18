@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
+import { FlagEmojiPolyfill } from "@/components/FlagEmojiPolyfill";
 import { themeBootScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
         </Providers>
         <PwaRegister />
+        <FlagEmojiPolyfill />
       </body>
     </html>
   );
