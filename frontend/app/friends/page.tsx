@@ -46,10 +46,12 @@ function FriendsInner() {
   const referral = useQuery({ queryKey: ["referral"], queryFn: () => api.referral() });
   const friends = useQuery({ queryKey: ["friends"], queryFn: () => api.friends() });
   const requests = useQuery({ queryKey: ["friend-requests"], queryFn: () => api.friendRequests() });
+  const sent = useQuery({ queryKey: ["friend-sent"], queryFn: () => api.sentFriendRequests() });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["friends"] });
     qc.invalidateQueries({ queryKey: ["friend-requests"] });
+    qc.invalidateQueries({ queryKey: ["friend-sent"] });
   };
 
   // Localize backend error codes (falls back to the raw message).
@@ -129,6 +131,7 @@ function FriendsInner() {
       {/* add by code */}
       <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
         <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("friends.add")}</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("friends.addHint")}</p>
         <form
           className="mt-3 flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
@@ -175,6 +178,34 @@ function FriendsInner() {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* outgoing requests */}
+      {(sent.data?.length ?? 0) > 0 && (
+        <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">
+            {t("friends.sent", { n: sent.data!.length })}
+          </h2>
+          <div className="mt-3 space-y-2">
+            {sent.data!.map((r) => (
+              <div key={r.friendshipId} className="flex items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-paper/50 px-3.5 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold text-ink">{r.name}</p>
+                  <p className="text-[12px] text-ink-faint">{t("friends.waiting")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => remove.mutate(r.friendshipId)}
+                  aria-label={t("friends.cancel")}
+                  title={t("friends.cancel")}
+                  className="shrink-0 rounded-full border border-black/[0.08] p-1.5 text-ink-faint hover:bg-black/[0.03] hover:text-warn-text"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))}
           </div>
