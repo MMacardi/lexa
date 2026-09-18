@@ -136,24 +136,28 @@ export default function CollectionDetailPage() {
             {t("col.emptySet")}
           </p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="divide-y divide-black/[0.05] overflow-hidden rounded-[16px] border border-sage/25 bg-surface">
             {inSet.map((w) => (
-              <span
-                key={w.id}
-                className="inline-flex items-center gap-2 rounded-full border border-sage/30 bg-sage-tint py-1 pl-3 pr-1.5 text-sm font-semibold text-sage-deep"
-              >
-                <Link href={`/word/${w.id}`} className="hover:underline">
-                  {w.word}
+              <div key={w.id} className="flex items-center gap-3 px-4 py-2.5">
+                <Link
+                  href={`/word/${w.id}`}
+                  className="grid min-w-0 flex-1 grid-cols-1 gap-x-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-baseline"
+                >
+                  <span className="truncate font-serif text-[17px] font-semibold text-ink hover:underline">{w.word}</span>
+                  <span className={cn("truncate text-sm text-sage-deep", targetFont(w.targetLang))}>
+                    {w.meaningZh ?? "—"}
+                  </span>
                 </Link>
                 <button
                   onClick={() => removeW.mutate(w.id)}
                   disabled={removeW.isPending}
-                  aria-label="Remove"
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-sage-deep/70 hover:bg-black/[0.06] hover:text-warn-text"
+                  aria-label={t("col.removeWord")}
+                  title={t("col.removeWord")}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.06] hover:text-warn-text"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
         )}
