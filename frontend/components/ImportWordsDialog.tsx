@@ -195,7 +195,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
     enabled: Boolean(jobId),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "completed" || status === "failed" ? false : 1_500;
+      return status === "completed" || status === "failed" || status === "cancelled" ? false : 1_500;
     },
   });
 
@@ -302,10 +302,22 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                       ? t("import.backgroundDone")
                       : job?.status === "failed"
                         ? t("import.backgroundFailed")
-                        : job?.status === "processing"
-                          ? t("import.backgroundProgress", { done: job.processed, total: job.total })
-                          : t("import.backgroundQueued")}
+                        : job?.status === "cancelled"
+                          ? t("import.backgroundStopped", { done: job.processed, total: job.total })
+                          : job?.status === "processing"
+                            ? t("import.backgroundProgress", { done: job.processed, total: job.total })
+                            : t("import.backgroundQueued")}
                   </p>
+                )}
+                {commit.data.job && job?.status !== "completed" && job?.status !== "failed" && job?.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    onClick={() => void api.cancelImportJob(commit.data.job!.id).then(() => qc.invalidateQueries({ queryKey: ["import-job", jobId] })).catch(() => {})}
+                    title={t("import.stopHint")}
+                    className="mt-3 rounded-full border border-black/[0.1] px-3.5 py-1.5 text-[13px] font-semibold text-ink-soft hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    ■ {t("import.stop")}
+                  </button>
                 )}
                 {job && (job.errors.length > 0 || job.errorMessage) && (
                   <p className="mt-3 max-w-md text-sm leading-relaxed text-warn-text">
@@ -315,7 +327,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
                 <Button
                   className="mt-7"
                   onClick={() => {
-                    if (commit.data.job && commit.data.job.status !== "completed") {
+                    if (commit.data.job && job?.status !== "completed" && job?.status !== "failed" && job?.status !== "cancelled") {
                       trackImport({
                         jobId: commit.data.job.id,
                         telegramId: accountId,

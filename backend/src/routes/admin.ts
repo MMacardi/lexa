@@ -68,24 +68,24 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       prisma.inviteCode.count(),
       prisma.inviteCode.count({ where: { redeemedAt: { not: null } } }),
       prisma.tokenUsage.aggregate({
-        _sum: { promptTokens: true, completionTokens: true, totalTokens: true },
+        _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
         _count: { _all: true },
       }),
       prisma.tokenUsage.groupBy({
         by: ["model"],
-        _sum: { promptTokens: true, completionTokens: true, totalTokens: true },
+        _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
         _count: { _all: true },
       }),
       // feature × model so per-feature cost stays exact (a feature may span models).
       prisma.tokenUsage.groupBy({
         by: ["feature", "model"],
-        _sum: { promptTokens: true, completionTokens: true, totalTokens: true },
+        _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
         _count: { _all: true },
       }),
       prisma.user.findMany({ where: { createdAt: { gte: since30d } }, select: { createdAt: true } }),
       prisma.tokenUsage.findMany({
         where: { createdAt: { gte: since30d } },
-        select: { createdAt: true, model: true, promptTokens: true, completionTokens: true, totalTokens: true },
+        select: { createdAt: true, model: true, promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
       }),
     ]);
 
@@ -101,7 +101,7 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
           prompt,
           completion,
           total: r._sum.totalTokens ?? 0,
-          costCny: money(costCny(r.model, prompt, completion)),
+          costCny: money(costCny(r.model, prompt, completion, r._sum.cachedTokens ?? 0)),
         };
       })
       .sort((a, b) => b.costCny - a.costCny);
@@ -113,7 +113,7 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
     for (const r of tokByFeatureModel) {
       const prompt = r._sum.promptTokens ?? 0;
       const completion = r._sum.completionTokens ?? 0;
-      const cost = costCny(r.model, prompt, completion);
+      const cost = costCny(r.model, prompt, completion, r._sum.cachedTokens ?? 0);
       const row = featureMap.get(r.feature) ?? { feature: r.feature, calls: 0, total: 0, costCny: 0 };
       row.calls += r._count._all;
       row.total += r._sum.totalTokens ?? 0;
@@ -131,7 +131,7 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       const row = dayMap.get(key) ?? { date: key, calls: 0, total: 0, costCny: 0 };
       row.calls += 1;
       row.total += r.totalTokens;
-      row.costCny += costCny(r.model, r.promptTokens, r.completionTokens);
+      row.costCny += costCny(r.model, r.promptTokens, r.completionTokens, r.cachedTokens);
       dayMap.set(key, row);
     }
     const byDay = [...dayMap.values()]

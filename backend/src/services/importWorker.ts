@@ -76,6 +76,10 @@ async function processOneImportJob() {
   const errors = [...job.errors];
   try {
     for (let index = job.processed; index < cards.length; index++) {
+      // The learner can stop enrichment mid-way to save tokens: re-check before
+      // each card and leave the rest as they are (they already exist as cards).
+      const current = await prisma.importJob.findUnique({ where: { id: job.id }, select: { status: true } });
+      if (current?.status === "cancelled") return;
       const card = cards[index];
       const word = await prisma.word.findUnique({
         where: { id: card.id },
@@ -198,16 +202,28 @@ async function processOneImportJob() {
       });
     }
 
-    await prisma.importJob.update({
-      where: { id: job.id },
+    // updateMany + status filter: a Stop that lands during the last card wins.
+    await prisma.importJob.updateMany({
+      where: { id: job.id, status: "processing" },
       data: { status: "completed", completedAt: new Date(), leaseUntil: null },
     });
   } catch (error) {
-    await prisma.importJob.update({
-      where: { id: job.id },
+    await prisma.importJob.updateMany({
+      where: { id: job.id, status: "processing" },
       data: { status: "failed", errorMessage: (error as Error).message, completedAt: new Date(), leaseUntil: null },
     });
   }
+}
+
+/** Stop a queued/running job; cards already enriched keep their data. */
+export async function cancelImportJobForUser(jobId: string, telegramId: string) {
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return null;
+  await prisma.importJob.updateMany({
+    where: { id: jobId, userId: user.id, status: { in: ["queued", "processing"] } },
+    data: { status: "cancelled", completedAt: new Date(), leaseUntil: null },
+  });
+  return getImportJobForUser(jobId, telegramId);
 }
 
 export async function getImportJobForUser(jobId: string, telegramId: string) {

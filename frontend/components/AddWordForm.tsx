@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, ArrowRight, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
+import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -643,49 +643,18 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
                   ]}
                 />
               </div>
-              <div className="flex items-center gap-2 rounded-[12px] bg-black/[0.03] px-3 py-2 text-[13px]">
-                {/* typed word — labelled with its language only when it differs from the
-                    card's (reverse mode), otherwise the "→ Карточка" flow is unambiguous.
-                    With nothing typed yet the strip shows a concrete sample pair
-                    ("ты" → "you") so it reads as an example, not two empty boxes. */}
-                <div className="flex min-w-0 flex-1 flex-col">
-                  {reverseInput && (
-                    <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-                      {langLabel(inputLang)}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      "min-w-0 truncate rounded-lg px-2.5 py-1 font-medium ring-1 ring-black/[0.05]",
-                      reverseInput && "mt-0.5",
-                      word.trim() ? "bg-surface text-ink shadow-sm" : "text-ink-faint",
-                    )}
-                  >
-                    {word.trim() || sampleWord(inputLang) || t("add.inputPreviewWord")}
-                  </span>
-                </div>
-                <div className="flex shrink-0 flex-col items-center leading-none">
-                  {reverseInput && (
-                    <span className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-sage-deep">
-                      {t("add.inputPreviewTranslate")}
-                    </span>
-                  )}
-                  <ArrowRight className="h-4 w-4 text-ink-faint" />
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-                    {t("add.inputPreviewCard")} · {langLabel(sourceLang)}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-0.5 truncate rounded-lg px-2.5 py-1 font-semibold",
-                      word.trim() && !reverseInput ? "bg-sage-tint text-sage-deep" : "bg-sage-tint/60 text-sage-deep/70",
-                    )}
-                  >
-                    {(word.trim() && !reverseInput ? word.trim() : sampleWord(sourceLang)) || langLabel(sourceLang)}
-                  </span>
-                </div>
-              </div>
+              {/* Static example of the reverse flow ("you" → "ты"), only in reverse mode.
+                  It used to mirror the typed word live, which read as a second input
+                  field and showed a mismatched sample on the card side. */}
+              {reverseInput && sampleWord(inputLang) && sampleWord(sourceLang) && (
+                <p className="text-[12px] leading-snug text-ink-faint">
+                  {t("add.inputReverseHint", {
+                    from: langLabel(inputLang),
+                    to: langLabel(sourceLang),
+                    ex: `${sampleWord(inputLang)} → ${sampleWord(sourceLang)}`,
+                  })}
+                </p>
+              )}
             </div>
           )}
 

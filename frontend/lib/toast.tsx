@@ -70,6 +70,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const mappedRef = useRef<Set<string>>(new Set()); // jobIds whose words we've resolved
   const [trackerMin, setTrackerMin] = useState(false); // collapsed to a small pill
   const closeTracker = useCallback(() => setJobs([]), []);
+  // Stop every running job (saves tokens); finished cards keep their enrichment.
+  const stopTracker = useCallback(async () => {
+    const active = jobs.filter((j) => !isTerminal(j.status));
+    const results = await Promise.all(active.map((j) => api.cancelImportJob(j.jobId).catch(() => null)));
+    setJobs((cur) =>
+      cur.map((x) => {
+        const r = results.find((n) => n?.id === x.jobId);
+        return r ? { ...x, status: r.status, processed: r.processed } : x;
+      }),
+    );
+  }, [jobs]);
 
   const remove = useCallback((id: number) => {
     // play the exit animation, then unmount
@@ -86,7 +97,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [remove],
   );
 
-  const isTerminal = (s: ImportJob["status"]) => s === "completed" || s === "failed";
+  const isTerminal = (s: ImportJob["status"]) => s === "completed" || s === "failed" || s === "cancelled";
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
     setTrackerMin(false);
@@ -140,7 +151,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   // When a job completes, map its enriched words to their new card ids (once).
   useEffect(() => {
-    const done = jobs.filter((j) => j.status === "completed" && !mappedRef.current.has(j.jobId));
+    const done = jobs.filter((j) => (j.status === "completed" || j.status === "cancelled") && !mappedRef.current.has(j.jobId));
     if (done.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -175,7 +186,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const status: ImportJob["status"] = allTerminal
       ? jobs.every((j) => j.status === "failed")
         ? "failed"
-        : "completed"
+        : jobs.some((j) => j.status === "cancelled")
+          ? "cancelled"
+          : "completed"
       : jobs.some((j) => j.status === "processing")
         ? "processing"
         : "queued";
@@ -212,7 +225,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             onClick={() => setTrackerMin(false)}
             className="flex items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_10px_28px_rgba(46,42,38,0.2)]"
           >
-            <span className="text-[15px]">{tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : "…"}</span>
+            <span className="text-[15px]">{tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : tracker.status === "cancelled" ? "■" : "…"}</span>
             <span className="text-[13px] font-semibold text-ink">
               {tracker.processed} / {tracker.total}
             </span>
@@ -251,7 +264,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-start gap-3.5 p-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sage-tint text-[22px] text-sage-deep">
-                {tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : "…"}
+                {tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : tracker.status === "cancelled" ? "■" : "…"}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
@@ -259,14 +272,28 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     ? "AI enrichment complete"
                     : tracker.status === "failed"
                       ? "AI enrichment failed"
+                      : tracker.status === "cancelled"
+                        ? t("import.stoppedTitle")
                       : "AI enrichment in progress"}
                 </div>
                 <div className="truncate font-serif text-[18px] font-semibold leading-tight text-ink">
                   {tracker.processed} / {tracker.total} cards
                 </div>
                 <div className="text-[13px] text-ink-soft">
-                  {currentWord ? `Current: ${currentWord}` : "Preparing cards…"}
+                  {tracker.status === "cancelled"
+                    ? t("import.backgroundStopped", { done: tracker.processed, total: tracker.total })
+                    : currentWord ? `Current: ${currentWord}` : "Preparing cards…"}
                 </div>
+                {!isTerminal(tracker.status) && (
+                  <button
+                    type="button"
+                    onClick={() => void stopTracker()}
+                    title={t("import.stopHint")}
+                    className="mt-2 rounded-full border border-black/[0.1] px-3 py-1 text-[12px] font-semibold text-ink-soft hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    ■ {t("import.stop")}
+                  </button>
+                )}
 
                 <div
                   className={

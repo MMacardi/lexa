@@ -16,7 +16,7 @@ import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { listSessions, getSession, createSession, saveSession, deleteSession } from "../services/sceneSession.js";
-import { getImportJobForUser } from "../services/importWorker.js";
+import { getImportJobForUser, cancelImportJobForUser } from "../services/importWorker.js";
 import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
@@ -386,6 +386,17 @@ wordsRouter.post("/words/import", async (req, res) => {
 wordsRouter.get("/words/import/:jobId", async (req, res) => {
   const telegramId = readSession(req) ?? String(req.query.telegramId ?? "dev-user");
   const job = await getImportJobForUser(req.params.jobId, telegramId);
+  if (!job) {
+    res.status(404).json({ error: "Import job not found" });
+    return;
+  }
+  res.json(job);
+});
+
+// POST /api/words/import/:jobId/cancel -> stop background enrichment (saves tokens).
+wordsRouter.post("/words/import/:jobId/cancel", async (req, res) => {
+  const telegramId = readSession(req);
+  const job = telegramId ? await cancelImportJobForUser(req.params.jobId, telegramId) : null;
   if (!job) {
     res.status(404).json({ error: "Import job not found" });
     return;
