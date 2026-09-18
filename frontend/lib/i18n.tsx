@@ -23,6 +23,7 @@ const DICT: Record<string, Entry> = {
   "nav.collections": { en: "Collections", ru: "Коллекции", zh: "合集" },
   "nav.friends": { en: "Friends", ru: "Друзья", zh: "好友" },
   "nav.more": { en: "More", ru: "Ещё", zh: "更多" },
+  "nav.mika": { en: "Mika", ru: "Мика", zh: "米卡" },
   "friends.title": { en: "Friends", ru: "Друзья", zh: "好友" },
   "friends.subtitle": { en: "Invite friends and cheer each other on — see their languages, streaks and achievements.", ru: "Приглашайте друзей и следите за прогрессом — их языки, серии и достижения.", zh: "邀请好友一起学习——查看他们的语言、连续天数和成就。" },
   "friends.invite": { en: "Your invite code", ru: "Ваш код-приглашение", zh: "你的邀请码" },
@@ -73,6 +74,86 @@ const DICT: Record<string, Entry> = {
     en: "I can explain words, give examples, and add words to your deck.",
     ru: "Я умею объяснять слова, давать примеры и добавлять слова в словарь.",
     zh: "我能讲解单词、给例句，并把单词加入你的卡组。",
+  },
+  "tutor.openPage": { en: "Open full page", ru: "Открыть на весь экран", zh: "打开完整页面" },
+
+  // --- mika page ---
+  "mika.title": { en: "Mika", ru: "Мика", zh: "米卡" },
+  "mika.subtitle": {
+    en: "Your AI tutor. Ask about words and grammar, get vocabulary for your goal, or let Mika show you around the app.",
+    ru: "Твой AI-репетитор. Спрашивай про слова и грамматику, подбирай лексику под цель — или попроси Мику показать приложение.",
+    zh: "你的 AI 导师。问单词和语法、按目标挑选词汇，或让米卡带你了解这个应用。",
+  },
+  "mika.newChat": { en: "New chat", ru: "Новый чат", zh: "新对话" },
+  "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },
+  "mika.p.level.title": { en: "Check my level", ru: "Проверить мой уровень", zh: "测测我的水平" },
+  "mika.p.level.desc": {
+    en: "A few quick questions, then words picked for your goal — IELTS, travel, work.",
+    ru: "Пара быстрых вопросов — и слова под твою цель: IELTS, путешествия, работа.",
+    zh: "几个小问题，然后按你的目标挑词——雅思、旅行、工作。",
+  },
+  "mika.p.level.prompt": {
+    en: "I'm preparing for IELTS. Ask me a few quick questions to check my level (I think I'm around {level}), then suggest words I should learn.",
+    ru: "Я готовлюсь к IELTS. Задай пару быстрых вопросов, чтобы проверить мой уровень (думаю, около {level}), а потом предложи слова, которые мне стоит выучить.",
+    zh: "我在准备雅思。先问我几个小问题测一下水平（我大概是 {level}），然后推荐我该学的单词。",
+  },
+  "mika.p.topic.title": { en: "10 words on a topic", ru: "10 слов по теме", zh: "一个主题的 10 个词" },
+  "mika.p.topic.desc": {
+    en: "Save them as flashcards in one tap — straight into a collection.",
+    ru: "Сохрани их карточками в один тап — сразу в коллекцию.",
+    zh: "一键存为闪卡——直接放进合集。",
+  },
+  "mika.p.topic.prompt": { en: "Give me 10 useful words about: ", ru: "Дай 10 полезных слов по теме: ", zh: "给我 10 个关于以下主题的常用词：" },
+  "mika.p.compare.title": { en: "X vs Y", ru: "X или Y", zh: "X 和 Y 的区别" },
+  "mika.p.compare.desc": {
+    en: "Similar words, confusing grammar — get the difference with examples.",
+    ru: "Похожие слова, путаная грамматика — разница на примерах.",
+    zh: "相近的词、易混的语法——用例句讲清区别。",
+  },
+  "mika.p.compare.prompt": { en: "Explain the difference between ", ru: "Объясни разницу между ", zh: "讲解一下这两个的区别：" },
+  "mika.p.reviews.title": { en: "How do reviews work?", ru: "Как работают повторения?", zh: "复习是怎么安排的？" },
+  "mika.p.reviews.desc": {
+    en: "Flashcards use FSRS spaced repetition: Again / Hard / Good / Easy decide the next date.",
+    ru: "Карточки работают на интервальном повторении FSRS: Снова / Трудно / Хорошо / Легко задают следующую дату.",
+    zh: "闪卡使用 FSRS 间隔重复：重来 / 困难 / 良好 / 简单 决定下次复习时间。",
+  },
+  "mika.p.reviews.prompt": {
+    en: "How do flashcard reviews (FSRS) work in Onomika, and how should I pick Again / Hard / Good / Easy?",
+    ru: "Как в Onomika работают повторения карточек (FSRS) и как выбирать между Снова / Трудно / Хорошо / Легко?",
+    zh: "Onomika 的闪卡复习（FSRS）是怎么运作的？我该怎么选择 重来 / 困难 / 良好 / 简单？",
+  },
+  "mika.p.reader.title": { en: "A short text to read", ru: "Короткий текст для чтения", zh: "一篇短文来读" },
+  "mika.p.reader.desc": {
+    en: "Mika writes one at your level. In the Reader you can tap any word to save it.",
+    ru: "Мика напишет его под твой уровень. В Читалке любое слово сохраняется тапом.",
+    zh: "米卡按你的水平写一篇。在阅读器里点任何词就能保存。",
+  },
+  "mika.p.reader.prompt": {
+    en: "Write me a short text (about 120 words) at {level} level about: ",
+    ru: "Напиши короткий текст (около 120 слов) уровня {level} на тему: ",
+    zh: "写一篇 {level} 水平的短文（约 120 词），主题是：",
+  },
+  "mika.p.scene.title": { en: "Role-play a scene", ru: "Разыграть сценку", zh: "情景对话" },
+  "mika.p.scene.desc": {
+    en: "Practise a real conversation here — or in a full scene with a scored report at the end.",
+    ru: "Потренируй живой диалог здесь — или в полноценной сценке с разбором и оценкой в конце.",
+    zh: "在这里练习真实对话——或进入完整情景，结束时有评分报告。",
+  },
+  "mika.p.scene.prompt": {
+    en: "Let's role-play: I'm ordering at a café and you're the waiter. You start.",
+    ru: "Давай разыграем сценку: я заказываю в кафе, а ты официант. Начинай.",
+    zh: "我们来情景对话：我在咖啡馆点单，你是服务员。你先开始。",
+  },
+  "mika.p.today.title": { en: "What should I study today?", ru: "Что мне сегодня учить?", zh: "今天该学什么？" },
+  "mika.p.today.desc": {
+    en: "A plan for today — due cards first, then new words or a quiz.",
+    ru: "План на сегодня: сначала карточки к повторению, потом новые слова или квиз.",
+    zh: "今天的计划——先复习到期卡片，再学新词或做测验。",
+  },
+  "mika.p.today.prompt": {
+    en: "I have {due} cards due for review. What should I study today?",
+    ru: "У меня {due} карточек к повторению. Что мне сегодня учить?",
+    zh: "我有 {due} 张卡片待复习。今天该学什么？",
   },
 
   // --- reader ---

@@ -473,7 +473,7 @@ from OUR DB (deck, level, FSRS) + ONE structured call + post-filter — not agen
 - ✅ **Quiz hotkeys** — 1–4 pick answers, Enter/Space to continue; number badges on options.
 
 ## Mika page
-Status: planned (BACKLOG 1a, asked 2026-09-18).
+Status: done 2026-09-18 (BACKLOG 1a). Shared `lib/useTutorChat.ts` + `components/TutorThread.tsx`; chat kept in sessionStorage so widget ↔ page continue one conversation; tutor prompt now knows the app. No mic yet (the widget has none).
 Mika today is only the floating widget (`components/GlobalTutor.tsx`, `api.tutorAsk`).
 Learners want to have longer talks with it ("I'm preparing for IELTS, check my level and suggest
 words"), and it's the free, voice-friendly entry point, so give it a proper page:
