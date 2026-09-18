@@ -4,6 +4,7 @@ import { env } from "../lib/env.js";
 import { langName } from "../lib/langs.js";
 import { createSayExtractor } from "../lib/sayStream.js";
 import { prisma } from "./db.js";
+import { currentUserId } from "../lib/usageContext.js";
 
 // Qwen on Alibaba Bailian speaks the OpenAI Chat Completions protocol via its
 // "compatible-mode" endpoint, so we reuse the official OpenAI SDK and just point
@@ -91,6 +92,7 @@ function logUsage(
         totalTokens: u.total_tokens ?? 0,
         cachedTokens: cached ?? 0,
         ms,
+        telegramId: currentUserId(),
       },
     })
     .catch(() => {});

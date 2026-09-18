@@ -6,7 +6,7 @@ import { costCny } from "../lib/pricing.js";
 
 // Owner-only operations dashboard: one aggregated snapshot of how the beta is
 // being used (users, content, engagement, invites) and exactly what the AI is
-// costing (real tokens + ¥ by model / feature / day). Guarded by requireAdmin,
+// costing (real tokens + ¥ by model / feature / user / day). Guarded by requireAdmin,
 // which is itself behind the global identity + invite gate in index.ts.
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -46,6 +46,7 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       tokTotals,
       tokByModel,
       tokByFeatureModel,
+      tokByUserModel,
       recentUsers,
       recentTokens,
     ] = await Promise.all([
@@ -79,6 +80,12 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       // feature × model so per-feature cost stays exact (a feature may span models).
       prisma.tokenUsage.groupBy({
         by: ["feature", "model"],
+        _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
+        _count: { _all: true },
+      }),
+      // user × model: one aggregate row per (user, model), cheap even for every user.
+      prisma.tokenUsage.groupBy({
+        by: ["telegramId", "model"],
         _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cachedTokens: true },
         _count: { _all: true },
       }),
@@ -122,6 +129,29 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
     }
     const byFeature = [...featureMap.values()]
       .map((r) => ({ ...r, costCny: money(r.costCny) }))
+      .sort((a, b) => b.costCny - a.costCny);
+
+    // --- tokens: all-time by user (null telegramId = pre-attribution / no user) ---
+    const userMap = new Map<string | null, { calls: number; total: number; costCny: number }>();
+    for (const r of tokByUserModel) {
+      const prompt = r._sum.promptTokens ?? 0;
+      const completion = r._sum.completionTokens ?? 0;
+      const row = userMap.get(r.telegramId) ?? { calls: 0, total: 0, costCny: 0 };
+      row.calls += r._count._all;
+      row.total += r._sum.totalTokens ?? 0;
+      row.costCny += costCny(r.model, prompt, completion, r._sum.cachedTokens ?? 0);
+      userMap.set(r.telegramId, row);
+    }
+    const ids = [...userMap.keys()].filter((id): id is string => id !== null);
+    const names = await prisma.user.findMany({
+      where: { telegramId: { in: ids } },
+      select: { telegramId: true, displayName: true, firstName: true, username: true, email: true },
+    });
+    const nameOf = new Map(
+      names.map((u) => [u.telegramId, u.displayName || u.firstName || (u.username && `@${u.username}`) || u.email || u.telegramId]),
+    );
+    const byUser = [...userMap.entries()]
+      .map(([id, r]) => ({ telegramId: id, name: id ? nameOf.get(id) ?? id : null, ...r, costCny: money(r.costCny) }))
       .sort((a, b) => b.costCny - a.costCny);
 
     // --- tokens: last 30 days by day (per-row cost → accurate mixed-model days) ---
@@ -175,6 +205,7 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
         },
         byModel,
         byFeature,
+        byUser,
         byDay,
       },
     });

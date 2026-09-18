@@ -473,6 +473,8 @@ const DICT: Record<string, Entry> = {
   "admin.cost": { en: "Cost", ru: "Стоимость", zh: "费用" },
   "admin.byModel": { en: "By model", ru: "По моделям", zh: "按模型" },
   "admin.byFeature": { en: "By feature", ru: "По функциям", zh: "按功能" },
+  "admin.byUser": { en: "By user", ru: "По пользователям", zh: "按用户" },
+  "admin.unattributed": { en: "(unattributed)", ru: "(без пользователя)", zh: "（未归属）" },
   "admin.byDay": { en: "Last 30 days", ru: "Последние 30 дней", zh: "最近 30 天" },
   "admin.signups": { en: "Signups (30d)", ru: "Регистрации (30д)", zh: "注册（30天）" },
   "admin.total": { en: "Total", ru: "Всего", zh: "总计" },

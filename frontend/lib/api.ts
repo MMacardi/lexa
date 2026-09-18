@@ -170,6 +170,8 @@ export interface AdminStats {
     totals: { calls: number; prompt: number; completion: number; total: number; costCny: number };
     byModel: { model: string; calls: number; prompt: number; completion: number; total: number; costCny: number }[];
     byFeature: { feature: string; calls: number; total: number; costCny: number }[];
+    // telegramId/name are null for spend logged before per-user attribution.
+    byUser: { telegramId: string | null; name: string | null; calls: number; total: number; costCny: number }[];
     byDay: { date: string; calls: number; total: number; costCny: number }[];
   };
 }

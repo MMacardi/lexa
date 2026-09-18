@@ -10,6 +10,8 @@ import { invitesRouter } from "./routes/invites.js";
 import { adminRouter } from "./routes/admin.js";
 import { betaRouter } from "./routes/beta.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
+import { readSession } from "./lib/auth.js";
+import { runAsUser } from "./lib/usageContext.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
 
@@ -79,6 +81,11 @@ app.use("/api", (req, res, next) =>
 app.use("/api", (req, res, next) =>
   EXEMPT_INVITED.test(req.path) ? next() : requireInvited(req, res, next),
 );
+// Tag the rest of the request with the caller so llm.ts can attribute token spend.
+app.use("/api", (req, _res, next) => {
+  const id = readSession(req);
+  return id ? runAsUser(id, next) : next();
+});
 
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);

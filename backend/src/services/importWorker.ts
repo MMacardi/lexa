@@ -4,6 +4,7 @@ import { runTutor } from "../agents/tutor.js";
 import { enrichWordEntry } from "../agents/enrich.js";
 import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
+import { runAsUser } from "../lib/usageContext.js";
 
 const queuedCardsSchema = z.array(z.object({ id: z.string(), word: z.string() }));
 const LEASE_MS = 5 * 60_000;
@@ -20,7 +21,7 @@ export function startImportWorker() {
     if (working) return;
     working = true;
     try {
-      await processOneImportJob();
+      await claimAndProcessImportJob();
     } catch (error) {
       // Keep the server alive if a malformed legacy job appears in the queue.
       console.error("Import worker error", error);
@@ -33,8 +34,8 @@ export function startImportWorker() {
   setInterval(() => void tick(), POLL_MS).unref();
 }
 
-/** Claim one queued (or abandoned) job, process its cards sequentially, and persist progress. */
-async function processOneImportJob() {
+/** Claim one queued (or abandoned) job and process it as its owner (for token attribution). */
+async function claimAndProcessImportJob() {
   const now = new Date();
   const candidate = await prisma.importJob.findFirst({
     where: {
@@ -61,7 +62,15 @@ async function processOneImportJob() {
   });
   if (claim.count !== 1) return;
 
-  const job = await prisma.importJob.findUniqueOrThrow({ where: { id: candidate.id } });
+  const job = await prisma.importJob.findUniqueOrThrow({
+    where: { id: candidate.id },
+    include: { user: { select: { telegramId: true } } },
+  });
+  await runAsUser(job.user.telegramId, () => processImportJob(job));
+}
+
+/** Process a claimed job's cards sequentially and persist progress. */
+async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.findUniqueOrThrow>>) {
   let cards: { id: string; word: string }[];
   try {
     cards = queuedCardsSchema.parse(job.cards);

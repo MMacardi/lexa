@@ -137,6 +137,18 @@ export default function AdminPage() {
         </Section>
       </div>
 
+      <Section title={t("admin.byUser")}>
+        <Table
+          head={["user", t("admin.calls"), t("admin.total"), t("admin.cost")]}
+          rows={tokens.byUser.map((u) => [
+            u.name ?? t("admin.unattributed"),
+            fmtInt(u.calls),
+            fmtInt(u.total),
+            fmtCny(u.costCny),
+          ])}
+        />
+      </Section>
+
       <Section title={t("admin.byDay")}>
         <Table
           head={["date", t("admin.calls"), t("admin.total"), t("admin.cost")]}
