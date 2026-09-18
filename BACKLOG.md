@@ -4,7 +4,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 `IDEAS.md` for the quoted heading. New ideas go in IDEAS.md plus one line here.
 
 ## Now
-- [ ] **1. Deploy.** Merge `social` → `main` and push, then follow `DEPLOY.md` (Railway
+- [x] **1. Deploy.** Merge `social` → `main` and push, then follow `DEPLOY.md` (Railway
       backend + Postgres, Vercel frontend). Needs you in the dashboards. Write the new
       URLs into DEPLOY.md.
 - [ ] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person

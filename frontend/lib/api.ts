@@ -393,7 +393,7 @@ export interface ImportOptions {
 
 export interface ImportJob {
   id: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
   total: number;
   processed: number;
   errors: string[];
@@ -433,6 +433,7 @@ export const api = {
     }),
   getImportJob: (id: string, telegramId: string) =>
     http<ImportJob>(`/api/words/import/${id}?telegramId=${encodeURIComponent(telegramId)}`),
+  cancelImportJob: (id: string) => http<ImportJob>(`/api/words/import/${id}/cancel`, { method: "POST" }),
   // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Default Good. Sends the learner's
   // desired retention (FSRS) so the server schedules with their chosen setting.
   reviewWord: (id: string, grade = 3) =>
