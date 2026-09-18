@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 export const OPEN_MIKA = "onomika:open-mika";
 export const OPEN_BUG = "onomika:open-bug";
+export const OPEN_ADD = "onomika:open-add";
 
 export const open = (event: string) => window.dispatchEvent(new Event(event));
 
