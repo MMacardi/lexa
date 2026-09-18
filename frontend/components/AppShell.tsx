@@ -53,7 +53,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       <CommandPalette />
       <AchievementWatcher />
-      <GlobalTutor />
+      {/* the /mika page is the full-size tutor — no floating copy on top of it */}
+      {!pathname?.startsWith("/mika") && <GlobalTutor />}
       <SyncStatus />
       <BugReport />
     </div>

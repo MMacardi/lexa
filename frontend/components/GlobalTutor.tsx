@@ -1,50 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type TutorCard } from "@/lib/api";
-import { useAccount } from "@/lib/account";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { errText } from "@/lib/errText";
-import { useToast } from "@/lib/toast";
-import { isAiSupported } from "@/lib/langs";
-import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
-import { useEnsureLevel } from "@/lib/useEnsureLevel";
-import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
+import { getLevel } from "@/lib/learnPrefs";
+import { useTutorChat } from "@/lib/useTutorChat";
 import { LangSelect } from "@/components/LangSelect";
-import { RichText } from "@/components/RichText";
+import { TutorThread } from "@/components/TutorThread";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { cn } from "@/lib/utils";
-import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Check } from "lucide-react";
-
-type Msg = { role: "user" | "assistant"; content: string; addWords?: string[]; addCards?: TutorCard[] };
-
-// The learner's current pair (shared with Add/Reader). Tutor adds words to it.
-function readPair(): { source: string; target: string } {
-  if (typeof window === "undefined") return { source: "en", target: "zh" };
-  try {
-    const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string; targetLang?: string };
-    const source = p?.sourceLang && p.sourceLang !== "auto" ? p.sourceLang : "en";
-    return { source, target: p?.targetLang || "zh" };
-  } catch {
-    return { source: "en", target: "zh" };
-  }
-}
+import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2 } from "lucide-react";
 
 export function GlobalTutor() {
   const { t } = useI18n();
-  const { accountId } = useAccount();
-  const qc = useQueryClient();
-  const { show, trackImport } = useToast();
-  const ensureLevel = useEnsureLevel();
-
   const [open, setOpen] = useState(false);
-  const [pair, setPair] = useState(() => readPair());
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [collIds, setCollIds] = useState<string[]>([]);
-  const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
+  const chat = useTutorChat({ active: open });
+  const { pair, changePair, messages, input, setInput, send, reset, busy } = chat;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Draggable panel: offset from its docked corner, remembered across opens and
@@ -115,136 +85,13 @@ export function GlobalTutor() {
   }, [open]);
   const moved = offset.x !== 0 || offset.y !== 0;
 
-  const { data: collections } = useQuery({
-    queryKey: ["collections", accountId],
-    queryFn: () => api.collections(accountId),
-    enabled: open,
-  });
-
-  // The learner's existing deck, so we can flag words the tutor suggests that are
-  // already saved (matched within the current pair's source language). Shares the
-  // Sidebar's cache — no extra request in practice.
-  const { data: myWords } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
-    enabled: !!accountId,
-  });
-  const ownedSet = useMemo(() => {
-    const s = new Set<string>();
-    for (const w of myWords ?? []) if (w.sourceLang === pair.source) s.add(w.word.trim().toLowerCase());
-    return s;
-  }, [myWords, pair.source]);
-  const isAdded = (w: string) => ownedSet.has(w.trim().toLowerCase());
-
-  // Refresh the pair each time the panel opens (it may have changed elsewhere).
-  useEffect(() => {
-    if (open) setPair(readPair());
-  }, [open]);
-
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const ask = useMutation({
-    mutationFn: (msgs: Msg[]) =>
-      api.tutorAsk({
-        messages: msgs.map((m) => ({ role: m.role, content: m.content })),
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        telegramId: accountId,
-      }),
-    onSuccess: (r) => setMessages((m) => [...m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }]),
-  });
-  const busy = ask.isPending;
-
-  function send(text?: string) {
-    const q = (text ?? input).trim();
-    if (!q || busy) return;
-    const next = [...messages, { role: "user" as const, content: q }];
-    setMessages(next);
-    setInput("");
-    ask.mutate(next);
-  }
-
   function fillTemplate(template: string) {
     setInput(template);
     inputRef.current?.focus();
-  }
-
-  // Toggle a single suggested word's selection within a message.
-  function toggleWord(index: number, all: string[], w: string) {
-    setWordSel((s) => {
-      const cur = s[index] ?? all;
-      const next = cur.includes(w) ? cur.filter((x) => x !== w) : [...cur, w];
-      return { ...s, [index]: next };
-    });
-  }
-
-  // Change the tutor's language pair and persist it (shared with Add/Reader).
-  function changePair(next: { source: string; target: string }) {
-    setPair(next);
-    try {
-      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  async function createCards(index: number, terms: string[]) {
-    if (creating || terms.length === 0) return;
-    // Reuse the meaning + example the tutor already wrote (in addCards) so we can
-    // save these cards WITHOUT a second AI call. Only when every selected word has
-    // both a meaning and an example; otherwise fall back to normal AI enrichment.
-    const byWord = new Map((messages[index]?.addCards ?? []).map((c) => [c.word.trim().toLowerCase(), c]));
-    const reuseAll = terms.every((w) => {
-      const c = byWord.get(w.trim().toLowerCase());
-      return c && c.meaning && c.example;
-    });
-
-    // A level is only needed when the AI will compose examples.
-    if (!reuseAll && isAiSupported(pair.source)) {
-      const { ok } = await ensureLevel(pair.source);
-      if (!ok) return;
-    }
-    setCreating(true);
-    try {
-      const r = await api.batchAddWords(
-        reuseAll
-          ? {
-              telegramId: accountId,
-              sourceLang: pair.source,
-              targetLang: pair.target,
-              items: terms.map((w) => {
-                const c = byWord.get(w.trim().toLowerCase())!;
-                return { word: w, meaning: c.meaning, sentence: c.example, exampleTr: c.exampleTr };
-              }),
-              source: "Onomika AI",
-              enrich: false, // meaning + example are already known → no tokens spent
-              collectionIds: collIds.length ? collIds : undefined,
-            }
-          : {
-              telegramId: accountId,
-              sourceLang: pair.source,
-              targetLang: pair.target,
-              words: terms,
-              level: getLevel(pair.source) ?? undefined,
-              exampleStyle: getExampleStyle(),
-              exampleSource: getExampleSource(),
-              enrich: isAiSupported(pair.source),
-              collectionIds: collIds.length ? collIds : undefined,
-            },
-      );
-      qc.invalidateQueries({ queryKey: ["words"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
-      if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: terms, total: r.job.total, processed: 0 });
-      show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
-      setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addWords: [] } : msg)));
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setCreating(false);
-    }
   }
 
   return (
@@ -300,15 +147,22 @@ export function GlobalTutor() {
                 {messages.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setMessages([]);
-                      ask.reset();
-                    }}
+                    onClick={reset}
                     className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                   </button>
                 )}
+                <HoverTip title={t("tutor.openPage")} className="inline-flex">
+                  <Link
+                    href="/mika"
+                    onClick={() => setOpen(false)}
+                    aria-label={t("tutor.openPage")}
+                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </Link>
+                </HoverTip>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -341,85 +195,7 @@ export function GlobalTutor() {
               </div>
             )}
 
-            {messages.map((m, i) =>
-              m.role === "assistant" ? (
-                <div key={i} className="space-y-2">
-                  <RichText text={m.content} className="text-[14px] text-ink" />
-                  {m.addWords &&
-                    m.addWords.length > 0 &&
-                    (() => {
-                      const all = m.addWords;
-                      const addable = all.filter((w) => !isAdded(w)); // exclude ones already in the deck
-                      const selected = (wordSel[i] ?? addable).filter((w) => !isAdded(w));
-                      return (
-                        <div className="space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                              {t("reader.selectedN", { n: selected.length })}
-                            </span>
-                            <div className="flex gap-2 text-[11px] font-semibold">
-                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [...addable] }))} className="text-sage hover:text-sage-deep">
-                                {t("reader.selectAllNew")}
-                              </button>
-                              <button type="button" onClick={() => setWordSel((s) => ({ ...s, [i]: [] }))} className="text-ink-faint hover:text-ink-muted">
-                                {t("reader.deselectAll")}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {all.map((w) => {
-                              const added = isAdded(w);
-                              const on = !added && selected.includes(w);
-                              return (
-                                <HoverTip key={w} title={added ? t("tutor.alreadyAdded") : ""} className="inline-flex">
-                                  <button
-                                    type="button"
-                                    disabled={added}
-                                    onClick={() => toggleWord(i, addable, w)}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                                      added
-                                        ? "cursor-default border-black/[0.08] bg-black/[0.03] text-ink-faint line-through opacity-70"
-                                        : on
-                                          ? "border-sage bg-sage text-white"
-                                          : "border-black/[0.12] bg-surface text-ink-muted hover:border-sage/60",
-                                    )}
-                                  >
-                                    {added && <Check className="h-3 w-3 shrink-0" />}
-                                    {w}
-                                  </button>
-                                </HoverTip>
-                              );
-                            })}
-                          </div>
-                          {collections && collections.length > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
-                              <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            disabled={creating || selected.length === 0}
-                            onClick={() => createCards(i, selected)}
-                            className="w-full rounded-full bg-sage px-3 py-2 text-[13px] font-semibold text-white hover:bg-sage-deep disabled:opacity-50"
-                          >
-                            ＋ {t("word.createCards")} ({selected.length})
-                          </button>
-                        </div>
-                      );
-                    })()}
-                </div>
-              ) : (
-                <div key={i} className="flex justify-end">
-                  <span className="max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 py-2 text-[13px] font-medium text-white">
-                    {m.content}
-                  </span>
-                </div>
-              ),
-            )}
-            {busy && <p className="text-sm text-ink-soft">{t("word.thinking")}</p>}
-            {ask.isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
+            <TutorThread chat={chat} />
           </div>
 
           {/* footer: input (collection choice appears with the "create cards" action) */}

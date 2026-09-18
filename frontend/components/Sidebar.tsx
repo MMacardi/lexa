@@ -9,11 +9,12 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
-import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, type LucideIcon } from "lucide-react";
+import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, type LucideIcon } from "lucide-react";
 
 const NAV: { href: string; key: string; Icon: LucideIcon }[] = [
   { href: "/", key: "nav.today", Icon: Home },
   { href: "/coach", key: "nav.coach", Icon: Compass },
+  { href: "/mika", key: "nav.mika", Icon: Sparkles },
   { href: "/review", key: "nav.flashcards", Icon: Layers },
   { href: "/quiz", key: "nav.recall", Icon: Target },
   { href: "/reader", key: "nav.reader", Icon: BookOpen },
