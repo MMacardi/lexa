@@ -21,6 +21,9 @@ import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+// Sentinel <Select> value for "create a new set from the selection".
+const NEW_SET = "__new__";
+
 type Filter = "all" | "learning" | "mastered" | "due";
 type SortKey = "recent" | "alpha" | "mastery" | "due";
 
@@ -57,6 +60,8 @@ export default function WordsPage() {
   // bulk selection (add many words to a collection at once)
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkColl, setBulkColl] = useState<string>("");
+  // name for a set created straight from the bubble (used when picking "+ New set" or having none)
+  const [newSetName, setNewSetName] = useState("");
   // how many rows are rendered (grow on demand instead of dumping the whole list)
   const PAGE = 60;
   const [visible, setVisible] = useState(PAGE);
@@ -81,17 +86,24 @@ export default function WordsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
   });
 
-  // Add every selected word to the chosen collection in one go.
+  // Add every selected word to the chosen collection in one go, creating it first
+  // when the user typed a new set name instead of picking an existing one.
   const bulkAdd = useMutation({
-    mutationFn: async (collectionId: string) => {
+    mutationFn: async (target: { id: string } | { newName: string }) => {
       const n = selected.size;
-      await Promise.all([...selected].map((id) => api.addWordToCollection(collectionId, id)));
-      return { n, name: collections?.find((c) => c.id === collectionId)?.name ?? "" };
+      const coll =
+        "newName" in target
+          ? await api.createCollection(target.newName, accountId)
+          : { id: target.id, name: collections?.find((c) => c.id === target.id)?.name ?? "" };
+      await Promise.all([...selected].map((id) => api.addWordToCollection(coll.id, id)));
+      return { n, name: coll.name };
     },
     onSuccess: ({ n, name }) => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       setSelected(new Set());
+      setBulkColl("");
+      setNewSetName("");
       show({ icon: "🗂", title: t("words.addedToSet", { n, set: name }) });
     },
   });
@@ -107,6 +119,16 @@ export default function WordsPage() {
       setSelected(new Set());
     },
   });
+
+  // No sets yet, or "+ New set" picked → the bubble shows a name field instead.
+  const creatingSet = !collections?.length || bulkColl === NEW_SET;
+  const submitBulk = () => {
+    if (bulkAdd.isPending) return;
+    if (creatingSet) {
+      const name = newSetName.trim();
+      if (name) bulkAdd.mutate({ newName: name });
+    } else if (bulkColl) bulkAdd.mutate({ id: bulkColl });
+  };
 
   const toggleSel = (id: string) =>
     setSelected((prev) => {
@@ -395,23 +417,37 @@ export default function WordsPage() {
         <div className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6">
           <div className="anim-fade-up mx-auto flex max-w-[720px] flex-wrap items-center gap-2 rounded-[18px] border border-black/[0.08] bg-surface/95 px-3.5 py-2.5 shadow-[0_14px_40px_rgba(46,42,38,0.24)] backdrop-blur">
             <span className="text-sm font-semibold text-sage-deep">{t("words.nSelected", { n: selected.size })}</span>
-            {collections && collections.length > 0 ? (
-              <>
-                <Select
-                  value={bulkColl}
-                  onChange={setBulkColl}
-                  placeholder={t("words.chooseSet")}
-                  ariaLabel={t("words.chooseSet")}
-                  className="w-[170px]"
-                  options={collections.map((c) => ({ value: c.id, label: c.name }))}
-                />
-                <Button size="sm" disabled={!bulkColl || bulkAdd.isPending} onClick={() => bulkColl && bulkAdd.mutate(bulkColl)}>
-                  {bulkAdd.isPending ? t("add.saving") : t("words.addToSet")}
-                </Button>
-              </>
-            ) : (
-              <span className="text-sm text-ink-soft">{t("words.noSetsYet")}</span>
+            {collections && collections.length > 0 && (
+              <Select
+                value={bulkColl}
+                onChange={setBulkColl}
+                placeholder={t("words.chooseSet")}
+                ariaLabel={t("words.chooseSet")}
+                className="w-[170px]"
+                options={[
+                  ...collections.map((c) => ({ value: c.id, label: c.name })),
+                  { value: NEW_SET, label: t("words.newSetOption") },
+                ]}
+              />
             )}
+            {creatingSet && (
+              <input
+                value={newSetName}
+                onChange={(e) => setNewSetName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitBulk()}
+                placeholder={t("col.newSetPlaceholder")}
+                aria-label={t("col.newSetPlaceholder")}
+                maxLength={80}
+                className="h-9 w-[160px] rounded-full border border-black/[0.1] bg-surface px-3.5 text-sm outline-none focus:border-sage"
+              />
+            )}
+            <Button
+              size="sm"
+              disabled={(creatingSet ? !newSetName.trim() : !bulkColl) || bulkAdd.isPending}
+              onClick={submitBulk}
+            >
+              {bulkAdd.isPending ? t("add.saving") : creatingSet ? t("words.createAndAdd") : t("words.addToSet")}
+            </Button>
             <button
               type="button"
               disabled={bulkDelete.isPending}
