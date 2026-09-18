@@ -15,7 +15,8 @@ import { ImportWordsDialog, exportWords } from "@/components/ImportWordsDialog";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { Select } from "@/components/ui/Select";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Download, Trash2, X } from "lucide-react";
+import { Download, Trash2, X, Plus, Search } from "lucide-react";
+import { OPEN_ADD, open } from "@/lib/mobileNav";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -164,7 +165,6 @@ export default function WordsPage() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [data]);
   const pairs = pairCounts.map(([key]) => key);
-  const topPairs = pairCounts.slice(0, 3);
 
   const q = query.trim().toLowerCase();
   const filtered = words
@@ -198,14 +198,14 @@ export default function WordsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="anim-fade-up flex flex-wrap items-baseline justify-between gap-3">
+      <div className="anim-fade-up flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-baseline gap-3">
           <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{t("words.title")}</h1>
           <span className="text-[15px] font-semibold text-sage">{t("words.count", { n: words.length })}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {words.length > 0 && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => exportWords(words)} className="inline-flex items-center gap-1.5">
+            <Button type="button" variant="outline" onClick={() => exportWords(words)} className="inline-flex items-center gap-1.5">
               <Download className="h-4 w-4" /> {t("import.export")}
             </Button>
           )}
@@ -213,9 +213,24 @@ export default function WordsPage() {
         </div>
       </div>
 
-      <div className="anim-fade-up space-y-3" style={{ animationDelay: "60ms" }}>
+      {/* add a word: the full inline form on desktop; on phones a compact row that
+          opens the same quick-add sheet as the header "+" (the form is long) */}
+      <div className="anim-fade-up hidden md:block" style={{ animationDelay: "60ms" }}>
         <AddWordForm defaultCollectionId={coll} />
       </div>
+      <button
+        type="button"
+        onClick={() => open(OPEN_ADD)}
+        className="anim-fade-up flex w-full items-center gap-3 rounded-[18px] border border-black/[0.06] bg-surface px-4 py-3.5 text-left transition-colors active:bg-black/[0.03] md:hidden"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage text-white">
+          <Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-ink">{t("nav.addWord")}</span>
+          <span className="block truncate text-[13px] text-ink-soft">{t("words.addHint")}</span>
+        </span>
+      </button>
 
       {isLoading && (
         <div className="space-y-2">
@@ -234,101 +249,77 @@ export default function WordsPage() {
 
       {data && words.length > 0 && (
         <>
-          {/* collection filter */}
-          {collections && collections.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.set")}</span>
-              <CollectionSelect options={collections} value={coll} onChange={setColl} />
-            </div>
-          )}
-
-          {/* language-pair filter: a reader-style dropdown listing every pair with
-              its word count, plus quick chips for the ≤3 most-used pairs so the
-              common cases are one tap away. Only shown when >1 pair exists. */}
-          {pairs.length > 1 && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("words.pair")}</span>
-                <Select
-                  value={pair}
-                  onChange={setPair}
-                  ariaLabel={t("words.pair")}
-                  className="w-[210px]"
-                  options={[
-                    { value: "all", label: t("reader.allLangs") },
-                    ...pairCounts.map(([key, n]) => {
-                      const [s, tg] = key.split(">");
-                      return { value: key, label: `${pairLabel(s, tg)} · ${n}` };
-                    }),
-                  ]}
+          {/* filters: search + sort, status segments, then set / language pair */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("words.search")}
+                  className="h-10 w-full rounded-full border border-black/[0.07] bg-surface pr-4 pl-10 text-[15px] text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setPair("all")}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                    pair === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                  )}
-                >
-                  {t("common.all")}
-                </button>
-                {topPairs.map(([key]) => {
-                  const [s, tg] = key.split(">");
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setPair(key)}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        pair === key ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                      )}
-                    >
-                      {pairLabel(s, tg)}
-                    </button>
-                  );
-                })}
-              </div>
+              <Select
+                value={sort}
+                onChange={(v) => setSort(v as SortKey)}
+                ariaLabel={t("words.sort.label")}
+                className="w-[128px] shrink-0 sm:w-[150px] [&>button]:h-10 [&>button]:rounded-full"
+                options={[
+                  { value: "recent", label: t("words.sort.recent") },
+                  { value: "alpha", label: t("words.sort.alpha") },
+                  { value: "mastery", label: t("words.sort.mastery") },
+                  { value: "due", label: t("words.sort.due") },
+                ]}
+              />
             </div>
-          )}
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("words.search")}
-              className="h-11 min-w-[200px] flex-1 rounded-[14px] border border-black/[0.07] bg-surface px-4 text-[15px] text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none"
-            />
-            {pills.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setFilter(p.key)}
-                className={cn(
-                  "rounded-full px-4 py-2.5 text-sm font-semibold transition-colors",
-                  filter === p.key
-                    ? "bg-onyx text-[#f4f1ec]"
-                    : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-            <Select
-              value={sort}
-              onChange={(v) => setSort(v as SortKey)}
-              ariaLabel={t("words.sort.label")}
-              className="w-[150px]"
-              options={[
-                { value: "recent", label: t("words.sort.recent") },
-                { value: "alpha", label: t("words.sort.alpha") },
-                { value: "mastery", label: t("words.sort.mastery") },
-                { value: "due", label: t("words.sort.due") },
-              ]}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="scroll-row flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold sm:text-sm">
+                {pills.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setFilter(p.key)}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 transition-colors",
+                      filter === p.key ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* set + language pair (the pair list shows every pair with its word
+                  count; only when there's more than one pair) */}
+              {((collections && collections.length > 0) || pairs.length > 1) && (
+                <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
+                  {collections && collections.length > 0 && (
+                    <CollectionSelect options={collections} value={coll} onChange={setColl} className="min-w-0 sm:w-[190px] [&>button]:min-w-0" />
+                  )}
+                  {pairs.length > 1 && (
+                    <Select
+                      value={pair}
+                      onChange={setPair}
+                      ariaLabel={t("words.pair")}
+                      className="min-w-0 sm:w-[210px] [&>button]:rounded-full"
+                      options={[
+                        { value: "all", label: t("reader.allLangs") },
+                        ...pairCounts.map(([key, n]) => {
+                          const [s, tg] = key.split(">");
+                          return { value: key, label: `${pairLabel(s, tg)} · ${n}` };
+                        }),
+                      ]}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-surface">
-            <div className="flex items-center gap-3 border-b border-black/[0.07] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
+            <div className="flex items-center gap-3 border-b border-black/[0.07] px-4 py-3 text-xs sm:px-6 sm:py-3.5 font-semibold uppercase tracking-[0.1em] text-ink-faint">
               <Checkbox
                 ariaLabel={t("words.selectAll")}
                 checked={filtered.length > 0 && filtered.every((w) => selected.has(w.id))}
@@ -348,14 +339,14 @@ export default function WordsPage() {
                 <div
                   key={w.id}
                   className={cn(
-                    "group flex items-start gap-3 border-b border-black/[0.05] px-6 py-4 last:border-0 transition-colors hover:bg-black/[0.015]",
+                    "group flex items-start gap-3 border-b border-black/[0.05] px-4 py-3.5 last:border-0 sm:px-6 sm:py-4 transition-colors hover:bg-black/[0.015]",
                     selected.has(w.id) && "bg-sage-tint/25",
                   )}
                 >
                   <Checkbox className="mt-0.5" ariaLabel={`Select ${w.word}`} checked={selected.has(w.id)} onChange={() => toggleSel(w.id)} />
                   <div className="grid flex-1 grid-cols-[1.4fr_0.7fr] items-center gap-4 sm:grid-cols-[1.4fr_1.1fr_1fr_0.7fr]">
                   <Link href={`/word/${w.id}`} className="min-w-0">
-                    <span className="font-serif text-[22px] font-semibold text-ink group-hover:text-sage-deep">
+                    <span className="break-words font-serif text-[20px] font-semibold text-ink group-hover:text-sage-deep sm:text-[22px]">
                       {w.word}
                     </span>{" "}
                     {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}

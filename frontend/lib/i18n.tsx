@@ -25,6 +25,11 @@ const DICT: Record<string, Entry> = {
   "nav.more": { en: "More", ru: "Ещё", zh: "更多" },
   "nav.mika": { en: "Mika", ru: "Мика", zh: "米卡" },
   "nav.addWord": { en: "Add a word", ru: "Добавить слово", zh: "添加单词" },
+  "words.addHint": {
+    en: "Type a word — AI fills in the meaning and examples",
+    ru: "Введите слово — ИИ добавит значение и примеры",
+    zh: "输入单词——AI 自动补充释义和例句",
+  },
   "nav.customize": { en: "Customize bar", ru: "Настроить панель", zh: "自定义导航栏" },
   "nav.customizeHint": {
     en: "Pick 3 tabs for the bottom bar. Mika always sits in the middle.",

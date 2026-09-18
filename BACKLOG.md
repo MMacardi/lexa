@@ -30,6 +30,9 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       phones), Mika / More as bottom sheets, all dialogs keyboard-aware (visual viewport).
 - [x] **1f. Mobile polish, pass 2.** Walk every page at 375px and fix cramped/overlapping
       layouts (reader toolbars, review/quiz controls, word page, collections).
+- [x] **1g. My words tidy-up.** One filter block (search + sort, status segments, set/pair
+      dropdowns; pair chips dropped), phone "Add a word" row opening the quick-add sheet,
+      add form reordered (word field right under the pair), matching segment styles.
 - [ ] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".
 - [ ] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're

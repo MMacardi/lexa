@@ -75,7 +75,7 @@ export function CollectionSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex h-9 min-w-[160px] items-center justify-between gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors",
+          "flex h-9 w-full min-w-[160px] items-center justify-between gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors",
           value !== "all"
             ? "border-transparent bg-sage text-white"
             : open

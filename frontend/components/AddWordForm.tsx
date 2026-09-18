@@ -98,7 +98,9 @@ type AddVars = {
 
 // `defaultCollectionId` is the active "Set" filter from My words ("all" or an
 // id). When it's a real collection, the new word is pre-assigned to it.
-export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: string }) {
+// `bare` drops the card frame when the form sits inside another surface (the
+// phone quick-add sheet).
+export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId?: string; bare?: boolean }) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
@@ -493,11 +495,11 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         e.preventDefault();
         handleSubmit();
       }}
-      className="space-y-2.5 rounded-[18px] border border-black/[0.06] bg-surface/70 p-4"
+      className={cn("space-y-3", !bare && "rounded-[18px] border border-black/[0.06] bg-surface/70 p-4")}
     >
       {/* mode toggle */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+        <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
           {(["auto", "manual"] as Mode[]).map((m) => {
             const disabled = m === "auto" && !aiSupported;
             return (
@@ -543,7 +545,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
 
       {/* recently used pairs — quick re-select */}
       {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="scroll-row flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.recent")}</span>
           {recentPairs
             .filter((p) => !(p.s === sourceLang && p.t === targetLang))
@@ -563,169 +565,7 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
         </div>
       )}
 
-      {/* Example tuning (auto mode). The example source is the most-used knob, so it
-          stays visible above "Advanced"; the finer controls (which side you type,
-          register, level, count, synonyms) live under Advanced, collapsed by default. */}
-      {mode === "auto" && (
-        <div className="space-y-2">
-          {/* source of examples: AI-composed, mined from the web, or none */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
-            <div className="inline-flex rounded-full bg-black/[0.05] p-0.5 text-xs font-semibold">
-              {([
-                ["ai", Sparkles],
-                ["web", Globe],
-                ["none", Ban],
-              ] as const).map(([m, Icon]) => {
-                const locked = m === "web" && !pro; // web-sourced examples are Pro
-                return (
-                  <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
-                    <button
-                      type="button"
-                      onClick={() => (locked ? upsell({ word }) : setExMode(m))}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                        exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                        locked && "opacity-60",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
-                      {locked && <ProTag />}
-                    </button>
-                  </HoverTip>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Plain-language description of the chosen example source — sits directly
-              under the "Примеры" picker so it reads as a caption for that control, and
-              stays visible even with Advanced collapsed. */}
-          <p className="text-[12px] leading-snug text-ink-faint">
-            {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
-            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
-          >
-            {t("add.advanced")}
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
-          </button>
-          {showAdvanced && (
-          <div className="space-y-2">
-          {/* "I'm typing in…" — which side of the pair you type. The card is always
-              created in the studied language; typing the known side translates first.
-              Hidden under Advanced, with a live preview so a newcomer never wonders
-              which language the card will end up in. */}
-          {showInputPicker && (
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
-                <Select
-                  value={inputLang}
-                  onChange={(v) => setReverseInput(v === targetLang)}
-                  ariaLabel={t("add.inputLang")}
-                  className="w-[150px]"
-                  options={[
-                    {
-                      value: sourceLang,
-                      label: langLabel(sourceLang),
-                      hint: [t("add.inputStudied"), inputExample(sourceLang)].filter(Boolean).join(" · "),
-                    },
-                    {
-                      value: targetLang,
-                      label: langLabel(targetLang),
-                      hint: [t("add.inputKnown"), inputExample(targetLang)].filter(Boolean).join(" · "),
-                    },
-                  ]}
-                />
-              </div>
-              {/* Static example of the reverse flow ("you" → "ты"), only in reverse mode.
-                  It used to mirror the typed word live, which read as a second input
-                  field and showed a mismatched sample on the card side. */}
-              {reverseInput && sampleWord(inputLang) && sampleWord(sourceLang) && (
-                <p className="text-[12px] leading-snug text-ink-faint">
-                  {t("add.inputReverseHint", {
-                    from: langLabel(inputLang),
-                    to: langLabel(sourceLang),
-                    ex: `${sampleWord(inputLang)} → ${sampleWord(sourceLang)}`,
-                  })}
-                </p>
-              )}
-            </div>
-          )}
-
-          {exMode !== "none" && (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* register only applies to AI-composed examples */}
-              {exMode === "ai" && (
-                <>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
-                  <Select
-                    value={style}
-                    onChange={(v) => setExampleStyle(v as ExampleStyle)}
-                    ariaLabel={t("style.label")}
-                    className="w-[150px]"
-                    options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
-                  />
-                </>
-              )}
-              {sourceLang !== "auto" && (
-                <>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
-                  <Select
-                    value={currentLevel ?? ""}
-                    onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
-                    ariaLabel={t("level.title")}
-                    placeholder={t("level.pick")}
-                    className="w-[136px]"
-                    options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
-                  />
-                </>
-              )}
-              {pro ? (
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
-              ) : (
-                <button type="button" onClick={() => upsell({ word })} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
-                  {t("count.label")}
-                  <ProTag />
-                </button>
-              )}
-              <Select
-                value={String(pro ? exCount : 1)}
-                onChange={(v) => setExampleCount(Number(v))}
-                ariaLabel={t("count.label")}
-                className="w-[92px]"
-                // Free plan can only add 1 example per word; 2 is Pro.
-                options={(pro ? [1, 2] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
-              />
-            </div>
-          )}
-
-          {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
-              prep). Applies to every auto sub-mode, since synonyms are always found. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
-            <Select
-              value={synLevel}
-              onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
-              ariaLabel={t("syn.level")}
-              className="w-[150px]"
-              options={[
-                { value: "", label: t("syn.auto") },
-                ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
-              ]}
-            />
-          </div>
-          <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
-          </div>
-          )}
-        </div>
-      )}
-
+      {/* the word itself — the main action, right under the pair it's in */}
       <div className="flex gap-2">
         <Input
           value={word}
@@ -903,6 +743,170 @@ export function AddWordForm({ defaultCollectionId }: { defaultCollectionId?: str
           <Input value={src} onChange={(e) => setSrc(e.target.value)} placeholder={t("add.sourcePlaceholder")} />
         </div>
       )}
+
+      {/* Example tuning (auto mode). The example source is the most-used knob, so it
+          stays visible above "Advanced"; the finer controls (which side you type,
+          register, level, count, synonyms) live under Advanced, collapsed by default. */}
+      {mode === "auto" && (
+        <div className="space-y-2">
+          {/* source of examples: AI-composed, mined from the web, or none */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
+            <div className="inline-flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold">
+              {([
+                ["ai", Sparkles],
+                ["web", Globe],
+                ["none", Ban],
+              ] as const).map(([m, Icon]) => {
+                const locked = m === "web" && !pro; // web-sourced examples are Pro
+                return (
+                  <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
+                    <button
+                      type="button"
+                      onClick={() => (locked ? upsell({ word }) : setExMode(m))}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                        exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                        locked && "opacity-60",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                      {locked && <ProTag />}
+                    </button>
+                  </HoverTip>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Plain-language description of the chosen example source — sits directly
+              under the "Примеры" picker so it reads as a caption for that control, and
+              stays visible even with Advanced collapsed. */}
+          <p className="text-[12px] leading-snug text-ink-faint">
+            {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
+            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
+          >
+            {t("add.advanced")}
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
+          </button>
+          {showAdvanced && (
+          <div className="space-y-2">
+          {/* "I'm typing in…" — which side of the pair you type. The card is always
+              created in the studied language; typing the known side translates first.
+              Hidden under Advanced, with a live preview so a newcomer never wonders
+              which language the card will end up in. */}
+          {showInputPicker && (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
+                <Select
+                  value={inputLang}
+                  onChange={(v) => setReverseInput(v === targetLang)}
+                  ariaLabel={t("add.inputLang")}
+                  className="w-[150px]"
+                  options={[
+                    {
+                      value: sourceLang,
+                      label: langLabel(sourceLang),
+                      hint: [t("add.inputStudied"), inputExample(sourceLang)].filter(Boolean).join(" · "),
+                    },
+                    {
+                      value: targetLang,
+                      label: langLabel(targetLang),
+                      hint: [t("add.inputKnown"), inputExample(targetLang)].filter(Boolean).join(" · "),
+                    },
+                  ]}
+                />
+              </div>
+              {/* Static example of the reverse flow ("you" → "ты"), only in reverse mode.
+                  It used to mirror the typed word live, which read as a second input
+                  field and showed a mismatched sample on the card side. */}
+              {reverseInput && sampleWord(inputLang) && sampleWord(sourceLang) && (
+                <p className="text-[12px] leading-snug text-ink-faint">
+                  {t("add.inputReverseHint", {
+                    from: langLabel(inputLang),
+                    to: langLabel(sourceLang),
+                    ex: `${sampleWord(inputLang)} → ${sampleWord(sourceLang)}`,
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {exMode !== "none" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* register only applies to AI-composed examples */}
+              {exMode === "ai" && (
+                <>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
+                  <Select
+                    value={style}
+                    onChange={(v) => setExampleStyle(v as ExampleStyle)}
+                    ariaLabel={t("style.label")}
+                    className="w-[150px]"
+                    options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+                  />
+                </>
+              )}
+              {sourceLang !== "auto" && (
+                <>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                  <Select
+                    value={currentLevel ?? ""}
+                    onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                    ariaLabel={t("level.title")}
+                    placeholder={t("level.pick")}
+                    className="w-[136px]"
+                    options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                  />
+                </>
+              )}
+              {pro ? (
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+              ) : (
+                <button type="button" onClick={() => upsell({ word })} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
+                  {t("count.label")}
+                  <ProTag />
+                </button>
+              )}
+              <Select
+                value={String(pro ? exCount : 1)}
+                onChange={(v) => setExampleCount(Number(v))}
+                ariaLabel={t("count.label")}
+                className="w-[92px]"
+                // Free plan can only add 1 example per word; 2 is Pro.
+                options={(pro ? [1, 2] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
+              />
+            </div>
+          )}
+
+          {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
+              prep). Applies to every auto sub-mode, since synonyms are always found. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
+            <Select
+              value={synLevel}
+              onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
+              ariaLabel={t("syn.level")}
+              className="w-[150px]"
+              options={[
+                { value: "", label: t("syn.auto") },
+                ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+              ]}
+            />
+          </div>
+          <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
+          </div>
+          )}
+        </div>
+      )}
+
 
       {/* optional collections — pretty dropdown multi-select */}
       {collections && collections.length > 0 && (

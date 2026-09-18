@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
-import { OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots } from "@/lib/mobileNav";
+import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots } from "@/lib/mobileNav";
 import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
 // The quick-add sheet's form is only needed once "+" is tapped — keep it out of
@@ -49,6 +49,12 @@ export function Sidebar() {
   const [editing, setEditing] = useState(false);
   const [slots, setSlots] = useNavSlots(SLOT_OPTIONS);
   useLockScroll(sheet !== null);
+  // Pages can open the quick-add sheet too (e.g. My words' compact "Add a word" row).
+  useEffect(() => {
+    const on = () => setSheet("add");
+    window.addEventListener(OPEN_ADD, on);
+    return () => window.removeEventListener(OPEN_ADD, on);
+  }, []);
   const closeSheet = () => {
     setSheet(null);
     setEditing(false);
@@ -229,7 +235,7 @@ export function Sidebar() {
       {/* ---------- Mobile quick-add sheet ---------- */}
       {sheet === "add" && (
         <MobileSheet onClose={closeSheet} title={t("nav.addWord")} tall>
-          <AddWordForm />
+          <AddWordForm bare />
         </MobileSheet>
       )}
 
