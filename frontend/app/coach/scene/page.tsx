@@ -24,7 +24,7 @@ import { TappableText, type WordEntry } from "@/components/TappableText";
 import { PracticeBar } from "@/components/PracticeBar";
 import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
-import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X } from "lucide-react";
+import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X, ChevronDown } from "lucide-react";
 
 type Turn = {
   role: "user" | "assistant";
@@ -47,6 +47,7 @@ type Scene = {
   missionWords: Mission[];
   newWords: Mission[];
   opening: string;
+  twist?: string; // hidden complication; only the model sees it
 };
 
 // Quick-start scene cards. The image lives in /public/scenes, the label is the
@@ -65,6 +66,21 @@ const PRESETS: { id: string; img: string; idea: string }[] = [
   { id: "airport", img: "/scenes/airport.webp", idea: "checking in and asking about a flight at the airport" },
   { id: "hairdresser", img: "/scenes/hairdresser.webp", idea: "asking for a haircut at the hairdresser's" },
 ];
+// Behind "More scenes": no artwork yet, so they render as compact emoji chips and the
+// photo grid above stays one screen tall.
+const EXTRA_PRESETS: { id: string; emoji: string; idea: string }[] = [
+  { id: "neighbour", emoji: "🏠", idea: "asking a neighbour to water your plants while you are away" },
+  { id: "delivery", emoji: "📦", idea: "calling a delivery service about a parcel that never arrived" },
+  { id: "directions", emoji: "🧭", idea: "asking a stranger for directions after getting lost in a new city" },
+  { id: "flat", emoji: "🔑", idea: "viewing a flat to rent and asking the landlord questions" },
+  { id: "pharmacy", emoji: "💊", idea: "asking a pharmacist for something for a cold" },
+  { id: "taxi", emoji: "🚕", idea: "taking a taxi and chatting with the driver on the way" },
+  { id: "returns", emoji: "🧾", idea: "returning a faulty purchase to a shop" },
+  { id: "party", emoji: "🎉", idea: "small talk with a stranger at a friend's party" },
+  { id: "lostLuggage", emoji: "🧳", idea: "reporting lost luggage at the airport desk" },
+  { id: "detective", emoji: "🕵️", idea: "a detective questions you as the witness of a funny little mystery in your building" },
+];
+const ALL_PRESETS: { id: string; idea: string }[] = [...PRESETS, ...EXTRA_PRESETS];
 
 // Recent scene themes, kept client-side so auto-generation stops repeating itself.
 const RECENT_KEY = "lexa.sceneRecent";
@@ -102,6 +118,8 @@ export default function CoachScenePage() {
   const sessionIdRef = useRef<string | null>(null);
   const lastResumeRef = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<(() => void) | null>(null); // the debounced save, so it can be flushed early
+  const createPendingRef = useRef<Promise<{ id: string }> | null>(null); // in-flight row create
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
@@ -192,6 +210,7 @@ export default function CoachScenePage() {
   const [reviewedCount, setReviewedCount] = useState(0);
   const gradedRef = useRef<Set<string>>(new Set()); // mission words already graded Good this session
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Aborts an in-flight streamed reply (unmount, or sending while one is streaming).
   const abortRef = useRef<AbortController | null>(null);
@@ -199,6 +218,7 @@ export default function CoachScenePage() {
 
   // ---- setup steering + in-conversation UI state ----
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [showMore, setShowMore] = useState(false); // extra presets (no artwork) behind a toggle
   const [recentThemes, setRecentThemes] = useState<string[]>(() => readRecent());
   const [showContext, setShowContext] = useState(false); // scene-context popover (#skipped briefing)
   const [pop, setPop] = useState<WordPopTarget | null>(null); // tapped-word meaning popover
@@ -231,6 +251,14 @@ export default function CoachScenePage() {
     return m;
   }, [scene]);
 
+  // Grow the composer with its text (typed, dictated or cleared after a send), up to max-h.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy, done]);
@@ -247,9 +275,12 @@ export default function CoachScenePage() {
   }
 
   // Grade a canonical mission word Good (3) into FSRS — once per session, best-effort.
+  // Looked up in the whole pair, not the candidate pool: the pool is re-derived from the
+  // deck (a card just graded is no longer due and drops out), and a resumed scene's
+  // mission words may never have been in today's pool at all.
   async function gradeUsed(canonicalLower: string) {
     if (gradedRef.current.has(canonicalLower)) return;
-    const card = poolWords.find((w) => w.word.trim().toLowerCase() === canonicalLower);
+    const card = deckByKey.get(canonicalLower);
     if (!card) return;
     gradedRef.current.add(canonicalLower);
     setReviewedCount((n) => n + 1);
@@ -268,7 +299,7 @@ export default function CoachScenePage() {
     const { ok } = await ensureLevel(pair.source);
     if (!ok) return;
     setGenerating(true);
-    const preset = selectedPreset ? PRESETS.find((p) => p.id === selectedPreset) : null;
+    const preset = selectedPreset ? ALL_PRESETS.find((p) => p.id === selectedPreset) : null;
     const effectiveIdea = preset ? preset.idea : undefined;
     try {
       const res = await api.coachSceneSetup({
@@ -287,21 +318,28 @@ export default function CoachScenePage() {
       // Persist for history/resume. Regenerating (from the briefing) refreshes the
       // same row; the first generate of a fresh scene creates one. Fire-and-forget:
       // play must never wait on (or die from) the save.
-      const sid = sessionIdRef.current;
+      // A regenerate that lands before the first create resolved reuses that row
+      // instead of creating a second one.
+      const sid = sessionIdRef.current ?? (await createPendingRef.current?.then((r) => r.id).catch(() => null)) ?? null;
       if (sid) {
+        sessionIdRef.current = sid;
         api.saveSceneSession(sid, { telegramId: accountId, title: next.title, bible: next }).catch(() => {});
       } else {
-        api
-          .createSceneSession({
-            telegramId: accountId,
-            title: next.title,
-            sceneKey: preset?.id,
-            sourceLang: pair.source,
-            targetLang: pair.target,
-            bible: next,
-          })
+        const creating = api.createSceneSession({
+          telegramId: accountId,
+          title: next.title,
+          sceneKey: preset?.id,
+          sourceLang: pair.source,
+          targetLang: pair.target,
+          bible: next,
+        });
+        createPendingRef.current = creating;
+        creating
           .then((r) => {
+            // Ignore a create that resolves after the learner already left this scene.
+            if (createPendingRef.current !== creating) return;
             sessionIdRef.current = r.id;
+            qc.invalidateQueries({ queryKey: ["scene-sessions"] });
           })
           .catch(() => {});
       }
@@ -409,7 +447,9 @@ export default function CoachScenePage() {
   }
 
   function reset() {
+    flushSave(); // the last turn / "done" status must reach the row before we let go of it
     sessionIdRef.current = null;
+    createPendingRef.current = null;
     lastResumeRef.current = null;
     if (params.get("session")) router.replace("/coach/scene");
     setScene(null);
@@ -439,7 +479,12 @@ export default function CoachScenePage() {
         const b = s.bible as Scene;
         sessionIdRef.current = s.id;
         setScene({ ...b, missionWords: b.missionWords ?? [], newWords: b.newWords ?? [] });
-        setTurns(s.turns?.length ? s.turns : b.opening ? [{ role: "assistant", content: b.opening }] : []);
+        // Older rows could hold a half-streamed placeholder; replaying an empty message
+        // would fail every later turn, so keep only settled, non-empty turns.
+        const saved = ((s.turns ?? []) as Turn[])
+          .filter((x) => x.content?.trim())
+          .map(({ streaming: _s, ...x }) => x);
+        setTurns(saved.length ? saved : b.opening ? [{ role: "assistant", content: b.opening }] : []);
         setUsed(new Set(s.used ?? []));
         gradedRef.current = new Set(s.used ?? []); // already-graded words must not double-count in FSRS
         setCorrections((s.corrections ?? []) as SceneCorrection[]);
@@ -459,38 +504,57 @@ export default function CoachScenePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId, accountId]);
 
-  // Save after every change (debounced to coalesce rapid updates — a closed tab or
-  // a navigation loses nothing). A 404 silently drops the link (row deleted
-  // elsewhere); play continues exactly as before.
+  // Save after every change, debounced to coalesce rapid updates (streaming deltas).
+  // A pending save is flushed — not dropped — when the learner leaves the scene or the
+  // page, so the last turn and the "done" status always land. A 404 silently drops the
+  // link (row deleted elsewhere); play continues exactly as before.
+  function flushSave() {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    const run = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+    run?.();
+  }
   useEffect(() => {
     const id = sessionIdRef.current;
     if (!id || !started || !scene) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
+    // Streaming placeholders are transient; persist only settled turns.
+    const settled = turns.filter((x) => !x.streaming);
+    const run = () => {
+      pendingSaveRef.current = null;
       api
         .saveSceneSession(id, {
           telegramId: accountId,
-          turns,
+          turns: settled,
           corrections,
           used: [...used],
           addedWords: [...addedWords],
           reviewedCount,
           ...(done ? { status: "done" as const } : {}),
         })
+        .then(() => qc.invalidateQueries({ queryKey: ["scene-sessions"] }))
         .catch((e) => {
           if (String((e as Error)?.message ?? "").includes("not found")) sessionIdRef.current = null;
         });
-    }, 600);
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
+    pendingSaveRef.current = run;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(run, 600);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turns, used, corrections, reviewedCount, addedWords, done, started, scene, accountId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => flushSave(), []);
 
   async function sendTurn(history: Turn[], opts: { userText?: string; wrap?: boolean } = {}) {
     if (!pair || !scene) return;
     setBusy(true);
     const payload: CoachSceneTurnPayload = {
-      messages: history.map((m) => ({ role: m.role, content: m.content })),
+      // The engine only reads the last 16 messages, and the endpoint rejects more than 24,
+      // so a long scene used to die with a 400 — send just the window it uses.
+      messages: history
+        .filter((m) => m.content.trim())
+        .slice(-16)
+        .map((m) => ({ role: m.role, content: m.content })),
       scene: {
         title: scene.title,
         setting: scene.setting,
@@ -498,6 +562,7 @@ export default function CoachScenePage() {
         characterName: scene.characterName,
         learnerRole: scene.learnerRole,
         goal: scene.goal,
+        twist: scene.twist || undefined,
         missionWords: scene.missionWords,
         newWords: scene.newWords,
       },
@@ -572,7 +637,12 @@ export default function CoachScenePage() {
       if (res.sceneDone || opts.wrap) {
         setDone(true);
         // Fold what happened into Onomika's long-term memory of this learner.
-        api.coachRemember({ telegramId: accountId, sourceLang: pair.source, messages: [...history, reply] }).catch(() => {});
+        // The endpoint takes at most 30 non-empty messages; a long scene used to be rejected silently.
+        const recap = [...history, reply]
+          .filter((m) => m.content.trim())
+          .slice(-30)
+          .map((m) => ({ role: m.role, content: m.content }));
+        api.coachRemember({ telegramId: accountId, sourceLang: pair.source, messages: recap }).catch(() => {});
       }
     } catch (e) {
       const aborted = (e as Error)?.name === "AbortError";
@@ -605,6 +675,12 @@ export default function CoachScenePage() {
 
   async function endScene() {
     if (busy || done || !scene || !started) return;
+    // Nothing said yet: there is nothing to sign off or report on — just step back out,
+    // without spending a model call on a goodbye.
+    if (!turns.some((x) => x.role === "user")) {
+      reset();
+      return;
+    }
     await sendTurn(turns, { wrap: true });
   }
 
@@ -614,7 +690,7 @@ export default function CoachScenePage() {
   const hasWords = deck.length > 0;
 
   return (
-    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-140px)] max-w-[720px] flex-col">
+    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-176px)] max-w-[720px] flex-col md:h-[calc(100dvh-140px)]">
       <div className="mb-3">
         <Link href="/coach" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
           <ArrowLeft className="h-4 w-4" /> {t("coach.title")}
@@ -746,6 +822,37 @@ export default function CoachScenePage() {
                     );
                   })}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMore((v) => !v)}
+                  aria-expanded={showMore}
+                  className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", showMore && "rotate-180")} />
+                  {showMore ? t("scene.fewerScenes") : t("scene.moreScenes")}
+                </button>
+                {showMore && (
+                  <div className="anim-fade-up mt-2 flex flex-wrap justify-center gap-1.5">
+                    {EXTRA_PRESETS.map((p) => {
+                      const on = selectedPreset === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedPreset(on ? null : p.id)}
+                          aria-pressed={on}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
+                            on ? "border-sage bg-sage text-white" : "border-black/[0.1] bg-surface text-ink-muted hover:border-sage/50",
+                          )}
+                        >
+                          <span aria-hidden>{p.emoji}</span>
+                          {t(`scene.preset.${p.id}`)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {poolWords.length > 0 ? (
@@ -1007,18 +1114,23 @@ export default function CoachScenePage() {
                 }}
                 className="flex items-end gap-2"
               >
+                {/* Stays enabled while the partner replies: disabling it dropped focus (and the
+                    phone keyboard) every turn. sendText ignores a send while busy, so the
+                    learner can already draft the next line. */}
                 <textarea
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    // isComposing: Enter that confirms a pinyin/kana IME candidate must not send
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       sendText(input);
                     }
                   }}
                   rows={1}
+                  maxLength={1000}
                   placeholder={t("scene.input")}
-                  disabled={busy}
                   className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[16px] border border-black/[0.08] bg-surface px-4 py-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
                 <button

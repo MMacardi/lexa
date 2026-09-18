@@ -35,7 +35,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       add form reordered (word field right under the pair), matching segment styles.
 - [x] **2. Beta-gate fixes.** Skip the beta-code screen when `BETA_KEY` is empty; per-person
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".
-- [ ] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're
+- [x] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're
       fun; fix bugs; add more presets. IDEAS: "Scenes — backlog".
 
 ## Before public launch

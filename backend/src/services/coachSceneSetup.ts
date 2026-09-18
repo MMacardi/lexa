@@ -51,7 +51,8 @@ export async function coachSceneSetup(params: {
       `   a job or visa interview, calling about a delayed delivery, checking into a hotel, a doctor's appointment,\n` +
       `   making plans with a friend, a problem at work or school, asking for directions, returning a purchase,\n` +
       `   small talk at a gym or bus stop, resolving a mix-up, giving or asking for a recommendation.${avoidNote}\n` +
-      `2) Casts a specific CHARACTER for you to play (a name + a role) and gives the learner a clear role and a\n` +
+      `2) Casts a specific CHARACTER for you to play (a name + a role + ONE vivid personality trait — chatty,\n` +
+      `   distracted, over-enthusiastic, a bit grumpy but kind …) and gives the learner a clear role and a\n` +
       `   concrete objective.\n` +
       `3) Uses ONLY the candidate words that plausibly belong in THIS situation. Return that subset as\n` +
       `   "missionWords" (verbatim from the list above, each with its meaning). A few is normal; an EMPTY array is\n` +
@@ -59,7 +60,11 @@ export async function coachSceneSetup(params: {
       `   that must use "camouflage") is exactly the failure to avoid. Never bend the situation to fit a word.\n` +
       `4) Introduces 1-2 genuinely useful NEW words the learner most likely does NOT know yet — words that arise\n` +
       `   naturally in THIS scene and sit at or just above their LEVEL block. They must NOT appear in the candidate\n` +
-      `   list above. Return them as "newWords", each as {word (in ${source}), meaning (a short gloss in ${target})}.\n\n` +
+      `   list above. Return them as "newWords", each as {word (in ${source}), meaning (a short gloss in ${target})}.\n` +
+      `5) Hides ONE small, harmless complication the character will spring mid-scene so the learner has to react —\n` +
+      `   the item is sold out, the booking is under another name, the price changed, a mix-up with the order. It must\n` +
+      `   be solvable at the learner's level. Return it as "twist" (one sentence in ${target}); the learner never\n` +
+      `   sees it in advance, so do NOT hint at it in any other field.\n\n` +
       `Write "title", "setting", "character", "characterName", "learnerRole", "goal" and "briefing" in ${target}\n` +
       `(the learner's language) so the premise is instantly clear. "character" is a short description of who you play;\n` +
       `"characterName" is just that character's name. "briefing" is ONE short line IN THE SITUATION — what is at stake\n` +
@@ -72,8 +77,9 @@ export async function coachSceneSetup(params: {
       ` Respond as JSON: {"title": string, "setting": string, "character": string, "characterName": string, ` +
       `"learnerRole": string, "goal": string, "briefing": string, ` +
       `"missionWords": [{"word": string, "meaning": string}], ` +
-      `"newWords": [{"word": string, "meaning": string}], "opening": string}.`,
-    user: `Candidate words:\n${wordList}`,
+      `"newWords": [{"word": string, "meaning": string}], "opening": string, "twist": string}.`,
+    // The pool is already in the system prompt; repeating it here only cost tokens.
+    user: "Design the scene.",
     schema: coachSceneSetupSchema,
     label: "coachSceneSetup",
     timeoutMs: 45000,
@@ -104,6 +110,11 @@ export async function coachSceneSetup(params: {
     })
     .slice(0, 2);
 
+  // The opening is the first chat bubble and every later turn replays it; an empty one
+  // would fail the turn endpoint's validation, so treat it as a failed generation.
+  const opening = (result.opening ?? "").trim();
+  if (!opening) throw new Error("Scene generation failed — please try again");
+
   return {
     title: (result.title ?? "").trim(),
     setting: (result.setting ?? "").trim(),
@@ -114,6 +125,7 @@ export async function coachSceneSetup(params: {
     briefing: (result.briefing ?? "").trim(),
     missionWords,
     newWords,
-    opening: (result.opening ?? "").trim(),
+    opening,
+    twist: (result.twist ?? "").trim(),
   };
 }

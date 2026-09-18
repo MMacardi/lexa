@@ -1084,6 +1084,7 @@ const coachSceneTurnBody = z.object({
     characterName: z.string().optional(),
     learnerRole: z.string().optional(),
     goal: z.string().optional(),
+    twist: z.string().max(400).optional(),
     missionWords: z
       .array(z.object({ word: z.string().min(1), meaning: z.string().default("") }))
       .max(12),
