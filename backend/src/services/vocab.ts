@@ -69,6 +69,7 @@ export async function addWordForUser(params: {
   exampleSource?: string;
   exampleCount?: number; // how many examples to generate (1–2); default 1
   meaningPrompt?: string; // learner override for how the meaning is written
+  sense?: string; // known-language word the learner typed (add-by-translation): the sense they want
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
@@ -105,6 +106,7 @@ export async function addWordForUser(params: {
       exampleStyle: params.exampleStyle,
       withExample,
       meaningInstruction: params.meaningPrompt,
+      sense: params.sense,
     });
     const created = await prisma.word.create({
       data: {

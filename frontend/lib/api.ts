@@ -451,6 +451,7 @@ export interface AddAuto {
   exampleSource?: "ai" | "web";
   exampleCount?: number; // how many examples to generate (1–2)
   meaningPrompt?: string; // learner override for how the meaning is written
+  sense?: string; // known-language word it was translated from, so the card leads with that sense
 }
 
 export interface AddManual extends AddAuto {

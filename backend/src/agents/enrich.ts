@@ -43,6 +43,7 @@ export async function enrichWordEntry(params: {
   withExample: boolean;
   meaningInstruction?: string; // learner override; falls back to the concise default
   avoid?: string[]; // existing examples to differ from (for "add another")
+  sense?: string; // target-language word the learner typed to reach this one (add-by-translation)
 }): Promise<EnrichResult> {
   const word = params.word.trim();
   const sourceLang = params.sourceLang ?? "en";
@@ -66,16 +67,27 @@ export async function enrichWordEntry(params: {
     ? `The example MUST be different from these existing ones: ${avoid.map((s) => `"${s}"`).join("; ")}. `
     : "";
 
+  // Add-by-translation: they typed e.g. "включить" and got 打开, so the card must
+  // show THAT sense first — not just the word's default one ("открывать").
+  const sense = params.sense?.trim();
+  const senseLine = sense
+    ? `The learner reached this word by translating the ${targetName} word "${sense}" — that is the sense they want. ` +
+      `"meaningZh" MUST start with "${sense}" (in dictionary form), then add the word's other main sense(s) if it has any, ` +
+      `separated by "; " (e.g. "turn on; open"). The first collocation should use that sense too. `
+    : "";
+
+  const inSense = sense ? ` in the sense "${sense}" (the translation must say "${sense}" or a form of it)` : "";
+
   const examplePart = !params.withExample
     ? `Leave "example" and "exampleTranslation" as empty strings "". `
     : style === "dialogue"
-      ? `"example": a short natural ${sourceName} DIALOGUE of 2-3 turns using "${word}", EACH turn on its own ` +
+      ? `"example": a short natural ${sourceName} DIALOGUE of 2-3 turns using "${word}"${inSense}, EACH turn on its own ` +
         `line prefixed with "— ", making the word's meaning clear from the situation; ` +
         `"exampleTranslation": that dialogue translated to ${targetName} (keep the line breaks). ` +
         avoidLine +
         levelLine
       : `"example": ONE natural, correct ${sourceName} sentence (about 8-14 words, a ${register} tone) that ` +
-        `uses "${word}" in a concrete context so its meaning is clear on its own — never a bare "It's small."; ` +
+        `uses "${word}"${inSense} in a concrete context so its meaning is clear on its own — never a bare "It's small."; ` +
         `"exampleTranslation": that sentence translated to ${targetName}. ` +
         avoidLine +
         levelLine;
@@ -91,6 +103,7 @@ export async function enrichWordEntry(params: {
       `synonyms and antonyms MUST be written in ${sourceName} — the SAME language as the word — never in ${targetName}. ` +
       `Only include TRUE synonyms/antonyms; many words have none, in which case return an empty array rather than ` +
       `inventing loose ones. ` +
+      senseLine +
       examplePart +
       scriptNote(sourceLang) +
       scriptNote(targetLang) +

@@ -17,9 +17,11 @@ export async function tutorChat(params: {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
   const levelLine = params.level ? ` The learner's level is about ${params.level} (CEFR) — pitch your ${source}, examples and explanations to it.` : "";
+  // Past replies go back in the same JSON shape we ask for: fed as plain text, Qwen
+  // copies them and answers with a bare JSON string, which fails the schema.
   const clipped = params.messages.slice(-12).map((m) => ({
     role: m.role,
-    content: m.content.slice(0, 2000),
+    content: m.role === "assistant" ? JSON.stringify({ answer: m.content.slice(0, 2000) }) : m.content.slice(0, 2000),
   })) as ChatMessage[];
 
   const messages: ChatMessage[] = [
@@ -59,7 +61,12 @@ export async function tutorChat(params: {
     ...clipped,
   ];
 
-  const result = await chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000 });
+  const ask = () => chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat" });
+  // One retry on an off-schema reply (e.g. a bare string) — it rarely repeats.
+  const result = await ask().catch((err: Error) => {
+    if (err.name !== "ZodError" && !err.message.startsWith("LLM did not return valid JSON")) throw err;
+    return ask();
+  });
   return {
     answer: result.answer.trim(),
     addWords: (result.addWords ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 30),

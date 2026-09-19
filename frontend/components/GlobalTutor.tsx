@@ -192,9 +192,11 @@ export function GlobalTutor() {
                 </button>
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-1.5 text-[13px] text-ink-soft">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-soft">
+              {/* Labelled, not "A → B": an arrow read as "translate from A to B" and people flipped it. */}
+              <span className="text-ink-faint">{t("first.learn")}</span>
               <LangSelect value={pair.source} onChange={(v) => changePair({ source: v, target: pair.target })} className="h-8 min-w-0" />
-              <span className="text-ink-faint">→</span>
+              <span className="ml-1 text-ink-faint">{t("mika.answersIn")}</span>
               <LangSelect value={pair.target} onChange={(v) => changePair({ source: pair.source, target: v })} className="h-8 min-w-0" />
             </div>
           </div>
