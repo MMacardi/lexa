@@ -37,7 +37,7 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       rate limits behind the Vercel proxy (`trust proxy`). IDEAS: "Deploy / beta follow-ups".
 - [x] **3. Coach scenes: UX + bugs.** Play through the scenes and judge whether they're
       fun; fix bugs; add more presets. IDEAS: "Scenes — backlog".
-- [ ] **3a. Word senses (Pleco-style).** Word page "Meanings": 2–4 numbered senses with
+- [x] **3a. Word senses (Pleco-style).** Word page "Meanings": 2–4 numbered senses with
       part of speech + 1–2 short phrases each (pinyin + translation), replacing the flat
       Collocations row. Learner ticks which sense(s) the card tests (one, several or all)
       → rewrites `meaningZh`. Generated on first open, cached in a `senses` JSON column.

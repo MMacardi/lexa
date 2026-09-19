@@ -6,7 +6,8 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
-import { explanationSchema, wordChatSchema, type WordChatResult } from "../lib/schemas.js";
+import { Prisma } from "@prisma/client";
+import { explanationSchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -362,6 +363,11 @@ export async function updateWord(
   if (["word", "meaningZh", "partOfSpeech", "synonyms", "antonyms"].some((k) => k in data)) {
     data.explainCache = null;
   }
+  // Senses describe the word itself (not which one the card tests), so only a
+  // new spelling or language pair invalidates them — not a meaningZh edit.
+  if (["word", "sourceLang", "targetLang"].some((k) => k in data)) {
+    data.senses = Prisma.DbNull;
+  }
   // Duplicate spellings are allowed, so a rename can never collide.
   await prisma.word.update({ where: { id }, data });
 
@@ -490,6 +496,62 @@ export async function explainWord(id: string): Promise<string> {
   // Cache it on the card so re-opening the word is free.
   await prisma.word.update({ where: { id }, data: { explainCache: text } }).catch(() => {});
   return text;
+}
+
+/**
+ * Pleco-style sense list for the word page: 1–4 common senses, each with a part
+ * of speech, a short gloss in the learner's language and 1–2 short phrases.
+ * Generated lazily on the first word-page open and cached on the card, so most
+ * cards (never opened) cost nothing. The card's meaningZh stays what it tests.
+ */
+export async function wordSenses(id: string): Promise<WordSense[]> {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, senses: true },
+  });
+  if (!word) throw new Error("Word not found");
+  if (Array.isArray(word.senses) && word.senses.length) return word.senses as unknown as WordSense[];
+
+  const sourceName = langName(word.sourceLang);
+  const targetName = langName(word.targetLang);
+  const cjk = ["zh", "zh-Hant", "ja", "ko"].includes(word.sourceLang);
+  const { senses } = await chatJson({
+    system:
+      `You are a bilingual ${sourceName}–${targetName} dictionary. List the COMMON senses of the ${sourceName} word or phrase ` +
+      `for a learner whose language is ${targetName}, like a learner's dictionary (Pleco / Oxford Learner's). ` +
+      `Give 1 to 4 senses, most frequent first; a word with one real meaning gets exactly one sense. ` +
+      `Only senses an ordinary learner will actually meet — skip rare, archaic, dialect or technical senses, and skip any sense you are unsure of. ` +
+      `The card currently says it means "${word.meaningZh ?? ""}": every part of that must be covered by one of your senses, ` +
+      `and reuse its wording for that sense's gloss. ` +
+      `For each sense: "pos" = short English part of speech (verb, noun, adjective, adverb, measure word…); ` +
+      `"meaning" = a short ${targetName} gloss, 1–4 words, several near-synonyms separated by ", "; ` +
+      `"phrases" = 1–2 SHORT, natural ${sourceName} phrases or collocations using the word in that sense (2–6 words, not full sentences), ` +
+      `each with "translation" in ${targetName} and "reading" = ` +
+      (cjk ? `its romanization (pinyin with tone marks for Chinese, romaji for Japanese, Revised Romanization for Korean).` : `"" (empty).`) +
+      scriptNote(word.sourceLang) +
+      scriptNote(word.targetLang) +
+      ` Respond as JSON: {"senses": [{"pos": string, "meaning": string, "phrases": [{"text": string, "reading": string, "translation": string}]}]}.`,
+    user: `Word: ${word.word}\nPart of speech on the card: ${word.partOfSpeech ?? "—"}`,
+    schema: sensesSchema,
+  });
+  const clean = senses
+    .slice(0, 4)
+    .map(
+      (s): WordSense => ({
+        pos: (s.pos ?? "").trim(),
+        meaning: s.meaning.trim(),
+        phrases: (s.phrases ?? [])
+          .slice(0, 2)
+          .map((p) => ({ text: p.text.trim(), reading: (p.reading ?? "").trim(), translation: (p.translation ?? "").trim() })),
+      }),
+    )
+    .filter((s) => s.meaning);
+  if (clean.length) {
+    await prisma.word
+      .update({ where: { id }, data: { senses: clean as unknown as Prisma.InputJsonValue } })
+      .catch(() => {});
+  }
+  return clean;
 }
 
 /**
