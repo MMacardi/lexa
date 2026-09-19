@@ -498,6 +498,9 @@ export async function explainWord(id: string): Promise<string> {
   return text;
 }
 
+// Bump when the senses prompt changes so cards regenerate on their next open.
+const SENSES_VERSION = 3;
+
 /**
  * Pleco-style sense list for the word page: 1–4 common senses, each with a part
  * of speech, a short gloss in the learner's language and 1–2 short phrases.
@@ -510,28 +513,32 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
     select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, senses: true },
   });
   if (!word) throw new Error("Word not found");
-  if (Array.isArray(word.senses) && word.senses.length) return word.senses as unknown as WordSense[];
+  // Stored as { v, list }; a cache from an older prompt version is regenerated.
+  const stored = word.senses as { v?: number; list?: WordSense[] } | null;
+  if (stored?.v === SENSES_VERSION && stored.list?.length) return stored.list;
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
   const cjk = ["zh", "zh-Hant", "ja", "ko"].includes(word.sourceLang);
   const { senses } = await chatJson({
     system:
-      `You are a bilingual ${sourceName}–${targetName} dictionary. List the COMMON senses of the ${sourceName} word or phrase ` +
-      `for a learner whose language is ${targetName}, like a learner's dictionary (Pleco / Oxford Learner's). ` +
-      `Give 1 to 4 senses, most frequent first; a word with one real meaning gets exactly one sense. ` +
-      `Only senses an ordinary learner will actually meet — skip rare, archaic, dialect or technical senses, and skip any sense you are unsure of. ` +
-      `The card currently says it means "${word.meaningZh ?? ""}": every part of that must be covered by one of your senses, ` +
-      `and reuse its wording for that sense's gloss. ` +
-      `For each sense: "pos" = short English part of speech (verb, noun, adjective, adverb, measure word…); ` +
-      `"meaning" = a short ${targetName} gloss, 1–4 words, several near-synonyms separated by ", "; ` +
-      `"phrases" = 1–2 SHORT, natural ${sourceName} phrases or collocations using the word in that sense (2–6 words, not full sentences), ` +
+      `You are a bilingual ${sourceName}–${targetName} learner's dictionary (like Pleco or Oxford Learner's). ` +
+      `List the distinct senses of the ${sourceName} word or phrase for a learner whose language is ${targetName}. ` +
+      `Split senses the way a dictionary does: whenever the word in a different use needs a DIFFERENT ${targetName} translation, ` +
+      `that is a separate sense (e.g. Chinese 打开 → 1 открыть (дверь, книгу); 2 включить (свет, телевизор); 3 развернуть, раскрыть (карту, ситуацию)). ` +
+      `Most everyday words have 2–4 such senses; give just one when the word really has a single use (e.g. 值得 = стоить (того)). Max 4, most frequent first. Never list two senses with the same or near-identical translation — that is one sense; merge them. ` +
+      `Leave out rare, archaic, dialect and purely technical senses. ` +
+      `The card currently says it means "${word.meaningZh ?? ""}": that must be one of your senses, glossed with the same wording, and marked "onCard": true (all others false). ` +
+      `For each sense: "pos" = the part of speech written in ${targetName}, lowercase (e.g. for Russian "глагол", "существительное"); ` +
+      `"meaning" = a short ${targetName} gloss of THIS sense only, 1–4 words, near-synonyms separated by ", ", optionally a typical object in parentheses; ` +
+      `"phrases" = 2 SHORT, natural ${sourceName} phrases or collocations using the word in exactly that sense (2–6 words, not full sentences), ` +
       `each with "translation" in ${targetName} and "reading" = ` +
       (cjk ? `its romanization (pinyin with tone marks for Chinese, romaji for Japanese, Revised Romanization for Korean).` : `"" (empty).`) +
       scriptNote(word.sourceLang) +
       scriptNote(word.targetLang) +
-      ` Respond as JSON: {"senses": [{"pos": string, "meaning": string, "phrases": [{"text": string, "reading": string, "translation": string}]}]}.`,
-    user: `Word: ${word.word}\nPart of speech on the card: ${word.partOfSpeech ?? "—"}`,
+      ` Respond as JSON: {"senses": [{"pos": string, "meaning": string, "onCard": boolean, "phrases": [{"text": string, "reading": string, "translation": string}]}]}.`,
+    user: `Word: ${word.word}
+Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
     schema: sensesSchema,
   });
   const clean = senses
@@ -540,6 +547,7 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
       (s): WordSense => ({
         pos: (s.pos ?? "").trim(),
         meaning: s.meaning.trim(),
+        onCard: s.onCard === true,
         phrases: (s.phrases ?? [])
           .slice(0, 2)
           .map((p) => ({ text: p.text.trim(), reading: (p.reading ?? "").trim(), translation: (p.translation ?? "").trim() })),
@@ -548,7 +556,7 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
     .filter((s) => s.meaning);
   if (clean.length) {
     await prisma.word
-      .update({ where: { id }, data: { senses: clean as unknown as Prisma.InputJsonValue } })
+      .update({ where: { id }, data: { senses: { v: SENSES_VERSION, list: clean } as unknown as Prisma.InputJsonValue } })
       .catch(() => {});
   }
   return clean;

@@ -161,6 +161,7 @@ export const sensesSchema = z.object({
     z.object({
       pos: z.string().nullish(),
       meaning: z.string().min(1),
+      onCard: z.boolean().nullish(),
       phrases: z
         .array(z.object({ text: z.string().min(1), reading: z.string().nullish(), translation: z.string().nullish() }))
         .nullish(),
@@ -170,6 +171,7 @@ export const sensesSchema = z.object({
 export type WordSense = {
   pos: string;
   meaning: string;
+  onCard: boolean; // the sense the card's meaningZh was written for (at generation time)
   phrases: { text: string; reading: string; translation: string }[];
 };
 
