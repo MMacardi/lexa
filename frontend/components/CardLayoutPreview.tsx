@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import type { CardField, CardLayout } from "@/lib/learnPrefs";
-import { Eye, Pin, RotateCw } from "lucide-react";
+import { Eye, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HoverTip } from "@/components/ui/HoverTip";
 
-// A hover-preview of how the flashcard will look with the current front/back
+// An inline preview of how the flashcard will look with the current front/back
 // layout, using a sample English word translated into the interface language.
-// It auto-flips (toggleable), can be flipped by hand, and can be pinned so it
-// stays open while the learner keeps tweaking the layout.
+// The button toggles it open/closed (in the page flow, so it never spills out of
+// its container); it auto-flips (toggleable) and can be flipped by hand.
 
 type Sample = Record<CardField, React.ReactNode>;
 
@@ -72,22 +71,12 @@ function Face({ fields, w, t, back }: { fields: CardField[]; w: Sample; t: (k: s
 export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
   const { t, locale } = useI18n();
   const w = sampleWord(locale);
-  const [hover, setHover] = useState(false);
-  const [pinned, setPinned] = useState(false);
+  const [open, setOpen] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [auto, setAuto] = useState(true);
   // Bumped on every manual flip so the auto interval restarts — otherwise a hand
   // flip right before the next tick gets an auto flip on top of it mid-animation.
   const [flipNonce, setFlipNonce] = useState(0);
-  const open = hover || pinned;
-
-  // Click on a hover-opened preview pins it; otherwise the button toggles open/closed.
-  const togglePinned = () => {
-    if (open && !pinned) return setPinned(true);
-    setPinned((p) => !p);
-    setHover(false);
-  };
-
   const manualFlip = () => {
     setFlipped((f) => !f);
     setFlipNonce((n) => n + 1);
@@ -100,16 +89,11 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
   }, [open, auto, flipNonce]);
 
   return (
-    // Hover-open only for a real mouse: on touch a tap fires mouseenter with no
-    // mouseleave, so the preview got stuck open and a second tap couldn't close it.
-    <div
-      className="relative mt-3 sm:inline-block"
-      onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
-      onPointerLeave={(e) => e.pointerType === "mouse" && setHover(false)}
-    >
+    <div className="mt-3">
       <button
         type="button"
-        onClick={togglePinned}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
           open ? "border-sage/50 bg-sage-tint/50 text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50 hover:text-sage-deep",
@@ -119,20 +103,8 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
       </button>
 
       {open && (
-        <div className="anim-popover z-30 mt-2 w-full max-w-[320px] sm:absolute sm:w-[264px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_20px_50px_rgba(46,42,38,0.2)] sm:left-full sm:top-0 sm:ml-3 sm:mt-0 sm:max-w-none">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</span>
-            <HoverTip title={t("preview.pin")} className="inline-flex">
-              <button
-                type="button"
-                onClick={() => setPinned((p) => !p)}
-                aria-label={t("preview.pin")}
-                className={cn("rounded-full p-1 transition-colors", pinned ? "bg-sage-tint text-sage-deep" : "text-ink-faint hover:text-ink")}
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
-            </HoverTip>
-          </div>
+        <div className="anim-popover mt-2 w-full max-w-[320px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</p>
 
           <div className="flip-scene cursor-pointer" onClick={manualFlip}>
             <div className={cn("flip-card", flipped && "is-flipped")}>
