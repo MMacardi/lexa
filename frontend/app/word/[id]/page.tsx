@@ -20,7 +20,7 @@ import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { ExplainChat } from "@/components/ExplainChat";
-import { TapGlossPills } from "@/components/TapGlossPills";
+import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { Link as LinkIcon, BookOpen, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -227,14 +227,9 @@ export default function WordDetailPage() {
           synonyms/antonyms to the card (opt-in, LLM calls) */}
       <ExplainChat word={word} />
 
-      {word.collocations.length > 0 && (
-        <TapGlossPills
-          label={t("word.collocations")}
-          items={word.collocations}
-          sourceLang={word.sourceLang}
-          targetLang={word.targetLang}
-        />
-      )}
+      {/* Pleco-style numbered senses (generated on first open, cached); pick
+          which ones the card tests. Falls back to the collocation chips. */}
+      <WordSenses word={word} />
 
       {/* synonyms + antonyms as a tappable mini word-family graph */}
       <WordFamilyGraph word={word} />

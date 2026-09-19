@@ -32,6 +32,7 @@ import {
   addProvidedExample,
   countAiExamples,
   explainWord,
+  wordSenses,
   askAboutWord,
   getStats,
   listCollections,
@@ -59,7 +60,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask)$/;
+  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -628,6 +629,19 @@ wordsRouter.post("/words/:id/explain", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   try {
     res.json({ explanation: await explainWord(req.params.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/:id/senses -> the word page's "Meanings" list. Generated on the
+// first open and cached on the card; not charged to the daily pool (it's automatic
+// and ~200 tokens once per card), only rate-limited like the other AI calls.
+wordsRouter.post("/words/:id/senses", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  try {
+    res.json({ senses: await wordSenses(req.params.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });

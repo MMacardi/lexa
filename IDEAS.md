@@ -517,7 +517,7 @@ words"), and it's the free, voice-friendly entry point, so give it a proper page
   "What should I study today?" (due cards / Coach picks).
 - Presets fill the input (editable) rather than sending right away. All strings en/ru/zh.
 
-## Word senses (Pleco-style)
+## Word senses (Pleco-style) — ✅ done 2026-09-19 (LLM-only; CC-CEDICT not used)
 Beta feedback (2026-09-19): typed «включить», got 打开 = «открывать» only. Add-by-translation
 now leads the meaning with the typed sense (`sense` → enrich), but polysemous words still
 show one flat meaning.

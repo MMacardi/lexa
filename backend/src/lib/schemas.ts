@@ -153,6 +153,26 @@ export const explanationSchema = z.object({
   explanation: z.string().min(1),
 });
 
+// Word page "Meanings" (Pleco-style): the word's common senses, each with a part
+// of speech, a short gloss in the learner's language and 1–2 example phrases.
+// No transforms/defaults here (chatJson needs input = output); wordSenses fills gaps.
+export const sensesSchema = z.object({
+  senses: z.array(
+    z.object({
+      pos: z.string().nullish(),
+      meaning: z.string().min(1),
+      phrases: z
+        .array(z.object({ text: z.string().min(1), reading: z.string().nullish(), translation: z.string().nullish() }))
+        .nullish(),
+    }),
+  ),
+});
+export type WordSense = {
+  pos: string;
+  meaning: string;
+  phrases: { text: string; reading: string; translation: string }[];
+};
+
 // Spell-check / "did you mean" for the AI add flow: the most likely intended
 // spelling plus a couple of alternative candidates.
 export const suggestSchema = z.object({

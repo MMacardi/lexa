@@ -51,6 +51,16 @@ export interface Word {
   state?: number;
   learningSteps?: number;
   lastReview?: string | null;
+  // Cached word-page "Meanings" (null until the page first generates them).
+  senses?: WordSense[] | null;
+}
+
+// One Pleco-style sense of a word: part of speech, a short gloss in the learner's
+// language, and 1–2 short phrases (with a reading for CJK).
+export interface WordSense {
+  pos: string;
+  meaning: string;
+  phrases: { text: string; reading: string; translation: string }[];
 }
 
 export type Visibility = "private" | "friends" | "code" | "public";
@@ -563,6 +573,8 @@ export const api = {
     id: string,
     payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
+  wordSenses: (id: string) =>
+    http<{ senses: WordSense[] }>(`/api/words/${id}/senses`, { method: "POST" }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
   askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>
