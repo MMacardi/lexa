@@ -31,7 +31,7 @@ import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
-import { ExternalLink, Pencil, Repeat } from "lucide-react";
+import { ChevronDown, ExternalLink, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -131,11 +131,8 @@ export default function FlashcardsPage() {
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
-  // Nothing selected by default — the learner picks a pair (quick chips below the
-  // dropdown make the common ones one tap away).
-  const sel = selPairs ?? [];
 
-  // The 5 most recently used pairs (from add history), shown as quick-pick chips.
+  // Pairs ordered by recent use (from add history); the first 5 are quick-pick chips.
   const quickPairs = (() => {
     const recent = getRecentPairs().map((p) => `${p.s}>${p.t}`);
     const ordered = [...allPairs].sort((a, b) => {
@@ -145,6 +142,10 @@ export default function FlashcardsPage() {
     });
     return ordered.slice(0, 5);
   })();
+
+  // Until the learner picks, the most recently used pair is preselected — an
+  // empty selection made new users think there was nothing to review.
+  const sel = selPairs ?? quickPairs.slice(0, 1);
 
   const togglePair = (pk: string) =>
     setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
@@ -232,20 +233,125 @@ export default function FlashcardsPage() {
 
   // ---------------- Setup screen ----------------
   if (!started) {
-    const candidateAll = words.filter(
-      (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
-    );
-    const candidate = onlyDue ? capNewCards(candidateAll) : candidateAll;
+    const inSel = (w: Word) => sel.includes(pairKey(w)) && inColl(w);
+    const dueCount = capNewCards(words.filter((w) => inSel(w) && isDue(w))).length;
+    const allCount = words.filter(inSel).length;
+    const candidate = onlyDue ? dueCount : allCount;
+    const pairCount = (pk: string) =>
+      capNewCards(words.filter((w) => pairKey(w) === pk && inColl(w) && isDue(w))).length;
     return (
-      <div className="mx-auto max-w-[520px] space-y-6">
+      <div className="mx-auto max-w-[520px] space-y-5">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
         <OnceHint id="review">{t("hint.review")}</OnceHint>
 
-        <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
-          {/* card layout: presets + custom front/back fields */}
+        <div className="space-y-5 rounded-[20px] border border-black/[0.06] bg-surface p-5">
+          {/* 1. language pair — the one thing a session needs */}
+          {allPairs.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                {t("review.pairs")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {quickPairs.map((pk) => {
+                  const [s, tg] = pk.split(">");
+                  const n = pairCount(pk);
+                  return (
+                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
+                      {pairLabel(s, tg)}
+                      {n > 0 && <span className="ml-1.5 opacity-70">{n}</span>}
+                    </QuickChip>
+                  );
+                })}
+              </div>
+              {allPairs.length > quickPairs.length && (
+                <div className="mt-2">
+                  <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. which words: due now vs everything */}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.cardLayout")}</p>
-            <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+              {t("review.which")}
+            </p>
+            <div className="grid grid-cols-2 gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
+              {([true, false] as const).map((due) => (
+                <button
+                  key={String(due)}
+                  type="button"
+                  onClick={() => setOnlyDue(due)}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 transition-colors",
+                    onlyDue === due ? "bg-sage text-white" : "text-ink-muted",
+                  )}
+                >
+                  {t(due ? "review.modeDue" : "review.modeAll")}
+                  <span className="ml-1.5 opacity-70">{due ? dueCount : allCount}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[12px] leading-snug text-ink-faint">
+              {t(onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
+            </p>
+          </div>
+
+          {/* 3. collection (optional) */}
+          {collections && collections.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                {t("review.collection")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
+                  {t("common.allWords")}
+                </QuickChip>
+                {collections.slice(0, 5).map((c) => (
+                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
+                    {c.name}
+                  </QuickChip>
+                ))}
+              </div>
+              {collections.length > 5 && (
+                <div className="mt-2">
+                  <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Button className="w-full" disabled={candidate === 0} onClick={start}>
+          {sel.length === 0
+            ? t("review.pickPair")
+            : candidate === 0
+              ? t(onlyDue ? "review.nothingDue" : "review.nothing")
+              : candidate === 1
+                ? t("review.startOne", { n: candidate })
+                : t("review.start", { n: candidate })}
+        </Button>
+        {sel.length > 0 && onlyDue && dueCount === 0 && allCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setOnlyDue(false)}
+            className="-mt-2 w-full text-center text-[13px] font-semibold text-sage hover:text-sage-deep"
+          >
+            {t("review.reviewAllInstead", { n: allCount })}
+          </button>
+        )}
+
+        {/* card layout — tucked away; the defaults work for most people */}
+        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
+            <span>
+              {t("review.cardLayout")}
+              <span className="ml-2 font-medium text-ink-faint">{t(`layout.${activePreset}`)}</span>
+            </span>
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
+            <div className="scroll-row flex w-fit flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
               {CARD_PRESETS.map((p) => (
                 <button
                   key={p.id}
@@ -295,68 +401,7 @@ export default function FlashcardsPage() {
             {/* hover/pin preview of the card with these settings */}
             <CardLayoutPreview layout={layout} />
           </div>
-
-          {/* collection */}
-          {collections && collections.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {t("review.collection")}
-              </p>
-              <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
-                  {t("common.allWords")}
-                </QuickChip>
-                {collections.slice(0, 5).map((c) => (
-                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
-                    {c.name}
-                  </QuickChip>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* pairs — nothing selected by default; quick-pick chips for recent pairs */}
-          {allPairs.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {t("review.pairs")}
-              </p>
-              {allPairs.length > 1 && (
-                <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {quickPairs.map((pk) => {
-                  const [s, tg] = pk.split(">");
-                  return (
-                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
-                      {pairLabel(s, tg)}
-                    </QuickChip>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* due toggle */}
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink-muted">
-            <input
-              type="checkbox"
-              checked={onlyDue}
-              onChange={(e) => setOnlyDue(e.target.checked)}
-              className="h-4 w-4 accent-[#7c9885]"
-            />
-            {t("review.onlyDue")}
-          </label>
-        </div>
-
-        <Button className="w-full" disabled={candidate.length === 0} onClick={start}>
-          {candidate.length === 0
-            ? t("review.nothing")
-            : candidate.length === 1
-              ? t("review.startOne", { n: candidate.length })
-              : t("review.start", { n: candidate.length })}
-        </Button>
+        </details>
       </div>
     );
   }
