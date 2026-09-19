@@ -24,7 +24,7 @@ import { TappableText, type WordEntry } from "@/components/TappableText";
 import { PracticeBar } from "@/components/PracticeBar";
 import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
-import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X, ChevronDown } from "lucide-react";
+import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X, ChevronDown, House, Package, Compass, KeyRound, Pill, CarTaxiFront, ReceiptText, PartyPopper, Luggage, Fingerprint, type LucideIcon } from "lucide-react";
 
 type Turn = {
   role: "user" | "assistant";
@@ -66,19 +66,19 @@ const PRESETS: { id: string; img: string; idea: string }[] = [
   { id: "airport", img: "/scenes/airport.webp", idea: "checking in and asking about a flight at the airport" },
   { id: "hairdresser", img: "/scenes/hairdresser.webp", idea: "asking for a haircut at the hairdresser's" },
 ];
-// Behind "More scenes": no artwork yet, so they render as compact emoji chips and the
+// Behind "More scenes": no artwork yet, so they render as compact icon chips and the
 // photo grid above stays one screen tall.
-const EXTRA_PRESETS: { id: string; emoji: string; idea: string }[] = [
-  { id: "neighbour", emoji: "🏠", idea: "asking a neighbour to water your plants while you are away" },
-  { id: "delivery", emoji: "📦", idea: "calling a delivery service about a parcel that never arrived" },
-  { id: "directions", emoji: "🧭", idea: "asking a stranger for directions after getting lost in a new city" },
-  { id: "flat", emoji: "🔑", idea: "viewing a flat to rent and asking the landlord questions" },
-  { id: "pharmacy", emoji: "💊", idea: "asking a pharmacist for something for a cold" },
-  { id: "taxi", emoji: "🚕", idea: "taking a taxi and chatting with the driver on the way" },
-  { id: "returns", emoji: "🧾", idea: "returning a faulty purchase to a shop" },
-  { id: "party", emoji: "🎉", idea: "small talk with a stranger at a friend's party" },
-  { id: "lostLuggage", emoji: "🧳", idea: "reporting lost luggage at the airport desk" },
-  { id: "detective", emoji: "🕵️", idea: "a detective questions you as the witness of a funny little mystery in your building" },
+const EXTRA_PRESETS: { id: string; icon: LucideIcon; idea: string }[] = [
+  { id: "neighbour", icon: House, idea: "asking a neighbour to water your plants while you are away" },
+  { id: "delivery", icon: Package, idea: "calling a delivery service about a parcel that never arrived" },
+  { id: "directions", icon: Compass, idea: "asking a stranger for directions after getting lost in a new city" },
+  { id: "flat", icon: KeyRound, idea: "viewing a flat to rent and asking the landlord questions" },
+  { id: "pharmacy", icon: Pill, idea: "asking a pharmacist for something for a cold" },
+  { id: "taxi", icon: CarTaxiFront, idea: "taking a taxi and chatting with the driver on the way" },
+  { id: "returns", icon: ReceiptText, idea: "returning a faulty purchase to a shop" },
+  { id: "party", icon: PartyPopper, idea: "small talk with a stranger at a friend's party" },
+  { id: "lostLuggage", icon: Luggage, idea: "reporting lost luggage at the airport desk" },
+  { id: "detective", icon: Fingerprint, idea: "a detective questions you as the witness of a funny little mystery in your building" },
 ];
 const ALL_PRESETS: { id: string; idea: string }[] = [...PRESETS, ...EXTRA_PRESETS];
 
@@ -846,7 +846,7 @@ export default function CoachScenePage() {
                             on ? "border-sage bg-sage text-white" : "border-black/[0.1] bg-surface text-ink-muted hover:border-sage/50",
                           )}
                         >
-                          <span aria-hidden>{p.emoji}</span>
+                          <p.icon className="size-3.5" strokeWidth={2.25} aria-hidden />
                           {t(`scene.preset.${p.id}`)}
                         </button>
                       );
