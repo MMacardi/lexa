@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
-import { BookOpen, Target, Pencil } from "lucide-react";
+import { BookOpen, ChevronDown, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,9 +306,7 @@ export default function QuizPage() {
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
-  // Nothing selected by default — pick via the dropdown or the quick chips below.
-  const sel = selPairs ?? [];
-
+  // Pairs ordered by recent use (from add history); the first 5 are quick-pick chips.
   const quickPairs = (() => {
     const recent = getRecentPairs().map((p) => `${p.s}>${p.t}`);
     const ordered = [...allPairs].sort((a, b) => {
@@ -318,6 +316,8 @@ export default function QuizPage() {
     });
     return ordered.slice(0, 5);
   })();
+  // Until the learner picks, the most recently used pair is preselected.
+  const sel = selPairs ?? quickPairs.slice(0, 1);
   const togglePair = (pk: string) =>
     setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
 
@@ -405,14 +405,118 @@ export default function QuizPage() {
 
   // ---------------- Setup ----------------
   if (!started) {
+    const pairCount = (pk: string) => words.filter((w) => w.meaningZh && pairKey(w) === pk && inColl(w)).length;
+    const modes = [
+      { id: "choice", icon: ListChecks },
+      { id: "type", icon: Keyboard },
+      { id: "cloze", icon: TextCursorInput },
+      { id: "mixed", icon: Shuffle },
+    ] as const;
     return (
-      <div className="mx-auto max-w-[520px] space-y-6">
+      <div className="mx-auto max-w-[520px] space-y-5">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
         <OnceHint id="quiz">{t("hint.quiz")}</OnceHint>
-        <div className="rounded-[20px] border border-black/[0.06] bg-surface p-5 space-y-4">
+
+        <div className="space-y-5 rounded-[20px] border border-black/[0.06] bg-surface p-5">
+          {/* 1. language pair — the one thing a round needs */}
+          {allPairs.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                {t("review.pairs")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {quickPairs.map((pk) => {
+                  const [s, tg] = pk.split(">");
+                  return (
+                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
+                      {pairLabel(s, tg)}
+                      <span className="ml-1.5 opacity-70">{pairCount(pk)}</span>
+                    </QuickChip>
+                  );
+                })}
+              </div>
+              {allPairs.length > quickPairs.length && (
+                <div className="mt-2">
+                  <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. answer mode — tiles that say what each one means */}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.direction")}</p>
-            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {modes.map(({ id, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition-colors",
+                    mode === id
+                      ? "border-sage bg-sage-tint/60 text-sage-deep"
+                      : "border-black/[0.08] text-ink-muted hover:border-sage/60",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Icon className="h-4 w-4" /> {t(`quiz.${id}`)}
+                  </span>
+                  <span className="text-[12px] leading-snug text-ink-faint">{t(`quiz.${id}Desc`)}</span>
+                </button>
+              ))}
+            </div>
+            <QuizPreview pool={pool} flip={flip} mode={mode} />
+          </div>
+
+          {/* 3. collection (optional) */}
+          {collections && collections.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                {t("review.collection")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
+                  {t("common.allWords")}
+                </QuickChip>
+                {collections.slice(0, 5).map((c) => (
+                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
+                    {c.name}
+                  </QuickChip>
+                ))}
+              </div>
+              {collections.length > 5 && (
+                <div className="mt-2">
+                  <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Button className="w-full" disabled={!canStart} onClick={start}>
+          {sel.length === 0
+            ? t("review.pickPair")
+            : !canStart
+              ? mode === "cloze"
+                ? t("quiz.needExamples")
+                : t("quiz.needFour")
+              : t("quiz.start", { n: Math.min(mode === "cloze" ? clozePool.length : pool.length, 8) })}
+        </Button>
+
+        {/* direction — tucked away; word → meaning suits most people */}
+        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
+            <span>
+              {t("review.direction")}
+              <span className="ml-2 font-medium text-ink-faint">
+                {flip ? t("review.meaningToWord") : t("review.wordToMeaning")}
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
+            <div className="flex w-fit gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
               {[false, true].map((v) => (
                 <button
                   key={String(v)}
@@ -427,81 +531,7 @@ export default function QuizPage() {
               ))}
             </div>
           </div>
-
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
-            <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold w-fit">
-              {(["choice", "type", "cloze", "mixed"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={cn(
-                    "rounded-full px-3 py-1 transition-colors",
-                    mode === m ? "bg-sage text-white" : "text-ink-muted",
-                  )}
-                >
-                  {m === "choice"
-                    ? t("quiz.choice")
-                    : m === "type"
-                      ? t("quiz.type")
-                      : m === "cloze"
-                        ? t("quiz.cloze")
-                        : t("quiz.mixed")}
-                </button>
-              ))}
-            </div>
-            {mode === "cloze" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.clozeHint")}</p>}
-            {mode === "mixed" && <p className="mt-1.5 text-[12px] text-ink-faint">{t("quiz.mixedHint")}</p>}
-            <QuizPreview pool={pool} flip={flip} mode={mode} />
-          </div>
-
-          {collections && collections.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {t("review.collection")}
-              </p>
-              <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
-                  {t("common.allWords")}
-                </QuickChip>
-                {collections.slice(0, 5).map((c) => (
-                  <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
-                    {c.name}
-                  </QuickChip>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {allPairs.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {t("review.pairs")}
-              </p>
-              {allPairs.length > 1 && (
-                <PairMultiSelect pairs={allPairs} selected={sel} onChange={setSelPairs} />
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {quickPairs.map((pk) => {
-                  const [s, tg] = pk.split(">");
-                  return (
-                    <QuickChip key={pk} active={sel.includes(pk)} onClick={() => togglePair(pk)}>
-                      {pairLabel(s, tg)}
-                    </QuickChip>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-        <Button className="w-full" disabled={!canStart} onClick={start}>
-          {!canStart
-            ? mode === "cloze"
-              ? t("quiz.needExamples")
-              : t("quiz.needFour")
-            : t("quiz.start", { n: Math.min(mode === "cloze" ? clozePool.length : pool.length, 8) })}
-        </Button>
+        </details>
       </div>
     );
   }
