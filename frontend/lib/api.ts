@@ -51,8 +51,6 @@ export interface Word {
   state?: number;
   learningSteps?: number;
   lastReview?: string | null;
-  // Cached word-page "Meanings" (null until the page first generates them).
-  senses?: WordSense[] | null;
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -60,6 +58,7 @@ export interface Word {
 export interface WordSense {
   pos: string;
   meaning: string;
+  onCard: boolean; // the sense the card's meaning was written for
   phrases: { text: string; reading: string; translation: string }[];
 }
 
