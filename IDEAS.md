@@ -516,3 +516,23 @@ words"), and it's the free, voice-friendly entry point, so give it a proper page
   "Make me a short text to read" (→ Reader), "Let's role-play a scene" (→ Coach scenes),
   "What should I study today?" (due cards / Coach picks).
 - Presets fill the input (editable) rather than sending right away. All strings en/ru/zh.
+
+## Word senses (Pleco-style)
+Beta feedback (2026-09-19): typed «включить», got 打开 = «открывать» only. Add-by-translation
+now leads the meaning with the typed sense (`sense` → enrich), but polysemous words still
+show one flat meaning.
+- **Card stays short.** `meaningZh` = what the flashcard/quiz tests; a Pleco-length entry on
+  the card back makes grading ambiguous ("I remembered one of four").
+- **Word page "Meanings" block**, Pleco layout: numbered senses (max 2–4, common ones only),
+  each with part of speech and 1–2 short phrases (打开电灯 dǎkāi diàndēng — включить свет).
+  One-sense words render as a single block. Replaces the Collocations chips (they are the
+  same phrases, just ungrouped).
+- **Pick what the card tests.** Checkbox per sense; the ticked ones (one, several, or all)
+  are joined into `meaningZh` ("включить; открыть"). The sense the word was added from is
+  pre-ticked/highlighted.
+- **Cost:** generate lazily on first word-page open (~200 out tokens), store in a new
+  `Word.senses` Json column; never on add. Most cards are never opened.
+- **Accuracy risk:** LLMs invent plausible rare senses. Cap at common senses, "skip if
+  unsure". For zh, CC-CEDICT could supply the sense list with the LLM only translating —
+  more accurate, more work; start LLM-only.
+- en/ru/zh strings; migration `word_senses`.

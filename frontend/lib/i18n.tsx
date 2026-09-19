@@ -84,6 +84,7 @@ const DICT: Record<string, Entry> = {
   "tutor.suggestTopic": { en: "Words by topic", ru: "Слова по теме", zh: "按主题选词" },
   "tutor.suggestLevel": { en: "Words by level", ru: "Слова по уровню", zh: "按等级选词" },
   "tutor.suggestExplain": { en: "Explain a word", ru: "Объяснить слово", zh: "讲解单词" },
+  "tutor.finishTemplate": { en: "Finish the sentence first — add your topic or words.", ru: "Сначала допиши фразу — добавь тему или слова.", zh: "先把句子补完——写上主题或词语。" },
   "tutor.topicTemplate": { en: "Pick 8 useful words about: ", ru: "Подбери 8 полезных слов по теме: ", zh: "挑选 8 个关于以下主题的常用词：" },
   "tutor.levelTemplate": { en: "Give me 8 {level}-level words to practice", ru: "Дай 8 слов уровня {level} для практики", zh: "给我 8 个 {level} 级别的练习词" },
   "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
