@@ -104,6 +104,7 @@ const DICT: Record<string, Entry> = {
     zh: "你的 AI 导师。问单词和语法、按目标挑选词汇，或让米卡带你了解这个应用。",
   },
   "mika.newChat": { en: "New chat", ru: "Новый чат", zh: "新对话" },
+  "mika.answersIn": { en: "answers in", ru: "отвечает на", zh: "回答用" },
   "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },
   "mika.p.level.title": { en: "Check my level", ru: "Проверить мой уровень", zh: "测测我的水平" },
   "mika.p.level.desc": {

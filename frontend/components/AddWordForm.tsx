@@ -95,6 +95,7 @@ type AddVars = {
   sourceLangOverride?: string;
   level?: string;
   exampleStyle?: ExampleStyle;
+  sense?: string; // add-by-translation: the known-language word they typed
 };
 
 // `defaultCollectionId` is the active "Set" filter from My words ("all" or an
@@ -270,7 +271,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
   // card — used in Manual mode and for "Add as typed" (a word the AI doesn't
   // know, so we must not let it fabricate a definition).
   const mutation = useMutation({
-    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle }: AddVars) => {
+    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense }: AddVars) => {
       const base = {
         word: chosen.trim(),
         telegramId: accountId,
@@ -306,6 +307,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           exampleSource: pro ? getExampleSource() : "ai",
           exampleCount: pro ? getExampleCount() : 1,
           meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
+          sense,
         });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
@@ -430,7 +432,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       setResolvedSourceLang(learnLang);
       setWord(learned);
       setReverse(null);
-      addWithChecks({ chosen: learned, manual: false, sourceLangOverride: learnLang });
+      addWithChecks({ chosen: learned, manual: false, sourceLangOverride: learnLang, sense: text });
     } catch {
       show({ icon: "⚠️", title: t("add.reverseError") });
     } finally {
