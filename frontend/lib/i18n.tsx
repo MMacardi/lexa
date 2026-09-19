@@ -1572,16 +1572,10 @@ const DICT: Record<string, Entry> = {
   "quiz.type": { en: "Type it", ru: "Ввод слова", zh: "拼写" },
   "quiz.cloze": { en: "Fill the blank", ru: "Пропуск", zh: "填空" },
   "quiz.mixed": { en: "Mixed", ru: "Микс", zh: "混合" },
-  "quiz.mixedHint": {
-    en: "Each question is a random format — multiple choice, typing or fill-the-blank.",
-    ru: "Каждый вопрос в случайном формате — выбор, ввод или пропуск.",
-    zh: "每题随机形式——选择、拼写或填空。",
-  },
-  "quiz.clozeHint": {
-    en: "The word is hidden inside its example sentence — type it in.",
-    ru: "Слово спрятано в его примере — впишите его.",
-    zh: "单词藏在例句里——把它填进去。",
-  },
+  "quiz.choiceDesc": { en: "Pick from 4 options", ru: "Выбрать из 4 вариантов", zh: "从 4 个选项中选择" },
+  "quiz.typeDesc": { en: "Type the answer yourself", ru: "Написать ответ самому", zh: "自己输入答案" },
+  "quiz.clozeDesc": { en: "Put the word into its example", ru: "Вставить слово в пример", zh: "把单词填进例句" },
+  "quiz.mixedDesc": { en: "A bit of everything", ru: "Всё вперемешку", zh: "各种题型混合" },
   "quiz.fillBlank": { en: "Fill in the missing word", ru: "Впишите пропущенное слово", zh: "填入缺失的单词" },
   "quiz.needExamples": {
     en: "Need at least 1 word with an example sentence",

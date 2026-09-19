@@ -1,25 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useI18n } from "@/lib/i18n";
-import { Eye, Pin } from "lucide-react";
+import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HoverTip } from "@/components/ui/HoverTip";
 
-// Reusable "hover to preview" shell: a small trigger button that reveals a popover
-// on hover, and can be pinned (click) to keep it open while the learner keeps
-// adjusting settings. Opens to the right on desktop (more room), below on mobile.
+// Reusable "preview" shell: a small trigger button that toggles a panel open/closed
+// right under it, in the page flow — a floating popover got stuck open on touch
+// (tap = hover with no leave) and spilled past the page edge on desktop.
 export function HoverPreview({ label, title, width = 264, children }: { label: string; title: string; width?: number; children: React.ReactNode }) {
-  const { t } = useI18n();
-  const [hover, setHover] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  const open = hover || pinned;
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative mt-3 inline-block" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div className="mt-3">
       <button
         type="button"
-        onClick={() => setPinned((p) => !p)}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
           open ? "border-sage/50 bg-sage-tint/50 text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50 hover:text-sage-deep",
@@ -30,22 +26,10 @@ export function HoverPreview({ label, title, width = 264, children }: { label: s
 
       {open && (
         <div
-          className="anim-popover absolute left-0 top-full z-30 mt-2 rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_20px_50px_rgba(46,42,38,0.2)] sm:left-full sm:top-0 sm:ml-3 sm:mt-0"
-          style={{ width }}
+          className="anim-popover mt-2 w-full rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]"
+          style={{ maxWidth: width + 40 }}
         >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{title}</span>
-            <HoverTip title={t("preview.pin")} className="inline-flex">
-              <button
-                type="button"
-                onClick={() => setPinned((p) => !p)}
-                aria-label={t("preview.pin")}
-                className={cn("rounded-full p-1 transition-colors", pinned ? "bg-sage-tint text-sage-deep" : "text-ink-faint hover:text-ink")}
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
-            </HoverTip>
-          </div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{title}</p>
           {children}
         </div>
       )}
