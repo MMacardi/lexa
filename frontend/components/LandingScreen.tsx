@@ -274,20 +274,20 @@ function PracticeScene({ locale }: { locale: string }) {
   const turns = ru
     ? [
         { role: "coach", text: "Начнём со слова *unless* — составь короткое предложение." },
-        { role: "hint", text: "💡 Подсказка: I won't … *unless* …" },
+        { role: "hint", text: "Подсказка: I won't … *unless* …" },
         { role: "user", text: "I won't go unless you come with me." },
         { role: "grade", text: "Отлично — естественно и верно!" },
       ]
     : zh
     ? [
         { role: "coach", text: "先从 *unless* 开始——造一个短句。" },
-        { role: "hint", text: "💡 提示:I won't … *unless* …" },
+        { role: "hint", text: "提示:I won't … *unless* …" },
         { role: "user", text: "I won't go unless you come with me." },
         { role: "grade", text: "很好——自然又正确!" },
       ]
     : [
         { role: "coach", text: "Let's start with *unless* — make a short sentence." },
-        { role: "hint", text: "💡 Hint: I won't … *unless* …" },
+        { role: "hint", text: "Hint: I won't … *unless* …" },
         { role: "user", text: "I won't go unless you come with me." },
         { role: "grade", text: "Perfect — natural and correct!" },
       ];

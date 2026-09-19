@@ -733,7 +733,7 @@ const DICT: Record<string, Entry> = {
     zh: "Onomika 手上有你的 {n} 个单词，只会把贴合话题的编进对话。点聊天里的任意单词即可学习。",
   },
   "chat.recapPts": { en: "+{n} points", ru: "+{n} очков", zh: "+{n} 分" },
-  "chat.recapCombo": { en: "best streak x{n} 🔥", ru: "лучшая серия x{n} 🔥", zh: "最佳连击 x{n} 🔥" },
+  "chat.recapCombo": { en: "best streak x{n}", ru: "лучшая серия x{n}", zh: "最佳连击 x{n}" },
   "chat.again": { en: "Chat again", ru: "Ещё разок", zh: "再聊一次" },
   // --- coach scenes (roleplay practice) ---
   "scene.heroTitle": { en: "Play a scene", ru: "Сыграй сценку", zh: "演一个场景" },
@@ -890,7 +890,7 @@ const DICT: Record<string, Entry> = {
   "coach.practiceSkipChip": { en: "Skip", ru: "Пропустить", zh: "跳过" },
   "coach.practiceHintMsg": { en: "Could you give me a hint?", ru: "Дай подсказку, пожалуйста.", zh: "能给我一点提示吗？" },
   "coach.practiceSkipMsg": { en: "Let's skip this word.", ru: "Давай пропустим это слово.", zh: "跳过这个词吧。" },
-  "coach.practiceIdle": { en: "Taking a while? Ask for a hint 💡", ru: "Долго думаешь? Попроси подсказку 💡", zh: "想久了？点提示 💡" },
+  "coach.practiceIdle": { en: "Taking a while? Ask for a hint", ru: "Долго думаешь? Попроси подсказку", zh: "想久了？点提示" },
   "coach.practiceMic": { en: "Answer by voice", ru: "Ответить голосом", zh: "语音回答" },
   "coach.practiceRec": { en: "Recording… tap to stop", ru: "Идёт запись… нажми, чтобы остановить", zh: "录音中…点按停止" },
   "coach.practiceTranscribing": { en: "Transcribing…", ru: "Распознаю голос…", zh: "识别中…" },
