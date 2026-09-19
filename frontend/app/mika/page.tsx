@@ -14,10 +14,11 @@ import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarC
 
 // Welcome-screen presets. Each fills the input (editable, not sent) and doubles as
 // a tour: the blurb says which part of the app it relates to, `href` links there.
-const PRESETS: { key: string; Icon: LucideIcon; href?: string; nav?: string }[] = [
+// `open` = the prompt ends where the learner types (a topic, two words): Send waits for it.
+const PRESETS: { key: string; Icon: LucideIcon; href?: string; nav?: string; open?: boolean }[] = [
   { key: "level", Icon: GraduationCap },
-  { key: "topic", Icon: Tags, href: "/collections", nav: "nav.collections" },
-  { key: "compare", Icon: Scale },
+  { key: "topic", Icon: Tags, open: true, href: "/collections", nav: "nav.collections" },
+  { key: "compare", Icon: Scale, open: true },
   { key: "reviews", Icon: Layers, href: "/review", nav: "nav.flashcards" },
   { key: "reader", Icon: BookOpen, href: "/reader", nav: "nav.reader" },
   { key: "scene", Icon: MessagesSquare, href: "/coach/scene", nav: "scene.heroTitle" },
@@ -28,7 +29,7 @@ export default function MikaPage() {
   const { t } = useI18n();
   const { accountId } = useAccount();
   const chat = useTutorChat();
-  const { pair, changePair, messages, input, setInput, send, reset, busy } = chat;
+  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished } = chat;
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -52,8 +53,10 @@ export default function MikaPage() {
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }, [input]);
 
-  function applyPreset(key: string) {
-    setInput(t(`mika.p.${key}.prompt`, { level: getLevel(pair.source) ?? "B1", due }));
+  function applyPreset(key: string, open?: boolean) {
+    const text = t(`mika.p.${key}.prompt`, { level: getLevel(pair.source) ?? "B1", due });
+    if (open) chat.fillTemplate(text);
+    else setInput(text);
     requestAnimationFrame(() => {
       const el = inputRef.current;
       if (!el) return;
@@ -96,12 +99,12 @@ export default function MikaPage() {
         <section className="space-y-3">
           <p className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("mika.tryThese")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            {PRESETS.map(({ key, Icon, href, nav }) => (
+            {PRESETS.map(({ key, Icon, href, nav, open }) => (
               <div
                 key={key}
                 className="group flex flex-col rounded-[18px] border border-black/[0.06] bg-surface transition-colors hover:border-sage/50"
               >
-                <button type="button" onClick={() => applyPreset(key)} className="flex flex-1 items-start gap-3 p-4 text-left">
+                <button type="button" onClick={() => applyPreset(key, open)} className="flex flex-1 items-start gap-3 p-4 text-left">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sage-tint text-sage-deep">
                     <Icon className="h-[18px] w-[18px]" />
                   </span>
@@ -127,6 +130,7 @@ export default function MikaPage() {
       )}
 
       {/* composer — sticks above the mobile tab bar */}
+      {unfinished && <p className="-mb-4 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
       <form
         className="sticky bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-10 flex items-end gap-2 rounded-[22px] border border-black/[0.08] bg-surface p-2 shadow-[0_10px_30px_rgba(46,42,38,0.12)] md:bottom-6"
         onSubmit={(e) => {
@@ -151,7 +155,7 @@ export default function MikaPage() {
         />
         <button
           type="submit"
-          disabled={busy || !input.trim()}
+          disabled={busy || !input.trim() || unfinished}
           className="shrink-0 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
         >
           {t("word.send")}

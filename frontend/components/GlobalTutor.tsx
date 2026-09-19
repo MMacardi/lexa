@@ -25,7 +25,7 @@ export function GlobalTutor() {
     return () => window.removeEventListener(OPEN_MIKA, on);
   }, []);
   const chat = useTutorChat({ active: open });
-  const { pair, changePair, messages, input, setInput, send, reset, busy } = chat;
+  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished } = chat;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Draggable panel: offset from its docked corner, remembered across opens and
@@ -101,7 +101,7 @@ export function GlobalTutor() {
   }, [messages]);
 
   function fillTemplate(template: string) {
-    setInput(template);
+    chat.fillTemplate(template);
     inputRef.current?.focus();
   }
 
@@ -221,6 +221,7 @@ export function GlobalTutor() {
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
           <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "pb-[calc(10px+env(safe-area-inset-bottom))]")}>
+            {unfinished && <p className="mb-1.5 px-1 text-[12px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
             <form
               className="flex items-center gap-2"
               onSubmit={(e) => {
@@ -238,7 +239,7 @@ export function GlobalTutor() {
               />
               <button
                 type="submit"
-                disabled={busy || !input.trim()}
+                disabled={busy || !input.trim() || unfinished}
                 className="shrink-0 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
               >
                 {t("word.send")}

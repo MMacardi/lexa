@@ -54,6 +54,10 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const [pair, setPair] = useState(() => readPair());
   const [messages, setMessages] = useState<TutorMsg[]>(() => readChat());
   const [input, setInput] = useState("");
+  // An open-ended preset ("10 words about: ") put in the box; sending it untouched
+  // just makes Mika ask for the topic, so Send waits until something is added.
+  const [template, setTemplate] = useState<string | null>(null);
+  const unfinished = !!template && input.trim() === template.trim();
   const [creating, setCreating] = useState(false);
   const [collIds, setCollIds] = useState<string[]>([]);
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
@@ -110,7 +114,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
 
   function send(text?: string) {
     const q = (text ?? input).trim();
-    if (!q || busy) return;
+    if (!q || busy || (text === undefined && unfinished)) return;
+    setTemplate(null);
     const next = [...messages, { role: "user" as const, content: q }];
     setMessages(next);
     setInput("");
@@ -204,6 +209,11 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     messages,
     input,
     setInput,
+    fillTemplate: (text: string) => {
+      setInput(text);
+      setTemplate(text);
+    },
+    unfinished,
     send,
     reset,
     busy,
