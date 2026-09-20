@@ -1588,6 +1588,8 @@ const DICT: Record<string, Entry> = {
     ru: "Откройте оборот, затем свайп в любую сторону — или нажимайте кнопки.",
     zh: "先翻到背面，然后向任意方向滑动，或使用按钮。",
   },
+  "review.showAnswer": { en: "Show answer", ru: "Показать ответ", zh: "显示答案" },
+  "review.showAnswerKey": { en: "Space", ru: "Пробел", zh: "空格" },
   "review.gestures": { en: "Swipes", ru: "Свайпы", zh: "滑动手势" },
   "review.gestures2": { en: "Left and right", ru: "Влево и вправо", zh: "左右" },
   "review.gestures4": { en: "All four directions", ru: "Все четыре стороны", zh: "四个方向" },

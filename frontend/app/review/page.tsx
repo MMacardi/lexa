@@ -170,6 +170,39 @@ export default function FlashcardsPage() {
     };
   }, [started]);
 
+  // Anki's keys, so gating the grades behind a reveal doesn't cost desktop users a
+  // second click per card: space/enter reveals, then 1–4 grade and space is Good.
+  useEffect(() => {
+    if (!started || editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, [contenteditable=true]")) return;
+      // Never steal space/enter from a focused control: someone who tabbed to
+      // "Hard" must get Hard, not the space-is-Good shortcut.
+      if ((e.key === " " || e.key === "Enter") && el?.closest("button, a")) return;
+      const card = deck[index];
+      if (!card) return;
+      if (!flipped) {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          setFlipped(true);
+        }
+        return;
+      }
+      const grade = e.key === " " ? 3 : Number(e.key);
+      if (Number.isInteger(grade) && grade >= 1 && grade <= 4) {
+        e.preventDefault();
+        commit(grade, card);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // `commit` is left out on purpose — it's rebuilt every render, and the deps
+    // above already re-bind the listener on every card and every flip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, editing, deck, index, flipped]);
+
   // Put the card back at rest with no animation — for a fresh card, where snapping
   // in from the last one's fly-off would look like the new card arriving pre-swiped.
   function restCard() {
@@ -899,36 +932,51 @@ export default function FlashcardsPage() {
         </div>
       </div>
 
-      <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
+      {/* Anki's flow: the grades only appear once the answer is on screen, so a card
+          can't be graded before it has been read. The reveal button copies the grade
+          buttons' two-line shape so the row keeps its height across the flip. */}
+      {!flipped ? (
         <button
-          onClick={() => commit(1, word)}
-          className="flex flex-col items-center rounded-2xl bg-warn-bg py-2.5 font-bold text-warn-text transition-transform active:scale-95"
+          onClick={() => setFlipped(true)}
+          className="flex w-full max-w-[560px] flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
         >
-          <span className="text-sm">{t("review.again")}</span>
-          <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.again, t)}</span>
+          <span className="text-sm">{t("review.showAnswer")}</span>
+          <span className="invisible text-[11px] font-medium opacity-80 sm:visible">
+            {t("review.showAnswerKey")}
+          </span>
         </button>
-        <button
-          onClick={() => commit(2, word)}
-          className="flex flex-col items-center rounded-2xl border border-black/[0.1] bg-surface py-2.5 font-bold text-ink-muted transition-transform active:scale-95"
-        >
-          <span className="text-sm">{t("review.hard")}</span>
-          <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.hard, t)}</span>
-        </button>
-        <button
-          onClick={() => commit(3, word)}
-          className="flex flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
-        >
-          <span className="text-sm">{t("review.good")}</span>
-          <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.good, t)}</span>
-        </button>
-        <button
-          onClick={() => commit(4, word)}
-          className="flex flex-col items-center rounded-2xl bg-sage-deep py-2.5 font-bold text-white transition-transform active:scale-95"
-        >
-          <span className="text-sm">{t("review.easy")}</span>
-          <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.easy, t)}</span>
-        </button>
-      </div>
+      ) : (
+        <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
+          <button
+            onClick={() => commit(1, word)}
+            className="flex flex-col items-center rounded-2xl bg-warn-bg py-2.5 font-bold text-warn-text transition-transform active:scale-95"
+          >
+            <span className="text-sm">{t("review.again")}</span>
+            <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.again, t)}</span>
+          </button>
+          <button
+            onClick={() => commit(2, word)}
+            className="flex flex-col items-center rounded-2xl border border-black/[0.1] bg-surface py-2.5 font-bold text-ink-muted transition-transform active:scale-95"
+          >
+            <span className="text-sm">{t("review.hard")}</span>
+            <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.hard, t)}</span>
+          </button>
+          <button
+            onClick={() => commit(3, word)}
+            className="flex flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
+          >
+            <span className="text-sm">{t("review.good")}</span>
+            <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.good, t)}</span>
+          </button>
+          <button
+            onClick={() => commit(4, word)}
+            className="flex flex-col items-center rounded-2xl bg-sage-deep py-2.5 font-bold text-white transition-transform active:scale-95"
+          >
+            <span className="text-sm">{t("review.easy")}</span>
+            <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.easy, t)}</span>
+          </button>
+        </div>
+      )}
       <p className="mt-4 text-center text-[13px] font-medium text-ink-faint">
         {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
       </p>
