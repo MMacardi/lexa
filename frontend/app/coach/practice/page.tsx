@@ -53,9 +53,14 @@ export default function CoachPracticePage() {
     enabled: !!accountId,
   });
   const deck = useMemo(() => words ?? [], [words]);
+  // Don't flash "add some words first" while the deck is still on its way.
+  const deckLoading = !!accountId && !words;
 
   // A caller (a collection / imported deck) can hand us specific words to drill.
+  // `focusRead` marks the handover as resolved: the pair default below must wait for
+  // it, or it picks the deck's most common pair and filters the focus words away.
   const [focusIds, setFocusIds] = useState<string[] | null>(null);
+  const [focusRead, setFocusRead] = useState(false);
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("lexa.coachFocusIds");
@@ -66,6 +71,7 @@ export default function CoachPracticePage() {
     } catch {
       /* ignore */
     }
+    setFocusRead(true);
   }, []);
 
   // Language pairs present in the deck, for the picker.
@@ -79,7 +85,7 @@ export default function CoachPracticePage() {
   const [scope, setScope] = useState<string>("smart"); // "smart" | "all" | "coll:<id>"
   // Default the pair: the focus words' pair, else the deck's most common one.
   useEffect(() => {
-    if (pair || deck.length === 0) return;
+    if (!focusRead || pair || deck.length === 0) return;
     if (focusIds && focusIds.length) {
       const first = deck.find((w) => focusIds.includes(w.id));
       if (first) {
@@ -97,7 +103,7 @@ export default function CoachPracticePage() {
       const [source, target] = top.split("|");
       setPair({ source, target });
     }
-  }, [deck, focusIds, pair]);
+  }, [deck, focusIds, focusRead, pair]);
 
   // Collections present in the chosen pair, for the scope picker.
   const collections = useMemo(() => {
@@ -121,7 +127,9 @@ export default function CoachPracticePage() {
     let pool = deck.filter((w) => w.sourceLang === pair.source && w.targetLang === pair.target);
     if (focusIds && focusIds.length) {
       const set = new Set(focusIds);
-      pool = pool.filter((w) => set.has(w.id));
+      const inPair = pool.filter((w) => set.has(w.id));
+      // A handed-over set whose words all sit in another pair still gets drilled.
+      pool = inPair.length ? inPair : deck.filter((w) => set.has(w.id));
     } else if (scope.startsWith("coll:")) {
       const cid = scope.slice(5);
       pool = pool.filter((w) => (w.collections ?? []).some((c) => c.id === cid));
@@ -265,7 +273,11 @@ export default function CoachPracticePage() {
           <h2 className="mt-4 font-serif text-[22px] font-semibold text-ink">{t("coach.practiceHeroTitle")}</h2>
           <p className="mt-2 max-w-[440px] text-[14px] leading-relaxed text-ink-soft">{t("coach.practiceHeroSub")}</p>
 
-          {deck.length === 0 ? (
+          {deckLoading ? (
+            <p className="mt-6 inline-flex items-center gap-2 text-[13px] text-ink-faint">
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+            </p>
+          ) : deck.length === 0 ? (
             <p className="mt-6 rounded-[12px] border border-dashed border-black/[0.12] bg-paper/50 px-4 py-3 text-[13px] text-ink-soft">
               {t("coach.practiceNoWords")}
             </p>

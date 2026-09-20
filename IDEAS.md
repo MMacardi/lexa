@@ -536,3 +536,51 @@ show one flat meaning.
   unsure". For zh, CC-CEDICT could supply the sense list with the LLM only translating —
   more accurate, more work; start LLM-only.
 - en/ru/zh strings; migration `word_senses`.
+
+## Library decks: no synonyms/antonyms (found 2026-09-20)
+Seed words (`backend/src/seed/libraryDecks.ts` → `services/librarySeed.ts`) are written with
+`syn?` only, and the seeder stores `synonyms: w.syn ?? []`, `antonyms: []`. A word copied out of
+an Onomika Library deck therefore shows an empty Synonyms/Antonyms grid on its word page, while a
+hand-added word shows a full one — the curated decks look worse than the AI ones.
+- Cheapest: hide the grid when both lists are empty (no fake emptiness), and fill `syn`/`ant` by
+  hand in the seed file for the decks that matter (phrasal verbs, HSK cores) + bump `version`.
+- Better: enrich lazily on first word-page open, like senses — one Qwen call, cached on the Word
+  row, so only decks people actually open cost tokens. Watch the copy path: a copied word must get
+  its own enrichment, not the seed's empty arrays frozen forever.
+- Decide whether `antonyms` is even worth it for function words (phrasal verbs rarely have any).
+
+## Senses overlap: same meaning split by part of speech (found 2026-09-20)
+仔细 renders as 1. наречие «внимательно (о способе действия)» / 2. прилагательное «тщательный,
+внимательный, аккуратный»; in en: 1. adjective "careful, thorough" / 2. adverb "carefully,
+thoroughly". Two rows, one meaning — the split is grammatical, not semantic, and the learner sees
+what looks like a duplicate. Also the en and ru versions disagree on which sense is #1, and the
+"On the card" tick lands on different senses per UI language.
+- Prompt rule: senses must differ in *meaning*, not in part of speech or inflection. A zh adjective
+  used adverbially is one sense; list the POS variants inside the row (`прил./нареч.`) instead of
+  splitting. Same for -ly/-ness derivations in en.
+- Post-merge step, like the near-duplicate merge already there: if two senses' glosses overlap
+  above a threshold after stripping the adverbial suffix, fold them into one and keep both POS tags.
+- Sense order should be stable across target languages (order by frequency of the source sense, not
+  by whatever the model emits per language).
+- Bump the senses cache version so existing cards regenerate.
+
+## Streaming LLM output (found 2026-09-20)
+Every Qwen answer lands as one finished paragraph after a long spinner — a "jumpscare" wall of
+text. Stream tokens instead so text appears as it's written (and the wait reads as progress).
+- Backend: Qwen via the OpenAI SDK already supports `stream: true`; add an SSE endpoint next to the
+  existing JSON ones in `services/llm.ts` + the tutor/coach routes. Keep the non-streaming path for
+  the bot and for anything that parses JSON (word enrichment, senses, drill grading) — only free
+  prose streams: Mika chat, the `/mika` page, scene turns, explanations.
+- Frontend: read the SSE in `lib/useTutorChat.ts`, append to the last bubble, keep the markdown
+  renderer incremental-safe (half a `**bold**` must not flicker). Stop button cancels the fetch.
+- Token accounting: usage only arrives in the final chunk — make sure per-user cost attribution
+  (BACKLOG 4) still records it, including on an aborted stream.
+- Telegram bot stays non-streaming (edit-message throttling isn't worth it).
+
+## Mika widget header is clumsy (found 2026-09-20)
+The pair picker in the widget header stacks "Учу [Английский ▾] отвечает на [Английский ▾]" across
+two lines, eating a third of a phone-height panel before any message shows, and the labels read as
+a broken sentence. Reduce to one compact line: a single chip like `EN → RU` that opens a small
+sheet with both selects, or move the pair into a settings row that's only shown when the learner
+taps it. Same treatment for the full `/mika` page header. Keep the two langs discoverable — they
+do change the answer language — but out of the way after the first pick. en/ru/zh strings.
