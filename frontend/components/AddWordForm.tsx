@@ -10,7 +10,7 @@ import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
 import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
-import { isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
+import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
@@ -105,7 +105,7 @@ type AddVars = {
 export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId?: string; bare?: boolean }) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { show } = useToast();
   const { confirm, choose } = useDialog();
 
@@ -130,6 +130,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
     if (sourceLang === "auto") return;
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
+    // A swap changes which side you learn, not which side you type, so the typed
+    // side travels with it: what's in the field stays the input language, and the
+    // card flips to the other one (which is the whole point of hitting swap).
+    setReverseInput((v) => !v);
     setSwapSpin((v) => !v);
   };
   // manual fields
@@ -159,6 +163,14 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
   const inputLang = reverseInput && sourceLang !== "auto" ? targetLang : sourceLang;
   // The reverse selector only makes sense for a concrete two-language pair.
   const showInputPicker = mode === "auto" && sourceLang !== "auto" && sourceLang !== targetLang;
+  // Typing the known side: meaning in, word out — the way a dictionary is used.
+  const typingKnown = showInputPicker && reverseInput;
+  // The pair set backwards: the studied language is the one the app itself is in.
+  // Nobody learns the language they read the interface in, so this is almost always
+  // the row being read as "translate from → to". Dismissible, never blocking.
+  const [pairHintOff, setPairHintOff] = useState(false);
+  const pairBackwards =
+    sourceLang !== "auto" && displayCode(sourceLang) === locale && displayCode(targetLang) !== locale;
   // A concrete "ты → you"-style pair for the picker hints and the preview strip —
   // abstract labels never explained which side of the pair ends up on the card.
   const inputExample = (code: string) => {
@@ -545,22 +557,55 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
         )}
       </div>
 
-      {/* language pair */}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-        <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
+      {/* Language pair, both sides labelled. A bare "A → B" between two dropdowns
+          reads as a translation direction, so people set it backwards and get a card
+          in the language they already speak — the card is always in the first one.
+          (Same trap the Mika pair chip had.) */}
+      <div className="flex items-end gap-2 text-sm text-ink-soft">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[200px]">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("first.learn")}</span>
+          <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
+        </div>
         <HoverTip title={t("add.swap")} className="inline-flex">
           <button
             type="button"
             onClick={swapLangs}
             disabled={sourceLang === "auto"}
             aria-label={t("add.swap")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
+            className="mb-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
           >
             <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
           </button>
         </HoverTip>
-        <LangSelect value={targetLang} onChange={setTargetLang} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[200px]">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
+          <LangSelect value={targetLang} onChange={setTargetLang} />
+        </div>
       </div>
+
+      {pairBackwards && !pairHintOff && (
+        <div className="anim-fade-up flex items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 px-2.5 py-2 text-[13px] leading-snug">
+          <Languages className="h-3.5 w-3.5 shrink-0 text-sage-deep" />
+          <span className="min-w-0 text-ink-soft">
+            {t("add.pairSuspect", { source: langLabel(sourceLang), target: langLabel(targetLang) })}
+          </span>
+          <button
+            type="button"
+            onClick={swapLangs}
+            className="shrink-0 font-semibold text-sage-deep underline decoration-sage/40 underline-offset-2 hover:decoration-sage-deep"
+          >
+            {t("add.pairSwap")}
+          </button>
+          <button
+            type="button"
+            aria-label={t("common.close")}
+            onClick={() => setPairHintOff(true)}
+            className="ml-auto shrink-0 rounded-full p-1 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink-muted"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* recently used pairs — quick re-select */}
       {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
@@ -584,6 +629,40 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
         </div>
       )}
 
+      {/* Which side of the pair you type. It used to hide under Advanced, so the
+          "type the meaning you know, get the word you don't" path — the reason you
+          open a dictionary at all — was invisible; it now sits on the field it
+          changes, with a line spelling out what the card will be. */}
+      {showInputPicker && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
+            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold">
+              {[sourceLang, targetLang].map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setReverseInput(code === targetLang)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
+                    inputLang === code ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
+                  )}
+                >
+                  {code === sourceLang ? <PenLine className="h-3.5 w-3.5" /> : <Languages className="h-3.5 w-3.5" />}
+                  {langLabel(code)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[12px] leading-snug text-ink-faint">
+            {typingKnown
+              ? t("add.inputKnownDesc", { known: langLabel(targetLang), studied: langLabel(sourceLang) })
+              : t("add.inputStudiedDesc", { studied: langLabel(sourceLang) })}
+            {typingKnown && inputExample(targetLang) ? ` · ${inputExample(targetLang)}` : ""}
+          </p>
+        </div>
+      )}
+
       {/* the word itself — the main action, right under the pair it's in */}
       <div className="flex gap-2">
         <Input
@@ -593,7 +672,11 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
             if (suggestions) setSuggestions(null);
             if (reverse) setReverse(null);
           }}
-          placeholder={t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(inputLang) })}
+          placeholder={
+            typingKnown
+              ? t("add.wordPlaceholderReverse", { known: langLabel(targetLang), studied: langLabel(sourceLang) })
+              : t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(inputLang) })
+          }
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
@@ -786,8 +869,8 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       )}
 
       {/* Example tuning (auto mode). The example source is the most-used knob, so it
-          stays visible above "Advanced"; the finer controls (which side you type,
-          register, level, count, synonyms) live under Advanced, collapsed by default. */}
+          stays visible above "Advanced"; the finer controls (register, level, count,
+          synonyms) live under Advanced, collapsed by default. */}
       {mode === "auto" && (
         <div className="space-y-2">
           {/* source of examples: AI-composed, mined from the web, or none */}
@@ -838,48 +921,6 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           </button>
           {showAdvanced && (
           <div className="space-y-2">
-          {/* "I'm typing in…" — which side of the pair you type. The card is always
-              created in the studied language; typing the known side translates first.
-              Hidden under Advanced, with a live preview so a newcomer never wonders
-              which language the card will end up in. */}
-          {showInputPicker && (
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
-                <Select
-                  value={inputLang}
-                  onChange={(v) => setReverseInput(v === targetLang)}
-                  ariaLabel={t("add.inputLang")}
-                  className="w-[150px]"
-                  options={[
-                    {
-                      value: sourceLang,
-                      label: langLabel(sourceLang),
-                      hint: [t("add.inputStudied"), inputExample(sourceLang)].filter(Boolean).join(" · "),
-                    },
-                    {
-                      value: targetLang,
-                      label: langLabel(targetLang),
-                      hint: [t("add.inputKnown"), inputExample(targetLang)].filter(Boolean).join(" · "),
-                    },
-                  ]}
-                />
-              </div>
-              {/* Static example of the reverse flow ("you" → "ты"), only in reverse mode.
-                  It used to mirror the typed word live, which read as a second input
-                  field and showed a mismatched sample on the card side. */}
-              {reverseInput && sampleWord(inputLang) && sampleWord(sourceLang) && (
-                <p className="text-[12px] leading-snug text-ink-faint">
-                  {t("add.inputReverseHint", {
-                    from: langLabel(inputLang),
-                    to: langLabel(sourceLang),
-                    ex: `${sampleWord(inputLang)} → ${sampleWord(sourceLang)}`,
-                  })}
-                </p>
-              )}
-            </div>
-          )}
-
           {exMode !== "none" && (
             <div className="flex flex-wrap items-center gap-2">
               {/* register only applies to AI-composed examples */}

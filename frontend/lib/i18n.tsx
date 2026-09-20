@@ -449,6 +449,7 @@ const DICT: Record<string, Entry> = {
 
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },
+  "common.close": { en: "Close", ru: "Закрыть", zh: "关闭" },
   "common.drag": { en: "Drag to move", ru: "Перетащить", zh: "拖动移动" },
   "common.error": { en: "Something went wrong — try again", ru: "Что-то пошло не так — попробуйте ещё раз", zh: "出错了——请重试" },
   "errState.title": { en: "Something went wrong", ru: "Что-то пошло не так", zh: "出错了" },
@@ -1389,6 +1390,14 @@ const DICT: Record<string, Entry> = {
   "add.autoDetect": { en: "Auto-detect", ru: "Автоопределение", zh: "自动识别" },
   "add.swap": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
   "add.recent": { en: "Recent", ru: "Недавние", zh: "最近" },
+  // Nudge when the studied language is the one the interface is in — the pair
+  // was almost certainly read as "translate from → to" and set backwards.
+  "add.pairSuspect": {
+    en: "Cards will be {source} words. Learning {target} instead?",
+    ru: "Карточки будут словами на языке «{source}». А учите вы «{target}»?",
+    zh: "卡片会是「{source}」单词。你其实在学「{target}」吗？",
+  },
+  "add.pairSwap": { en: "Swap", ru: "Поменять", zh: "交换" },
   "add.aiUnsupported": {
     en: "AI doesn't support {lang} — manual cards only.",
     ru: "ИИ не знает язык «{lang}» — только ручные карточки.",
@@ -1396,6 +1405,11 @@ const DICT: Record<string, Entry> = {
   },
   "add.swapLanguages": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
   "add.wordPlaceholder": { en: "Word or phrase in {lang}", ru: "Слово или словосочетание на языке: {lang}", zh: "{lang} 单词或短语" },
+  "add.wordPlaceholderReverse": {
+    en: "Meaning in {known} — I’ll find the {studied} word",
+    ru: "Значение на языке «{known}» — найду слово на «{studied}»",
+    zh: "{known}释义——我来找出{studied}单词",
+  },
   "add.meaningPlaceholder": { en: "Meaning ({lang}) — required", ru: "Значение ({lang}) — обязательно", zh: "释义（{lang}）— 必填" },
   "add.examplePlaceholder": { en: "Example sentence ({lang})", ru: "Пример предложения ({lang})", zh: "例句（{lang}）" },
   "add.exampleTrPlaceholder": { en: "Example translation ({lang})", ru: "Перевод примера ({lang})", zh: "例句翻译（{lang}）" },
@@ -1437,15 +1451,19 @@ const DICT: Record<string, Entry> = {
   "add.flipKeep": { en: "Keep as {lang}", ru: "Оставить на «{lang}»", zh: "保留为{lang}" },
   "add.flipUndo": { en: "Translate into {lang}", ru: "Перевести на «{lang}»", zh: "翻译成{lang}" },
   "add.reverseError": { en: "Couldn't translate — try again.", ru: "Не удалось перевести — попробуйте ещё раз.", zh: "翻译失败——请重试。" },
-  // "I'm typing in…" selector — pick which side of the pair you type. Choosing the
-  // known side translates your input into the studied language first.
+  // "I type in" — which side of the pair you type, sitting on the add field itself.
+  // The known side translates first, so you can look a word up the way you would in
+  // a dictionary: type the meaning you know, get the word you don't.
   "add.inputLang": { en: "I type in", ru: "Ввожу на", zh: "我输入" },
-  "add.inputStudied": { en: "the word to learn", ru: "слово для изучения", zh: "要学的词" },
-  "add.inputKnown": { en: "translate into the other", ru: "переведу на другой", zh: "翻译成另一种" },
-  "add.inputReverseHint": {
-    en: "Type in {from} — we translate it and make the card in {to} (e.g. {ex}).",
-    ru: "Пишите на языке «{from}» — переведём и создадим карточку на языке «{to}» (например, {ex}).",
-    zh: "用{from}输入——我们会翻译并生成{to}卡片（例如 {ex}）。",
+  "add.inputStudiedDesc": {
+    en: "Type the word in {studied} — the card is built from it.",
+    ru: "Вводите слово на языке «{studied}» — карточка создаётся из него.",
+    zh: "输入{studied}单词——卡片就用它生成。",
+  },
+  "add.inputKnownDesc": {
+    en: "Don’t know the word yet? Type the meaning in {known} — I’ll find the {studied} word and build the card.",
+    ru: "Не знаете слово? Введите значение на языке «{known}» — найду слово на «{studied}» и создам карточку.",
+    zh: "还不知道这个词？输入{known}释义——我来找出对应的{studied}单词并生成卡片。",
   },
   "add.advanced": { en: "Advanced", ru: "Дополнительно", zh: "高级设置" },
   // Pronunciation self-check (browser speech recognition).

@@ -61,6 +61,13 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [x] **3f. Mika widget header.** The "Учу … отвечает на …" pair picker eats a third of the phone
       panel over two lines. One compact `EN → RU` chip opening a small sheet, same on `/mika`.
       IDEAS: "Mika widget header".
+- [x] **3g. Add a word: which language is which.** "Русский → Китайский" between two bare
+      dropdowns reads as a translation direction, so the pair gets set backwards and the card
+      comes out in the language you already speak — and "Ввожу на" (type the meaning, get the
+      word, the reason you open a dictionary) hid under Дополнительно. Both sides labelled
+      Учу / Знаю, the typed side promoted onto the field with a line saying what the card
+      will be, swap carries the typed language with it, and a dismissible nudge offers the
+      swap when the studied language is the one the interface is in. Done 2026-09-20.
 - [x] **3g. Mika chat: other languages, history, steady composer.** A chat started as en→en can't
       save the Chinese words it just explained (clear the chat, switch the pair, ask again); the
       "add to set" row appears a second after a reload; the composer only moves once the page
