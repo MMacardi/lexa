@@ -7,7 +7,7 @@ import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { Prisma } from "@prisma/client";
-import { explanationSchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
+import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -368,6 +368,11 @@ export async function updateWord(
   if (["word", "sourceLang", "targetLang"].some((k) => k in data)) {
     data.senses = Prisma.DbNull;
   }
+  // A hand-edited family counts as answered, so emptying it on purpose isn't
+  // undone by the auto-fill on the next open.
+  if (["synonyms", "antonyms"].some((k) => k in data)) {
+    data.familyAt = new Date();
+  }
   // Duplicate spellings are allowed, so a rename can never collide.
   await prisma.word.update({ where: { id }, data });
 
@@ -499,7 +504,67 @@ export async function explainWord(id: string): Promise<string> {
 }
 
 // Bump when the senses prompt changes so cards regenerate on their next open.
-const SENSES_VERSION = 3;
+const SENSES_VERSION = 4;
+
+// Crude stem for comparing two glosses: enough to see that "внимательно" and
+// "внимательный" (or "careful" and "carefully") are the same word in different
+// grammatical clothes. A 6-char prefix beats a real stemmer here — it works the
+// same for every target language and never needs a dictionary.
+function glossStems(meaning: string): Set<string> {
+  return new Set(
+    meaning
+      .toLowerCase()
+      .replace(/\([^)]*\)/g, " ") // "(о способе действия)" says nothing about the sense
+      .split(/[,;/|]+|\s+/)
+      .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+      .filter((w) => w.length > 2)
+      .map((w) => w.slice(0, 6)),
+  );
+}
+
+// Two senses are the same sense when their glosses say the same thing: equal stem
+// sets, one contained in the other, or half the stems shared.
+function sameSense(a: WordSense, b: WordSense): boolean {
+  const x = glossStems(a.meaning);
+  const y = glossStems(b.meaning);
+  if (!x.size || !y.size) return false;
+  const shared = [...x].filter((s) => y.has(s)).length;
+  if (!shared) return false;
+  return shared === x.size || shared === y.size || shared / new Set([...x, ...y]).size >= 0.5;
+}
+
+/**
+ * Fold senses that differ only by part of speech into one row (仔细 = "внимательно"
+ * as an adverb and "внимательный" as an adjective is one meaning, not two). The
+ * surviving row keeps both parts of speech, the gloss terms the other row added,
+ * and one phrase from each so both uses stay visible.
+ */
+function mergePosVariants(list: WordSense[]): WordSense[] {
+  const out: WordSense[] = [];
+  for (const s of list) {
+    const twin = out.find((o) => sameSense(o, s));
+    if (!twin) {
+      out.push(s);
+      continue;
+    }
+    // Head = the sense the card tests, so the ticked gloss survives verbatim.
+    const [head, extra] = twin.onCard || !s.onCard ? [twin, s] : [s, twin];
+    const seen = glossStems(head.meaning);
+    const added = extra.meaning
+      .split(/\s*[,;]\s*/)
+      .filter((term) => term && ![...glossStems(term)].some((st) => seen.has(st)))
+      .slice(0, 2);
+    const pos = [...new Set([head.pos, extra.pos].filter(Boolean).map((p) => p!.toLowerCase()))].slice(0, 2);
+    out[out.indexOf(twin)] = {
+      pos: pos.join(" / "),
+      meaning: [head.meaning, ...added].join(", "),
+      onCard: head.onCard || extra.onCard,
+      // One phrase per use reads better than two of the same shape.
+      phrases: [head.phrases[0], extra.phrases[0], head.phrases[1]].filter(Boolean).slice(0, 2),
+    };
+  }
+  return out;
+}
 
 /**
  * Pleco-style sense list for the word page: 1–4 common senses, each with a part
@@ -527,6 +592,9 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
       `Split senses the way a dictionary does: whenever the word in a different use needs a DIFFERENT ${targetName} translation, ` +
       `that is a separate sense (e.g. Chinese 打开 → 1 открыть (дверь, книгу); 2 включить (свет, телевизор); 3 развернуть, раскрыть (карту, ситуацию)). ` +
       `Most everyday words have 2–4 such senses; give just one when the word really has a single use (e.g. 值得 = стоить (того)). Max 4, most frequent first. Never list two senses with the same or near-identical translation — that is one sense; merge them. ` +
+      `Senses differ in MEANING, never in grammar: a word that works as both an adjective and an adverb, or that ${targetName} renders once as a verb and once as a noun, is ONE sense — put both labels in "pos" ("прилагательное / наречие") instead of splitting the row. ` +
+      `E.g. 仔细 is one sense (внимательный, тщательный — and adverbially внимательно), not two. ` +
+      `Order the senses by how common each one is in ${sourceName} itself, so the same word gets the same order whatever the learner's language. ` +
       `Leave out rare, archaic, dialect and purely technical senses. ` +
       `The card currently says it means "${word.meaningZh ?? ""}": that must be one of your senses, glossed with the same wording, and marked "onCard": true (all others false). ` +
       `For each sense: "pos" = the part of speech written in ${targetName}, lowercase (e.g. for Russian "глагол", "существительное"); ` +
@@ -541,9 +609,8 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
 Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
     schema: sensesSchema,
   });
-  const clean = senses
-    .slice(0, 4)
-    .map(
+  const clean = mergePosVariants(
+    senses.map(
       (s): WordSense => ({
         pos: (s.pos ?? "").trim(),
         meaning: s.meaning.trim(),
@@ -552,14 +619,54 @@ Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
           .slice(0, 2)
           .map((p) => ({ text: p.text.trim(), reading: (p.reading ?? "").trim(), translation: (p.translation ?? "").trim() })),
       }),
-    )
-    .filter((s) => s.meaning);
+      )
+      .filter((s) => s.meaning),
+  ).slice(0, 4);
   if (clean.length) {
     await prisma.word
       .update({ where: { id }, data: { senses: { v: SENSES_VERSION, list: clean } as unknown as Prisma.InputJsonValue } })
       .catch(() => {});
   }
   return clean;
+}
+
+/**
+ * Fill in a card's word family (synonyms + antonyms) when it arrived without one.
+ * Onomika Library decks are hand-written and carry empty lists, and a copy keeps
+ * them, so those cards showed no family graph at all while AI-added cards showed a
+ * full one. Asked once on the first word-page open and stored on the learner's own
+ * card; `familyAt` records that we asked, so a word that genuinely has no antonyms
+ * (most phrasal verbs) doesn't re-spend tokens on every open.
+ */
+export async function wordFamily(id: string): Promise<{ synonyms: string[]; antonyms: string[] }> {
+  const word = await prisma.word.findUnique({
+    where: { id },
+    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, antonyms: true, familyAt: true },
+  });
+  if (!word) throw new Error("Word not found");
+  const have = { synonyms: word.synonyms, antonyms: word.antonyms };
+  if (word.familyAt || have.synonyms.length || have.antonyms.length) return have;
+
+  const sourceName = langName(word.sourceLang);
+  const targetName = langName(word.targetLang);
+  const { synonyms, antonyms } = await chatJson({
+    system:
+      `You are a bilingual ${sourceName}–${targetName} learner's dictionary. ` +
+      `Give the close synonyms and the opposites of the ${sourceName} word or phrase, as ${sourceName} words — never ${targetName} ones. ` +
+      `Up to 4 synonyms and up to 3 antonyms, common and everyday, matching the sense the card tests and its register. ` +
+      `Only real, usable alternatives: return an empty list rather than a stretch — plenty of words (most phrasal verbs) have no true opposite. ` +
+      `Single words or short phrases, no explanations.` +
+      scriptNote(word.sourceLang) +
+      ` Respond as JSON: {"synonyms": string[], "antonyms": string[]}.`,
+    user: `Word: ${word.word}\nMeaning (${targetName}): ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}`,
+    schema: familySchema,
+  });
+  const self = word.word.trim().toLowerCase();
+  const clean = (list: string[], max: number) =>
+    [...new Set(list.map((s) => s.trim()).filter((s) => s && s.toLowerCase() !== self))].slice(0, max);
+  const out = { synonyms: clean(synonyms, 4), antonyms: clean(antonyms, 3) };
+  await prisma.word.update({ where: { id }, data: { ...out, familyAt: new Date() } }).catch(() => {});
+  return out;
 }
 
 /**

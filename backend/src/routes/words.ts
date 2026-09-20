@@ -33,6 +33,7 @@ import {
   countAiExamples,
   explainWord,
   wordSenses,
+  wordFamily,
   askAboutWord,
   getStats,
   listCollections,
@@ -60,7 +61,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses)$/;
+  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -642,6 +643,19 @@ wordsRouter.post("/words/:id/senses", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   try {
     res.json({ senses: await wordSenses(req.params.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/:id/family -> synonyms/antonyms for a card that arrived without
+// them (a copied Onomika Library word). Asked once per card and stored, so the
+// word-family graph shows up for curated decks too; same cost profile as senses.
+wordsRouter.post("/words/:id/family", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  try {
+    res.json(await wordFamily(req.params.id));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });

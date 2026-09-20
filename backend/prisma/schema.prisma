@@ -231,6 +231,7 @@ model Word {
   notes        String?   // free-form personal notes (P.S.), user-authored
   explainCache String?   // cached AI "explain / when to use" text; cleared on meaningful edits
   senses       Json?     // cached word-page senses { v, list: [{pos, meaning, phrases[]}] }; cleared when the word/pair changes
+  familyAt     DateTime? // when synonyms/antonyms were filled in for a card that arrived without them (library decks); set even when the answer was empty, so we ask once
   reviewCount  Int       @default(0)
   nextReviewAt DateTime? // kept in sync with FSRS `due` so existing due-logic works
   // FSRS scheduler state (ts-fsrs). null stability = never reviewed (new card).

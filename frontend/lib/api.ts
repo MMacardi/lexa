@@ -574,6 +574,8 @@ export const api = {
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   wordSenses: (id: string) =>
     http<{ senses: WordSense[] }>(`/api/words/${id}/senses`, { method: "POST" }),
+  wordFamily: (id: string) =>
+    http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
   explainWord: (id: string) =>
     http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
   askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>

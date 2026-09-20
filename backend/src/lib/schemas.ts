@@ -219,6 +219,13 @@ export const importPreviewSchema = z.object({
 });
 export type ImportPreview = z.infer<typeof importPreviewSchema>;
 
+// Word family fill-in for a card that arrived without one (a copied library deck
+// word). Same shape as the tutor entry's two list fields, asked on its own.
+export const familySchema = z.object({
+  synonyms: z.array(z.string()),
+  antonyms: z.array(z.string()),
+});
+
 // Vocabulary Tutor Agent: the full dictionary entry for a word.
 export const tutorSchema = z.object({
   phonetic: z.string(),

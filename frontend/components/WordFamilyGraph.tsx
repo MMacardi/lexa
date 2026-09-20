@@ -64,6 +64,25 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     return m;
   }, [allWords, word.sourceLang, word.targetLang]);
 
+  // Cards copied out of an Onomika Library deck carry no family (the seed decks are
+  // hand-written), so the graph never appeared for them. Fill it in on the first
+  // open — the server asks the model once per card and stores the answer.
+  const empty = word.synonyms.length === 0 && word.antonyms.length === 0;
+  const { data: filled } = useQuery({
+    queryKey: ["wordFamily", word.id],
+    queryFn: () => api.wordFamily(word.id),
+    enabled: empty && isAiSupported(word.sourceLang),
+    staleTime: Infinity,
+    retry: false,
+  });
+  // The fill is stored on the card, so refresh the page's copy once it lands:
+  // the edit form and the add/remove actions below all read from `word`.
+  useEffect(() => {
+    if (filled?.synonyms.length || filled?.antonyms.length) {
+      qc.invalidateQueries({ queryKey: ["word", word.id] });
+    }
+  }, [filled, qc, word.id]);
+
   const related = useMemo(() => {
     const seen = new Set<string>();
     const out: { term: string; kind: "syn" | "ant" }[] = [];
@@ -74,10 +93,12 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         out.push({ term, kind });
       }
     };
-    word.synonyms.forEach((s) => push(s, "syn"));
-    word.antonyms.forEach((a) => push(a, "ant"));
+    const syn = word.synonyms.length ? word.synonyms : (filled?.synonyms ?? []);
+    const ant = word.antonyms.length ? word.antonyms : (filled?.antonyms ?? []);
+    syn.forEach((s) => push(s, "syn"));
+    ant.forEach((a) => push(a, "ant"));
     return out.slice(0, 8);
-  }, [word.synonyms, word.antonyms]);
+  }, [word.synonyms, word.antonyms, filled]);
 
   const add = useMutation({
     mutationFn: (term: string) =>
