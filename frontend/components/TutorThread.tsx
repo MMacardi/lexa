@@ -29,6 +29,9 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
     busy,
     streaming,
     isError,
+    card,
+    addToCard,
+    addExampleToCard,
   } = chat;
 
   return (
@@ -131,6 +134,43 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                   </div>
                 );
               })()}
+            {/* A chat about a card can edit it: the tutor's suggestions are one tap
+                away from the word's own synonyms, antonyms and examples. */}
+            {card && (m.addExamples?.length || m.addSynonyms?.length || m.addAntonyms?.length) ? (
+              <div className="flex flex-wrap gap-1.5">
+                {m.addExamples?.map((ex, k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    disabled={creating}
+                    onClick={() => addExampleToCard(i, ex)}
+                    className="max-w-full rounded-full border border-sage/50 bg-sage-tint px-3 py-1 text-left text-[12px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
+                  >
+                    ＋ {t("word.addExample")}: <span className="font-normal">{ex.sentence}</span>
+                  </button>
+                ))}
+                {m.addSynonyms && m.addSynonyms.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={creating}
+                    onClick={() => addToCard(i, "syn", m.addSynonyms!)}
+                    className="rounded-full border border-sage/50 bg-sage-tint px-3 py-1 text-[12px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
+                  >
+                    ＋ {t("word.synonyms")}: {m.addSynonyms.join(", ")}
+                  </button>
+                )}
+                {m.addAntonyms && m.addAntonyms.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={creating}
+                    onClick={() => addToCard(i, "ant", m.addAntonyms!)}
+                    className="rounded-full border border-warn/40 bg-warn-bg px-3 py-1 text-[12px] font-semibold text-warn-text hover:bg-warn-bg/70 disabled:opacity-50"
+                  >
+                    ＋ {t("word.antonyms")}: {m.addAntonyms.join(", ")}
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div key={i} className="flex justify-end">

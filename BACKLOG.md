@@ -76,6 +76,18 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       en→en chat), the last 12 chats are kept in the browser behind a History menu on both Mika
       surfaces, the set row holds its place while the sets load, and `/mika` uses the coach
       pages' fixed-height layout so the composer never moves.
+- [x] **3h. Senses ticked wrong in Chinese; explanations live in Mika now.** The word page read
+      the ticks back out of the card's meaning by looking for any shared word, which is fine in
+      Russian and wrong in Chinese, where senses share a head word: a card saying 指出 claimed
+      both 指出（错误…）and 指明，指出（位置…）were on it, and saving both wrote "指出; 指明，指出".
+      The pick is written down on the senses instead (with the meaning it was made for, so a
+      hand-edited meaning drops it), overlapping terms are dropped when composing — "指出；指明",
+      CJK punctuation and all — and the save shows what the card will say before it says it.
+      "Объяснить с Onomika" now opens the Mika widget instead of a panel wedged into the page:
+      the chat is about that card (its own endpoint, so it can still add synonyms, antonyms and
+      examples to it, and "Проверь меня" is still there), it streams into the history like any
+      other chat, and the widget's History moved next to the language chip with a search box.
+      Done 2026-09-20.
 
 ## Before public launch
 - [x] **4. Per-user token cost + real ASR/OCR pricing.** IDEAS: "Per-user token attribution",

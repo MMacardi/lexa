@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
-import { useTutorChat } from "@/lib/useTutorChat";
+import { useTutorChat, type TutorCardCtx } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { cn } from "@/lib/utils";
-import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2 } from "lucide-react";
+import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2, BookOpen, PenLine } from "lucide-react";
 
 export function GlobalTutor() {
   const { t } = useI18n();
@@ -20,13 +20,23 @@ export function GlobalTutor() {
   // keeps the floating, draggable panel.
   const mobile = useIsMobile();
   useLockScroll(open && mobile);
+  const chat = useTutorChat({ active: open });
+  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished, card, startCard } = chat;
+  // The word page opens Mika on a card ("Explain with Onomika"); the tab bar opens
+  // it plain. Kept in a ref so the listener is registered once.
+  const startRef = useRef(startCard);
+  startRef.current = startCard;
   useEffect(() => {
-    const on = () => setOpen(true);
+    const on = (e: Event) => {
+      const ctx = (e as CustomEvent<{ card?: TutorCardCtx }>).detail?.card;
+      setOpen(true);
+      // Opening re-reads the stored chat (the other Mika surface may have moved
+      // it on), so seed the card chat after that has happened, not into it.
+      if (ctx) window.setTimeout(() => startRef.current(ctx), 0);
+    };
     window.addEventListener(OPEN_MIKA, on);
     return () => window.removeEventListener(OPEN_MIKA, on);
   }, []);
-  const chat = useTutorChat({ active: open });
-  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished } = chat;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Draggable panel: offset from its docked corner, remembered across opens and
@@ -164,7 +174,6 @@ export function GlobalTutor() {
                     </button>
                   </HoverTip>
                 )}
-                <ChatHistoryMenu chat={chat} />
                 {messages.length > 0 && (
                   <HoverTip title={t("mika.newChat")} className="inline-flex">
                     <button
@@ -197,7 +206,23 @@ export function GlobalTutor() {
                 </button>
               </div>
             </div>
-            <ChatPairPicker pair={pair} onChange={changePair} className="mt-2.5" />
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <ChatPairPicker pair={pair} onChange={changePair} />
+              {/* Past chats sit next to the pair, where the eye already is, rather
+                  than as one more grey icon among the window controls. */}
+              <ChatHistoryMenu chat={chat} compact />
+              {card && (
+                <Link
+                  href={`/word/${card.id}`}
+                  onClick={() => setOpen(false)}
+                  title={t("tutor.aboutCard", { word: card.word })}
+                  className="inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint/60 px-2.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+                >
+                  <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{card.word}</span>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* conversation / welcome */}
@@ -220,6 +245,16 @@ export function GlobalTutor() {
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
           <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "pb-[calc(10px+env(safe-area-inset-bottom))]")}>
+            {/* free recall, right in the chat: write what you remember, Mika grades it */}
+            {card && messages.length > 0 && !busy && (
+              <button
+                type="button"
+                onClick={() => send(t("word.testMeSeed"))}
+                className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-surface px-3 py-1.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint/60"
+              >
+                <PenLine className="h-3.5 w-3.5" /> {t("word.testMe")}
+              </button>
+            )}
             {unfinished && <p className="mb-1.5 px-1 text-[12px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
             <form
               className="flex items-center gap-2"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { TutorCardCtx } from "./useTutorChat";
 
 // Mobile shell helpers: the customizable bottom-bar slots, the "open X" events
 // the bar/header fire at always-mounted overlays (Mika, bug report), and the
@@ -11,6 +12,12 @@ export const OPEN_BUG = "onomika:open-bug";
 export const OPEN_ADD = "onomika:open-add";
 
 export const open = (event: string) => window.dispatchEvent(new Event(event));
+
+// Open Mika on a chat about one card ("Explain with Onomika" on the word page).
+// The answer lands in the widget instead of a panel wedged into the page, so it
+// stays readable while the card is scrolled and joins the chat history.
+export const openMikaOnCard = (card: TutorCardCtx) =>
+  window.dispatchEvent(new CustomEvent(OPEN_MIKA, { detail: { card } }));
 
 // Three user-picked tabs around the fixed centre Mika button (two left, one right).
 export const SLOT_COUNT = 3;

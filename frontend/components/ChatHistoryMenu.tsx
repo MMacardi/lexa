@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { History, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { History, Search, Trash2 } from "lucide-react";
 import type { TutorChat } from "@/lib/useTutorChat";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -13,12 +13,26 @@ function when(at: number): string {
   return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString();
 }
 
+// Past chats are only worth searching once there are enough of them to scroll.
+const SEARCH_FROM = 5;
+
 // Mika's past conversations (kept in this browser). Opening one makes it the live
-// chat again, so an old question can be picked up instead of retyped.
-export function ChatHistoryMenu({ chat, withLabel = false }: { chat: TutorChat; withLabel?: boolean }) {
+// chat again, so an old question can be picked up instead of retyped. `compact` is
+// the chip that sits beside the language pair in the floating widget; `withLabel`
+// the roomier pill on the /mika page.
+export function ChatHistoryMenu({
+  chat,
+  withLabel = false,
+  compact = false,
+}: {
+  chat: TutorChat;
+  withLabel?: boolean;
+  compact?: boolean;
+}) {
   const { t } = useI18n();
   const { history, chatId, openChat, removeChat } = chat;
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +49,16 @@ export function ChatHistoryMenu({ chat, withLabel = false }: { chat: TutorChat; 
     };
   }, [open]);
 
+  // Search reads the whole conversation, not just its opening line: a chat is
+  // usually remembered by a word that came up in it.
+  const needle = q.trim().toLowerCase();
+  const shown = useMemo(
+    () => (needle ? history.filter((c) => c.hay.includes(needle) || c.title.toLowerCase().includes(needle)) : history),
+    [history, needle],
+  );
+
   if (history.length === 0) return null;
+  const label = withLabel || compact;
 
   return (
     <div ref={boxRef} className="relative">
@@ -47,18 +70,37 @@ export function ChatHistoryMenu({ chat, withLabel = false }: { chat: TutorChat; 
         title={t("mika.history")}
         className={cn(
           "inline-flex items-center gap-1.5 font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink",
-          withLabel ? "h-9 rounded-full px-3 text-[13px]" : "rounded-lg p-1.5 text-ink-faint",
-          open && "bg-black/[0.04] text-ink",
+          withLabel && "h-9 rounded-full px-3 text-[13px]",
+          compact && "h-8 rounded-full border border-black/[0.08] bg-surface px-2.5 text-[12px] hover:border-sage/50",
+          !label && "rounded-lg p-1.5 text-ink-faint",
+          open && (compact ? "border-sage bg-sage-tint text-sage-deep" : "bg-black/[0.04] text-ink"),
         )}
       >
         <History className="h-3.5 w-3.5" />
-        {withLabel && t("mika.history")}
+        {label && t("mika.history")}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-2 w-[270px] overflow-hidden rounded-[16px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
+        <div
+          className={cn(
+            "absolute top-full z-40 mt-2 w-[270px] overflow-hidden rounded-[16px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]",
+            compact ? "left-0" : "right-0",
+          )}
+        >
+          {history.length >= SEARCH_FROM && (
+            <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2">
+              <Search className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t("mika.searchChats")}
+                className="min-w-0 flex-1 bg-transparent text-[16px] text-ink placeholder:text-ink-faint focus:outline-none sm:text-[13px]"
+              />
+            </div>
+          )}
           <ul className="max-h-[280px] overflow-y-auto p-1.5">
-            {history.map((c) => (
+            {shown.map((c) => (
               <li key={c.id} className="group flex items-center gap-1">
                 <button
                   type="button"
@@ -85,6 +127,7 @@ export function ChatHistoryMenu({ chat, withLabel = false }: { chat: TutorChat; 
                 </button>
               </li>
             ))}
+            {shown.length === 0 && <li className="px-2.5 py-3 text-[13px] text-ink-faint">{t("mika.noChatsFound")}</li>}
           </ul>
         </div>
       )}

@@ -333,6 +333,10 @@ export async function updateWord(
     notes?: string | null;
     sourceLang?: string;
     targetLang?: string;
+    // Which senses of the cached "Meanings" list the card tests, as indexes into
+    // it. Stored on the senses themselves so the word page shows what the learner
+    // picked instead of guessing it back out of the meaning text.
+    senseIndexes?: number[];
     // Full desired set of examples. Rows with an id are updated, rows without
     // one are created, and any existing example missing from the list is deleted.
     examples?: {
@@ -372,6 +376,33 @@ export async function updateWord(
   // undone by the auto-fill on the next open.
   if (["synonyms", "antonyms"].some((k) => k in data)) {
     data.familyAt = new Date();
+  }
+  // Keep the cached senses' "tested on the card" flags in step with the meaning.
+  // Reading them back out of the meaning text worked in Russian and lied in
+  // Chinese, where senses share a head word (指出 / 指明，指出) and every sense
+  // came out ticked, so the picks are written down instead — together with the
+  // meaning they were made for, which tells a later read whether they still hold.
+  if (!("senses" in data) && (fields.senseIndexes !== undefined || "meaningZh" in data)) {
+    const cur = await prisma.word.findUnique({ where: { id }, select: { meaningZh: true, senses: true } });
+    const stored = cur?.senses as StoredSenses | null;
+    if (stored?.list?.length) {
+      if (fields.senseIndexes !== undefined) {
+        const picked = new Set(fields.senseIndexes);
+        data.senses = {
+          ...stored,
+          list: stored.list.map((s, i) => ({ ...s, onCard: picked.has(i) })),
+          for: ("meaningZh" in data ? (data.meaningZh as string | null) : cur?.meaningZh) ?? "",
+        } as unknown as Prisma.InputJsonValue;
+      } else if ((data.meaningZh ?? "") !== (cur?.meaningZh ?? "")) {
+        // The meaning was rewritten by hand: whatever was ticked described the old
+        // wording, so drop the picks rather than show a stale tick.
+        const { for: _stale, ...rest } = stored;
+        data.senses = {
+          ...rest,
+          list: stored.list.map((s) => ({ ...s, onCard: false })),
+        } as unknown as Prisma.InputJsonValue;
+      }
+    }
   }
   // Duplicate spellings are allowed, so a rename can never collide.
   await prisma.word.update({ where: { id }, data });
@@ -506,6 +537,32 @@ export async function explainWord(id: string): Promise<string> {
 // Bump when the senses prompt changes so cards regenerate on their next open.
 const SENSES_VERSION = 4;
 
+// How the sense list is cached on the card. `for` is the meaning the learner's
+// picks (the onCard flags) were saved for — once the card's meaning moves on, the
+// flags no longer describe it.
+type StoredSenses = { v?: number; list?: WordSense[]; for?: string };
+
+// The leading gloss of a sense or of one segment of a card's meaning:
+// "指明，指出（位置、方向、人或物）" -> "指明", "показать, продемонстрировать" -> "показать".
+const headGloss = (s: string) =>
+  (s.replace(/\s*[(（][^)）]*[)）]/g, " ").split(/[;；,，、/]/)[0] ?? "").trim().toLowerCase();
+
+/**
+ * Which senses a card tests, worked out from its meaning — for cards the learner
+ * has never picked by hand. The meaning is a list of glosses ("указать, отметить;
+ * показать…"), so a sense is tested when one of those segments opens with its head
+ * gloss. Matching on any shared word instead ticked every Chinese sense at once,
+ * because they share one (指出 / 指明，指出): the card said 指出 and the page claimed
+ * both senses were on it. When nothing is recognisable (a hand-written meaning),
+ * the model's own flag from generation time stands.
+ */
+function flagByMeaning(list: WordSense[], meaning: string): WordSense[] {
+  const heads = new Set(meaning.split(/[;；]/).map(headGloss).filter(Boolean));
+  if (!heads.size) return list;
+  const out = list.map((s) => ({ ...s, onCard: heads.has(headGloss(s.meaning)) }));
+  return out.some((s) => s.onCard) ? out : list;
+}
+
 // Crude stem for comparing two glosses: enough to see that "внимательно" and
 // "внимательный" (or "careful" and "carefully") are the same word in different
 // grammatical clothes. A 6-char prefix beats a real stemmer here — it works the
@@ -579,8 +636,11 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
   });
   if (!word) throw new Error("Word not found");
   // Stored as { v, list }; a cache from an older prompt version is regenerated.
-  const stored = word.senses as { v?: number; list?: WordSense[] } | null;
-  if (stored?.v === SENSES_VERSION && stored.list?.length) return stored.list;
+  const stored = word.senses as StoredSenses | null;
+  // A pick the learner made by hand is kept with the meaning it was made for and
+  // stands as long as that meaning does; otherwise the ticks follow the card.
+  if (stored?.v === SENSES_VERSION && stored.list?.length)
+    return stored.for === (word.meaningZh ?? "") ? stored.list : flagByMeaning(stored.list, word.meaningZh ?? "");
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
@@ -622,12 +682,16 @@ Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
       )
       .filter((s) => s.meaning),
   ).slice(0, 4);
-  if (clean.length) {
+  // A curated card often means several of these senses at once ("указать, отметить;
+  // показать…"), while the model flags only the one it wrote the gloss from — so the
+  // ticks are re-read off the card's meaning, exactly as they are on every later open.
+  const flagged = flagByMeaning(clean, word.meaningZh ?? "");
+  if (flagged.length) {
     await prisma.word
-      .update({ where: { id }, data: { senses: { v: SENSES_VERSION, list: clean } as unknown as Prisma.InputJsonValue } })
+      .update({ where: { id }, data: { senses: { v: SENSES_VERSION, list: flagged } as unknown as Prisma.InputJsonValue } })
       .catch(() => {});
   }
-  return clean;
+  return flagged;
 }
 
 /**

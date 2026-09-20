@@ -19,10 +19,10 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
-import { ExplainChat } from "@/components/ExplainChat";
 import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
-import { Link as LinkIcon, BookOpen, Trash2 } from "lucide-react";
+import { openMikaOnCard } from "@/lib/mobileNav";
+import { Link as LinkIcon, BookOpen, Lightbulb, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -223,9 +223,18 @@ export default function WordDetailPage() {
         </div>
       )}
 
-      {/* AI tutor — on-demand explanation + follow-up mini-chat that can also add
-          synonyms/antonyms to the card (opt-in, LLM calls) */}
-      <ExplainChat word={word} />
+      {/* AI tutor — the explanation opens in the Mika widget, so it can be read
+          beside the card instead of pushing the page down, and it joins the chat
+          history like every other conversation (opt-in, LLM calls) */}
+      <button
+        type="button"
+        onClick={() =>
+          openMikaOnCard({ id: word.id, word: word.word, sourceLang: word.sourceLang, targetLang: word.targetLang })
+        }
+        className="inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+      >
+        <Lightbulb className="h-4 w-4" /> {t("word.explain")}
+      </button>
 
       {/* Pleco-style numbered senses (generated on first open, cached); pick
           which ones the card tests. Falls back to the collocation chips. */}

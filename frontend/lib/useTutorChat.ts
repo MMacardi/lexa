@@ -11,9 +11,21 @@ import { displayCode, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 
-export type TutorMsg = { role: "user" | "assistant"; content: string; addWords?: string[]; addCards?: TutorCard[]; streaming?: boolean };
-/** One past conversation, as the history menu lists it. */
-export type TutorChatEntry = { id: string; at: number; title: string; n: number };
+export type TutorMsg = {
+  role: "user" | "assistant";
+  content: string;
+  addWords?: string[];
+  addCards?: TutorCard[];
+  streaming?: boolean;
+  // Suggestions a card chat can apply to the card it is about.
+  addSynonyms?: string[];
+  addAntonyms?: string[];
+  addExamples?: { sentence: string; translation: string }[];
+};
+/** One past conversation, as the history menu lists it. `hay` is what search reads. */
+export type TutorChatEntry = { id: string; at: number; title: string; n: number; hay: string };
+/** The card a chat is about, when Mika was opened from a word page. */
+export type TutorCardCtx = { id: string; word: string; sourceLang: string; targetLang: string };
 
 const PAIR_KEY = "lexa.wordPair"; // shared with Add/Reader
 // The conversation lives in sessionStorage so the floating widget and the /mika
@@ -91,7 +103,19 @@ function writeChats(list: StoredChat[]) {
 // A chat is titled by its opening question, which is what people look for.
 const chatTitle = (m: TutorMsg[]) => (m.find((x) => x.role === "user")?.content ?? "").trim().slice(0, 80);
 const summarize = (list: StoredChat[]): TutorChatEntry[] =>
-  list.map((c) => ({ id: c.id, at: c.at, title: chatTitle(c.messages), n: c.messages.length }));
+  list.map((c) => ({
+    id: c.id,
+    at: c.at,
+    title: chatTitle(c.messages),
+    n: c.messages.length,
+    // What the history search looks through: the whole conversation, capped —
+    // people look for a chat by something said in it, not just by its first line.
+    hay: c.messages
+      .map((m) => m.content)
+      .join(" ")
+      .slice(0, 2000)
+      .toLowerCase(),
+  }));
 
 // A suggested word doesn't have to be in the chat's own language: asking about a
 // Chinese word inside an English chat should still offer a card — a Chinese one.
@@ -118,6 +142,9 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const ensureLevel = useEnsureLevel();
 
   const [pair, setPair] = useState(() => readPair());
+  // Set when the chat is about one card (opened from a word page): asks go to that
+  // card's own endpoint, which knows its meaning and can edit it in place.
+  const [card, setCard] = useState<TutorCardCtx | null>(null);
   const [messages, setMessages] = useState<TutorMsg[]>(() => readChat());
   const [chatId, setChatId] = useState(() => readChatId());
   const [history, setHistory] = useState<TutorChatEntry[]>([]);
@@ -153,11 +180,18 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
 
   // Refresh the pair + chat whenever the surface becomes active (they may have
   // changed elsewhere — another page, or the other Mika surface).
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
   useEffect(() => {
     if (!active) return;
     setPair(readPair());
     setMessages(readChat());
-    setChatId(readChatId());
+    const id = readChatId();
+    // A card chip belongs to the conversation it was opened for: if the other Mika
+    // surface moved on to a different one while this was closed, the chat coming
+    // back isn't about that card any more.
+    if (id !== chatIdRef.current) setCard(null);
+    setChatId(id);
     setHistory(summarize(readChats()));
   }, [active]);
 
@@ -211,6 +245,36 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     inFlight.current = ac;
     setBusy(true);
     setIsError(false);
+    // A chat about a card answers from the card's own endpoint (it has the word,
+    // its meaning and its examples in hand) and may offer edits to that card.
+    if (card) {
+      try {
+        const r = await api.askWord(
+          card.id,
+          msgs.map((m) => ({ role: m.role, content: m.content })),
+        );
+        if (inFlight.current !== ac) return; // the chat moved on while we waited
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content: r.answer,
+            addWords: r.addWords,
+            addSynonyms: r.addSynonyms,
+            addAntonyms: r.addAntonyms,
+            addExamples: r.addExamples,
+          },
+        ]);
+      } catch {
+        if (inFlight.current === ac) setIsError(true);
+      } finally {
+        if (inFlight.current === ac) {
+          inFlight.current = null;
+          setBusy(false);
+        }
+      }
+      return;
+    }
     let acc = "";
     // Drop the half-written bubble (on error) or replace it (on the final answer).
     const closeOpen = (m: TutorMsg[], done?: TutorMsg) => {
@@ -266,11 +330,9 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     setIsError(false);
   }
 
-  function reset() {
-    stopAsking();
-    setMessages([]);
-    setWordSel({});
-    // The chat just left stays in history; this one starts its own entry.
+  // Start a new conversation and return its id (stored alongside the messages, so
+  // a reload continues this entry instead of forking it).
+  function freshChat(): string {
     const id = newChatId();
     setChatId(id);
     try {
@@ -278,14 +340,101 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     } catch {
       /* ignore */
     }
+    return id;
   }
 
-  // Reopen a chat from history — it becomes the live conversation again.
+  function reset() {
+    stopAsking();
+    setMessages([]);
+    setWordSel({});
+    setCard(null);
+    // The chat just left stays in history; this one starts its own entry.
+    freshChat();
+  }
+
+  /**
+   * Open a chat about one card and ask for its explanation. The explanation is
+   * cached on the card server-side, so re-opening a word costs nothing; follow-ups
+   * keep the card in context and can add synonyms, antonyms or examples to it.
+   */
+  async function startCard(ctx: TutorCardCtx) {
+    stopAsking();
+    setWordSel({});
+    setCard(ctx);
+    // The chat is in the card's own pair, whatever the widget was last set to —
+    // without touching the saved preference Add and the Reader share.
+    setPair({ source: ctx.sourceLang, target: ctx.targetLang });
+    freshChat();
+    const opening: TutorMsg = { role: "user", content: t("word.explainSeed", { word: ctx.word }) };
+    setMessages([opening]);
+    const ac = new AbortController();
+    inFlight.current = ac;
+    setBusy(true);
+    setIsError(false);
+    try {
+      const r = await api.explainWord(ctx.id);
+      if (inFlight.current !== ac) return;
+      setMessages([opening, { role: "assistant", content: r.explanation }]);
+    } catch {
+      if (inFlight.current === ac) setIsError(true);
+    } finally {
+      if (inFlight.current === ac) {
+        inFlight.current = null;
+        setBusy(false);
+      }
+    }
+  }
+
+  // Apply a suggestion to the card the chat is about. The card's current lists are
+  // read first, so two suggestions in a row can't overwrite each other.
+  async function addToCard(index: number, kind: "syn" | "ant", terms: string[]) {
+    if (!card || creating || terms.length === 0) return;
+    setCreating(true);
+    try {
+      const w = await api.getWord(card.id);
+      await api.updateWord(
+        card.id,
+        kind === "syn" ? { synonyms: [...w.synonyms, ...terms] } : { antonyms: [...w.antonyms, ...terms] },
+      );
+      qc.invalidateQueries({ queryKey: ["word", card.id] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      show({ icon: "🌱", title: t(kind === "syn" ? "word.synAdded" : "word.antAdded", { n: terms.length }) });
+      setMessages((m) =>
+        m.map((msg, i) => (i === index ? { ...msg, [kind === "syn" ? "addSynonyms" : "addAntonyms"]: [] } : msg)),
+      );
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  // Append an example sentence the tutor wrote to the card the chat is about.
+  async function addExampleToCard(index: number, ex: { sentence: string; translation: string }) {
+    if (!card || creating) return;
+    setCreating(true);
+    try {
+      await api.addManualExample(card.id, ex.sentence, ex.translation);
+      qc.invalidateQueries({ queryKey: ["word", card.id] });
+      qc.invalidateQueries({ queryKey: ["words"] });
+      show({ icon: "🌱", title: t("word.exampleAdded") });
+      setMessages((m) => m.map((msg, i) => (i === index ? { ...msg, addExamples: [] } : msg)));
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  // Reopen a chat from history — it becomes the live conversation again. A card
+  // chat reopened this way keeps its text but not its card, so follow-ups go to
+  // Mika at large rather than silently editing a word page left long ago.
   function openChat(id: string) {
     const found = readChats().find((c) => c.id === id);
     if (!found) return;
     stopAsking();
     setWordSel({});
+    setCard(null);
     setChatId(id);
     try {
       sessionStorage.setItem(CHAT_ID_KEY, id);
@@ -419,6 +568,10 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     history,
     openChat,
     removeChat,
+    card,
+    startCard,
+    addToCard,
+    addExampleToCard,
   };
 }
 

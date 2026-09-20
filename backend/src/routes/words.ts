@@ -510,6 +510,8 @@ const editBody = z.object({
   notes: z.string().max(4000).nullable().optional(),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  // Which of the cached senses the card tests (word page "Meanings" picker).
+  senseIndexes: z.array(z.number().int().min(0).max(15)).max(16).optional(),
   examples: z
     .array(
       z.object({

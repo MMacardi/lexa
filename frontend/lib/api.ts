@@ -578,6 +578,9 @@ export const api = {
       notes?: string | null;
       sourceLang?: string;
       targetLang?: string;
+      // Which senses of the word page's "Meanings" list the card tests; sent
+      // alongside the meaning they compose so the ticks survive a reload.
+      senseIndexes?: number[];
       examples?: { id?: string; sentenceEn: string; sentenceZh?: string; sourceName?: string }[];
     },
   ) => http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),

@@ -97,6 +97,7 @@ const DICT: Record<string, Entry> = {
     zh: "我能讲解单词、给例句，并把单词加入你的卡组。",
   },
   "tutor.openPage": { en: "Open full page", ru: "Открыть на весь экран", zh: "打开完整页面" },
+  "tutor.aboutCard": { en: "This chat is about “{word}” — open the card", ru: "Этот чат про «{word}» — открыть карточку", zh: "本次对话关于“{word}”——打开卡片" },
 
   // --- mika page ---
   "mika.title": { en: "Mika", ru: "Мика", zh: "米卡" },
@@ -109,6 +110,8 @@ const DICT: Record<string, Entry> = {
   "mika.history": { en: "History", ru: "История", zh: "历史" },
   "mika.untitledChat": { en: "Untitled chat", ru: "Без названия", zh: "未命名对话" },
   "mika.deleteChat": { en: "Delete chat", ru: "Удалить чат", zh: "删除对话" },
+  "mika.searchChats": { en: "Search chats…", ru: "Поиск по чатам…", zh: "搜索对话…" },
+  "mika.noChatsFound": { en: "No chat matches that.", ru: "Ничего не нашлось.", zh: "没有匹配的对话。" },
   "mika.answersIn": { en: "answers in", ru: "отвечает на", zh: "回答用" },
   "mika.pairLabel": { en: "Chat languages", ru: "Языки чата", zh: "对话语言" },
   "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },
@@ -1652,6 +1655,7 @@ const DICT: Record<string, Entry> = {
   "word.meaningsTested": { en: "On the card", ru: "На карточке", zh: "在卡片上" },
   "word.meaningsAdd": { en: "Add to card", ru: "На карточку", zh: "加到卡片" },
   "word.meaningsSave": { en: "Test these on the card", ru: "Проверять на карточке", zh: "卡片考这些" },
+  "word.meaningsPreview": { en: "The card will say:", ru: "На карточке будет:", zh: "卡片上将写：" },
   "word.meaningsSaved": { en: "Card meaning updated", ru: "Значение карточки обновлено", zh: "卡片释义已更新" },
   "word.synonyms": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },
@@ -1721,6 +1725,7 @@ const DICT: Record<string, Entry> = {
   "word.fromNews": { en: "From the news", ru: "Из новостей", zh: "来自新闻" },
   "word.inContext": { en: "In context", ru: "В контексте", zh: "在语境中" },
   "word.explain": { en: "Explain with Onomika", ru: "Объяснить с Onomika", zh: "用 Onomika 讲解" },
+  "word.explainSeed": { en: "Explain “{word}”", ru: "Объясни «{word}»", zh: "讲解“{word}”" },
   "word.explaining": { en: "Thinking…", ru: "Думаю…", zh: "思考中…" },
   "word.explainTitle": { en: "Ask Onomika", ru: "Спроси Onomika", zh: "问 Onomika" },
   "word.askPlaceholder": { en: "Ask a follow-up…", ru: "Задать вопрос…", zh: "追问一句…" },

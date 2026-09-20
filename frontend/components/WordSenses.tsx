@@ -22,23 +22,35 @@ const tgtFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-z
 const bare = (s: string) => s.replace(/\s*[(（][^)）]*[)）]/g, "").trim();
 
 // "включить, зажечь; открыть" -> ["включить", "зажечь", "открыть"]
-const parts = (s: string | null | undefined) =>
-  bare(s ?? "")
+const terms = (s: string) =>
+  bare(s)
     .split(/[;；,，、/]/)
-    .map((x) => x.trim().toLowerCase())
+    .map((x) => x.trim())
     .filter(Boolean);
 
-// Which senses the card currently tests: those sharing a gloss with meaningZh.
-// If none match (the card's wording differs, e.g. "открывать" vs "открыть"), fall
-// back to the sense the model flagged as the card's own when it generated them.
-function testedSet(senses: WordSense[], meaning: string | null): Set<number> {
-  const card = new Set(parts(meaning));
-  const out = new Set<number>();
-  senses.forEach((s, i) => {
-    if (parts(s.meaning).some((p) => card.has(p))) out.add(i);
+// Which senses the card tests — the server keeps that on the senses themselves.
+const testedSet = (senses: WordSense[]) => new Set(senses.flatMap((s, i) => (s.onCard ? [i] : [])));
+
+/**
+ * The card's meaning, written from the picked senses. A term an earlier sense
+ * already said is dropped, so Chinese senses that share a head word
+ * (指出（错误…）/ 指明，指出（位置…）) read as "指出；指明" instead of "指出; 指明，指出";
+ * a sense left with nothing of its own keeps its full gloss, usage hint and all,
+ * so two senses can never collapse into one word.
+ */
+function composeMeaning(picked: WordSense[], targetLang: string): string {
+  const cjk = targetLang === "zh" || targetLang === "zh-Hant" || targetLang === "ja";
+  const said = new Set<string>();
+  const glosses = picked.map((s) => {
+    const kept = terms(s.meaning).filter((x) => {
+      const k = x.toLowerCase();
+      if (said.has(k)) return false;
+      said.add(k);
+      return true;
+    });
+    return kept.length ? kept.join(cjk ? "，" : ", ") : s.meaning.trim();
   });
-  if (!out.size) senses.forEach((s, i) => s.onCard && out.add(i));
-  return out;
+  return glosses.join(cjk ? "；" : "; ");
 }
 
 /**
@@ -52,29 +64,37 @@ export function WordSenses({ word }: { word: Word }) {
   const { show } = useToast();
   const qc = useQueryClient();
   const showTr = useShowTranscription() && hasTranscription(word.sourceLang);
+  const sensesKey = ["senses", word.id, word.word, word.sourceLang, word.targetLang];
   const q = useQuery({
-    queryKey: ["senses", word.id, word.word, word.sourceLang, word.targetLang],
+    queryKey: sensesKey,
     queryFn: () => api.wordSenses(word.id).then((r) => r.senses),
     staleTime: Infinity,
     retry: 1,
   });
   const senses = q.data ?? NO_SENSES;
 
-  const initial = useMemo(() => testedSet(senses, word.meaningZh), [senses, word.meaningZh]);
+  const initial = useMemo(() => testedSet(senses), [senses]);
   const [picked, setPicked] = useState<Set<number>>(initial);
   useEffect(() => setPicked(initial), [initial]);
   const dirty = picked.size !== initial.size || [...picked].some((i) => !initial.has(i));
+  // What the card will say once saved — shown before the save, so "test these"
+  // is a promise the learner can read rather than a surprise.
+  const indexes = useMemo(() => [...picked].sort((a, b) => a - b), [picked]);
+  const preview = composeMeaning(
+    indexes.map((i) => senses[i]).filter(Boolean),
+    word.targetLang,
+  );
 
   const save = useMutation({
-    mutationFn: () =>
-      api.updateWord(word.id, {
-        meaningZh: senses
-          .filter((_, i) => picked.has(i))
-          .map((s) => bare(s.meaning))
-          .join("; "),
-      }),
+    mutationFn: () => api.updateWord(word.id, { meaningZh: preview, senseIndexes: indexes }),
     onSuccess: (w) => {
       qc.setQueryData(["word", word.id], w);
+      // The pick is what the card tests now — mirror it onto the cached senses so
+      // the row stops offering to save what has just been saved.
+      qc.setQueryData(
+        sensesKey,
+        senses.map((s, i) => ({ ...s, onCard: picked.has(i) })),
+      );
       qc.invalidateQueries({ queryKey: ["words"] });
       show({ icon: "✓", title: t("word.meaningsSaved") });
     },
@@ -177,17 +197,24 @@ export function WordSenses({ word }: { word: Word }) {
         })}
       </ol>
       {multi && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-[12px] text-ink-faint">{t("word.meaningsHint")}</p>
-          {dirty && (
-            <button
-              type="button"
-              onClick={() => save.mutate()}
-              disabled={picked.size === 0 || save.isPending}
-              className="rounded-full bg-sage px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
-            >
-              {t("word.meaningsSave")}
-            </button>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {dirty ? (
+            <>
+              <p className="min-w-0 text-[12px] text-ink-faint">
+                {t("word.meaningsPreview")}{" "}
+                <span className={cn("font-semibold text-ink-soft", tgtFont(word.targetLang))}>{preview || "—"}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => save.mutate()}
+                disabled={picked.size === 0 || save.isPending}
+                className="rounded-full bg-sage px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
+              >
+                {t("word.meaningsSave")}
+              </button>
+            </>
+          ) : (
+            <p className="text-[12px] text-ink-faint">{t("word.meaningsHint")}</p>
           )}
         </div>
       )}
