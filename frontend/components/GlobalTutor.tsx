@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
 import { useTutorChat } from "@/lib/useTutorChat";
-import { LangSelect } from "@/components/LangSelect";
+import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { TutorThread } from "@/components/TutorThread";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
@@ -192,13 +192,7 @@ export function GlobalTutor() {
                 </button>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-soft">
-              {/* Labelled, not "A → B": an arrow read as "translate from A to B" and people flipped it. */}
-              <span className="text-ink-faint">{t("first.learn")}</span>
-              <LangSelect value={pair.source} onChange={(v) => changePair({ source: v, target: pair.target })} className="h-8 min-w-0" />
-              <span className="ml-1 text-ink-faint">{t("mika.answersIn")}</span>
-              <LangSelect value={pair.target} onChange={(v) => changePair({ source: pair.source, target: v })} className="h-8 min-w-0" />
-            </div>
+            <ChatPairPicker pair={pair} onChange={changePair} className="mt-2.5" />
           </div>
 
           {/* conversation / welcome */}

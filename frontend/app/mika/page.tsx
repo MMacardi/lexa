@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
 import { useTutorChat } from "@/lib/useTutorChat";
-import { LangSelect } from "@/components/LangSelect";
+import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { TutorThread } from "@/components/TutorThread";
 import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, type LucideIcon } from "lucide-react";
 
@@ -76,11 +76,7 @@ export default function MikaPage() {
           <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">{t("mika.subtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-soft">
-          {/* Labelled, not "A → B": an arrow read as "translate from A to B" and people flipped it. */}
-          <span className="text-ink-faint">{t("first.learn")}</span>
-          <LangSelect value={pair.source} onChange={(v) => changePair({ source: v, target: pair.target })} className="h-9 min-w-0" />
-          <span className="ml-1 text-ink-faint">{t("mika.answersIn")}</span>
-          <LangSelect value={pair.target} onChange={(v) => changePair({ source: pair.source, target: v })} className="h-9 min-w-0" />
+          <ChatPairPicker pair={pair} onChange={changePair} />
           {messages.length > 0 && (
             <button
               type="button"
