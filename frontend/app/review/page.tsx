@@ -11,6 +11,8 @@ import {
   setCardLayout,
   getRecentPairs,
   getNewPerDay,
+  useSwipeUpDown,
+  setSwipeUpDown,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -28,6 +30,7 @@ import { CardLayoutPreview } from "@/components/CardLayoutPreview";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
@@ -37,6 +40,13 @@ import { cn } from "@/lib/utils";
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
+
+// Swipe geometry. EDGE_PX is a dead zone at the left and right screen edges: iOS
+// treats a drag that starts there as its back/forward navigation and no amount of
+// touch-action stops it, so a swipe begun on the edge would drag the whole page.
+const SWIPE_PX = 110;
+const EDGE_PX = 24;
+const SNAP_BACK = "transform 0.34s cubic-bezier(.22,.8,.26,1)";
 
 // Which preset (if any) matches a layout, for highlighting in the picker.
 function presetIdOf(layout: CardLayout): string {
@@ -93,15 +103,33 @@ export default function FlashcardsPage() {
   const [deck, setDeck] = useState<Word[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [known, setKnown] = useState(0);
   const [learning, setLearning] = useState(0);
   const [editing, setEditing] = useState<Word | null>(null);
 
+  const swipeUpDown = useSwipeUpDown();
+
+  // The drag never goes through React state: a setState per pointermove re-rendered
+  // the whole card — both stamps, every field, and the FSRS interval preview — a
+  // hundred-odd times a second, which is what made the swipe feel heavy on a phone.
+  // The card and the stamps are written straight to the DOM inside one rAF instead.
   const startX = useRef(0);
+  const startY = useRef(0);
+  const dxRef = useRef(0);
+  const dyRef = useRef(0);
+  const axis = useRef<"" | "x" | "y">(""); // direction lock, decided on the first few px
+  const rafRef = useRef(0);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const stampAgain = useRef<HTMLDivElement | null>(null);
+  const stampGood = useRef<HTMLDivElement | null>(null);
+  const stampHard = useRef<HTMLDivElement | null>(null);
+  const stampEasy = useRef<HTMLDivElement | null>(null);
   const draggedRef = useRef(false);
+  const gradable = useRef(false); // this gesture may grade — i.e. the card was flipped
   const pointerActive = useRef(false); // synchronous "a drag is in progress" flag
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   // A focused session handed off from the Coach ("drill weak words"): start
   // immediately with exactly those cards, skipping the setup screen.
@@ -125,9 +153,40 @@ export default function FlashcardsPage() {
     setFlipped(false);
     setKnown(0);
     setLearning(0);
-    setDragX(0);
+    restCard();
     setStarted(true);
   }, [allWords]);
+
+  // While a card is on screen, stop the page rubber-banding: `pan-y` deliberately
+  // hands the vertical axis back to the browser, and a thumb swipe travels in an
+  // arc — so a downward-curving "I know it" used to start pull-to-refresh mid-drag.
+  useEffect(() => {
+    if (!started) return;
+    const html = document.documentElement;
+    const prev = html.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = "contain";
+    return () => {
+      html.style.overscrollBehaviorY = prev;
+    };
+  }, [started]);
+
+  // Put the card back at rest with no animation — for a fresh card, where snapping
+  // in from the last one's fly-off would look like the new card arriving pre-swiped.
+  function restCard() {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    dxRef.current = 0;
+    dyRef.current = 0;
+    axis.current = "";
+    const el = cardRef.current;
+    if (el) {
+      el.style.transition = "none";
+      el.style.transform = "";
+    }
+    for (const s of [stampAgain, stampGood, stampHard, stampEasy]) {
+      if (s.current) s.current.style.opacity = "0";
+    }
+  }
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
@@ -184,20 +243,29 @@ export default function FlashcardsPage() {
     setFlipped(false);
     setKnown(0);
     setLearning(0);
-    setDragX(0);
+    restCard();
     setStarted(true);
   }
 
   // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Again re-queues in-session.
-  function commit(grade: number, word: Word) {
-    setDragX(grade >= 3 ? 640 : -640);
+  // `fly` is where the card leaves from — a swipe passes its own direction so the
+  // card keeps going the way the thumb was pushing it; the buttons use the default.
+  function commit(grade: number, word: Word, fly?: { x: number; y: number }) {
+    const to = fly ?? { x: grade >= 3 ? 640 : -640, y: 0 };
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    const el = cardRef.current;
+    if (el) {
+      el.style.transition = SNAP_BACK;
+      el.style.transform = `translate(${to.x}px, ${to.y}px) rotate(${to.x * 0.035}deg)`;
+    }
     setDragging(false);
     void recordGrade(word, grade);
     if (grade >= 3) setKnown((k) => k + 1);
     else setLearning((l) => l + 1);
     if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session
     setTimeout(() => {
-      setDragX(0);
+      restCard();
       setFlipped(false);
       setIndex((i) => i + 1);
     }, 260);
@@ -402,6 +470,34 @@ export default function FlashcardsPage() {
             <CardLayoutPreview layout={layout} />
           </div>
         </details>
+
+        {/* swipes — left/right are always on; up/down are the opt-in extra */}
+        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
+            <span>
+              {t("review.gestures")}
+              <span className="ml-2 font-medium text-ink-faint">
+                {t(swipeUpDown ? "review.gestures4" : "review.gestures2")}
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
+            <button
+              type="button"
+              onClick={() => setSwipeUpDown(!swipeUpDown)}
+              className="flex w-full items-start gap-3 text-left"
+            >
+              <Checkbox presentational checked={swipeUpDown} className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-semibold text-ink">{t("review.swipeUpDown")}</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-ink-faint">
+                  {t("review.swipeUpDownHint")}
+                </span>
+              </span>
+            </button>
+          </div>
+        </details>
       </div>
     );
   }
@@ -545,36 +641,111 @@ export default function FlashcardsPage() {
   const frontFields = visibleFields(layout.front, true, frontTr);
   const backFields = visibleFields(layout.back, false, backTr);
 
+  // Paint the drag straight to the DOM, coalesced into one frame — see the refs.
+  const paint = () => {
+    rafRef.current = 0;
+    const dx = axis.current === "y" ? 0 : dxRef.current;
+    const dy = axis.current === "y" ? dyRef.current : 0;
+    if (cardRef.current)
+      cardRef.current.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.035}deg)`;
+    const op = (r: typeof stampGood, v: number) => {
+      if (r.current) r.current.style.opacity = String(clamp(v));
+    };
+    op(stampGood, dx / SWIPE_PX);
+    op(stampAgain, -dx / SWIPE_PX);
+    op(stampEasy, -dy / SWIPE_PX); // up → Easy
+    op(stampHard, dy / SWIPE_PX); // down → Hard
+  };
+  const schedule = () => {
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(paint);
+  };
+
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
     // Let interactive children (speak button, links) work without flipping/dragging.
     if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
+    // Edge dead zone: iOS owns a drag that starts here (back/forward navigation),
+    // so starting a swipe there would drag the page along with the card.
+    if (e.pointerType === "touch" && (e.clientX < EDGE_PX || e.clientX > window.innerWidth - EDGE_PX))
+      return;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     startX.current = e.clientX;
+    startY.current = e.clientY;
+    dxRef.current = 0;
+    dyRef.current = 0;
+    axis.current = "";
     draggedRef.current = false;
+    // No grading a card you haven't read yet. Before the flip the drag is still
+    // tracked, but only so a long drag isn't mistaken for a tap on release.
+    gradable.current = flipped;
     pointerActive.current = true;
+    if (!flipped) return;
+    if (cardRef.current) cardRef.current.style.transition = "none";
     setDragging(true);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!pointerActive.current) return;
     const dx = e.clientX - startX.current;
-    if (Math.abs(dx) > 6) draggedRef.current = true;
-    setDragX(dx);
+    const dy = e.clientY - startY.current;
+    if (!gradable.current) {
+      if (Math.hypot(dx, dy) > 8) draggedRef.current = true;
+      return;
+    }
+    // Lock to one axis on the first few px, so a swipe that drifts diagonally
+    // doesn't end up grading on whichever direction happened to win at the end.
+    if (!axis.current && Math.hypot(dx, dy) > 8) {
+      const vertical = Math.abs(dy) > Math.abs(dx);
+      if (vertical && !swipeUpDown) {
+        // Vertical scrolling is the browser's here — let go of the card entirely.
+        // Still a drag though, so releasing must not read as a tap and flip it.
+        draggedRef.current = true;
+        pointerActive.current = false;
+        setDragging(false);
+        return;
+      }
+      axis.current = vertical ? "y" : "x";
+      draggedRef.current = true;
+    }
+    if (!axis.current) return;
+    dxRef.current = dx;
+    dyRef.current = dy;
+    schedule();
   };
   const onPointerEnd = (e: React.PointerEvent) => {
     if (!pointerActive.current) return;
     pointerActive.current = false;
+    if (!gradable.current) return;
     setDragging(false);
     const dx = e.clientX - startX.current;
-    if (dx > 110) commit(3, word); // swipe right → Good
-    else if (dx < -110) commit(1, word); // swipe left → Again
-    else setDragX(0); // a tap → let onClick handle the flip (reliable on double-taps)
+    const dy = e.clientY - startY.current;
+    if (axis.current === "x") {
+      if (dx > SWIPE_PX) return commit(3, word, { x: 640, y: 0 }); // right → Good
+      if (dx < -SWIPE_PX) return commit(1, word, { x: -640, y: 0 }); // left → Again
+    } else if (axis.current === "y") {
+      if (dy < -SWIPE_PX) return commit(4, word, { x: 0, y: -640 }); // up → Easy
+      if (dy > SWIPE_PX) return commit(2, word, { x: 0, y: 640 }); // down → Hard
+    }
+    // Short of the threshold: snap back. A plain tap never moved, so this is a
+    // no-op there and onClick handles the flip (reliable on double-taps).
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
+    dxRef.current = 0;
+    dyRef.current = 0;
+    paint();
+    axis.current = "";
   };
   const onPointerCancel = () => {
+    if (!pointerActive.current) return;
     pointerActive.current = false;
+    if (!gradable.current) return;
     setDragging(false);
-    setDragX(0);
+    if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
+    dxRef.current = 0;
+    dyRef.current = 0;
+    paint();
+    axis.current = "";
   };
   // Flip on a genuine tap/click (skipped right after a drag). Using onClick keeps
   // rapid/double taps reliable where a manual pointerup toggle could get stuck.
@@ -636,20 +807,36 @@ export default function FlashcardsPage() {
       </div>
 
       <div className="relative flex w-full items-center justify-center py-5 sm:py-8">
+        {/* Grade stamps — each one named after the button it fires, so the gesture
+            and the row below it never claim to do two different things. Opacity is
+            written by `paint`; the class only sets the starting value. */}
         <div
-          className="pointer-events-none absolute left-1 top-12 z-10 -rotate-12 rounded-xl border-[3px] border-sage bg-paper/70 px-4 py-2 text-lg font-bold tracking-wider text-sage-deep"
-          style={{ opacity: clamp(dragX / 110) }}
+          ref={stampGood}
+          className="pointer-events-none absolute left-1 top-12 z-10 -rotate-12 rounded-xl border-[3px] border-sage bg-paper/70 px-4 py-2 text-lg font-bold uppercase tracking-wider text-sage-deep opacity-0"
         >
-          {t("review.knowBadge")}
+          {t("review.good")}
         </div>
         <div
-          className="pointer-events-none absolute right-1 top-12 z-10 rotate-12 rounded-xl border-[3px] border-warn bg-paper/70 px-4 py-2 text-lg font-bold tracking-wider text-warn-text"
-          style={{ opacity: clamp(-dragX / 110) }}
+          ref={stampAgain}
+          className="pointer-events-none absolute right-1 top-12 z-10 rotate-12 rounded-xl border-[3px] border-warn bg-paper/70 px-4 py-2 text-lg font-bold uppercase tracking-wider text-warn-text opacity-0"
         >
-          {t("review.learningBadge")}
+          {t("review.again")}
+        </div>
+        <div
+          ref={stampEasy}
+          className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-xl border-[3px] border-sage-deep bg-paper/70 px-4 py-2 text-lg font-bold uppercase tracking-wider text-sage-deep opacity-0"
+        >
+          {t("review.easy")}
+        </div>
+        <div
+          ref={stampHard}
+          className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-xl border-[3px] border-ink-faint/50 bg-paper/70 px-4 py-2 text-lg font-bold uppercase tracking-wider text-ink-muted opacity-0"
+        >
+          {t("review.hard")}
         </div>
 
         <div
+          ref={cardRef}
           className="w-full max-w-[560px] select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -657,10 +844,13 @@ export default function FlashcardsPage() {
           onPointerCancel={onPointerCancel}
           onClick={onFlip}
           style={{
-            transform: `translateX(${dragX}px) rotate(${dragX * 0.035}deg)`,
-            transition: dragging ? "none" : "transform 0.34s cubic-bezier(.22,.8,.26,1)",
+            // transform/transition are written imperatively during a drag and so are
+            // deliberately absent here — React must not clobber them on a re-render.
+            willChange: "transform",
             cursor: dragging ? "grabbing" : "grab",
-            touchAction: "pan-y",
+            // With up/down on we own both axes, so the card can no longer scroll the
+            // page under it (the back face keeps its own scroll area below).
+            touchAction: swipeUpDown ? "none" : "pan-y",
           }}
         >
           <div className="flip-scene">
@@ -739,8 +929,8 @@ export default function FlashcardsPage() {
           <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.easy, t)}</span>
         </button>
       </div>
-      <p className="mt-4 text-[13px] font-medium text-ink-faint">
-        {t("review.dragHint")}
+      <p className="mt-4 text-center text-[13px] font-medium text-ink-faint">
+        {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
       </p>
 
       {editing && (

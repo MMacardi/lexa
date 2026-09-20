@@ -1578,9 +1578,25 @@ const DICT: Record<string, Entry> = {
   "unit.hour": { en: "h", ru: "ч", zh: "时" },
   "unit.day": { en: "d", ru: "д", zh: "天" },
   "unit.month": { en: "mo", ru: "мес", zh: "月" },
-  "review.dragHint": { en: "Drag the card left or right, or use the buttons.", ru: "Перетаскивайте карточку влево или вправо — или нажимайте кнопки.", zh: "左右拖动卡片，或使用按钮。" },
-  "review.knowBadge": { en: "KNOW", ru: "ЗНАЮ", zh: "认识" },
-  "review.learningBadge": { en: "LEARNING", ru: "УЧУ", zh: "学习" },
+  "review.dragHint": {
+    en: "Reveal the back, then swipe left or right — or use the buttons.",
+    ru: "Откройте оборот, затем свайп влево или вправо — или нажимайте кнопки.",
+    zh: "先翻到背面，然后左右滑动，或使用按钮。",
+  },
+  "review.dragHint4": {
+    en: "Reveal the back, then swipe in any direction — or use the buttons.",
+    ru: "Откройте оборот, затем свайп в любую сторону — или нажимайте кнопки.",
+    zh: "先翻到背面，然后向任意方向滑动，或使用按钮。",
+  },
+  "review.gestures": { en: "Swipes", ru: "Свайпы", zh: "滑动手势" },
+  "review.gestures2": { en: "Left and right", ru: "Влево и вправо", zh: "左右" },
+  "review.gestures4": { en: "All four directions", ru: "Все четыре стороны", zh: "四个方向" },
+  "review.swipeUpDown": { en: "Swipe up and down too", ru: "Свайпы вверх и вниз", zh: "也启用上下滑动" },
+  "review.swipeUpDownHint": {
+    en: "Up grades Easy, down grades Hard — all four grades without reaching for a button. While this is on, dragging the card no longer scrolls the page.",
+    ru: "Вверх — «Легко», вниз — «Трудно»: все четыре оценки, не тянясь к кнопке. Пока включено, перетаскивание карточки больше не прокручивает страницу.",
+    zh: "上滑为「简单」，下滑为「困难」——无需按钮即可给出全部四种评分。开启后，拖动卡片将不再滚动页面。",
+  },
   "review.noWords": { en: "No words to review yet.", ru: "Пока нечего повторять.", zh: "还没有可复习的单词。" },
   "review.emptyHint": {
     en: "Add a few words — or grab a starter set — and they'll appear here, each one scheduled for right before you'd forget it.",

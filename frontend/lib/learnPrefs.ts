@@ -676,6 +676,33 @@ export function useNewPerDay(): number {
   return n;
 }
 
+// --- Review gestures: swiping up/down for Easy/Hard ---
+// Left/right always grade Again/Good. Up/down are opt-in because claiming the
+// vertical axis means the card itself can no longer scroll the page under it.
+const SWIPE_UP_DOWN_KEY = "lexa.swipeUpDown";
+export function getSwipeUpDown(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(SWIPE_UP_DOWN_KEY) === "1";
+}
+export function setSwipeUpDown(on: boolean) {
+  localStorage.setItem(SWIPE_UP_DOWN_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useSwipeUpDown(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const sync = () => setOn(getSwipeUpDown());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // --- Word-family graph: how a tapped synonym/antonym is added ---
 // "ask" (default) pops the AI-vs-manual chooser each time; "ai"/"manual" skip it
 // (set via the chooser's "remember my choice" checkbox; reset in Account).
