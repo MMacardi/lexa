@@ -154,6 +154,10 @@ export function LangSelect({
         createPortal(
           <div
             ref={menuRef}
+            // Marks the menu as part of the picker for popovers that host one and
+            // close on an outside click (the Mika pair popover) — it renders here,
+            // in a portal, not inside them.
+            data-lang-menu=""
             className={cn(
               "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
               menuClassName,

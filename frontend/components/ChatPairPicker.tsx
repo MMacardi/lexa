@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, GraduationCap, MessageSquare } from "lucide-react";
 import { LangSelect } from "@/components/LangSelect";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +13,12 @@ import { cn } from "@/lib/utils";
 // labelled selects appear only when it's tapped. The chip stays labelled by icon
 // (learning / replies in) rather than a bare "A → B", which people read as
 // "translate from A to B" and flipped.
+//
+// The selects open as a popover, not inline: unfolded in the header row they
+// shoved the History pill sideways, and History's own menu — absolute, as menus
+// are — then dropped straight through them. Each field sits under its own label
+// rather than beside it, so "Учу" and "Отвечает на" can't leave the two boxes
+// starting at different places.
 export function ChatPairPicker({
   pair,
   onChange,
@@ -24,9 +30,29 @@ export function ChatPairPicker({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // Close on an outside click, which also means opening History closes this.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      // A language menu renders in a portal, outside this box — picking from one
+      // must not unmount the select before its click lands.
+      if (boxRef.current?.contains(el as Node) || el?.closest?.("[data-lang-menu]")) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
-    <div className={cn("min-w-0", className)}>
+    <div ref={boxRef} className={cn("relative min-w-0", className)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -46,22 +72,20 @@ export function ChatPairPicker({
       </button>
 
       {open && (
-        <div className="mt-2 space-y-2 rounded-[14px] border border-black/[0.08] bg-paper/60 p-2.5">
-          <label className="flex items-center justify-between gap-2 text-[13px] text-ink-faint">
-            {t("first.learn")}
-            <LangSelect
-              value={pair.source}
-              onChange={(v) => onChange({ source: v, target: pair.target })}
-              className="h-8 min-w-0 flex-1"
-            />
+        <div className="anim-scale-in absolute left-0 top-full z-50 mt-2 w-[264px] max-w-[calc(100vw-32px)] space-y-2.5 rounded-[16px] border border-black/[0.08] bg-surface p-3 shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint">
+              <GraduationCap className="h-3.5 w-3.5 text-sage-deep" />
+              {t("first.learn")}
+            </span>
+            <LangSelect value={pair.source} onChange={(v) => onChange({ source: v, target: pair.target })} />
           </label>
-          <label className="flex items-center justify-between gap-2 text-[13px] text-ink-faint">
-            {t("mika.answersIn")}
-            <LangSelect
-              value={pair.target}
-              onChange={(v) => onChange({ source: pair.source, target: v })}
-              className="h-8 min-w-0 flex-1"
-            />
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint">
+              <MessageSquare className="h-3.5 w-3.5" />
+              {t("mika.answersIn")}
+            </span>
+            <LangSelect value={pair.target} onChange={(v) => onChange({ source: pair.source, target: v })} />
           </label>
         </div>
       )}

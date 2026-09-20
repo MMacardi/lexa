@@ -112,7 +112,7 @@ const DICT: Record<string, Entry> = {
   "mika.deleteChat": { en: "Delete chat", ru: "Удалить чат", zh: "删除对话" },
   "mika.searchChats": { en: "Search chats…", ru: "Поиск по чатам…", zh: "搜索对话…" },
   "mika.noChatsFound": { en: "No chat matches that.", ru: "Ничего не нашлось.", zh: "没有匹配的对话。" },
-  "mika.answersIn": { en: "answers in", ru: "отвечает на", zh: "回答用" },
+  "mika.answersIn": { en: "Answers in", ru: "Отвечает на", zh: "回答用" },
   "mika.pairLabel": { en: "Chat languages", ru: "Языки чата", zh: "对话语言" },
   "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },
   "mika.p.level.title": { en: "Check my level", ru: "Проверить мой уровень", zh: "测测我的水平" },
