@@ -22,18 +22,51 @@ interface SimNode {
   kind: Kind;
   saved: boolean;
   pinned: boolean;
+  side: 1 | -1; // which column it lives in (synonyms right, antonyms left)
   x: number;
   y: number;
   vx: number;
   vy: number;
+  w: number; // measured pill size — the layout separates boxes, not points, so
+  h: number; // long multi-word terms can't slide under each other
+  hx: number; // home slot: where the node rests and springs back to after a drag
+  hy: number;
+  placed: boolean; // seeded near the centre once its real slot was known
 }
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
-// A live, Obsidian-style force-directed "word family": the current word sits in
-// the middle, its synonyms/antonyms orbit it. Nodes repel each other, links pull
-// them toward a rest length, and everything is draggable — release to watch it
-// spring back into place. No graph library; a tiny custom simulation on rAF.
+const BOTTOM_BAND = 40; // strip at the canvas foot the add-buttons own
+// Under this width a column · centre · column row can't hold a multi-word term
+// without truncating it, so the family stacks vertically instead.
+const NARROW = 560;
+
+// First real layout: drop each node partway out from the centre toward its slot
+// — it then springs the rest of the way. Seeding them all *on* the centre let the
+// separation force lock two nodes in swapped slots, each blocking the other.
+function seed(nodes: SimNode[], ready: boolean) {
+  if (!ready) return;
+  const c = nodes[0];
+  for (const n of nodes) {
+    if (n.placed) continue;
+    n.placed = true;
+    n.x = c.hx + (n.hx - c.hx) * 0.55;
+    n.y = c.hy + (n.hy - c.hy) * 0.55;
+  }
+}
+
+function clampToBox(n: SimNode, w: number, h: number) {
+  const hw = n.w / 2 + 3;
+  const hh = n.h / 2 + 3;
+  n.x = Math.min(Math.max(hw, n.x), Math.max(hw, w - hw));
+  n.y = Math.min(Math.max(hh, n.y), Math.max(hh, h - hh));
+}
+
+// A live, Obsidian-style "word family": the current word sits in the middle, its
+// synonyms orbit to the right and antonyms to the left, each in a fanned column
+// sized from the pills' real width/height. Nodes spring toward their slot, shove
+// each other aside when boxes overlap, and everything is draggable — release to
+// watch it settle back. No graph library; a tiny custom simulation on rAF.
 export function WordFamilyGraph({ word }: { word: Word }) {
   const { t } = useI18n();
   const { accountId } = useAccount();
@@ -47,6 +80,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   // Terms added from this graph → their new card id, so a tap right after adding
   // opens the freshly-created word (and a second tap never adds a duplicate).
   const [addedIds, setAddedIds] = useState<Map<string, string>>(new Map());
+  const [boxW, setBoxW] = useState(640);
+  const [boxH, setBoxH] = useState(340); // the canvas grows to fit both arms
+  const narrow = boxW < NARROW;
 
   const { data: allWords } = useQuery({
     queryKey: ["words", accountId],
@@ -97,8 +133,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     const ant = word.antonyms.length ? word.antonyms : (filled?.antonyms ?? []);
     syn.forEach((s) => push(s, "syn"));
     ant.forEach((a) => push(a, "ant"));
-    return out.slice(0, 8);
-  }, [word.synonyms, word.antonyms, filled]);
+    return out.slice(0, narrow ? 6 : 8); // a phone stacks them — keep it short
+  }, [word.synonyms, word.antonyms, filled, narrow]);
 
   const add = useMutation({
     mutationFn: (term: string) =>
@@ -201,7 +237,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
   // --- simulation state ---
   const wrapRef = useRef<HTMLDivElement>(null);
-  const dimsRef = useRef({ w: 640, h: 320 });
+  const dimsRef = useRef({ w: 640, h: 340 });
+  const elRefs = useRef(new Map<string, HTMLDivElement>());
   const [, setFrame] = useState(0); // bump to re-render node positions
   const simRef = useRef<SimNode[]>([]);
   const runningRef = useRef(false);
@@ -213,61 +250,127 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
   const relatedKey = related.map((r) => r.term).join("|");
 
-  const clampX = (x: number) => Math.max(52, Math.min(dimsRef.current.w - 52, x));
-  const clampY = (y: number) => Math.max(44, Math.min(dimsRef.current.h - 44, y));
+  // How wide a term may get before it wraps. Stacked, a pill may take most of the
+  // canvas; in the side-by-side layout two of them plus the centre must fit a row.
+  const labelMax = narrow
+    ? Math.max(120, Math.min(260, Math.round(boxW * 0.62)))
+    : Math.max(94, Math.min(190, Math.round(boxW * 0.26)));
+  const centerMax = narrow
+    ? Math.max(140, Math.min(300, Math.round(boxW * 0.7)))
+    : Math.max(120, Math.min(260, Math.round(boxW * 0.3)));
+
+  const setEl = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) elRefs.current.set(id, el);
+    else elRefs.current.delete(id);
+  };
+
+  // Measure the rendered pills, then hand every node its home slot and grow the
+  // canvas to whatever the two arms need. Wide: a fanned column per side. Narrow:
+  // synonyms stacked above the word, antonyms below.
+  const layout = useCallback(() => {
+    const nodes = simRef.current;
+    if (nodes.length === 0) return;
+    for (const n of nodes) {
+      const el = elRefs.current.get(n.id);
+      if (el) {
+        n.w = el.offsetWidth;
+        n.h = el.offsetHeight;
+      }
+    }
+    const { w, h } = dimsRef.current;
+    const ready = nodes.every((n) => elRefs.current.has(n.id));
+    const center = nodes[0];
+    const gapY = 12;
+    const arms = ([1, -1] as const).map((side) => nodes.filter((n) => n.kind !== "center" && n.side === side));
+    const runs = arms.map((col) => col.reduce((s, n) => s + n.h, 0) + gapY * Math.max(0, col.length - 1));
+    center.hx = w / 2;
+
+    if (w < NARROW) {
+      const armGap = 16;
+      const tall = runs[0] + runs[1] + center.h + armGap * 2;
+      const top = Math.max(8, (h - BOTTOM_BAND - tall) / 2);
+      center.hy = top + runs[0] + armGap + center.h / 2;
+      arms.forEach((col, gi) => {
+        let y = gi === 0 ? top : center.hy + center.h / 2 + armGap;
+        col.forEach((n, i) => {
+          // a small left/right zig keeps the stack from reading as a plain list
+          const reach = Math.max(0, w / 2 - n.w / 2 - 6);
+          n.hx = w / 2 + (i % 2 === 0 ? -1 : 1) * Math.min(18, reach);
+          n.hy = y + n.h / 2;
+          y += n.h + gapY;
+        });
+      });
+      seed(nodes, ready);
+      setBoxH(Math.round(Math.min(640, Math.max(300, tall + 20 + BOTTOM_BAND))));
+      return;
+    }
+
+    const midY = (h - BOTTOM_BAND) / 2;
+    center.hy = midY;
+    arms.forEach((col, gi) => {
+      if (col.length === 0) return;
+      const side = gi === 0 ? 1 : -1;
+      const colW = Math.max(...col.map((n) => n.w));
+      const minX = colW / 2 + 6;
+      const maxX = Math.max(minX, w - colW / 2 - 6);
+      const colX = Math.min(Math.max(minX, w / 2 + side * (center.w / 2 + 26 + colW / 2)), maxX);
+      let y = midY - runs[gi] / 2;
+      col.forEach((n) => {
+        const slotY = y + n.h / 2;
+        y += n.h + gapY;
+        // ends of the column sit a little closer in, so the links fan out
+        const inset = 22 * Math.min(1, Math.abs(slotY - midY) / (runs[gi] / 2 || 1));
+        n.hx = Math.min(Math.max(minX, colX - side * inset), maxX);
+        n.hy = slotY;
+      });
+    });
+    seed(nodes, ready);
+    setBoxH(Math.round(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND))));
+  }, []);
 
   const tick = useCallback(() => {
     const nodes = simRef.current;
     const { w, h } = dimsRef.current;
-    const cx = w / 2;
-    const cy = h / 2;
-    const rest = Math.min(w, h) * 0.32;
-    // pairwise repulsion
+    const fixed = (n: SimNode) => n.pinned || draggingId.current === n.id;
+    // pull every node toward its slot…
+    for (const n of nodes) {
+      if (fixed(n)) continue;
+      n.vx += (n.hx - n.x) * 0.055;
+      n.vy += (n.hy - n.y) * 0.055;
+    }
+    // …and shove apart any two boxes that still overlap, along whichever axis
+    // needs the smaller correction (so a dragged pill pushes, never covers).
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i];
         const b = nodes[j];
-        let dx = a.x - b.x;
-        let dy = a.y - b.y;
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 1) {
-          d2 = 1;
-          dx = Math.random() - 0.5;
-          dy = Math.random() - 0.5;
+        const aFixed = fixed(a);
+        const bFixed = fixed(b);
+        if (aFixed && bFixed) continue;
+        const minX = (a.w + b.w) / 2 + 10;
+        const minY = (a.h + b.h) / 2 + 8;
+        const dx = a.x - b.x || (Math.random() - 0.5) * 0.1;
+        const dy = a.y - b.y || (Math.random() - 0.5) * 0.1;
+        const ox = minX - Math.abs(dx);
+        const oy = minY - Math.abs(dy);
+        if (ox <= 0 || oy <= 0) continue;
+        const share = aFixed || bFixed ? 0.25 : 0.06; // a held node shoves; free ones only nudge
+        if (ox / minX < oy / minY) {
+          const f = Math.sign(dx) * ox * share;
+          if (!aFixed) a.vx += f;
+          if (!bFixed) b.vx -= f;
+        } else {
+          const f = Math.sign(dy) * oy * share;
+          if (!aFixed) a.vy += f;
+          if (!bFixed) b.vy -= f;
         }
-        const d = Math.sqrt(d2);
-        const f = 7000 / d2;
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        a.vx += fx;
-        a.vy += fy;
-        b.vx -= fx;
-        b.vy -= fy;
       }
-    }
-    // spring: every related node linked to the centre
-    const center = nodes[0];
-    for (let i = 1; i < nodes.length; i++) {
-      const n = nodes[i];
-      const dx = n.x - center.x;
-      const dy = n.y - center.y;
-      const d = Math.hypot(dx, dy) || 1;
-      const f = (d - rest) * 0.04;
-      const fx = (dx / d) * f;
-      const fy = (dy / d) * f;
-      n.vx -= fx;
-      n.vy -= fy;
-      // keep synonyms on the right, antonyms on the left: nudge only when a node
-      // is on the wrong side (so it still settles once separated).
-      const want = n.kind === "syn" ? 1 : -1;
-      const off = n.x - center.x;
-      if (Math.sign(off) !== want || Math.abs(off) < 24) n.vx += want * 0.9;
     }
     // integrate
     for (const n of nodes) {
       if (n.pinned) {
-        n.x = cx;
-        n.y = cy;
+        n.x = n.hx;
+        n.y = n.hy;
         n.vx = 0;
         n.vy = 0;
         continue;
@@ -277,10 +380,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         n.vy = 0;
         continue; // position is driven by the pointer
       }
-      n.vx *= 0.85;
-      n.vy *= 0.85;
-      n.x = clampX(n.x + n.vx);
-      n.y = clampY(n.y + n.vy);
+      n.vx *= 0.82;
+      n.vy *= 0.82;
+      n.x += n.vx;
+      n.y += n.vy;
+      clampToBox(n, w, h);
     }
   }, []);
 
@@ -288,6 +392,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     if (runningRef.current) return;
     runningRef.current = true;
     const loop = () => {
+      layout(); // pills are measured live: a font swap or a resize re-slots them
       tick();
       setFrame((f) => (f + 1) % 1_000_000);
       const e = simRef.current.reduce((s, n) => s + n.vx * n.vx + n.vy * n.vy, 0);
@@ -298,14 +403,16 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-  }, [tick]);
+  }, [layout, tick]);
 
   // Measure the container and keep dims current.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const measure = () => {
-      dimsRef.current = { w: el.clientWidth || 640, h: el.clientHeight || 320 };
+      const w = el.clientWidth || 640;
+      dimsRef.current = { w, h: el.clientHeight || 340 };
+      setBoxW(w);
     };
     measure();
     const ro = new ResizeObserver(() => {
@@ -316,6 +423,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     return () => ro.disconnect();
   }, [ensureRunning]);
 
+  // Fonts land after first paint and change every pill's width — re-settle once.
+  useEffect(() => {
+    document.fonts?.ready.then(() => ensureRunning()).catch(() => {});
+  }, [ensureRunning]);
+
   // (Re)build the simulation whenever the related set changes.
   useEffect(() => {
     if (related.length === 0) return;
@@ -323,37 +435,37 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     initedKey.current = relatedKey;
     const { w, h } = dimsRef.current;
     const cx = w / 2;
-    const cy = h / 2;
-    const r0 = Math.min(w, h) * 0.3; // start already spread, then physics refines
+    const cy = (h - BOTTOM_BAND) / 2;
     const nodes: SimNode[] = [
-      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, x: cx, y: cy, vx: 0, vy: 0 },
+      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true },
     ];
-    // Group synonyms on the right, antonyms on the left; spread each group
-    // vertically. A separation force in tick() keeps the two sides apart.
-    const counts = { syn: 0, ant: 0 };
-    const totals = {
-      syn: related.filter((r) => r.kind === "syn").length,
-      ant: related.filter((r) => r.kind === "ant").length,
-    };
-    related.forEach((r) => {
-      const side = r.kind === "syn" ? 1 : -1;
-      const total = totals[r.kind];
-      const idx = counts[r.kind]++;
-      const frac = total <= 1 ? 0.5 : idx / (total - 1); // 0..1 down the column
-      const ang = (-52 + 104 * frac) * (Math.PI / 180); // fan of ±52° from horizontal
+    // Synonyms go right, antonyms left — but a word with only one of the two
+    // would leave half the canvas bare, so then both columns share that kind.
+    const oneSided = related.every((r) => r.kind === related[0].kind);
+    // Rough starting boxes near the centre; the first measured layout() seeds
+    // each term toward its real slot and the springs carry it the rest of the way.
+    related.forEach((r, i) => {
+      const side: 1 | -1 = oneSided ? (i % 2 === 0 ? 1 : -1) : r.kind === "syn" ? 1 : -1;
       nodes.push({
         id: r.term,
         label: r.term,
         kind: r.kind,
         saved: savedMap.has(r.term.trim().toLowerCase()),
         pinned: false,
-        x: cx + side * Math.cos(ang) * r0,
-        y: cy + Math.sin(ang) * r0,
+        side,
+        x: cx + side * (20 + Math.random() * 10),
+        y: cy + (Math.random() - 0.5) * 20,
         vx: 0,
         vy: 0,
+        w: 120,
+        h: 36,
+        hx: cx + side * 120,
+        hy: cy,
+        placed: false,
       });
     });
     simRef.current = nodes;
+    elRefs.current.clear();
   }, [relatedKey, related, savedMap, word.word]);
 
   // Run the animation loop on every mount (guard-free), so React StrictMode's
@@ -444,8 +556,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     dragRef.current.moved = true;
     const n = simRef.current.find((x) => x.id === node.id);
     if (n) {
-      n.x = clampX(e.clientX - rect.left);
-      n.y = clampY(e.clientY - rect.top);
+      n.x = e.clientX - rect.left;
+      n.y = e.clientY - rect.top;
+      clampToBox(n, dimsRef.current.w, dimsRef.current.h);
     }
     ensureRunning();
   }
@@ -469,25 +582,24 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
       <div
         ref={wrapRef}
-        className="relative h-[300px] w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_45%,rgba(124,152,133,0.10),transparent_70%)] bg-surface sm:h-[360px]"
+        style={{ height: boxH }}
+        className="relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_45%,rgba(124,152,133,0.10),transparent_70%)] bg-surface"
       >
-        {/* add-your-own controls, on the canvas */}
-        <div className="absolute right-3 top-3 z-20 flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => promptAdd("syn")}
-            className="rounded-full border border-dashed border-sage/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-sage-deep backdrop-blur transition-colors hover:bg-sage-tint"
-          >
-            + {t("word.synonyms")}
-          </button>
-          <button
-            type="button"
-            onClick={() => promptAdd("ant")}
-            className="rounded-full border border-dashed border-warn/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-warn-text backdrop-blur transition-colors hover:bg-warn-bg"
-          >
-            + {t("word.antonyms")}
-          </button>
-        </div>
+        {/* add-your-own controls, each under the column it grows */}
+        <button
+          type="button"
+          onClick={() => promptAdd("ant")}
+          className="absolute bottom-3 left-3 z-20 max-w-[45%] truncate rounded-full border border-dashed border-warn/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-warn-text backdrop-blur transition-colors hover:bg-warn-bg"
+        >
+          + {t("word.antonyms")}
+        </button>
+        <button
+          type="button"
+          onClick={() => promptAdd("syn")}
+          className="absolute bottom-3 right-3 z-20 max-w-[45%] truncate rounded-full border border-dashed border-sage/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-sage-deep backdrop-blur transition-colors hover:bg-sage-tint"
+        >
+          + {t("word.synonyms")}
+        </button>
 
         {/* links */}
         {center && (
@@ -516,11 +628,18 @@ export function WordFamilyGraph({ word }: { word: Word }) {
             return (
               <div
                 key={n.id}
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                ref={setEl(n.id)}
+                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 p-1.5"
                 style={{ left: n.x, top: n.y }}
               >
-                <div className={cn("max-w-[160px] truncate rounded-full bg-onyx px-4 py-2 text-[15px] font-bold text-white shadow-[0_6px_18px_rgba(0,0,0,0.25)]", targetFont(word.sourceLang))}>
-                  {n.label}
+                <div
+                  style={{ maxWidth: centerMax }}
+                  className={cn(
+                    "rounded-[16px] bg-onyx px-4 py-2 text-center text-[15px] font-bold leading-snug text-white shadow-[0_6px_18px_rgba(0,0,0,0.25)]",
+                    targetFont(word.sourceLang),
+                  )}
+                >
+                  <span className="line-clamp-3 break-words">{n.label}</span>
                 </div>
               </div>
             );
@@ -532,8 +651,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
           return (
             <div
               key={n.id}
+              ref={setEl(n.id)}
               className={cn(
-                "group absolute z-10 -translate-x-1/2 -translate-y-1/2 p-2 transition-opacity",
+                "group absolute z-10 -translate-x-1/2 -translate-y-1/2 p-1.5 transition-opacity",
                 dim && "opacity-40",
                 busy && "opacity-60",
               )}
@@ -547,8 +667,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                 onPointerMove={(e) => onMove(e, n)}
                 onPointerUp={() => onUp(n)}
                 title={saved ? n.label : `+ ${n.label}`}
+                style={{ maxWidth: labelMax }}
                 className={cn(
-                  "block max-w-[160px] cursor-grab touch-none truncate rounded-full border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-[transform,box-shadow] active:cursor-grabbing",
+                  "block cursor-grab touch-none rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug shadow-sm transition-[transform,box-shadow] active:cursor-grabbing",
+                  targetFont(word.sourceLang),
                   saved
                     ? n.kind === "syn"
                       ? "border-sage/50 bg-sage-tint text-sage-deep"
@@ -563,8 +685,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                       : "border-sage shadow-[0_8px_22px_rgba(124,152,133,0.4)]"),
                 )}
               >
-                {!saved && "+ "}
-                {n.label}
+                <span className="line-clamp-3 break-words">
+                  {!saved && "+ "}
+                  {n.label}
+                </span>
               </button>
               {/* delete this synonym/antonym from the word (with confirm) */}
               <span
