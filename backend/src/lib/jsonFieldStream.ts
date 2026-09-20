@@ -1,12 +1,13 @@
-// Incremental extractor for the "say" string value out of a streaming JSON reply.
+// Incremental extractor for one string value out of a streaming JSON reply.
 //
-// The coach endpoints ask the model for a JSON object whose FIRST key is "say"
-// (the conversational reply). While the raw JSON arrives token-by-token we want to
-// forward the visible text of "say" to the client immediately, so it types out live,
-// even though the surrounding JSON (used/seeded/corrections/...) is still incomplete.
+// The chat endpoints ask the model for a JSON object whose FIRST key holds the
+// conversational reply ("say" for the coach, "answer" for Mika). While the raw JSON
+// arrives token-by-token we want to forward that text to the client immediately, so it
+// types out live, even though the surrounding JSON (used/seeded/addWords/...) is still
+// incomplete.
 //
-// createSayExtractor(emit) returns { push(raw) }: call push() with the FULL accumulated
-// raw buffer after every stream chunk. The extractor finds `"say":"`, decodes the JSON
+// createFieldExtractor(emit, field) returns { push(raw) }: call push() with the FULL
+// accumulated raw buffer after every stream chunk. The extractor finds `"<field>":"`, decodes the JSON
 // string value incrementally, and emits only the newly-decoded tail. A trailing partial
 // escape (a lone `\` or `\u` with fewer than 4 hex digits) is held back until the next
 // push so we never emit half an escape sequence. The full raw buffer is still parsed and
@@ -16,12 +17,12 @@
 // Rescanning the value from its start on every push is O(n²), but n is ~1-3 KB here, so
 // it is trivially cheap and keeps the logic stateless and robust to chunk boundaries.
 
-export interface SayExtractor {
+export interface FieldExtractor {
   push(raw: string): void;
 }
 
-export function createSayExtractor(emit: (chunk: string) => void): SayExtractor {
-  const keyRe = /"say"\s*:\s*"/;
+export function createFieldExtractor(emit: (chunk: string) => void, field = "say"): FieldExtractor {
+  const keyRe = new RegExp(`"${field}"\\s*:\\s*"`);
   let valueStart = -1; // index in raw of the first char of the string value
   let closed = false; // found the unescaped closing quote
   let emittedLen = 0; // how many decoded chars we have already emitted
@@ -79,7 +80,7 @@ export function createSayExtractor(emit: (chunk: string) => void): SayExtractor 
       if (closed) return;
       if (valueStart < 0) {
         const m = keyRe.exec(raw);
-        if (!m) return; // the "say" key has not arrived yet — deltas simply start later
+        if (!m) return; // the key has not arrived yet — deltas simply start later
         valueStart = m.index + m[0].length;
       }
       const { text, closed: isClosed } = decodeFrom(raw, valueStart);

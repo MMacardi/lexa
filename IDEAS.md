@@ -584,3 +584,18 @@ a broken sentence. Reduce to one compact line: a single chip like `EN → RU` th
 sheet with both selects, or move the pair into a settings row that's only shown when the learner
 taps it. Same treatment for the full `/mika` page header. Keep the two langs discoverable — they
 do change the answer language — but out of the way after the first pick. en/ru/zh strings.
+
+## Streaming — what shipped (2026-09-20)
+Mika (`/api/tutor/ask` + the widget and `/mika`) now streams like the coach did: the NDJSON
+`streamNdjson` helper, `chatJsonConversationStream` with the JSON key to watch (`answer` for
+Mika, `say` for the coach — `lib/jsonFieldStream.ts`, renamed from sayStream). `RichText` closes
+unfinished `**bold**`/`` `code` `` markers on the line being written, so formatting grows in place
+instead of flashing its asterisks. "Thinking…" now shows only until the first token.
+Still non-streaming on purpose: the word enrichment / senses / drill-grading JSON pipelines, the
+word page's explanation (cached after the first open) and the Telegram bot.
+- **Bug found while testing:** `streamNdjson` aborted on `req.on("close")`, which never fires for
+  a POST whose body was already read — so closing the panel mid-answer left the model generating
+  to the end at full cost. Now on `res.on("close")` (guarded by `writableEnded`), verified: a
+  client that leaves after 3s stops the call at 3s instead of ~10s.
+- Aborted streams are billed from what actually arrived (usage only rides the final chunk), logged
+  under a `.aborted` feature so estimates stay separable from measured rows in the admin charts.

@@ -25,17 +25,31 @@ function inline(text: string): ReactNode[] {
   return out;
 }
 
-export function RichText({ text, className }: { text: string; className?: string }) {
+// While an answer is still streaming, the last line is half-written: a `**bold**`
+// in progress would show its asterisks and then snap. Close whatever marker hasn't
+// found its pair yet (and hide an opener whose first character hasn't arrived), so
+// the text grows already formatted instead of flickering.
+function closeMarkers(text: string): string {
+  let out = text.replace(/[*`]+$/, "");
+  if ((out.match(/`/g) ?? []).length % 2) out += "`";
+  if ((out.match(/\*\*/g) ?? []).length % 2) out += "**";
+  if ((out.replace(/\*\*/g, "").match(/\*/g) ?? []).length % 2) out += "*";
+  return out;
+}
+
+export function RichText({ text, className, streaming = false }: { text: string; className?: string; streaming?: boolean }) {
   const lines = text.split("\n");
   return (
     <div className={cn("space-y-1.5", className)}>
       {lines.map((line, i) => {
+        // Only the line being written right now can hold an unclosed marker.
+        const fix = (v: string) => (streaming && i === lines.length - 1 ? closeMarkers(v) : v);
         const num = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
         if (num) {
           return (
             <div key={i} className="flex gap-2">
               <span className="shrink-0 font-semibold text-ink-faint">{num[1]}.</span>
-              <span className="min-w-0">{inline(num[2])}</span>
+              <span className="min-w-0">{inline(fix(num[2]))}</span>
             </div>
           );
         }
@@ -44,14 +58,14 @@ export function RichText({ text, className }: { text: string; className?: string
           return (
             <div key={i} className="flex gap-2">
               <span className="shrink-0 text-ink-faint">•</span>
-              <span className="min-w-0">{inline(bullet[1])}</span>
+              <span className="min-w-0">{inline(fix(bullet[1]))}</span>
             </div>
           );
         }
         if (!line.trim()) return <div key={i} className="h-1.5" />;
         return (
           <p key={i} className="leading-relaxed">
-            <Fragment>{inline(line)}</Fragment>
+            <Fragment>{inline(fix(line))}</Fragment>
           </p>
         );
       })}

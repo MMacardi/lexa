@@ -857,7 +857,11 @@ async function streamNdjson(
 ): Promise<void> {
   const ac = new AbortController();
   let closed = false;
-  req.on("close", () => {
+  // Listen on the RESPONSE, not the request: for a POST whose body we already read,
+  // `req` never emits "close" on a client disconnect, so the LLM call used to run
+  // (and bill) to completion after the learner closed the panel or navigated away.
+  res.on("close", () => {
+    if (res.writableEnded) return; // normal end, not a disconnect
     closed = true;
     ac.abort();
   });
@@ -895,6 +899,7 @@ const tutorBody = z.object({
   targetLang: z.string().optional(),
   level: z.string().max(4).optional(),
   telegramId: z.string().optional(),
+  stream: z.boolean().optional(), // opt into NDJSON streaming of the "answer" text
 });
 wordsRouter.post("/tutor/ask", async (req, res) => {
   const parsed = tutorBody.safeParse(req.body);
@@ -902,10 +907,23 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  const { stream, ...rest } = parsed.data;
+  const telegramId = readSession(req) ?? rest.telegramId;
+  // DB read happens before any streaming headers so an early failure is a clean 502.
+  let profileNote: string | undefined;
   try {
-    const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
-    res.json(await tutorChat({ ...parsed.data, profileNote }));
+    profileNote = await coachNote(telegramId, rest.sourceLang);
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+    return;
+  }
+  if (stream) {
+    await streamNdjson(req, res, (onDelta, signal) => tutorChat({ ...rest, profileNote, onDelta, signal }));
+    return;
+  }
+  try {
+    res.json(await tutorChat({ ...rest, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

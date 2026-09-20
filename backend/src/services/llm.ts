@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { ZodSchema } from "zod";
 import { env } from "../lib/env.js";
 import { langName } from "../lib/langs.js";
-import { createSayExtractor } from "../lib/sayStream.js";
+import { createFieldExtractor } from "../lib/jsonFieldStream.js";
 import { prisma } from "./db.js";
 import { currentUserId } from "../lib/usageContext.js";
 
@@ -80,7 +80,7 @@ function logUsage(
   const cached = (u as any).prompt_tokens_details?.cached_tokens as number | undefined;
   const cachedStr = cached ? ` cached=${cached}` : "";
   console.log(`[llm usage] ${label} in=${u.prompt_tokens ?? "?"} out=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}${cachedStr} ms=${ms}`);
-  const feature = label.replace(/\.stream$/, "");
+  const feature = label.replace(/\.stream(\.|$)/, "$1");
   void prisma.tokenUsage
     .create({
       data: {
@@ -285,12 +285,15 @@ export async function chatJsonConversationStream<T>(opts: {
   messages: ChatMessage[];
   schema: ZodSchema<T>;
   onDelta: (chunk: string) => void;
+  // Which JSON key holds the visible reply ("say" for the coach, "answer" for Mika).
+  field?: string;
   signal?: AbortSignal;
   timeoutMs?: number;
   label?: string;
   model?: string;
 }): Promise<T> {
-  const extractor = createSayExtractor(opts.onDelta);
+  const extractor = createFieldExtractor(opts.onDelta, opts.field);
+  const promptText = opts.messages.map((m) => m.content).join("\n");
   let raw = "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let usage: any;
@@ -317,6 +320,17 @@ export async function chatJsonConversationStream<T>(opts: {
     throw friendlyLlmError(err);
   }
 
+  const label = opts.label ?? "chatJsonConversationStream";
+  // The learner walking away mid-answer still costs tokens, and usage only arrives
+  // on the final chunk — so bill an aborted stream from what actually came back,
+  // under a ".aborted" feature so estimates stay distinguishable from measured rows.
+  const bill = (aborted: boolean) => {
+    const measured = usage ?? (aborted && raw ? { prompt_tokens: estimateTokens(promptText), completion_tokens: estimateTokens(raw) } : undefined);
+    if (!measured) return;
+    const total = measured.total_tokens ?? (measured.prompt_tokens ?? 0) + (measured.completion_tokens ?? 0);
+    logUsage(aborted ? `${label}.aborted` : label, opts.model ?? MODEL, "text", { usage: { ...measured, total_tokens: total } }, Date.now() - t0);
+  };
+
   try {
     for await (const chunk of stream) {
       if (opts.signal?.aborted) break;
@@ -330,13 +344,19 @@ export async function chatJsonConversationStream<T>(opts: {
       if ((chunk as any).usage) usage = (chunk as any).usage;
     }
   } catch (err) {
-    if (opts.signal?.aborted) throw abortError();
+    if (opts.signal?.aborted) {
+      bill(true);
+      throw abortError();
+    }
     throw friendlyLlmError(err);
   }
 
-  if (opts.signal?.aborted) throw abortError();
+  if (opts.signal?.aborted) {
+    bill(true);
+    throw abortError();
+  }
 
-  logUsage(opts.label ?? "chatJsonConversationStream", opts.model ?? MODEL, "text", { usage }, Date.now() - t0);
+  bill(false);
 
   let parsed: unknown;
   try {
@@ -345,6 +365,14 @@ export async function chatJsonConversationStream<T>(opts: {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
   return opts.schema.parse(parsed);
+}
+
+// Rough token count for text the provider never billed us for explicitly, used
+// only when a stream was aborted before its usage chunk arrived: ~1 token per CJK
+// character, ~4 Latin characters per token.
+function estimateTokens(text: string): number {
+  const cjk = (text.match(/[㐀-鿿豈-﫿぀-ヿ가-힯]/g) ?? []).length;
+  return cjk + Math.ceil(Math.max(0, text.length - cjk) / 4);
 }
 
 function abortError(): Error {

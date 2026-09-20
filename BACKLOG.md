@@ -45,18 +45,20 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [x] **3b. Collection → Practice drilled nothing.** "Практика" on a set handed the ids over,
       but the pair defaulted from the whole deck first and filtered them all out ("add some
       words first" on a full set). Fixed 2026-09-20.
-- [ ] **3c. Senses split by part of speech.** 仔细 shows "наречие внимательно" and
+- [x] **3c. Senses split by part of speech.** 仔细 shows "наречие внимательно" and
       "прилагательное внимательный" as two senses — one meaning, split by grammar. Merge POS
       variants into one row, keep sense order the same across en/ru/zh, bump the cache version.
       IDEAS: "Senses overlap".
-- [ ] **3d. Library decks have no synonyms/antonyms.** Seeded words store empty arrays, so the
+- [x] **3d. Library decks have no synonyms/antonyms.** Seeded words store empty arrays, so the
       curated decks show an empty grid where AI-added words show a full one. Hide-when-empty +
       hand-written `syn`, or lazy enrichment on first open. IDEAS: "Library decks".
-- [ ] **3e. Stream LLM answers.** Prose (Mika chat, `/mika`, scenes, explanations) arrives as one
+- [x] **3e. Stream LLM answers.** Prose (Mika chat, `/mika`, scenes, explanations) arrives as one
       finished wall of text after a spinner; stream it token by token over SSE. JSON pipelines and
       the bot stay as they are. Check token attribution still lands on aborted streams.
-      IDEAS: "Streaming LLM output".
-- [ ] **3f. Mika widget header.** The "Учу … отвечает на …" pair picker eats a third of the phone
+      IDEAS: "Streaming LLM output". Done 2026-09-20: Mika streams; the coach and scenes
+      already did. Found along the way that `streamNdjson` listened on `req` "close", which
+      never fires for a POST — so a disconnect kept generating (and paying) to the end.
+- [x] **3f. Mika widget header.** The "Учу … отвечает на …" pair picker eats a third of the phone
       panel over two lines. One compact `EN → RU` chip opening a small sheet, same on `/mika`.
       IDEAS: "Mika widget header".
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type TutorCard } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -11,7 +11,7 @@ import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 
-export type TutorMsg = { role: "user" | "assistant"; content: string; addWords?: string[]; addCards?: TutorCard[] };
+export type TutorMsg = { role: "user" | "assistant"; content: string; addWords?: string[]; addCards?: TutorCard[]; streaming?: boolean };
 
 const PAIR_KEY = "lexa.wordPair"; // shared with Add/Reader
 // The conversation lives in sessionStorage so the floating widget and the /mika
@@ -63,6 +63,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
 
   useEffect(() => {
+    // A half-written answer isn't worth rewriting storage for on every token.
+    if (messages[messages.length - 1]?.streaming) return;
     try {
       sessionStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-40)));
     } catch {
@@ -99,18 +101,56 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   }, [myWords, pair.source]);
   const isAdded = (w: string) => ownedSet.has(w.trim().toLowerCase());
 
-  const ask = useMutation({
-    mutationFn: (msgs: TutorMsg[]) =>
-      api.tutorAsk({
-        messages: msgs.map((m) => ({ role: m.role, content: m.content })),
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        telegramId: accountId,
-      }),
-    onSuccess: (r) => setMessages((m) => [...m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }]),
-  });
-  const busy = ask.isPending;
+  const [busy, setBusy] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const inFlight = useRef<AbortController | null>(null);
+  // True while an answer is typing itself out into the last bubble.
+  const streaming = !!messages[messages.length - 1]?.streaming;
+  useEffect(() => () => inFlight.current?.abort(), []);
+
+  // Mika's answer is streamed: the text lands token by token in an open bubble
+  // instead of appearing as one finished paragraph after a long spinner.
+  async function ask(msgs: TutorMsg[]) {
+    const ac = new AbortController();
+    inFlight.current = ac;
+    setBusy(true);
+    setIsError(false);
+    let acc = "";
+    // Drop the half-written bubble (on error) or replace it (on the final answer).
+    const closeOpen = (m: TutorMsg[], done?: TutorMsg) => {
+      const rest = m[m.length - 1]?.streaming ? m.slice(0, -1) : m;
+      return done ? [...rest, done] : rest;
+    };
+    try {
+      const r = await api.tutorAskStream(
+        {
+          messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+          sourceLang: pair.source,
+          targetLang: pair.target,
+          level: getLevel(pair.source) ?? undefined,
+          telegramId: accountId,
+        },
+        {
+          onDelta: (chunk) => {
+            acc += chunk;
+            setMessages((m) => closeOpen(m, { role: "assistant", content: acc, streaming: true }));
+          },
+          signal: ac.signal,
+        },
+      );
+      // Snap to the validated text and attach the one-tap "create cards" words.
+      setMessages((m) => closeOpen(m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }));
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+      setIsError(true);
+      setMessages((m) => closeOpen(m));
+    } finally {
+      if (inFlight.current === ac) {
+        inFlight.current = null;
+        setBusy(false);
+      }
+    }
+  }
 
   function send(text?: string) {
     const q = (text ?? input).trim();
@@ -119,13 +159,16 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     const next = [...messages, { role: "user" as const, content: q }];
     setMessages(next);
     setInput("");
-    ask.mutate(next);
+    void ask(next);
   }
 
   function reset() {
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setBusy(false);
+    setIsError(false);
     setMessages([]);
     setWordSel({});
-    ask.reset();
   }
 
   // Toggle a single suggested word's selection within a message.
@@ -217,7 +260,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     send,
     reset,
     busy,
-    isError: ask.isError,
+    streaming,
+    isError,
     creating,
     createCards,
     collections,

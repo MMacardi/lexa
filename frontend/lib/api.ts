@@ -391,6 +391,16 @@ export interface TutorCard {
   exampleTr: string;
 }
 
+// Mika (global tutor) chat, in both the streaming and non-streaming flavours.
+export type TutorAskPayload = {
+  messages: { role: "user" | "assistant"; content: string }[];
+  sourceLang?: string;
+  targetLang?: string;
+  level?: string;
+  telegramId?: string;
+};
+export type TutorAskResult = { answer: string; addWords: string[]; addCards?: TutorCard[] };
+
 // Coach chat/scene-turn payloads + results, named so the streaming and non-streaming
 // client methods share one definition.
 export interface CoachChatPayload {
@@ -596,8 +606,12 @@ export const api = {
       body: JSON.stringify({ sentenceEn, sentenceZh }),
     }),
   // Global AI tutor chat (not tied to a card).
-  tutorAsk: (payload: { messages: { role: "user" | "assistant"; content: string }[]; sourceLang?: string; targetLang?: string; level?: string; telegramId?: string }) =>
-    http<{ answer: string; addWords: string[]; addCards?: TutorCard[] }>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
+  tutorAsk: (payload: TutorAskPayload) =>
+    http<TutorAskResult>(`/api/tutor/ask`, { method: "POST", body: JSON.stringify(payload) }),
+  // Same answer, streamed: the "answer" text arrives via onDelta as Mika writes it
+  // and the promise resolves with the identical validated result.
+  tutorAskStream: (payload: TutorAskPayload, opts: { onDelta?: (t: string) => void; signal?: AbortSignal }) =>
+    streamHttp<TutorAskResult>(`/api/tutor/ask`, payload, opts),
   translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
     http<{ translation: string }>(`/api/translate`, {
       method: "POST",

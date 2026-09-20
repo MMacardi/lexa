@@ -1,4 +1,4 @@
-import { chatJsonConversation, type ChatMessage } from "./llm.js";
+import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 
@@ -13,6 +13,8 @@ export async function tutorChat(params: {
   targetLang?: string;
   level?: string;
   profileNote?: string; // "about this learner" memory, prepended to the prompt
+  onDelta?: (chunk: string) => void; // stream the "answer" text as it is written
+  signal?: AbortSignal;
 }): Promise<TutorChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
@@ -61,11 +63,25 @@ export async function tutorChat(params: {
     ...clipped,
   ];
 
-  const ask = () => chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat" });
-  // One retry on an off-schema reply (e.g. a bare string) — it rarely repeats.
-  const result = await ask().catch((err: Error) => {
+  const ask = (stream: boolean) =>
+    stream && params.onDelta
+      ? chatJsonConversationStream({
+          messages,
+          schema: tutorChatSchema,
+          onDelta: params.onDelta,
+          field: "answer", // Mika's reply lives in "answer", the coach's in "say"
+          signal: params.signal,
+          timeoutMs: 60000,
+          label: "tutorChat.stream",
+        })
+      : chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat" });
+  // One retry on an off-schema reply (e.g. a bare string) — it rarely repeats. The
+  // retry does NOT stream: its deltas would append to the half-written first attempt
+  // in the open bubble. The client replaces that text with the final answer anyway.
+  const result = await ask(true).catch((err: Error) => {
+    if (err.name === "AbortError") throw err;
     if (err.name !== "ZodError" && !err.message.startsWith("LLM did not return valid JSON")) throw err;
-    return ask();
+    return ask(false);
   });
   return {
     answer: result.answer.trim(),

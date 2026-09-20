@@ -12,14 +12,14 @@ import { Check } from "lucide-react";
 // Shared by the floating widget and the /mika page; `large` = the roomier page sizing.
 export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: boolean }) {
   const { t } = useI18n();
-  const { messages, wordSel, setWordSel, toggleWord, isAdded, collections, collIds, setCollIds, creating, createCards, busy, isError } = chat;
+  const { messages, wordSel, setWordSel, toggleWord, isAdded, collections, collIds, setCollIds, creating, createCards, busy, streaming, isError } = chat;
 
   return (
     <>
       {messages.map((m, i) =>
         m.role === "assistant" ? (
           <div key={i} className="space-y-2">
-            <RichText text={m.content} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
+            <RichText text={m.content} streaming={m.streaming} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
             {m.addWords &&
               m.addWords.length > 0 &&
               (() => {
@@ -101,7 +101,8 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
           </div>
         ),
       )}
-      {busy && <p className="text-sm text-ink-soft">{t("word.thinking")}</p>}
+      {/* "Thinking" only until the first token — after that the answer types itself out. */}
+      {busy && !streaming && <p className="text-sm text-ink-soft">{t("word.thinking")}</p>}
       {isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
     </>
   );
