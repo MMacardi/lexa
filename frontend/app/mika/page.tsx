@@ -9,7 +9,9 @@ import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
 import { useTutorChat } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
+import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
+import { cn } from "@/lib/utils";
 import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, type LucideIcon } from "lucide-react";
 
 // Welcome-screen presets. Each fills the input (editable, not sent) and doubles as
@@ -31,7 +33,7 @@ export default function MikaPage() {
   const chat = useTutorChat();
   const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished } = chat;
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Due count, so "what should I study today?" gives Mika real context.
   const { data: words } = useQuery({
@@ -41,8 +43,10 @@ export default function MikaPage() {
   });
   const due = (words ?? []).filter(isDue).length;
 
+  // The conversation scrolls inside its own panel, so the composer stays put.
   useEffect(() => {
-    if (messages.length || busy) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = scrollRef.current;
+    if (el && (messages.length || busy)) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
   // Grow the textarea with its content (up to a cap).
@@ -66,8 +70,8 @@ export default function MikaPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto flex h-[calc(100dvh-176px)] max-w-[760px] flex-col md:h-[calc(100dvh-140px)]">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 font-serif text-[28px] font-medium text-ink sm:text-[32px]">
             <Sparkles className="h-6 w-6 text-sage-deep" />
@@ -77,12 +81,13 @@ export default function MikaPage() {
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-soft">
           <ChatPairPicker pair={pair} onChange={changePair} />
+          <ChatHistoryMenu chat={chat} withLabel />
           {messages.length > 0 && (
             <button
               type="button"
               onClick={reset}
               aria-label={t("mika.newChat")}
-              className="ml-1 inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               {t("mika.newChat")}
@@ -91,72 +96,81 @@ export default function MikaPage() {
         </div>
       </div>
 
-      {messages.length === 0 ? (
-        <section className="space-y-3">
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("mika.tryThese")}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {PRESETS.map(({ key, Icon, href, nav, open }) => (
-              <div
-                key={key}
-                className="group flex flex-col rounded-[18px] border border-black/[0.06] bg-surface transition-colors hover:border-sage/50"
-              >
-                <button type="button" onClick={() => applyPreset(key, open)} className="flex flex-1 items-start gap-3 p-4 text-left">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sage-tint text-sage-deep">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[15px] font-semibold text-ink">{t(`mika.p.${key}.title`)}</span>
-                    <span className="mt-0.5 block text-[13px] leading-relaxed text-ink-soft">{t(`mika.p.${key}.desc`)}</span>
-                  </span>
-                </button>
-                {href && nav && (
-                  <Link href={href} className="mx-4 mb-3 -mt-1 self-start pl-12 text-[12px] font-semibold text-sage hover:text-sage-deep">
-                    {t(nav)} →
-                  </Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section className="min-h-[40vh] space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-          <TutorThread chat={chat} large />
-          <div ref={endRef} />
-        </section>
-      )}
-
-      {/* composer — sticks above the mobile tab bar */}
-      {unfinished && <p className="-mb-4 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
-      <form
-        className="sticky bottom-[calc(64px_+_env(safe-area-inset-bottom))] z-10 flex items-end gap-2 rounded-[22px] border border-black/[0.08] bg-surface p-2 shadow-[0_10px_30px_rgba(46,42,38,0.12)] md:bottom-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
+      {/* the conversation (or the welcome presets) — the only scrolling part */}
+      <div
+        ref={scrollRef}
+        className={cn(
+          "flex-1 overflow-y-auto",
+          messages.length > 0 && "space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6",
+        )}
       >
-        <textarea
-          ref={inputRef}
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              send();
-            }
+        {messages.length === 0 ? (
+          <section className="space-y-3">
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("mika.tryThese")}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {PRESETS.map(({ key, Icon, href, nav, open }) => (
+                <div
+                  key={key}
+                  className="group flex flex-col rounded-[18px] border border-black/[0.06] bg-surface transition-colors hover:border-sage/50"
+                >
+                  <button type="button" onClick={() => applyPreset(key, open)} className="flex flex-1 items-start gap-3 p-4 text-left">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sage-tint text-sage-deep">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-semibold text-ink">{t(`mika.p.${key}.title`)}</span>
+                      <span className="mt-0.5 block text-[13px] leading-relaxed text-ink-soft">{t(`mika.p.${key}.desc`)}</span>
+                    </span>
+                  </button>
+                  {href && nav && (
+                    <Link href={href} className="mx-4 mb-3 -mt-1 self-start pl-12 text-[12px] font-semibold text-sage hover:text-sage-deep">
+                      {t(nav)} →
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <TutorThread chat={chat} large />
+        )}
+      </div>
+
+      {/* composer — pinned under the thread, so it sits in the same place whether
+          the conversation is two lines or twenty */}
+      <div className="mt-3">
+        {unfinished && <p className="mb-1.5 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
+        <form
+          className="flex items-end gap-2 rounded-[22px] border border-black/[0.08] bg-surface p-2 shadow-[0_10px_30px_rgba(46,42,38,0.12)]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
           }}
-          placeholder={t("tutor.placeholder")}
-          disabled={busy}
-          className="max-h-[180px] min-h-10 flex-1 resize-none bg-transparent px-3 py-2 text-[16px] leading-relaxed text-ink placeholder:text-ink-faint focus:outline-none sm:text-[15px]"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim() || unfinished}
-          className="shrink-0 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
         >
-          {t("word.send")}
-        </button>
-      </form>
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder={t("tutor.placeholder")}
+            disabled={busy}
+            className="max-h-[180px] min-h-10 flex-1 resize-none bg-transparent px-3 py-2 text-[16px] leading-relaxed text-ink placeholder:text-ink-faint focus:outline-none sm:text-[15px]"
+          />
+          <button
+            type="submit"
+            disabled={busy || !input.trim() || unfinished}
+            className="shrink-0 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
+          >
+            {t("word.send")}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

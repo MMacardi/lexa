@@ -389,6 +389,9 @@ export interface TutorCard {
   meaning: string;
   example: string;
   exampleTr: string;
+  // Set when the word is NOT in the chat's source language (a Chinese word asked
+  // about inside an English chat) — the card is then saved in that pair instead.
+  lang?: string;
 }
 
 // Mika (global tutor) chat, in both the streaming and non-streaming flavours.

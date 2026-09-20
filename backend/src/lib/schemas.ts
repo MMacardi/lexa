@@ -45,6 +45,9 @@ export const tutorChatSchema = z.object({
         meaning: z.string().default(""),
         example: z.string().default(""),
         exampleTr: z.string().default(""),
+        // The word's own language, when it is NOT the chat's source language (a
+        // Chinese word asked about inside an English chat). "" = the chat's own.
+        lang: z.string().default(""),
       }),
     )
     .default([]),

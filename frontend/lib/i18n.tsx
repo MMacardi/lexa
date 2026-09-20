@@ -90,6 +90,7 @@ const DICT: Record<string, Entry> = {
   "tutor.explainTemplate": { en: "Explain the word: ", ru: "Объясни слово: ", zh: "讲解单词：" },
   "tutor.toSet": { en: "Add to set", ru: "В набор", zh: "加入合集" },
   "tutor.alreadyAdded": { en: "Already in your words", ru: "Уже в ваших словах", zh: "已在你的单词中" },
+  "tutor.savedAs": { en: "Saves as {pair}", ru: "Сохранится как {pair}", zh: "将保存为 {pair}" },
   "tutor.capabilities": {
     en: "I can explain words, give examples, and add words to your deck.",
     ru: "Я умею объяснять слова, давать примеры и добавлять слова в словарь.",
@@ -105,6 +106,9 @@ const DICT: Record<string, Entry> = {
     zh: "你的 AI 导师。问单词和语法、按目标挑选词汇，或让米卡带你了解这个应用。",
   },
   "mika.newChat": { en: "New chat", ru: "Новый чат", zh: "新对话" },
+  "mika.history": { en: "History", ru: "История", zh: "历史" },
+  "mika.untitledChat": { en: "Untitled chat", ru: "Без названия", zh: "未命名对话" },
+  "mika.deleteChat": { en: "Delete chat", ru: "Удалить чат", zh: "删除对话" },
   "mika.answersIn": { en: "answers in", ru: "отвечает на", zh: "回答用" },
   "mika.pairLabel": { en: "Chat languages", ru: "Языки чата", zh: "对话语言" },
   "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },

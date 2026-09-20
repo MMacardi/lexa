@@ -61,6 +61,14 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [x] **3f. Mika widget header.** The "Учу … отвечает на …" pair picker eats a third of the phone
       panel over two lines. One compact `EN → RU` chip opening a small sheet, same on `/mika`.
       IDEAS: "Mika widget header".
+- [x] **3g. Mika chat: other languages, history, steady composer.** A chat started as en→en can't
+      save the Chinese words it just explained (clear the chat, switch the pair, ask again); the
+      "add to set" row appears a second after a reload; the composer only moves once the page
+      scrolls and rests at a different height than it sticks at. Done 2026-09-20: Mika tags a
+      suggested word's own language and those save into their own pair (zh→en from inside an
+      en→en chat), the last 12 chats are kept in the browser behind a History menu on both Mika
+      surfaces, the set row holds its place while the sets load, and `/mika` uses the coach
+      pages' fixed-height layout so the composer never moves.
 
 ## Before public launch
 - [x] **4. Per-user token cost + real ASR/OCR pricing.** IDEAS: "Per-user token attribution",

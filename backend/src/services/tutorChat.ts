@@ -1,6 +1,9 @@
 import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
-import { langName, scriptNote } from "../lib/langs.js";
+import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
+
+// Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
+const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
 
 /**
  * Global AI tutor chat — not tied to a specific card. Helps the learner with the
@@ -35,7 +38,8 @@ export async function tutorChat(params: {
         levelLine +
         ` Answer in the "answer" field ENTIRELY in ${target}, concise and practical. Help them learn ` +
         `${source}: meanings, usage, grammar, example sentences, and picking vocabulary. ` +
-        `Stay focused on ${source} language learning; politely decline unrelated general-knowledge questions. ` +
+        `Stay on language learning — questions about words in OTHER languages are fine too; politely ` +
+        `decline unrelated general-knowledge questions. ` +
         `Role-plays, level checks and study plans are welcome.\n\n` +
         // So "how does X work / what should I do today" questions get real answers.
         `ABOUT THE APP (you are Mika, the tutor inside Onomika) — use when asked how things work or what to do: ` +
@@ -55,10 +59,16 @@ export async function tutorChat(params: {
         `wrote in "answer" — do not invent new ones. "meaning" is the definition in ${target}; "example" is ` +
         `one natural ${source} sentence using the word; "exampleTr" is that sentence translated to ${target}. ` +
         `Keep "addCards" aligned with "addWords" (same words, same order). If you have no example for a word, ` +
-        `leave its "example" empty.` +
+        `leave its "example" empty. ` +
+        // The learner can ask about a word from another language mid-chat (a Chinese
+        // word inside an English chat) — those are offered too, saved into their own pair.
+        `If a word you offer is NOT ${source} (the learner asked about a word in another language), ` +
+        `still list it, and set that card's "lang" to its language code — one of ` +
+        `${OFFERABLE_LANGS.join(", ")}. Leave "lang" empty for ${source} words; its "meaning" ` +
+        `and "exampleTr" stay in ${target} and its "example" is a sentence in the word's own language.` +
         scriptNote(params.sourceLang ?? "en") +
         ` (This applies to example sentences, vocabulary, and every ${source} word you write.) ` +
-        'Respond as JSON: {"answer": string, "addWords": string[], "addCards": [{"word": string, "meaning": string, "example": string, "exampleTr": string}]}.',
+        'Respond as JSON: {"answer": string, "addWords": string[], "addCards": [{"word": string, "meaning": string, "example": string, "exampleTr": string, "lang": string}]}.',
     },
     ...clipped,
   ];
@@ -92,6 +102,9 @@ export async function tutorChat(params: {
         meaning: (c.meaning ?? "").trim(),
         example: (c.example ?? "").trim(),
         exampleTr: (c.exampleTr ?? "").trim(),
+        // Keep a language tag only when it is one we know; the client falls back
+        // to the chat's own source language for anything else.
+        lang: LANG_NAMES[(c.lang ?? "").trim()] ? (c.lang ?? "").trim() : "",
       }))
       .filter((c) => c.word)
       .slice(0, 30),

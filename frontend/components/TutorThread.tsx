@@ -2,6 +2,7 @@
 
 import type { TutorChat } from "@/lib/useTutorChat";
 import { useI18n } from "@/lib/i18n";
+import { displayCode, pairLabel } from "@/lib/langs";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { RichText } from "@/components/RichText";
 import { HoverTip } from "@/components/ui/HoverTip";
@@ -12,7 +13,23 @@ import { Check } from "lucide-react";
 // Shared by the floating widget and the /mika page; `large` = the roomier page sizing.
 export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: boolean }) {
   const { t } = useI18n();
-  const { messages, wordSel, setWordSel, toggleWord, isAdded, collections, collIds, setCollIds, creating, createCards, busy, streaming, isError } = chat;
+  const {
+    messages,
+    pair,
+    langOf,
+    wordSel,
+    setWordSel,
+    toggleWord,
+    isAdded,
+    collections,
+    collIds,
+    setCollIds,
+    creating,
+    createCards,
+    busy,
+    streaming,
+    isError,
+  } = chat;
 
   return (
     <>
@@ -24,8 +41,11 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
               m.addWords.length > 0 &&
               (() => {
                 const all = m.addWords;
-                const addable = all.filter((w) => !isAdded(w)); // exclude ones already in the deck
-                const selected = (wordSel[i] ?? addable).filter((w) => !isAdded(w));
+                // A suggestion keeps its own language: a Chinese word asked about
+                // inside an English chat is saved as a Chinese card, not an English one.
+                const langs = new Map(all.map((w) => [w, langOf(i, w)]));
+                const addable = all.filter((w) => !isAdded(w, langs.get(w) ?? pair.source)); // exclude ones already in the deck
+                const selected = (wordSel[i] ?? addable).filter((w) => !isAdded(w, langs.get(w) ?? pair.source));
                 return (
                   <div className={cn("space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5", large && "p-3.5")}>
                     <div className="flex items-center justify-between gap-2">
@@ -43,10 +63,16 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {all.map((w) => {
-                        const added = isAdded(w);
+                        const lang = langs.get(w) ?? pair.source;
+                        const foreign = displayCode(lang) !== displayCode(pair.source);
+                        const added = isAdded(w, lang);
                         const on = !added && selected.includes(w);
                         return (
-                          <HoverTip key={w} title={added ? t("tutor.alreadyAdded") : ""} className="inline-flex">
+                          <HoverTip
+                            key={w}
+                            title={added ? t("tutor.alreadyAdded") : foreign ? t("tutor.savedAs", { pair: pairLabel(lang, pair.target) }) : ""}
+                            className="inline-flex"
+                          >
                             <button
                               type="button"
                               disabled={added}
@@ -62,17 +88,35 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                             >
                               {added && <Check className="h-3 w-3 shrink-0" />}
                               {w}
+                              {/* another language than the chat's — say which pair it lands in */}
+                              {foreign && (
+                                <span
+                                  className={cn(
+                                    "rounded-full px-1 text-[10px] font-bold uppercase leading-[15px]",
+                                    on ? "bg-white/25 text-white" : "bg-black/[0.06] text-ink-faint",
+                                  )}
+                                >
+                                  {displayCode(lang)}
+                                </span>
+                              )}
                             </button>
                           </HoverTip>
                         );
                       })}
                     </div>
-                    {collections && collections.length > 0 && (
+                    {/* The sets load a moment after a reload — hold the row's place so
+                        the card doesn't grow under the learner's thumb. */}
+                    {!collections ? (
+                      <div className="flex items-center gap-2" aria-hidden>
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
+                        <span className="h-9 w-[160px] animate-pulse rounded-[12px] bg-black/[0.05]" />
+                      </div>
+                    ) : collections.length > 0 ? (
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
                         <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
                       </div>
-                    )}
+                    ) : null}
                     <button
                       type="button"
                       disabled={creating || selected.length === 0}

@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
 import { useTutorChat } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
+import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
@@ -163,14 +164,18 @@ export function GlobalTutor() {
                     </button>
                   </HoverTip>
                 )}
+                <ChatHistoryMenu chat={chat} />
                 {messages.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={reset}
-                    className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  </button>
+                  <HoverTip title={t("mika.newChat")} className="inline-flex">
+                    <button
+                      type="button"
+                      onClick={reset}
+                      aria-label={t("mika.newChat")}
+                      className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  </HoverTip>
                 )}
                 <HoverTip title={t("tutor.openPage")} className="inline-flex">
                   <Link
