@@ -48,6 +48,15 @@ const SWIPE_PX = 110;
 const EDGE_PX = 24;
 const SNAP_BACK = "transform 0.34s cubic-bezier(.22,.8,.26,1)";
 
+// The FSRS grades in button order — `g` doubles as the keyboard shortcut and
+// `name` keys both the label and its entry in the interval preview.
+const GRADES = [
+  { g: 1, name: "again", tone: "bg-warn-bg text-warn-text", dim: "opacity-70" },
+  { g: 2, name: "hard", tone: "border border-black/[0.1] bg-surface text-ink-muted", dim: "opacity-70" },
+  { g: 3, name: "good", tone: "bg-sage text-white", dim: "opacity-80" },
+  { g: 4, name: "easy", tone: "bg-sage-deep text-white", dim: "opacity-80" },
+] as const;
+
 // Which preset (if any) matches a layout, for highlighting in the picker.
 function presetIdOf(layout: CardLayout): string {
   const eq = (a: CardField[], b: CardField[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -947,34 +956,23 @@ export default function FlashcardsPage() {
         </button>
       ) : (
         <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
-          <button
-            onClick={() => commit(1, word)}
-            className="flex flex-col items-center rounded-2xl bg-warn-bg py-2.5 font-bold text-warn-text transition-transform active:scale-95"
-          >
-            <span className="text-sm">{t("review.again")}</span>
-            <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.again, t)}</span>
-          </button>
-          <button
-            onClick={() => commit(2, word)}
-            className="flex flex-col items-center rounded-2xl border border-black/[0.1] bg-surface py-2.5 font-bold text-ink-muted transition-transform active:scale-95"
-          >
-            <span className="text-sm">{t("review.hard")}</span>
-            <span className="text-[11px] font-medium opacity-70">{fmtInterval(iv.hard, t)}</span>
-          </button>
-          <button
-            onClick={() => commit(3, word)}
-            className="flex flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
-          >
-            <span className="text-sm">{t("review.good")}</span>
-            <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.good, t)}</span>
-          </button>
-          <button
-            onClick={() => commit(4, word)}
-            className="flex flex-col items-center rounded-2xl bg-sage-deep py-2.5 font-bold text-white transition-transform active:scale-95"
-          >
-            <span className="text-sm">{t("review.easy")}</span>
-            <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv.easy, t)}</span>
-          </button>
+          {GRADES.map(({ g, name, tone, dim }) => (
+            <button
+              key={g}
+              onClick={() => commit(g, word)}
+              className={cn(
+                "relative flex flex-col items-center rounded-2xl py-2.5 font-bold transition-transform active:scale-95",
+                tone,
+              )}
+            >
+              {/* the key that fires it, where there's a keyboard to fire it from */}
+              <span className="absolute left-2 top-1.5 hidden text-[10px] font-semibold opacity-40 sm:block">
+                {g}
+              </span>
+              <span className="text-sm">{t(`review.${name}`)}</span>
+              <span className={cn("text-[11px] font-medium", dim)}>{fmtInterval(iv[name], t)}</span>
+            </button>
+          ))}
         </div>
       )}
       <p className="mt-4 text-center text-[13px] font-medium text-ink-faint">
