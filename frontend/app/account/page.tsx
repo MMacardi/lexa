@@ -9,6 +9,7 @@ import { useI18n, LOCALES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Segmented";
+import { LangSelect } from "@/components/LangSelect";
 import { langLabel } from "@/lib/langs";
 import {
   CEFR_LEVELS,
@@ -19,6 +20,7 @@ import {
   removeLevel,
   setExampleSource,
   setLevel,
+  setNativeLang,
   setRetention,
   setShowTranscription,
   setShowTextLevel,
@@ -33,6 +35,7 @@ import {
   useAllLevels,
   useExampleSource,
   useHanLang,
+  useNativeLang,
   useRetention,
   useShowTranscription,
   useGraphAddMethod,
@@ -62,6 +65,7 @@ function LevelsSection() {
   const { t } = useI18n();
   const levels = useAllLevels();
   const hanLang = useHanLang();
+  const native = useNativeLang();
   const langs = Object.keys(levels).sort();
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
@@ -97,6 +101,14 @@ function LevelsSection() {
           ))}
         </ul>
       )}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-medium text-ink">{t("native.label")}</p>
+          <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{t("native.hint")}</p>
+        </div>
+        <LangSelect value={native ?? ""} onChange={setNativeLang} placeholder={t("native.unset")} className="w-[180px]" />
+      </div>
 
       {hanLang && (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">

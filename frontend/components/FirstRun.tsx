@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { setLevel as setPrefLevel, pushRecentPair, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
+import { setLevel as setPrefLevel, pushRecentPair, getNativeLang, setNativeLang, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { starterWords } from "@/lib/starterDecks";
 import { LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
 import { useCustomLangs } from "@/lib/customLangs";
@@ -173,6 +173,7 @@ export function FirstRun() {
     try {
       setPrefLevel(source, level);
       pushRecentPair(source, target);
+      if (!getNativeLang()) setNativeLang(target); // "I already know" = their side of every pair
       try {
         localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: source, targetLang: target }));
       } catch {

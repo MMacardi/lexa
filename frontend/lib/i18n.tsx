@@ -1071,6 +1071,13 @@ const DICT: Record<string, Entry> = {
   },
   "level.pick": { en: "Level", ru: "Уровень", zh: "水平" },
   "level.forLevel": { en: "tuned for {level}", ru: "под уровень {level}", zh: "适配 {level}" },
+  "native.label": { en: "My native language", ru: "Мой родной язык", zh: "我的母语" },
+  "native.hint": {
+    en: "Lets the add form spot a language pair set the wrong way round.",
+    ru: "Помогает заметить, что языковая пара выставлена наоборот.",
+    zh: "用于发现添加单词时语言对是否设反了。",
+  },
+  "native.unset": { en: "Not set", ru: "Не выбран", zh: "未设置" },
   "level.sectionTitle": { en: "My language levels", ru: "Мои уровни языков", zh: "我的语言水平" },
   "level.sectionHint": {
     en: "Used to pick example sentences you can actually understand. Change any time.",
@@ -1393,8 +1400,14 @@ const DICT: Record<string, Entry> = {
   "add.autoDetect": { en: "Auto-detect", ru: "Автоопределение", zh: "自动识别" },
   "add.swap": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
   "add.recent": { en: "Recent", ru: "Недавние", zh: "最近" },
-  // Nudge when the studied language is the one the interface is in — the pair
-  // was almost certainly read as "translate from → to" and set backwards.
+  // Nudge when the studied language is the learner's own — the pair was almost
+  // certainly read as "translate from → to" and set backwards. While their native
+  // language is unknown (guessed from the interface one), it asks instead.
+  "add.pairAskNative": {
+    en: "Which of these is your native language?",
+    ru: "Какой из этих языков ваш родной?",
+    zh: "哪一个是你的母语？",
+  },
   "add.pairSuspect": {
     en: "Cards will be {source} words. Learning {target} instead?",
     ru: "Карточки будут словами на языке «{source}». А учите вы «{target}»?",

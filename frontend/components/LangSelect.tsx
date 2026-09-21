@@ -21,6 +21,7 @@ export function LangSelect({
   menuClassName,
   allowAuto = false,
   autoLabel = "Auto-detect",
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -28,6 +29,7 @@ export function LangSelect({
   menuClassName?: string;
   allowAuto?: boolean;
   autoLabel?: string;
+  placeholder?: string; // shown while value is "" (nothing picked yet)
 }) {
   const { t } = useI18n();
   const { prompt, confirm } = useDialog();
@@ -139,7 +141,7 @@ export function LangSelect({
           open ? "border-sage" : "border-black/[0.08] hover:border-black/20",
         )}
       >
-        <span>{current?.label ?? value}</span>
+        <span className={cn(!value && "text-ink-faint")}>{current?.label ?? (value || placeholder)}</span>
         <svg
           width="14"
           height="14"

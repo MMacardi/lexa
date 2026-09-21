@@ -195,6 +195,38 @@ export function useHanLang(): "zh" | "ja" | "ko" | null {
   return han;
 }
 
+// --- Native language: the one the learner already knows ---
+// Tells the add form which side of a pair is theirs, so a pair set backwards can
+// be caught. Guessing it from the interface language misfired: plenty of people
+// run the app in the very language they study. Saved by the first run and the add
+// form's pair nudge, editable in Settings.
+const NATIVE_KEY = "lexa.nativeLang";
+
+export function getNativeLang(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(NATIVE_KEY) || null;
+}
+
+export function setNativeLang(lang: string) {
+  localStorage.setItem(NATIVE_KEY, lang);
+  window.dispatchEvent(new Event(EVT));
+}
+
+export function useNativeLang(): string | null {
+  const [lang, setState] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setState(getNativeLang());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return lang;
+}
+
 // --- Flashcard layout: which fields show on the front vs the back ---
 // Lets the learner train e.g. word → synonyms instead of word → meaning.
 export type CardField =

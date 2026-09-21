@@ -68,6 +68,10 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       Учу / Знаю, the typed side promoted onto the field with a line saying what the card
       will be, swap carries the typed language with it, and a dismissible nudge offers the
       swap when the studied language is the one the interface is in. Done 2026-09-20.
+      Follow-up 2026-09-21: that guess misfired for anyone studying in the interface's language
+      ("Learning Russian instead?" to a Russian learning English). A native-language pref now
+      decides it: the first run saves "I know", Settings edits it, and until it's known the
+      nudge asks which side is yours instead of offering the swap.
 - [x] **3g. Mika chat: other languages, history, steady composer.** A chat started as en→en can't
       save the Chinese words it just explained (clear the chat, switch the pair, ask again); the
       "add to set" row appears a second after a reload; the composer only moves once the page

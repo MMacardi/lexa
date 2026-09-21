@@ -34,6 +34,8 @@ import {
   useExampleCount,
   useLevel,
   useRecentPairs,
+  useNativeLang,
+  setNativeLang,
   type CefrLevel,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
@@ -167,12 +169,22 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
   const showInputPicker = mode === "auto" && sourceLang !== "auto" && sourceLang !== targetLang;
   // Typing the known side: meaning in, word out — the way a dictionary is used.
   const typingKnown = showInputPicker && reverseInput;
-  // The pair set backwards: the studied language is the one the app itself is in.
-  // Nobody learns the language they read the interface in, so this is almost always
-  // the row being read as "translate from → to". Dismissible, never blocking.
+  // The pair set backwards: the studied side is the learner's own language, which
+  // almost always means the row was read as "translate from → to". Until we know
+  // which language is theirs, the interface language is only a guess (plenty of
+  // people run the app in the language they study), so the nudge then asks instead
+  // of offering a swap. Dismissible, never blocking.
   const [pairHintOff, setPairHintOff] = useState(false);
+  const native = useNativeLang();
+  const mine = native ?? locale;
   const pairBackwards =
-    sourceLang !== "auto" && displayCode(sourceLang) === locale && displayCode(targetLang) !== locale;
+    pairReady && sourceLang !== "auto" && displayCode(sourceLang) === mine && displayCode(targetLang) !== mine;
+  // Answering "which one is yours" also settles the pair: picking the studied side
+  // swaps it, picking the known side just confirms it.
+  const pickNative = (lang: string) => {
+    setNativeLang(displayCode(lang));
+    if (lang === sourceLang) swapLangs();
+  };
   // A concrete "ты → you"-style pair for the picker hints and the preview strip —
   // abstract labels never explained which side of the pair ends up on the card.
   const inputExample = (code: string) => {
@@ -579,16 +591,36 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       {pairBackwards && !pairHintOff && (
         <div className="anim-fade-up flex items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 px-2.5 py-2 text-[13px] leading-snug">
           <Languages className="h-3.5 w-3.5 shrink-0 text-sage-deep" />
-          <span className="min-w-0 text-ink-soft">
-            {t("add.pairSuspect", { source: langLabel(sourceLang), target: langLabel(targetLang) })}
-          </span>
-          <button
-            type="button"
-            onClick={swapLangs}
-            className="shrink-0 font-semibold text-sage-deep underline decoration-sage/40 underline-offset-2 hover:decoration-sage-deep"
-          >
-            {t("add.pairSwap")}
-          </button>
+          {native ? (
+            <>
+              <span className="min-w-0 text-ink-soft">
+                {t("add.pairSuspect", { source: langLabel(sourceLang), target: langLabel(targetLang) })}
+              </span>
+              <button
+                type="button"
+                onClick={swapLangs}
+                className="shrink-0 font-semibold text-sage-deep underline decoration-sage/40 underline-offset-2 hover:decoration-sage-deep"
+              >
+                {t("add.pairSwap")}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="min-w-0 text-ink-soft">{t("add.pairAskNative")}</span>
+              <span className="flex shrink-0 flex-wrap gap-1.5">
+                {[sourceLang, targetLang].map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => pickNative(l)}
+                    className="rounded-full border border-sage/40 bg-surface px-2.5 py-0.5 font-semibold text-sage-deep transition-colors hover:border-sage hover:bg-sage-tint"
+                  >
+                    {langLabel(l)}
+                  </button>
+                ))}
+              </span>
+            </>
+          )}
           <button
             type="button"
             aria-label={t("common.close")}
