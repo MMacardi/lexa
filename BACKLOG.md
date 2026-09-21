@@ -110,6 +110,10 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
 - [ ] 12. Admin charts + CSV export; owner alert emails.
 - [ ] 13. Fresh example per review / difficulty adaptation (token toggle). IDEAS: "B6".
 - [ ] 14. Meaning backfill (shorten old meanings). IDEAS: "B7".
+- [ ] 15. Collection graph. The word page's family graph as a view of a whole set: its
+      words as nodes, linked where one lists another as a synonym/antonym, unlinked words
+      floating free. Reuse the WordFamilyGraph simulation (springs, drag-to-place, Reset);
+      a set of 100+ needs zoom/pan and a cap on what's drawn at once.
 
 ## Parked (🧊, only if asked)
 Phoneme-level pronunciation scoring · Traditional Chinese toggle · OpenClaw revival · Custom free-text scenes · Anki export.
