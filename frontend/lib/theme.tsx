@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { prefersReducedMotion } from "@/lib/motion";
 
 type Theme = "light" | "dark";
 const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({
@@ -30,12 +31,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function toggle() {
-    setTheme((t) => {
-      const next = t === "dark" ? "light" : "dark";
+    const next: Theme = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    const swap = () => {
       localStorage.setItem(KEY, next);
       apply(next);
-      return next;
-    });
+      setTheme(next);
+    };
+    // Every surface re-colours at once, but only <body> has a colour transition,
+    // so the cards used to snap while the page behind them faded. A view
+    // transition cross-fades the whole screen as one picture instead; browsers
+    // without it keep the old instant switch.
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+    if (doc.startViewTransition && !prefersReducedMotion()) doc.startViewTransition(swap);
+    else swap();
   }
 
   return <ThemeCtx.Provider value={{ theme, toggle }}>{children}</ThemeCtx.Provider>;

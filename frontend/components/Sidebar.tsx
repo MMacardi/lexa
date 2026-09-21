@@ -272,7 +272,7 @@ export function Sidebar() {
               moreActive || sheet === "more" ? "text-sage-deep" : "text-ink-faint",
             )}
           >
-            {moreActive && <span className="absolute inset-x-[30%] top-0 h-[2.5px] rounded-b-full bg-sage" />}
+            {moreActive && <span className="anim-tab absolute inset-x-[30%] top-0 h-[2.5px] rounded-b-full bg-sage" />}
             <MoreHorizontal className="h-[22px] w-[22px]" strokeWidth={2} />
             <span className="max-w-full truncate px-0.5">{t("nav.more")}</span>
           </button>
@@ -293,7 +293,7 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
       )}
     >
       {/* active indicator: a short bar along the top edge */}
-      {active && <span className="absolute inset-x-[30%] top-0 h-[2.5px] rounded-b-full bg-sage" />}
+      {active && <span className="anim-tab absolute inset-x-[30%] top-0 h-[2.5px] rounded-b-full bg-sage" />}
       <item.Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.2 : 1.9} />
       <span className="max-w-full truncate px-0.5">{label}</span>
     </Link>

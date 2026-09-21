@@ -5,6 +5,7 @@ import { History, Search, Trash2 } from "lucide-react";
 import type { TutorChat } from "@/lib/useTutorChat";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // A chat's timestamp: the clock for today, the date once it's older.
 function when(at: number): string {
@@ -32,6 +33,7 @@ export function ChatHistoryMenu({
   const { t } = useI18n();
   const { history, chatId, openChat, removeChat } = chat;
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [q, setQ] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -83,11 +85,12 @@ export function ChatHistoryMenu({
         {withLabel && <span className="hidden sm:inline">{t("mika.history")}</span>}
       </button>
 
-      {open && (
+      {menu.mounted && (
         <div
+          data-closing={menu.closing || undefined}
           className={cn(
-            "absolute top-full z-40 mt-2 w-[270px] overflow-hidden rounded-[16px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]",
-            compact ? "left-0" : "right-0",
+            "anim-scale-in absolute top-full z-40 mt-2 w-[270px] overflow-hidden rounded-[16px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]",
+            compact ? "left-0 [--drop-origin:top_left]" : "right-0 [--drop-origin:top_right]",
           )}
         >
           {history.length >= SEARCH_FROM && (

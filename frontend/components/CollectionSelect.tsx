@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { Collection } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // Compact single-select dropdown (with search) for picking a collection to
 // filter by. Value "all" means no filter. Scales to many collections better
@@ -25,6 +26,7 @@ export function CollectionSelect({
   const { t } = useI18n();
   const allText = allLabel ?? t("common.allWords");
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -98,10 +100,11 @@ export function CollectionSelect({
         </svg>
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         createPortal(
           <div
+            data-closing={menu.closing || undefined}
             ref={menuRef}
             className="anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
             style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 220) }}

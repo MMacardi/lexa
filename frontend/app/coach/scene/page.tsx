@@ -25,6 +25,7 @@ import { PracticeBar } from "@/components/PracticeBar";
 import { useMicInput } from "@/lib/useMicInput";
 import { cn } from "@/lib/utils";
 import { Clapperboard, ArrowLeft, Send, Mic, Square, Check, Minus, User, Sparkles, Flag, Loader2, RefreshCw, Info, X, ChevronDown, House, Package, Compass, KeyRound, Pill, CarTaxiFront, ReceiptText, PartyPopper, Luggage, Fingerprint, type LucideIcon } from "lucide-react";
+import { Collapse } from "@/components/ui/Collapse";
 
 type Turn = {
   role: "user" | "assistant";
@@ -831,8 +832,7 @@ export default function CoachScenePage() {
                   <ChevronDown className={cn("h-4 w-4 transition-transform", showMore && "rotate-180")} />
                   {showMore ? t("scene.fewerScenes") : t("scene.moreScenes")}
                 </button>
-                {showMore && (
-                  <div className="anim-fade-up mt-2 flex flex-wrap justify-center gap-1.5">
+                <Collapse open={showMore} className="flex flex-wrap justify-center gap-1.5 pt-2">
                     {EXTRA_PRESETS.map((p) => {
                       const on = selectedPreset === p.id;
                       return (
@@ -851,8 +851,7 @@ export default function CoachScenePage() {
                         </button>
                       );
                     })}
-                  </div>
-                )}
+                </Collapse>
               </div>
 
               {poolWords.length > 0 ? (
@@ -1212,7 +1211,7 @@ function Bubble({
     const grade = turn.grade;
     const gradeLabel = grade === "ok" ? t("scene.fbOk") : grade === "minor" ? t("scene.fbMinor") : t("scene.fbWrong");
     return (
-      <div className="flex flex-col items-end gap-1">
+      <div className="anim-msg flex flex-col items-end gap-1">
         <div className="flex items-end justify-end gap-2.5">
           {grade && (
             <button
@@ -1267,7 +1266,7 @@ function Bubble({
   if (turn.streaming) {
     if (!turn.content) return null;
     return (
-      <div className="flex items-end justify-start gap-2.5">
+      <div className="anim-msg flex items-end justify-start gap-2.5">
         <SceneAvatar />
         <div className="max-w-[82%]">
           {characterName && (
@@ -1281,7 +1280,7 @@ function Bubble({
     );
   }
   return (
-    <div className="flex items-end justify-start gap-2.5">
+    <div className="anim-msg flex items-end justify-start gap-2.5">
       <SceneAvatar />
       <div className="max-w-[82%]">
         {characterName && (

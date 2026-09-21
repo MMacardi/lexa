@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 export interface SelectOption {
   value: string;
@@ -30,6 +31,7 @@ export function Select({
   menuMinWidth?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -86,7 +88,7 @@ export function Select({
         </svg>
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         (() => {
           // Flip the menu above the trigger when there isn't enough room below,
@@ -98,6 +100,7 @@ export function Select({
           const maxHeight = Math.max(140, Math.min(288, (openUp ? spaceAbove : spaceBelow) - 12));
           return createPortal(
             <div
+              data-closing={menu.closing || undefined}
               ref={menuRef}
               className="anim-scale-in fixed z-[220] flex flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
               style={{
@@ -105,6 +108,7 @@ export function Select({
                 minWidth: Math.max(rect.width, menuMinWidth),
                 maxHeight,
                 ...(openUp ? { bottom: vh - rect.top + 6 } : { top: rect.bottom + 6 }),
+                ...(openUp ? ({ "--drop": "6px", "--drop-origin": "bottom" } as React.CSSProperties) : null),
               }}
             >
               <ul className="overflow-auto p-1.5">

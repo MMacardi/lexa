@@ -6,6 +6,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { useI18n } from "@/lib/i18n";
 import { displayCode, langLabel } from "@/lib/langs";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // The chat's language pair, collapsed into one chip. Two labelled dropdowns side
 // by side wrapped onto two lines in the Mika widget and ate a third of a phone
@@ -30,6 +31,7 @@ export function ChatPairPicker({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Close on an outside click, which also means opening History closes this.
@@ -71,8 +73,8 @@ export function ChatPairPicker({
         <ChevronDown className={cn("h-3 w-3 shrink-0 text-ink-faint transition-transform", open && "rotate-180")} />
       </button>
 
-      {open && (
-        <div className="anim-scale-in absolute left-0 top-full z-50 mt-2 w-[264px] max-w-[calc(100vw-32px)] space-y-2.5 rounded-[16px] border border-black/[0.08] bg-surface p-3 shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
+      {menu.mounted && (
+        <div data-closing={menu.closing || undefined} className="anim-scale-in absolute left-0 top-full z-50 mt-2 w-[264px] max-w-[calc(100vw-32px)] space-y-2.5 rounded-[16px] border border-black/[0.08] bg-surface p-3 shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
           <label className="block">
             <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint">
               <GraduationCap className="h-3.5 w-3.5 text-sage-deep" />

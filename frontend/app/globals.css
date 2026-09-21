@@ -210,6 +210,28 @@ button:disabled {
     opacity: 0.72;
   }
 }
+/* Round buttons (pills, icon buttons, segment options) also dip slightly under
+   the finger or cursor. It uses the standalone `scale` property, not
+   transform, so it stacks on a transform the element already has — the
+   draggable bug button is positioned with one. The press itself sits in the
+   base layer, so a button's own active:scale-* utility still wins. */
+@layer base {
+  button.rounded-full:active:not(:disabled),
+  a.rounded-full:active {
+    scale: 0.96;
+  }
+}
+/* …and eases back out. Buttons with no transition get one for scale alone;
+   transition-colors is widened by exactly one property, keeping its own
+   duration. (Unlayered on purpose — these must beat the utility they extend.) */
+button.rounded-full:not([class*="transition"]),
+a.rounded-full:not([class*="transition"]) {
+  transition: scale 0.15s var(--ease-out);
+}
+button.rounded-full.transition-colors,
+a.rounded-full.transition-colors {
+  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, scale;
+}
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -295,12 +317,17 @@ textarea::-webkit-resizer {
   to { opacity: 0; transform: translateY(3px) scale(0.96); }
 }
 .anim-popover { animation: lexaPopoverIn 0.17s var(--ease-out) both; }
-.anim-popover-out { animation: lexaPopoverOut 0.16s ease both; }
+.anim-popover-out,
+.anim-popover[data-closing] { animation: lexaPopoverOut 0.13s var(--ease-in) both; }
 
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out,
   .anim-sheet, .anim-scrim, .anim-scale-in, .anim-dialog { animation: none; }
-  .seg-thumb { transition: none !important; }
+  .seg-thumb, .anim-collapse { transition: none !important; }
+  .anim-msg, .anim-tab, .anim-card-in, .typing-dots > span { animation: none; }
+  button.rounded-full:active, a.rounded-full:active { scale: none; }
+  details::details-content { transition: none !important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
 /* Segmented picker: the selected pill is one element that slides between the
@@ -355,13 +382,22 @@ textarea::-webkit-resizer {
   animation: lexaConfetti linear forwards;
 }
 
-/* ⌘K command palette pop */
+/* Dropdown menus and the ⌘K palette: drop out of their trigger, and fold back
+   into it on close. A menu that opens upward sets --drop: 6px so it rises out of
+   the trigger instead of falling toward it. */
 @keyframes lexaScaleIn {
-  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(var(--drop, -6px)) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
-.anim-scale-in { animation: lexaScaleIn 0.18s var(--ease-out) both; }
-.anim-scale-in[data-closing] { animation: lexaPopOut var(--dur-fast) var(--ease-in) both; }
+@keyframes lexaScaleOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(calc(var(--drop, -6px) / 2)) scale(0.98); }
+}
+.anim-scale-in {
+  animation: lexaScaleIn 0.18s var(--ease-out) both;
+  transform-origin: var(--drop-origin, top);
+}
+.anim-scale-in[data-closing] { animation: lexaScaleOut 0.12s var(--ease-in) both; }
 
 /* Toast slide-in (from the right) */
 @keyframes lexaToastIn {
@@ -400,6 +436,95 @@ textarea::-webkit-resizer {
   .confetti-piece, .flip-card { animation: none; transition: none; }
   .flip-face { transition: none; }
   .skeleton::after { animation: none; }
+}
+
+/* The next flashcard comes up off the deck as the graded one flies away. */
+@keyframes lexaCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+.anim-card-in { animation: lexaCardIn 0.34s var(--ease-out) both; }
+
+/* A new chat message rises into place instead of appearing in a block. */
+@keyframes lexaMsgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.anim-msg { animation: lexaMsgIn 0.28s var(--ease-out) both; }
+
+/* "Thinking…" before the first token: three dots breathing in turn. */
+.typing-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.typing-dots > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: lexaDot 1.1s ease-in-out infinite;
+}
+.typing-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes lexaDot {
+  0%, 60%, 100% { opacity: 0.35; transform: none; }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* Phone tab bar: the active marker grows out from the middle of its tab. */
+@keyframes lexaTabIn {
+  from { transform: scaleX(0.2); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.anim-tab { animation: lexaTabIn 0.3s var(--ease-out) both; }
+
+/* Theme switch (lib/theme.tsx wraps it in a view transition): one slow, even
+   cross-fade of the whole screen. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: ease;
+}
+
+/* Expanding <details> sections open and close by height where the browser can
+   animate to "auto"; elsewhere they keep the instant toggle. */
+@supports (interpolate-size: allow-keywords) {
+  details {
+    interpolate-size: allow-keywords;
+  }
+  details::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.3s var(--ease-out),
+      content-visibility 0.3s allow-discrete;
+  }
+  details[open]::details-content {
+    height: auto;
+  }
+}
+
+/* Collapse (components/ui/Collapse.tsx): the grid-rows trick animates a section
+   to its natural height in every browser, Safari included. */
+.anim-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.3s var(--ease-out),
+    opacity 0.2s ease;
+}
+.anim-collapse[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.anim-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.anim-collapse[data-open][data-settled] > * {
+  overflow: visible; /* let dropdown shadows and focus rings out once it's open */
 }
 
 /* ---- Landing: scroll-reveal + drifting aurora background ---- */

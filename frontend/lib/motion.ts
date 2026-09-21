@@ -49,3 +49,27 @@ export function useClosing(open: boolean, onClose: () => void, ms = 170) {
 
   return { closing, close };
 }
+
+/**
+ * Keeps a menu/popover mounted for a moment after `open` turns false, so it can
+ * play its exit instead of disappearing. Render while `mounted`, and put
+ * `data-closing={closing || undefined}` on its root. Unlike useClosing, nothing
+ * about how the caller closes it changes — every existing setOpen(false) path
+ * (outside click, Esc, picking an option) gets the exit for free.
+ */
+export function usePresence(open: boolean, ms = 130) {
+  const [prev, setPrev] = useState(open);
+  const [lingering, setLingering] = useState(false);
+  // Derived during render, not in an effect: an effect would commit one frame
+  // with the menu unmounted before bringing it back to animate out.
+  if (prev !== open) {
+    setPrev(open);
+    setLingering(!open && !prefersReducedMotion());
+  }
+  useEffect(() => {
+    if (!lingering) return;
+    const id = setTimeout(() => setLingering(false), ms);
+    return () => clearTimeout(id);
+  }, [lingering, ms]);
+  return { mounted: open || lingering, closing: !open && lingering };
+}

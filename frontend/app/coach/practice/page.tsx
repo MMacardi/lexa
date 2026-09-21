@@ -534,7 +534,7 @@ function GradeBadge({ grade, t }: { grade: Grade; t: (k: string) => string }) {
 function Bubble({ turn, t, speakLang }: { turn: Turn; t: (k: string) => string; speakLang: string }) {
   if (turn.role === "user") {
     return (
-      <div className="flex items-end justify-end gap-2.5">
+      <div className="anim-msg flex items-end justify-end gap-2.5">
         <div className="max-w-[78%] rounded-[16px] rounded-br-md bg-sage px-3.5 py-2.5 text-[15px] leading-relaxed text-white">
           {turn.content}
         </div>
@@ -545,7 +545,7 @@ function Bubble({ turn, t, speakLang }: { turn: Turn; t: (k: string) => string; 
     );
   }
   return (
-    <div className="flex items-end justify-start gap-2.5">
+    <div className="anim-msg flex items-end justify-start gap-2.5">
       <CoachAvatar />
       <div className="max-w-[82%]">
         {turn.grade && turn.grade !== "none" && <GradeBadge grade={turn.grade} t={t} />}

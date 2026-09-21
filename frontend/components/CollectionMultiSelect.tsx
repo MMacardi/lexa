@@ -8,6 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // Pretty dropdown multi-select for collections (same look as LangSelect, but you
 // can tick several). Menu is portalled to <body> so it floats above the page.
@@ -28,6 +29,7 @@ export function CollectionMultiSelect({
   const { accountId } = useAccount();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [newName, setNewName] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -109,10 +111,11 @@ export function CollectionMultiSelect({
         </svg>
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         createPortal(
           <div
+            data-closing={menu.closing || undefined}
             ref={menuRef}
             className={cn(
               "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",

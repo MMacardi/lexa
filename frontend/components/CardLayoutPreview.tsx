@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import type { CardField, CardLayout } from "@/lib/learnPrefs";
 import { Eye, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // An inline preview of how the flashcard will look with the current front/back
 // layout, using a sample English word translated into the interface language.
@@ -72,6 +73,7 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
   const { t, locale } = useI18n();
   const w = sampleWord(locale);
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [flipped, setFlipped] = useState(false);
   const [auto, setAuto] = useState(true);
   // Bumped on every manual flip so the auto interval restarts — otherwise a hand
@@ -102,8 +104,8 @@ export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
         <Eye className="h-3.5 w-3.5" /> {t("preview.want")}
       </button>
 
-      {open && (
-        <div className="anim-popover mt-2 w-full max-w-[320px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]">
+      {menu.mounted && (
+        <div data-closing={menu.closing || undefined} className="anim-popover mt-2 w-full max-w-[320px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</p>
 
           <div className="flip-scene cursor-pointer" onClick={manualFlip}>

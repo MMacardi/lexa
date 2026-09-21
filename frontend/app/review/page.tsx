@@ -881,7 +881,11 @@ export default function FlashcardsPage() {
             touchAction: swipeUpDown ? "none" : "pan-y",
           }}
         >
-          <div className="flip-scene">
+          {/* Keyed per card: the next word gets a fresh, face-up card that rises
+              in. Reusing the element meant the new word turned back over from
+              its answer side after a flipped card was graded — half a second of
+              the next answer showing. */}
+          <div key={index} className="flip-scene anim-card-in">
             <div className={cn("flip-card", flipped && "is-flipped")}>
               {/* FRONT — the layout's front fields, first one as the hero */}
               <div className="flip-face relative flex min-h-[300px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 sm:p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">

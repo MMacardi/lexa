@@ -749,7 +749,7 @@ function Bubble({
 }) {
   if (turn.role === "user") {
     return (
-      <div className="flex items-end justify-end gap-2.5">
+      <div className="anim-msg flex items-end justify-end gap-2.5">
         <div className="max-w-[78%] rounded-[16px] rounded-br-md bg-sage px-3.5 py-2.5 text-[15px] leading-relaxed text-white">
           {turn.content}
         </div>
@@ -765,7 +765,7 @@ function Bubble({
   if (turn.streaming) {
     if (!turn.content) return null;
     return (
-      <div className="flex items-end justify-start gap-2.5">
+      <div className="anim-msg flex items-end justify-start gap-2.5">
         <ChatAvatar />
         <div className="max-w-[82%]">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
@@ -776,7 +776,7 @@ function Bubble({
     );
   }
   return (
-    <div className="flex items-end justify-start gap-2.5">
+    <div className="anim-msg flex items-end justify-start gap-2.5">
       <ChatAvatar />
       <div className="max-w-[82%]">
         <div className="group flex items-end gap-1.5">

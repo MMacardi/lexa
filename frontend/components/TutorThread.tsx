@@ -38,7 +38,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
     <>
       {messages.map((m, i) =>
         m.role === "assistant" ? (
-          <div key={i} className="space-y-2">
+          <div key={i} className="anim-msg space-y-2">
             <RichText text={m.content} streaming={m.streaming} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
             {m.addWords &&
               m.addWords.length > 0 &&
@@ -173,7 +173,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
             ) : null}
           </div>
         ) : (
-          <div key={i} className="flex justify-end">
+          <div key={i} className="anim-msg flex justify-end">
             <span
               className={cn(
                 "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 py-2 font-medium text-white",
@@ -186,7 +186,16 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
         ),
       )}
       {/* "Thinking" only until the first token — after that the answer types itself out. */}
-      {busy && !streaming && <p className="text-sm text-ink-soft">{t("word.thinking")}</p>}
+      {busy && !streaming && (
+        <p className="anim-fade-in flex items-center gap-2 text-sm text-ink-soft" role="status">
+          <span className="typing-dots" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </span>
+          {t("word.thinking")}
+        </p>
+      )}
       {isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
     </>
   );

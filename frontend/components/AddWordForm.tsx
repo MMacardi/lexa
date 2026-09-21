@@ -49,6 +49,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
+import { Collapse } from "@/components/ui/Collapse";
 
 type Mode = "auto" | "manual";
 
@@ -898,13 +899,13 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}
             className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-ink-faint transition-colors hover:text-ink-muted"
           >
             {t("add.advanced")}
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
           </button>
-          {showAdvanced && (
-          <div className="space-y-2">
+          <Collapse open={showAdvanced} className="space-y-2">
           {exMode !== "none" && (
             <div className="flex flex-wrap items-center gap-2">
               {/* register only applies to AI-composed examples */}
@@ -968,8 +969,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
             />
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
-          </div>
-          )}
+          </Collapse>
         </div>
       )}
 

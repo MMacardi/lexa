@@ -9,6 +9,7 @@ import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLan
 import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // Pretty custom dropdown for picking a language. The menu is rendered in a
 // portal (position: fixed) so it always floats above the page, repositions on
@@ -31,6 +32,7 @@ export function LangSelect({
   const { t } = useI18n();
   const { prompt, confirm } = useDialog();
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [checking, setChecking] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -149,10 +151,11 @@ export function LangSelect({
         </svg>
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         createPortal(
           <div
+            data-closing={menu.closing || undefined}
             ref={menuRef}
             // Marks the menu as part of the picker for popovers that host one and
             // close on an outside click (the Mika pair popover) — it renders here,

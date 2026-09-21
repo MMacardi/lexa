@@ -6,6 +6,7 @@ import { pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/motion";
 
 // Compact multi-select for language pairs (each item is "src>tgt"). Replaces a
 // long wrapping chip row with a searchable dropdown + select-all/clear, so it
@@ -21,6 +22,7 @@ export function PairMultiSelect({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -80,10 +82,11 @@ export function PairMultiSelect({
         </svg>
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         createPortal(
           <div
+            data-closing={menu.closing || undefined}
             ref={menuRef}
             className="anim-scale-in fixed z-[80] flex max-h-80 w-[min(320px,90vw)] flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
             style={{ left: rect.left, top: rect.bottom + 6 }}

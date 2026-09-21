@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Plus } from "lucide-react";
+import { usePresence } from "@/lib/motion";
 
 // Pretty dropdown for choosing a collection — styled like LangSelect, but freeform:
 // pick an existing collection, clear it, or type a new name to create one. The
@@ -24,6 +25,7 @@ export function CollectionCombo({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -80,10 +82,11 @@ export function CollectionCombo({
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-ink-faint transition-transform", open && "rotate-180")} />
       </button>
 
-      {open &&
+      {menu.mounted &&
         rect &&
         createPortal(
           <div
+            data-closing={menu.closing || undefined}
             ref={menuRef}
             className="anim-scale-in fixed z-[95] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
             style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 200) }}
