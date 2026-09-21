@@ -36,7 +36,10 @@ interface SimNode {
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
-const BOTTOM_BAND = 40; // strip at the canvas foot the add-buttons own
+// Strip at the canvas foot the add-buttons own. The family is centred on the
+// whole canvas and the same margin is kept above it, so it sits in the middle
+// instead of 20px high, and the canvas grows before it could reach the buttons.
+const BOTTOM_BAND = 40;
 // Under this width a column · centre · column row can't hold a multi-word term
 // without truncating it, so the family stacks vertically instead.
 const NARROW = 560;
@@ -288,7 +291,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     if (w < NARROW) {
       const armGap = 16;
       const tall = runs[0] + runs[1] + center.h + armGap * 2;
-      const top = Math.max(8, (h - BOTTOM_BAND - tall) / 2);
+      const top = Math.max(8, (h - tall) / 2);
       center.hy = top + runs[0] + armGap + center.h / 2;
       arms.forEach((col, gi) => {
         let y = gi === 0 ? top : center.hy + center.h / 2 + armGap;
@@ -301,11 +304,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         });
       });
       seed(nodes, ready);
-      setBoxH(Math.round(Math.min(640, Math.max(300, tall + 20 + BOTTOM_BAND))));
+      setBoxH(Math.round(Math.min(640, Math.max(300, tall + 20 + BOTTOM_BAND * 2))));
       return;
     }
 
-    const midY = (h - BOTTOM_BAND) / 2;
+    const midY = h / 2;
     center.hy = midY;
     // links lengthen as the canvas widens, so a desktop row isn't one tight knot
     const reach = 26 + Math.min(64, Math.max(0, w - 640) * 0.12);
@@ -327,7 +330,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       });
     });
     seed(nodes, ready);
-    setBoxH(Math.round(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND))));
+    setBoxH(Math.round(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND * 2))));
   }, []);
 
   const tick = useCallback(() => {
@@ -440,7 +443,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     initedKey.current = relatedKey;
     const { w, h } = dimsRef.current;
     const cx = w / 2;
-    const cy = (h - BOTTOM_BAND) / 2;
+    const cy = h / 2;
     const nodes: SimNode[] = [
       { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true },
     ];
@@ -588,7 +591,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       <div
         ref={wrapRef}
         style={{ height: boxH }}
-        className="relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_45%,rgba(124,152,133,0.10),transparent_70%)] bg-surface"
+        className="relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_50%,rgba(124,152,133,0.10),transparent_70%)] bg-surface"
       >
         {/* add-your-own controls, each under the column it grows */}
         <button
