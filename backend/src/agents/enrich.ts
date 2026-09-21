@@ -20,16 +20,17 @@ const REGISTER: Record<string, string> = {
 // The default guidance for the meaning; the learner can override it (see the
 // per-user "meaning style" preference) to get richer or more specialised entries.
 // One sense, not the word's whole range: the word page lists the others for the
-// learner to add. The usage hint is what makes it readable — a bare "to save" for
-// 救 could just as well be saving money. Also used by the tutor and the importer,
-// so a card reads the same whichever way it was made.
+// learner to add. But one sense written out the way that list writes it — a bare
+// "goal" or "to save" is a translation, not a meaning. Also used by the tutor and
+// the importer, so a card reads the same whichever way it was made.
 export const DEFAULT_MEANING_INSTRUCTION =
-  'the word\'s MOST COMMON sense only (the one a learner\'s dictionary lists first) as a short gloss: the direct equivalent in 1-4 words, near-synonyms separated by ", ". ' +
-  "Whenever that bare translation could be read another way, add in parentheses what the word typically applies to — 1-3 typical objects or contexts, never a definition — so the meaning is clear on its own " +
-  '(Chinese 救 → "to save (a person, a life)", since a bare "to save" could be money or a file; 打开 → "открыть (дверь, книгу)"). ' +
-  "Skip the parentheses when the translation already reads one way only, and never add a category label " +
-  '(table → "стол", not "стол (мебель)"; a country → just its name; a pronoun → just the pronoun). ' +
-  "Do NOT list the word's other senses and do NOT write a long dictionary-style definition.";
+  "the word's MOST COMMON sense only (the one a learner's dictionary lists first), written the way a learner's dictionary glosses it. " +
+  'Give the main equivalent plus 1-2 near-synonyms that pin the sense down, separated by ", " (目标 → "goal, objective, target", never just "goal"). ' +
+  "Then, for a verb, an adjective, an abstract noun or anything a bare translation leaves vague, add in parentheses what it typically applies to — " +
+  '1-3 typical objects or contexts, not a definition (救 → "to save, to rescue (a person, a life)"; 打开 → "открыть, раскрыть (дверь, книгу)"; 认真 → "serious, conscientious (about work, study)"). ' +
+  "Only a concrete thing with one plain equivalent, a pronoun, a name or a number gets just that word, without a category label " +
+  '(table → "стол", not "стол (мебель)"; she → "她"; a country → its name). ' +
+  "Do NOT list the word's other senses and do NOT write a full dictionary-style definition.";
 
 export interface EnrichResult {
   phonetic: string;

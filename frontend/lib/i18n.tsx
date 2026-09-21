@@ -1332,9 +1332,9 @@ const DICT: Record<string, Entry> = {
   },
   "meaning.concise": { en: "Concise", ru: "Кратко", zh: "简洁" },
   "meaning.conciseHint": {
-    en: "The most common meaning, with what it applies to when the bare word could mislead. Cheapest.",
-    ru: "Самое частое значение и к чему оно относится, если голый перевод можно понять иначе. Дешевле всего.",
-    zh: "最常用的义项；单看译词易误解时，注明适用对象。最省。",
+    en: "The most common meaning with a synonym or two and what it applies to. Cheapest.",
+    ru: "Самое частое значение: пара синонимов и к чему оно относится. Дешевле всего.",
+    zh: "最常用的义项，附一两个近义词和适用对象。最省。",
   },
   "meaning.detailed": { en: "Detailed", ru: "Подробно", zh: "详细" },
   "meaning.detailedHint": {
@@ -1669,6 +1669,7 @@ const DICT: Record<string, Entry> = {
   "word.meaningsAdd": { en: "Add to card", ru: "На карточку", zh: "加到卡片" },
   "word.meaningsSave": { en: "Test these on the card", ru: "Проверять на карточке", zh: "卡片考这些" },
   "word.meaningsPreview": { en: "The card will say:", ru: "На карточке будет:", zh: "卡片上将写：" },
+  "word.meaningsFuller": { en: "Update the card", ru: "Обновить карточку", zh: "更新卡片" },
   "word.meaningsSaved": { en: "Card meaning updated", ru: "Значение карточки обновлено", zh: "卡片释义已更新" },
   "word.synonyms": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },

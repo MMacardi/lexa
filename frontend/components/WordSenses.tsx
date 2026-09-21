@@ -89,11 +89,16 @@ export function WordSenses({ word }: { word: Word }) {
     indexes.map((i) => senses[i]).filter(Boolean),
     word.targetLang,
   );
-  // Older cards say the bare gloss ("to save") where the sense reads "to save (a
-  // person, life…)": same pick, so offer the fuller wording as a save of its own.
+  // Older cards say less than the sense they test ("goal" where the sense reads
+  // "goal, objective (something aimed at)"): same pick, so offer the fuller wording
+  // as a save of its own — on a one-sense word too, where there's nothing to pick.
   const card = word.meaningZh ?? "";
-  const fuller = picked.size > 0 && preview !== card && bare(preview) === bare(card);
-  const dirty = picked.size !== initial.size || [...picked].some((i) => !initial.has(i)) || fuller;
+  const cardTerms = terms(card).map((x) => x.toLowerCase());
+  const previewTerms = new Set(terms(preview).map((x) => x.toLowerCase()));
+  const fuller =
+    picked.size > 0 && preview !== card && cardTerms.length > 0 && cardTerms.every((x) => previewTerms.has(x));
+  const repicked = picked.size !== initial.size || [...picked].some((i) => !initial.has(i));
+  const dirty = repicked || fuller;
 
   const save = useMutation({
     mutationFn: () => api.updateWord(word.id, { meaningZh: preview, senseIndexes: indexes }),
@@ -206,7 +211,7 @@ export function WordSenses({ word }: { word: Word }) {
           );
         })}
       </ol>
-      {multi && (
+      {(multi || fuller) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {dirty ? (
             <>
@@ -220,7 +225,7 @@ export function WordSenses({ word }: { word: Word }) {
                 disabled={picked.size === 0 || save.isPending}
                 className="rounded-full bg-sage px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
               >
-                {t("word.meaningsSave")}
+                {t(repicked ? "word.meaningsSave" : "word.meaningsFuller")}
               </button>
             </>
           ) : (
