@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 // Sentinel <Select> value for "create a new set from the selection".
 const NEW_SET = "__new__";
@@ -276,20 +277,13 @@ export default function WordsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="scroll-row flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold sm:text-sm">
-                {pills.map((p) => (
-                  <button
-                    key={p.key}
-                    onClick={() => setFilter(p.key)}
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 transition-colors",
-                      filter === p.key ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                scroll
+                size="lg"
+                value={filter}
+                onChange={setFilter}
+                options={pills.map((p) => ({ value: p.key, label: p.label }))}
+              />
 
               {/* set + language pair (the pair list shows every pair with its word
                   count; only when there's more than one pair) */}

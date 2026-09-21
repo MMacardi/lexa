@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { useClosing } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
@@ -303,9 +304,17 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
 // (so the keyboard never covers it), with a grab bar and a close button.
 function MobileSheet({ title, onClose, tall, children }: { title: string; onClose: () => void; tall?: boolean; children: React.ReactNode }) {
   const { t } = useI18n();
+  // The parent unmounts us on close, so the sheet has to ask for its own exit
+  // animation first — otherwise it blinks out from under the scrim.
+  const { closing, close } = useClosing(true, onClose, 200);
   return (
-    <div className="vv-overlay z-40 flex flex-col justify-end bg-black/35 md:hidden" onClick={onClose}>
+    <div
+      data-closing={closing || undefined}
+      className="anim-scrim vv-overlay z-40 flex flex-col justify-end bg-black/35 md:hidden"
+      onClick={close}
+    >
       <div
+        data-closing={closing || undefined}
         className={cn(
           "anim-sheet flex max-h-[calc(100%-12px)] flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
           tall && "min-h-[min(480px,calc(100%-12px))]",
@@ -317,7 +326,7 @@ function MobileSheet({ title, onClose, tall, children }: { title: string; onClos
           <h2 className="font-serif text-[20px] font-semibold text-ink">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             aria-label={t("nav.close")}
             className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.04] hover:text-ink"
           >

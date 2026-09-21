@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { useClosing } from "@/lib/motion";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { getLevel, getShowTextLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
@@ -66,12 +67,15 @@ export function ReaderTextTools({
 }
 
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  const { closing, close } = useClosing(true, onClose);
   return (
     <div
-      className="vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      data-closing={closing || undefined}
+      className="anim-scrim vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4"
+      onClick={close}
     >
       <div
+        data-closing={closing || undefined}
         className="anim-pop max-h-full w-full max-w-[440px] overflow-y-auto rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.34)]"
         onClick={(e) => e.stopPropagation()}
       >

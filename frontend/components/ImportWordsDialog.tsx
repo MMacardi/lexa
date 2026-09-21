@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ImportedCard, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { useClosing } from "@/lib/motion";
 import { Check } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { LangSelect } from "@/components/LangSelect";
+import { Segmented } from "@/components/ui/Segmented";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 import { HoverPreview } from "@/components/HoverPreview";
@@ -204,14 +206,18 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
   // details" do anything — otherwise it's disabled. (We also never invent them.)
   const hasExtras = cards.some((card) => card.example?.trim() || (card.synonyms?.length ?? 0) > 0);
   const keepExtras = keepProvidedExtras && hasExtras;
-  const close = () => {
-    if (commit.isPending) return;
+  const { closing, close: animateOut } = useClosing(open, () => finishClose(), 200);
+  const finishClose = () => {
     setOpen(false);
     setCards([]);
     setText("");
     setNewCollectionName("");
     preview.reset();
     commit.reset();
+  };
+  const close = () => {
+    if (commit.isPending) return;
+    animateOut();
   };
   const toggleAll = () => setCards((current) => current.map((card) => ({ ...card, selected: selected.length !== cards.length })));
 
@@ -270,12 +276,13 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
             role="dialog"
             aria-modal="true"
             aria-label={t("import.title")}
-            className="vv-overlay z-[200] flex items-end bg-black/55 p-0 backdrop-blur-[3px] sm:items-start sm:justify-center sm:p-5 sm:pt-[11vh]"
+            data-closing={closing || undefined}
+            className="anim-scrim vv-overlay z-[200] flex items-end bg-black/55 p-0 backdrop-blur-[3px] sm:items-start sm:justify-center sm:p-5 sm:pt-[11vh]"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target) close();
             }}
           >
-            <section className="anim-fade-up flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-black/[0.12] bg-surface shadow-[0_34px_100px_rgba(21,18,15,0.4)] sm:max-h-[82vh] sm:rounded-[28px]">
+            <section data-closing={closing || undefined} className="anim-dialog flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-black/[0.12] bg-surface shadow-[0_34px_100px_rgba(21,18,15,0.4)] sm:max-h-[82vh] sm:rounded-[28px]">
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-black/[0.07] bg-surface px-5 py-5 sm:px-7">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-sage">Onomika tools</p>
@@ -352,38 +359,18 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
               >
                 <div className="space-y-2 rounded-[16px] border border-black/[0.07] bg-surface p-3.5 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.11em] text-ink-faint">{t("import.direction")}</p>
-                  <div className="scroll-row flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
-                    <button
-                      type="button"
-                      onClick={() => applyDirection("en-ru")}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        direction === "en-ru" ? "bg-sage text-white" : "text-ink-muted",
-                      )}
-                    >
-                      {t("import.dir.enRu")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyDirection("ru-en")}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        direction === "ru-en" ? "bg-sage text-white" : "text-ink-muted",
-                      )}
-                    >
-                      {t("import.dir.ruEn")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyDirection("custom")}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                        direction === "custom" ? "bg-sage text-white" : "text-ink-muted",
-                      )}
-                    >
-                      {t("import.dir.custom")}
-                    </button>
-                  </div>
+                  <Segmented
+                    className="w-fit"
+                    scroll
+                    size="lg"
+                    value={direction}
+                    onChange={applyDirection}
+                    options={[
+                      { value: "en-ru", label: t("import.dir.enRu") },
+                      { value: "ru-en", label: t("import.dir.ruEn") },
+                      { value: "custom", label: t("import.dir.custom") },
+                    ]}
+                  />
 
                   {direction === "custom" && (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">

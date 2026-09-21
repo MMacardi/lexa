@@ -60,19 +60,23 @@ html {
   }
 }
 
-/* Bottom sheets slide up from the edge on phones. */
+/* Bottom sheets slide in from the screen edge. The panel travels its own full
+   height rather than a 24px nudge, so the motion reads as one object arriving
+   instead of a stutter; leaving, it accelerates off the edge. */
 @keyframes sheet-up {
-  from {
-    transform: translateY(24px);
-    opacity: 0.4;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes sheet-down {
+  from { transform: none; }
+  to { transform: translateY(100%); }
 }
 .anim-sheet {
-  animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: sheet-up var(--dur-slow) var(--ease-sheet) both;
+  will-change: transform;
+}
+.anim-sheet[data-closing] {
+  animation: sheet-down 0.2s var(--ease-in) both;
 }
 
 /* Lexa design tokens — calm editorial palette */
@@ -104,6 +108,18 @@ html {
 
 :root {
   --app-bg: #e7e4de;
+
+  /* ---- Motion curves & durations (one set for the whole app) ----
+     --ease-out front-loads the travel, so a panel reads as already there and
+     then settles; --ease-sheet is the flatter iOS sheet curve, which suits a
+     large surface crossing a long distance; --ease-in is for things leaving,
+     where accelerating away is what you want. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 0.15s;
+  --dur: 0.22s;
+  --dur-slow: 0.34s;
 }
 
 /* ---- Dark theme: redefine the palette under html.dark ---- */
@@ -221,6 +237,14 @@ textarea::-webkit-resizer {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes lexaFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes lexaPopOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.97); }
+}
 @keyframes lexaPop {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: none; }
@@ -230,9 +254,35 @@ textarea::-webkit-resizer {
   50% { transform: translateY(-3px); }
 }
 
-.anim-fade-up { animation: lexaFadeUp 0.5s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
-.anim-fade-in { animation: lexaFadeIn 0.5s ease both; }
-.anim-pop { animation: lexaPop 0.4s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+.anim-fade-up { animation: lexaFadeUp 0.38s var(--ease-out) both; }
+.anim-fade-in { animation: lexaFadeIn var(--dur) ease both; }
+.anim-pop { animation: lexaPop 0.24s var(--ease-out) both; }
+
+/* Anything on its way out stops taking clicks, so the last 150ms of a dialog
+   can't swallow a tap meant for the page behind it. */
+[data-closing] {
+  pointer-events: none;
+}
+
+/* The dim behind a dialog. It fades in with the panel and, on the way out, a
+   touch faster — a scrim that lingers after its panel has gone reads as a hang. */
+.anim-scrim { animation: lexaFadeIn var(--dur) ease both; }
+.anim-scrim[data-closing],
+.anim-fade-in[data-closing] { animation: lexaFadeOut var(--dur-fast) ease both; }
+.anim-pop[data-closing] { animation: lexaPopOut var(--dur-fast) var(--ease-in) both; }
+
+/* A dialog that docks to the bottom edge on phones and centres on a wide screen
+   (BugReport, the import wizard). It should arrive the way it's laid out: a
+   slide off the edge where it's a sheet, a pop where it's a card. */
+.anim-dialog {
+  animation: sheet-up var(--dur-slow) var(--ease-sheet) both;
+  will-change: transform;
+}
+.anim-dialog[data-closing] { animation: sheet-down 0.2s var(--ease-in) both; }
+@media (min-width: 640px) {
+  .anim-dialog { animation: lexaPop 0.24s var(--ease-out) both; }
+  .anim-dialog[data-closing] { animation: lexaPopOut var(--dur-fast) var(--ease-in) both; }
+}
 
 /* Small anchored popovers (reader gloss, tappable chips): a gentle rise+scale in,
    and a softer fade+scale out so dismissing never feels abrupt. */
@@ -244,11 +294,24 @@ textarea::-webkit-resizer {
   from { opacity: 1; transform: none; }
   to { opacity: 0; transform: translateY(3px) scale(0.96); }
 }
-.anim-popover { animation: lexaPopoverIn 0.17s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
+.anim-popover { animation: lexaPopoverIn 0.17s var(--ease-out) both; }
 .anim-popover-out { animation: lexaPopoverOut 0.16s ease both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out, .anim-sheet { animation: none; }
+  .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out,
+  .anim-sheet, .anim-scrim, .anim-scale-in, .anim-dialog { animation: none; }
+  .seg-thumb { transition: none !important; }
+}
+
+/* Segmented picker: the selected pill is one element that slides between the
+   options instead of a background colour hopping from button to button. It's
+   measured in JS (the options have different widths), so only the movement
+   lives here. */
+.seg-thumb {
+  transition:
+    transform 0.3s var(--ease-out),
+    width 0.3s var(--ease-out),
+    height 0.3s var(--ease-out);
 }
 
 /* 3D flip card — grid stacking lets the card size to the taller face (no overlap) */
@@ -297,7 +360,8 @@ textarea::-webkit-resizer {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-.anim-scale-in { animation: lexaScaleIn 0.16s ease both; }
+.anim-scale-in { animation: lexaScaleIn 0.18s var(--ease-out) both; }
+.anim-scale-in[data-closing] { animation: lexaPopOut var(--dur-fast) var(--ease-in) both; }
 
 /* Toast slide-in (from the right) */
 @keyframes lexaToastIn {
@@ -308,8 +372,8 @@ textarea::-webkit-resizer {
   from { opacity: 1; transform: none; }
   to { opacity: 0; transform: translateX(40px) scale(0.96); }
 }
-.anim-toast-in { animation: lexaToastIn 0.32s cubic-bezier(0.22, 0.8, 0.26, 1) both; }
-.anim-toast-out { animation: lexaToastOut 0.28s ease both; }
+.anim-toast-in { animation: lexaToastIn 0.3s var(--ease-out) both; }
+.anim-toast-out { animation: lexaToastOut 0.22s var(--ease-in) both; }
 @keyframes lexaShine {
   0% { background-position: -120% 0; }
   100% { background-position: 220% 0; }

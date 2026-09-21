@@ -43,6 +43,7 @@ import { ProTag } from "@/components/ProTag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
+import { Segmented } from "@/components/ui/Segmented";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { LangSelect } from "@/components/LangSelect";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
@@ -530,28 +531,19 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
     >
       {/* mode toggle */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
-          {(["auto", "manual"] as Mode[]).map((m) => {
-            const disabled = m === "auto" && !aiSupported;
-            return (
-              <HoverTip key={m} title={disabled ? t("add.aiUnsupported", { lang: langLabel(sourceLang) }) : ""} className="inline-flex">
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => !disabled && setMode(m)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                    mode === m ? "bg-sage text-white" : "text-ink-muted",
-                    disabled && "cursor-not-allowed opacity-40",
-                  )}
-                >
-                  {m === "auto" ? <Sparkles className="h-3.5 w-3.5" /> : <PenLine className="h-3.5 w-3.5" />}
-                  {m === "auto" ? t("add.auto") : t("add.manual")}
-                </button>
-              </HoverTip>
-            );
-          })}
-        </div>
+        <Segmented
+          className="w-fit"
+          size="sm"
+          value={mode}
+          onChange={setMode}
+          options={(["auto", "manual"] as Mode[]).map((m) => ({
+            value: m,
+            label: m === "auto" ? t("add.auto") : t("add.manual"),
+            Icon: m === "auto" ? Sparkles : PenLine,
+            disabled: m === "auto" && !aiSupported,
+            title: m === "auto" && !aiSupported ? t("add.aiUnsupported", { lang: langLabel(sourceLang) }) : undefined,
+          }))}
+        />
         {!aiSupported && (
           <span className="text-[12px] font-medium text-ink-faint">{t("add.aiUnsupported", { lang: langLabel(sourceLang) })}</span>
         )}
@@ -637,22 +629,16 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("add.inputLang")}</span>
-            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold">
-              {[sourceLang, targetLang].map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setReverseInput(code === targetLang)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                    inputLang === code ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {code === sourceLang ? <PenLine className="h-3.5 w-3.5" /> : <Languages className="h-3.5 w-3.5" />}
-                  {langLabel(code)}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              size="sm"
+              value={inputLang}
+              onChange={(code) => setReverseInput(code === targetLang)}
+              options={[sourceLang, targetLang].map((code) => ({
+                value: code,
+                label: langLabel(code),
+                Icon: code === sourceLang ? PenLine : Languages,
+              }))}
+            />
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">
             {typingKnown
@@ -876,31 +862,29 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           {/* source of examples: AI-composed, mined from the web, or none */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("exmode.label")}</span>
-            <div className="inline-flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold">
-              {([
+            <Segmented
+              size="sm"
+              value={exMode}
+              onChange={(m) => (m === "web" && !pro ? upsell({ word }) : setExMode(m))}
+              options={([
                 ["ai", Sparkles],
                 ["web", Globe],
                 ["none", Ban],
               ] as const).map(([m, Icon]) => {
                 const locked = m === "web" && !pro; // web-sourced examples are Pro
-                return (
-                  <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
-                    <button
-                      type="button"
-                      onClick={() => (locked ? upsell({ word }) : setExMode(m))}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                        exMode === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                        locked && "opacity-60",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
+                return {
+                  value: m,
+                  Icon,
+                  title: locked ? t("pro.locked") : undefined,
+                  label: (
+                    <>
+                      {t(`exmode.${m}`)}
                       {locked && <ProTag />}
-                    </button>
-                  </HoverTip>
-                );
+                    </>
+                  ),
+                };
               })}
-            </div>
+            />
           </div>
 
           {/* Plain-language description of the chosen example source — sits directly

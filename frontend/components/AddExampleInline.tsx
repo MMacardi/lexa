@@ -19,11 +19,10 @@ import {
 import { langLabel } from "@/lib/langs";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
-import { cn } from "@/lib/utils";
 import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
-import { HoverTip } from "@/components/ui/HoverTip";
+import { Segmented } from "@/components/ui/Segmented";
 import { Plus, Sparkles, Globe, X } from "lucide-react";
 
 // A little "+ add example" affordance under a card's examples: type one in (with
@@ -150,30 +149,28 @@ export function AddExampleInline({ word }: { word: Word }) {
         <>
           {/* AI knobs: source · register (AI only) · level */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-full bg-black/[0.05] p-0.5 text-xs font-semibold">
-              {([
+            <Segmented
+              size="sm"
+              value={pro ? src : "ai"}
+              onChange={(m) => (m === "web" && !pro ? upsell() : setSrc(m))}
+              options={([
                 ["ai", Sparkles],
                 ["web", Globe],
               ] as const).map(([m, Icon]) => {
                 const locked = m === "web" && !pro;
-                return (
-                <HoverTip key={m} title={locked ? t("pro.locked") : ""} className="inline-flex">
-                  <button
-                    type="button"
-                    onClick={() => (locked ? upsell() : setSrc(m))}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors",
-                      (pro ? src : "ai") === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                      locked && "opacity-60",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {t(`exmode.${m}`)}
-                    {locked && <ProTag />}
-                  </button>
-                </HoverTip>
-                );
+                return {
+                  value: m,
+                  Icon,
+                  title: locked ? t("pro.locked") : undefined,
+                  label: (
+                    <>
+                      {t(`exmode.${m}`)}
+                      {locked && <ProTag />}
+                    </>
+                  ),
+                };
               })}
-            </div>
+            />
             {src === "ai" && (
               <Select
                 value={style}

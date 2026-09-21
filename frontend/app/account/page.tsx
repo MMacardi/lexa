@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { useI18n, LOCALES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
+import { Segmented } from "@/components/ui/Segmented";
 import { langLabel } from "@/lib/langs";
 import {
   CEFR_LEVELS,
@@ -124,21 +125,12 @@ function RetentionSection() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("account.srs")}</h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[15px] font-medium text-ink">{t("retention.label")}</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-          {RETENTION_OPTIONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRetention(r)}
-              className={cn(
-                "rounded-full px-3.5 py-1.5 transition-colors",
-                Math.abs(retention - r) < 1e-6 ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {Math.round(r * 100)}%
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="lg"
+          value={String(RETENTION_OPTIONS.find((r) => Math.abs(retention - r) < 1e-6) ?? retention)}
+          onChange={(v) => setRetention(Number(v))}
+          options={RETENTION_OPTIONS.map((r) => ({ value: String(r), label: `${Math.round(r * 100)}%` }))}
+        />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">
         {t("retention.hint")}
@@ -161,22 +153,23 @@ function ExampleSourceSection() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("exsrc.title")}</h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[15px] font-medium text-ink">{t("exsrc.label")}</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => setExampleSource(o.value)}
-              className={cn(
-                "rounded-full px-3.5 py-1.5 transition-colors",
-                source === o.value ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {o.label}
-              {o.value === "ai" ? <span className="ml-1 opacity-70">· {t("exsrc.recommended")}</span> : null}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="lg"
+          value={source}
+          onChange={setExampleSource}
+          options={options.map((o) => ({
+            value: o.value,
+            label:
+              o.value === "ai" ? (
+                <>
+                  {o.label}
+                  <span className="-ml-0.5 opacity-70">· {t("exsrc.recommended")}</span>
+                </>
+              ) : (
+                o.label
+              ),
+          }))}
+        />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
 
@@ -185,21 +178,14 @@ function ExampleSourceSection() {
       {source === "ai" && (
         <div className="mt-5 border-t border-black/[0.06] pt-4">
           <span className="text-[15px] font-medium text-ink">{t("style.label")}</span>
-          <div className="scroll-row mt-2 flex w-fit gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:text-sm">
-            {STYLE_ORDER.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setExampleStyle(s)}
-                className={cn(
-                  "rounded-full px-3.5 py-1.5 transition-colors",
-                  style === s ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                )}
-              >
-                {t(`style.${s}`)}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            className="mt-2 w-fit"
+            scroll
+            size="lg"
+            value={style}
+            onChange={setExampleStyle}
+            options={STYLE_ORDER.map((s) => ({ value: s, label: t(`style.${s}`) }))}
+          />
           <p className="mt-2 text-[13px] leading-snug text-ink-soft">
             {t(`style.desc.${style === "none" ? DEFAULT_EXAMPLE_STYLE : style}`)}
           </p>
@@ -217,21 +203,16 @@ function TranscriptionSection() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("tr.title")}</h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[15px] font-medium text-ink">{t("tr.label")}</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-          {[true, false].map((v) => (
-            <button
-              key={String(v)}
-              type="button"
-              onClick={() => setShowTranscription(v)}
-              className={cn(
-                "rounded-full px-4 py-1.5 transition-colors",
-                on === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {v ? t("common.on") : t("common.off")}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="lg"
+          itemClassName="px-4"
+          value={on ? "on" : "off"}
+          onChange={(v) => setShowTranscription(v === "on")}
+          options={[
+            { value: "on", label: t("common.on") },
+            { value: "off", label: t("common.off") },
+          ]}
+        />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("tr.hint")}</p>
     </section>
@@ -252,26 +233,18 @@ function MicSection() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("mic.title")}</h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[15px] font-medium text-ink">{t("mic.label")}</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-          {options.map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => {
-                setMicEngine(v);
-                // Choosing the browser engine is the learner asserting it works for them —
-                // forget any past runtime failure so "auto" can reconsider it later too.
-                if (v === "browser") clearMicBrowserFailed();
-              }}
-              className={cn(
-                "rounded-full px-4 py-1.5 transition-colors",
-                engine === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {label[v]}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="lg"
+          itemClassName="px-4"
+          value={engine}
+          onChange={(v) => {
+            setMicEngine(v);
+            // Choosing the browser engine is the learner asserting it works for them —
+            // forget any past runtime failure so "auto" can reconsider it later too.
+            if (v === "browser") clearMicBrowserFailed();
+          }}
+          options={options.map((v) => ({ value: v, label: label[v] }))}
+        />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("mic.hint")}</p>
     </section>
@@ -286,21 +259,16 @@ function TextLevelSection() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("txtlvl.title")}</h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[15px] font-medium text-ink">{t("txtlvl.label")}</span>
-        <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-          {[true, false].map((v) => (
-            <button
-              key={String(v)}
-              type="button"
-              onClick={() => setShowTextLevel(v)}
-              className={cn(
-                "rounded-full px-4 py-1.5 transition-colors",
-                on === v ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {v ? t("common.on") : t("common.off")}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="lg"
+          itemClassName="px-4"
+          value={on ? "on" : "off"}
+          onChange={(v) => setShowTextLevel(v === "on")}
+          options={[
+            { value: "on", label: t("common.on") },
+            { value: "off", label: t("common.off") },
+          ]}
+        />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("txtlvl.hint")}</p>
     </section>
@@ -322,22 +290,14 @@ function GraphAddSection() {
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("graphadd.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("graphadd.hint")}</p>
-      <div className="mt-3 flex gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:inline-flex sm:text-sm">
-        {opts.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => setGraphAddMethod(o.id)}
-            className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1.5 transition-colors sm:flex-none sm:px-4",
-              method === o.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-            )}
-          >
-            {o.icon && <o.icon className="hidden h-3.5 w-3.5 sm:block" />}
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        className="mt-3 sm:inline-flex"
+        itemClassName="flex-1 px-2 sm:flex-none sm:px-4"
+        size="lg"
+        value={method}
+        onChange={setGraphAddMethod}
+        options={opts.map((o) => ({ value: o.id, label: o.label, Icon: o.icon }))}
+      />
     </section>
   );
 }
@@ -367,27 +327,26 @@ function MeaningStyleSection() {
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("meaning.title")}</h2>
       <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("meaning.hint")}</p>
-      <div className="mt-3 flex gap-1 rounded-full bg-black/[0.05] p-1 text-[13px] font-semibold sm:inline-flex sm:text-sm">
-        {modes.map((m) => {
+      <Segmented
+        className="mt-3 sm:inline-flex"
+        itemClassName="flex-1 px-2 sm:flex-none sm:px-4"
+        size="lg"
+        value={effMode}
+        onChange={(id) => (modes.find((m) => m.id === id)?.proOnly && !pro ? upsell() : setMeaningMode(id))}
+        options={modes.map((m) => {
           const locked = m.proOnly && !pro;
-          return (
-            <HoverTip key={m.id} title={locked ? t("pro.locked") : ""} className="inline-flex flex-1 sm:flex-none">
-              <button
-                type="button"
-                onClick={() => (locked ? upsell() : setMeaningMode(m.id))}
-                className={cn(
-                  "inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-full px-2 py-1.5 transition-colors sm:px-4",
-                  effMode === m.id ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  locked && "opacity-60",
-                )}
-              >
+          return {
+            value: m.id,
+            title: locked ? t("pro.locked") : undefined,
+            label: (
+              <>
                 {m.label}
                 {locked && <ProTag />}
-              </button>
-            </HoverTip>
-          );
+              </>
+            ),
+          };
         })}
-      </div>
+      />
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{active.hint}</p>
       {effMode === "custom" && (
         <textarea
@@ -431,21 +390,16 @@ function PrivacyRow({
         <p className="text-sm font-semibold text-ink">{label}</p>
         <p className="text-[12px] text-ink-soft">{hint}</p>
       </div>
-      <div className="flex shrink-0 gap-1 rounded-full border border-black/[0.07] bg-paper/60 p-1">
-        {(["hidden", "friends", "everyone"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => v !== value && onChange(v)}
-            className={cn(
-              "rounded-full px-3 py-1 text-[13px] font-semibold transition-colors",
-              v === value ? "bg-sage text-white" : "text-ink-muted hover:bg-black/[0.04]",
-            )}
-          >
-            {t(`privacy.${v}`)}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        className="shrink-0"
+        tone="outlined"
+        value={value}
+        onChange={onChange}
+        options={(["hidden", "friends", "everyone"] as const).map((v) => ({
+          value: v,
+          label: t(`privacy.${v}`),
+        }))}
+      />
     </div>
   );
 }
@@ -645,41 +599,29 @@ export default function AccountPage() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-[15px] font-medium text-ink">{t("account.theme")}</span>
-            <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-              {(["light", "dark"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    if ((m === "dark") !== (theme === "dark")) toggle();
-                  }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors",
-                    theme === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {m === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                  {m === "light" ? t("account.themeLight") : t("account.themeDark")}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              size="lg"
+              itemClassName="px-4"
+              value={theme === "dark" ? "dark" : "light"}
+              onChange={(m) => {
+                if ((m === "dark") !== (theme === "dark")) toggle();
+              }}
+              options={[
+                { value: "light", label: t("account.themeLight"), Icon: Sun },
+                { value: "dark", label: t("account.themeDark"), Icon: Moon },
+              ]}
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-[15px] font-medium text-ink">{t("account.language")}</span>
-            <div className="flex gap-1 rounded-full bg-black/[0.05] p-1 text-sm font-semibold">
-              {LOCALES.map((l) => (
-                <button
-                  key={l.code}
-                  onClick={() => setLocale(l.code)}
-                  className={cn(
-                    "rounded-full px-4 py-1.5 transition-colors",
-                    locale === l.code ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              size="lg"
+              itemClassName="px-4"
+              value={locale}
+              onChange={setLocale}
+              options={LOCALES.map((l) => ({ value: l.code, label: l.label }))}
+            />
           </div>
         </div>
       </Section>

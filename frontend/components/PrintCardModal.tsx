@@ -15,6 +15,8 @@ import {
 } from "@/lib/learnPrefs";
 import { renderPrintableCard, downloadDataUrl } from "@/lib/shareCard";
 import { cn } from "@/lib/utils";
+import { useClosing } from "@/lib/motion";
+import { Segmented } from "@/components/ui/Segmented";
 
 function presetIdOf(layout: CardLayout): string {
   const eq = (a: CardField[], b: CardField[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -46,6 +48,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
   );
 
   const preview = useMemo(() => renderPrintableCard(word, layout, labels), [word, layout, labels]);
+  const { closing, close } = useClosing(true, onClose);
 
   const toggleField = (side: "front" | "back", f: CardField) => {
     const cur = layout[side];
@@ -55,14 +58,19 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
   };
 
   return createPortal(
-    <div className="vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      data-closing={closing || undefined}
+      className="anim-scrim vv-overlay z-[90] flex items-center justify-center bg-black/40 p-4"
+      onClick={close}
+    >
       <div
+        data-closing={closing || undefined}
         className="anim-pop flex max-h-[94vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-serif text-[19px] font-medium text-ink">{t("print.title")}</h2>
-          <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
+          <button type="button" onClick={close} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -72,18 +80,22 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
         <img src={preview} alt="card preview" className="mb-3 max-h-[38vh] w-full rounded-[14px] border border-black/[0.06] object-contain" />
 
         {/* presets */}
-        <div className="scroll-row mb-2 flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
-          {CARD_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setCardLayout({ front: p.front, back: p.back })}
-              className={cn("rounded-full px-2.5 py-0.5 transition-colors", activePreset === p.id ? "bg-sage text-white" : "text-ink-muted")}
-            >
-              {t(`layout.${p.id}`)}
-            </button>
-          ))}
-          {activePreset === "custom" && <span className="rounded-full bg-sage px-2.5 py-0.5 text-white">{t("layout.custom")}</span>}
-        </div>
+        <Segmented
+          className="mb-2 w-fit"
+          scroll
+          size="sm"
+          value={activePreset}
+          onChange={(id) => {
+            const p = CARD_PRESETS.find((c) => c.id === id);
+            if (p) setCardLayout({ front: p.front, back: p.back });
+          }}
+          options={[
+            ...CARD_PRESETS.map((p) => ({ value: p.id, label: t(`layout.${p.id}`) })),
+            // "Custom" isn't a preset you can pick — it appears, and takes the
+            // pill, once the field toggles below no longer match one.
+            ...(activePreset === "custom" ? [{ value: "custom", label: t("layout.custom") }] : []),
+          ]}
+        />
 
         {/* per-side field toggles */}
         <div className="space-y-1.5 overflow-y-auto">

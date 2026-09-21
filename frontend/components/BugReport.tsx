@@ -13,7 +13,9 @@ import {
   type CapturedError,
 } from "@/lib/bugContext";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 import { OPEN_BUG } from "@/lib/mobileNav";
+import { useClosing } from "@/lib/motion";
 
 type Kind = "bug" | "idea" | "other";
 type ShotState = "idle" | "capturing" | "ready" | "failed";
@@ -24,6 +26,7 @@ type ShotState = "idle" | "capturing" | "ready" | "failed";
 export function BugReport() {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
+  const { closing, close } = useClosing(open, () => setOpen(false));
   const [kind, setKind] = useState<Kind>("bug");
   const [message, setMessage] = useState("");
   const [attachShot, setAttachShot] = useState(true);
@@ -143,7 +146,7 @@ export function BugReport() {
       });
       setStatus("done");
       setMessage("");
-      setTimeout(() => setOpen(false), 1400);
+      setTimeout(close, 1400);
     } catch {
       setStatus("error");
     }
@@ -176,14 +179,18 @@ export function BugReport() {
       {open &&
         createPortal(
           <div
+            data-closing={closing || undefined}
             className={cn(
               "vv-overlay z-[95] flex items-end justify-center bg-black/40 p-4 sm:items-center",
-              shotState === "capturing" && "opacity-0", // keep the modal out of its own screenshot
+              // keep the modal out of its own screenshot — and drop the fade with
+              // it, since an animation's filled value would override opacity-0
+              shotState === "capturing" ? "opacity-0" : "anim-scrim",
             )}
-            onClick={() => status !== "sending" && setOpen(false)}
+            onClick={() => status !== "sending" && close()}
           >
             <div
-              className="anim-pop flex max-h-full w-full max-w-[460px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
+              data-closing={closing || undefined}
+              className="anim-dialog flex max-h-full w-full max-w-[460px] flex-col overflow-hidden rounded-[22px] border border-black/[0.08] bg-surface p-4 shadow-[0_24px_60px_rgba(46,42,38,0.34)] sm:p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-2 flex items-center justify-between">
@@ -193,7 +200,7 @@ export function BugReport() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   aria-label={t("bug.close")}
                   className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
                 >
@@ -213,21 +220,13 @@ export function BugReport() {
                   <p className="mb-3 text-[13px] leading-snug text-ink-soft">{t("bug.subtitle")}</p>
 
                   {/* kind */}
-                  <div className="mb-3 flex gap-1 rounded-full bg-black/[0.04] p-1 text-[13px] font-semibold w-fit">
-                    {KINDS.map((k) => (
-                      <button
-                        key={k}
-                        type="button"
-                        onClick={() => setKind(k)}
-                        className={cn(
-                          "rounded-full px-3 py-1 transition-colors",
-                          kind === k ? "bg-sage text-white" : "text-ink-muted",
-                        )}
-                      >
-                        {t(`bug.kind.${k}`)}
-                      </button>
-                    ))}
-                  </div>
+                  <Segmented
+                    className="mb-3 w-fit"
+                    size="sm"
+                    value={kind}
+                    onChange={setKind}
+                    options={KINDS.map((k) => ({ value: k, label: t(`bug.kind.${k}`) }))}
+                  />
 
                   <textarea
                     value={message}

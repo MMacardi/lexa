@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useClosing } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { Home, Layers, Target, Library, Folders, Sun, Moon, Type, type LucideIcon } from "lucide-react";
 
@@ -58,7 +59,7 @@ export function CommandPalette() {
     }
   }, [open]);
 
-  const close = () => setOpen(false);
+  const { closing, close } = useClosing(open, () => setOpen(false), 140);
 
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
@@ -122,10 +123,12 @@ export function CommandPalette() {
 
   return (
     <div
-      className="vv-overlay z-50 flex items-start justify-center bg-black/30 p-4 pt-[14vh] backdrop-blur-sm"
+      data-closing={closing || undefined}
+      className="anim-scrim vv-overlay z-50 flex items-start justify-center bg-black/30 p-4 pt-[14vh] backdrop-blur-sm"
       onClick={close}
     >
       <div
+        data-closing={closing || undefined}
         className="anim-scale-in w-full max-w-[560px] overflow-hidden rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >

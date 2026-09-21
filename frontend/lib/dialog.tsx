@@ -76,6 +76,9 @@ export const useDialog = () => useContext(DialogCtx);
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const [pending, setPending] = useState<Pending | null>(null);
+  // The answer is handed back at once; the panel is kept on screen a beat longer
+  // so it can fade out instead of blinking away.
+  const [leaving, setLeaving] = useState(false);
   const [value, setValue] = useState("");
   const [checked, setChecked] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +86,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const confirm = useCallback(
     (opts: ConfirmOptions) =>
       new Promise<boolean>((resolve) => {
+        setLeaving(false);
         setChecked(false);
         setPending({ kind: "confirm", opts, resolve });
       }),
@@ -92,6 +96,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const prompt = useCallback(
     (opts: PromptOptions) =>
       new Promise<string | null>((resolve) => {
+        setLeaving(false);
         setValue(opts.defaultValue ?? "");
         setPending({ kind: "prompt", opts, resolve });
       }),
@@ -101,6 +106,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const choose = useCallback(
     (opts: ChooseOptions) =>
       new Promise<string | null>((resolve) => {
+        setLeaving(false);
         setChecked(false);
         setPending({ kind: "choose", opts, resolve });
       }),
@@ -121,9 +127,14 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       } else {
         pending.resolve(typeof result === "string" ? result : null);
       }
-      setPending(null);
-      setValue("");
-      setChecked(false);
+      setLeaving(true);
+      setTimeout(() => {
+        // Only tear down if nothing new opened in the meantime.
+        setPending((p) => (p === pending ? null : p));
+        setLeaving((l) => (l ? false : l));
+        setValue("");
+        setChecked(false);
+      }, 150);
     },
     [pending, checked],
   );
@@ -149,12 +160,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="anim-fade-in vv-overlay z-[90] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
+            data-closing={leaving || undefined}
+            className="anim-scrim vv-overlay z-[90] flex items-center justify-center bg-onyx/40 p-4 backdrop-blur-sm"
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) cancel();
             }}
           >
-            <div className={cn("anim-scale-in max-h-full w-full overflow-y-auto rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.28)]", pending.kind === "choose" && pending.opts.layout === "list" ? "max-w-[480px]" : "max-w-[400px]")}>
+            <div data-closing={leaving || undefined} className={cn("anim-scale-in max-h-full w-full overflow-y-auto rounded-[20px] border border-black/[0.08] bg-surface shadow-[0_24px_60px_rgba(46,42,38,0.28)]", pending.kind === "choose" && pending.opts.layout === "list" ? "max-w-[480px]" : "max-w-[400px]")}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();

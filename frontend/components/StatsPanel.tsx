@@ -12,6 +12,7 @@ import { Achievements } from "@/components/Achievements";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 import { Flame } from "lucide-react";
 
 const RANGES = [
@@ -350,36 +351,23 @@ export function StatsPanel() {
       {/* learning curve: metric toggle + date-range selector */}
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-0.5 rounded-full bg-black/[0.05] p-0.5 text-[12px] font-semibold">
-            {(["collected", "mastered"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMetric(m)}
-                className={cn(
-                  "rounded-full px-3 py-1 transition-colors",
-                  metric === m ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                )}
-              >
-                {t(m === "collected" ? "stats.metricCollected" : "stats.metricMastered")}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            size="sm"
+            value={metric}
+            onChange={setMetric}
+            options={(["collected", "mastered"] as const).map((m) => ({
+              value: m,
+              label: t(m === "collected" ? "stats.metricCollected" : "stats.metricMastered"),
+            }))}
+          />
           <div className="flex items-center gap-3">
             <span className="text-[12px] font-semibold text-sage-deep">{t("stats.total", { n: curveTotal })}</span>
-            <div className="flex gap-0.5 rounded-full bg-black/[0.05] p-0.5 text-[11px] font-semibold">
-              {RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  onClick={() => setRange(r.key)}
-                  className={cn(
-                    "rounded-full px-2.5 py-1 transition-colors",
-                    range === r.key ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              size="xs"
+              value={range}
+              onChange={setRange}
+              options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
+            />
           </div>
         </div>
         <LearningCurve words={curveWords} days={effDays} />

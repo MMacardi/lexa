@@ -22,6 +22,7 @@ import { HoverPreview } from "@/components/HoverPreview";
 import { HighlightWord } from "@/components/HighlightWord";
 import { OnceHint } from "@/components/OnceHint";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -516,20 +517,17 @@ export default function QuizPage() {
             <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
           </summary>
           <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
-            <div className="flex w-fit gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
-              {[false, true].map((v) => (
-                <button
-                  key={String(v)}
-                  onClick={() => setFlip(v)}
-                  className={cn(
-                    "rounded-full px-3 py-1 transition-colors",
-                    flip === v ? "bg-sage text-white" : "text-ink-muted",
-                  )}
-                >
-                  {v ? t("review.meaningToWord") : t("review.wordToMeaning")}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              className="w-fit"
+              size="lg"
+              itemClassName="px-3 py-1"
+              value={flip ? "flip" : "front"}
+              onChange={(v) => setFlip(v === "flip")}
+              options={[
+                { value: "front", label: t("review.wordToMeaning") },
+                { value: "flip", label: t("review.meaningToWord") },
+              ]}
+            />
           </div>
         </details>
       </div>

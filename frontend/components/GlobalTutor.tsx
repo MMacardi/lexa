@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { useClosing } from "@/lib/motion";
 import { getLevel } from "@/lib/learnPrefs";
 import { useTutorChat, type TutorCardCtx } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
@@ -19,6 +20,9 @@ export function GlobalTutor() {
   // Phones get a bottom sheet opened from the tab bar's centre button; desktop
   // keeps the floating, draggable panel.
   const mobile = useIsMobile();
+  // The sheet has to slide back off the edge before it unmounts; the desktop
+  // panel doesn't animate, so there's nothing to wait for there.
+  const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 0);
   useLockScroll(open && mobile);
   const chat = useTutorChat({ active: open });
   const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished, card, startCard } = chat;
@@ -132,8 +136,9 @@ export function GlobalTutor() {
 
       {/* chat panel — a bottom sheet over a scrim on phones */}
       {open && (
-        <SheetScrim mobile={mobile} onClose={() => setOpen(false)}>
+        <SheetScrim mobile={mobile} closing={closing} onClose={close}>
         <div
+          data-closing={(mobile && closing) || undefined}
           ref={mobile ? undefined : panelRef}
           className={cn(
             "z-[60] flex flex-col overflow-hidden bg-surface",
@@ -189,7 +194,7 @@ export function GlobalTutor() {
                 <HoverTip title={t("tutor.openPage")} className="inline-flex">
                   <Link
                     href="/mika"
-                    onClick={() => setOpen(false)}
+                    onClick={close}
                     aria-label={t("tutor.openPage")}
                     className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
                   >
@@ -198,7 +203,7 @@ export function GlobalTutor() {
                 </HoverTip>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   aria-label={t("common.cancel")}
                   className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
                 >
@@ -214,7 +219,7 @@ export function GlobalTutor() {
               {card && (
                 <Link
                   href={`/word/${card.id}`}
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   title={t("tutor.aboutCard", { word: card.word })}
                   className="inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint/60 px-2.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
                 >
@@ -289,10 +294,14 @@ export function GlobalTutor() {
 
 // Phones: dim the page and dock the panel to the bottom of the visible viewport
 // (above the keyboard). Desktop: render the floating panel as-is.
-function SheetScrim({ mobile, onClose, children }: { mobile: boolean; onClose: () => void; children: React.ReactNode }) {
+function SheetScrim({ mobile, closing, onClose, children }: { mobile: boolean; closing: boolean; onClose: () => void; children: React.ReactNode }) {
   if (!mobile) return <>{children}</>;
   return (
-    <div className="vv-overlay anim-fade-in z-[60] flex flex-col justify-end bg-black/35" onClick={onClose}>
+    <div
+      data-closing={closing || undefined}
+      className="vv-overlay anim-scrim z-[60] flex flex-col justify-end bg-black/35"
+      onClick={onClose}
+    >
       {children}
     </div>
   );

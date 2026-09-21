@@ -35,6 +35,7 @@ import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
 import { ChevronDown, ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
@@ -392,22 +393,21 @@ export default function FlashcardsPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
               {t("review.which")}
             </p>
-            <div className="grid grid-cols-2 gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
-              {([true, false] as const).map((due) => (
-                <button
-                  key={String(due)}
-                  type="button"
-                  onClick={() => setOnlyDue(due)}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 transition-colors",
-                    onlyDue === due ? "bg-sage text-white" : "text-ink-muted",
-                  )}
-                >
-                  {t(due ? "review.modeDue" : "review.modeAll")}
-                  <span className="ml-1.5 opacity-70">{due ? dueCount : allCount}</span>
-                </button>
-              ))}
-            </div>
+            <Segmented
+              grow
+              size="lg"
+              value={onlyDue ? "due" : "all"}
+              onChange={(v) => setOnlyDue(v === "due")}
+              options={([true, false] as const).map((due) => ({
+                value: due ? "due" : "all",
+                label: (
+                  <>
+                    {t(due ? "review.modeDue" : "review.modeAll")}
+                    <span className="-ml-0.5 opacity-70">{due ? dueCount : allCount}</span>
+                  </>
+                ),
+              }))}
+            />
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
               {t(onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
             </p>
@@ -467,23 +467,23 @@ export default function FlashcardsPage() {
             <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
           </summary>
           <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
-            <div className="scroll-row flex w-fit flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 text-sm font-semibold">
-              {CARD_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setCardLayout({ front: p.front, back: p.back })}
-                  className={cn(
-                    "rounded-full px-3 py-1 transition-colors",
-                    activePreset === p.id ? "bg-sage text-white" : "text-ink-muted",
-                  )}
-                >
-                  {t(`layout.${p.id}`)}
-                </button>
-              ))}
-              {activePreset === "custom" && (
-                <span className="rounded-full bg-sage px-3 py-1 text-white">{t("layout.custom")}</span>
-              )}
-            </div>
+            <Segmented
+              className="w-fit"
+              scroll
+              size="lg"
+              itemClassName="px-3 py-1"
+              value={activePreset}
+              onChange={(id) => {
+                const p = CARD_PRESETS.find((c) => c.id === id);
+                if (p) setCardLayout({ front: p.front, back: p.back });
+              }}
+              options={[
+                ...CARD_PRESETS.map((p) => ({ value: p.id, label: t(`layout.${p.id}`) })),
+                // "Custom" is not pickable — it shows up, holding the pill, as soon
+                // as the field toggles below stop matching a preset.
+                ...(activePreset === "custom" ? [{ value: "custom", label: t("layout.custom") }] : []),
+              ]}
+            />
 
             {/* per-side field toggles */}
             <div className="mt-3 space-y-2">
