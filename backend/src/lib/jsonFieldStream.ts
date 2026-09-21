@@ -16,6 +16,12 @@
 //
 // Rescanning the value from its start on every push is O(n²), but n is ~1-3 KB here, so
 // it is trivially cheap and keeps the logic stateless and robust to chunk boundaries.
+//
+// Emitted text goes through fixMixedScript (a stray Cyrillic "о" inside an English
+// word, or the reverse). That needs whole words, so a word still arriving is held
+// back until a non-letter or the closing quote follows it.
+
+import { fixMixedScript, TRAILING_WORD } from "./scriptMix.js";
 
 export interface FieldExtractor {
   push(raw: string): void;
@@ -83,8 +89,9 @@ export function createFieldExtractor(emit: (chunk: string) => void, field = "say
         if (!m) return; // the key has not arrived yet — deltas simply start later
         valueStart = m.index + m[0].length;
       }
-      const { text, closed: isClosed } = decodeFrom(raw, valueStart);
-      closed = isClosed;
+      const decoded = decodeFrom(raw, valueStart);
+      closed = decoded.closed;
+      const text = fixMixedScript(closed ? decoded.text : decoded.text.replace(TRAILING_WORD, ""));
       if (text.length > emittedLen) {
         const chunk = text.slice(emittedLen);
         emittedLen = text.length;

@@ -3,6 +3,7 @@ import type { ZodSchema } from "zod";
 import { env } from "../lib/env.js";
 import { langName } from "../lib/langs.js";
 import { createFieldExtractor } from "../lib/jsonFieldStream.js";
+import { fixMixedScript, fixMixedScriptDeep } from "../lib/scriptMix.js";
 import { prisma } from "./db.js";
 import { currentUserId } from "../lib/usageContext.js";
 
@@ -140,7 +141,7 @@ export async function chatJson<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
-  return opts.schema.parse(parsed);
+  return opts.schema.parse(fixMixedScriptDeep(parsed));
 }
 
 // Qwen-VL (vision) model for OCR. Configurable per deployment/region.
@@ -183,7 +184,7 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
     throw friendlyLlmError(err);
   }
   logUsage("ocr", VISION_MODEL, "ocr", completion, Date.now() - t0);
-  return (completion.choices[0]?.message?.content ?? "").trim();
+  return fixMixedScript((completion.choices[0]?.message?.content ?? "").trim());
 }
 
 // Qwen audio model for speech-to-text (Telegram voice answers, Reader read-aloud).
@@ -268,7 +269,7 @@ export async function chatJsonConversation<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
-  return opts.schema.parse(parsed);
+  return opts.schema.parse(fixMixedScriptDeep(parsed));
 }
 
 /**
@@ -364,7 +365,7 @@ export async function chatJsonConversationStream<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
-  return opts.schema.parse(parsed);
+  return opts.schema.parse(fixMixedScriptDeep(parsed));
 }
 
 // Rough token count for text the provider never billed us for explicitly, used
@@ -399,5 +400,5 @@ export async function chatText(opts: { messages: ChatMessage[]; timeoutMs?: numb
   } catch (err) {
     throw friendlyLlmError(err);
   }
-  return (completion.choices[0]?.message?.content ?? "").trim();
+  return fixMixedScript((completion.choices[0]?.message?.content ?? "").trim());
 }
