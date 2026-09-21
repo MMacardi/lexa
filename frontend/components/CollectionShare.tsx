@@ -7,7 +7,7 @@ import { api, type Collection, type Folder, type Visibility } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { Select } from "@/components/ui/Select";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 export const VISIBILITY_ICON: Record<Visibility, LucideIcon> = {
   private: Lock,
@@ -45,25 +45,21 @@ export function CollectionShare({
     <div className="mt-3 space-y-3 rounded-[14px] border border-black/[0.06] bg-paper/60 p-3">
       <div>
         <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("share.whoCanSee")}</p>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-          {MODES.map((m) => {
-            const Icon = VISIBILITY_ICON[m];
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => m !== visibility && update.mutate({ visibility: m })}
-                disabled={update.isPending || (m === "public" && collection.delisted)}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                  m === visibility ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" /> {t(`share.${m}`)}
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          grid
+          tone="chips"
+          className="grid-cols-2 sm:grid-cols-4"
+          itemClassName="px-2.5"
+          value={visibility}
+          // one change at a time: a second tap mid-save is ignored, not queued
+          onChange={(m) => !update.isPending && m !== visibility && update.mutate({ visibility: m })}
+          options={MODES.map((m) => ({
+            value: m,
+            label: t(`share.${m}`),
+            Icon: VISIBILITY_ICON[m],
+            disabled: m === "public" && collection.delisted,
+          }))}
+        />
         <p className="mt-1.5 text-[12px] text-ink-soft">{t(`share.${visibility}Hint`)}</p>
         {collection.delisted && <p className="mt-1 text-[12px] font-medium text-warn-text">{t("share.delistedNote")}</p>}
       </div>

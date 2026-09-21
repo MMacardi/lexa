@@ -11,6 +11,7 @@ import { X, GraduationCap, Target, Compass } from "lucide-react";
 import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
@@ -176,32 +177,21 @@ export default function CollectionDetailPage() {
         />
 
         {availablePairs.length > 1 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => setPairFilter("all")}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                pairFilter === "all" ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-              )}
-            >
-              {t("common.all")}
-            </button>
-            {availablePairs.map((p) => {
-              const [s, tg] = p.split(">");
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPairFilter(p)}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                    pairFilter === p ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-                  )}
-                >
-                  {pairLabel(s, tg)}
-                </button>
-              );
-            })}
-          </div>
+          <Segmented
+            className="mb-3"
+            tone="chips"
+            size="lg"
+            itemClassName="px-3"
+            value={pairFilter}
+            onChange={setPairFilter}
+            options={[
+              { value: "all", label: t("common.all") },
+              ...availablePairs.map((p) => {
+                const [s, tg] = p.split(">");
+                return { value: p, label: pairLabel(s, tg) };
+              }),
+            ]}
+          />
         )}
 
         {candidates.length === 0 ? (

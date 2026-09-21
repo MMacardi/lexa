@@ -20,9 +20,9 @@ export function GlobalTutor() {
   // Phones get a bottom sheet opened from the tab bar's centre button; desktop
   // keeps the floating, draggable panel.
   const mobile = useIsMobile();
-  // The sheet has to slide back off the edge before it unmounts; the desktop
-  // panel doesn't animate, so there's nothing to wait for there.
-  const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 0);
+  // The phone sheet slides back off the edge and the desktop panel shrinks into
+  // its corner before either unmounts.
+  const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
   useLockScroll(open && mobile);
   const chat = useTutorChat({ active: open });
   const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished, card, startCard } = chat;
@@ -138,13 +138,13 @@ export function GlobalTutor() {
       {open && (
         <SheetScrim mobile={mobile} closing={closing} onClose={close}>
         <div
-          data-closing={(mobile && closing) || undefined}
+          data-closing={closing || undefined}
           ref={mobile ? undefined : panelRef}
           className={cn(
             "z-[60] flex flex-col overflow-hidden bg-surface",
             mobile
               ? "anim-sheet max-h-[calc(100%-12px)] min-h-[min(420px,calc(100%-12px))] rounded-t-[24px] border-t border-black/[0.08] shadow-[0_-12px_40px_rgba(46,42,38,0.25)]"
-              : "fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
+              : "anim-panel fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
           )}
           style={mobile ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
           onClick={(e) => e.stopPropagation()}

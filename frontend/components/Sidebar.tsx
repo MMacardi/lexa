@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { useClosing } from "@/lib/motion";
+import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
@@ -56,10 +56,11 @@ export function Sidebar() {
     window.addEventListener(OPEN_ADD, on);
     return () => window.removeEventListener(OPEN_ADD, on);
   }, []);
-  const closeSheet = () => {
-    setSheet(null);
-    setEditing(false);
-  };
+  // Every way of closing a sheet — scrim, ×, a link inside it, the tab bar —
+  // goes through here; presence keeps it mounted long enough to slide away.
+  const closeSheet = () => setSheet(null);
+  const moreSheet = usePresence(sheet === "more", 200);
+  const addSheet = usePresence(sheet === "add", 200);
   const { data } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -188,8 +189,8 @@ export function Sidebar() {
       </header>
 
       {/* ---------- Mobile "More" sheet (+ bar customizer) ---------- */}
-      {sheet === "more" && (
-        <MobileSheet onClose={closeSheet} title={editing ? t("nav.customize") : t("nav.more")}>
+      {moreSheet.mounted && (
+        <MobileSheet closing={moreSheet.closing} onClose={closeSheet} title={editing ? t("nav.customize") : t("nav.more")}>
           {editing ? (
             <BarCustomizer
               current={slots}
@@ -234,8 +235,8 @@ export function Sidebar() {
       )}
 
       {/* ---------- Mobile quick-add sheet ---------- */}
-      {sheet === "add" && (
-        <MobileSheet onClose={closeSheet} title={t("nav.addWord")} tall>
+      {addSheet.mounted && (
+        <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} tall>
           <AddWordForm bare />
         </MobileSheet>
       )}
@@ -266,7 +267,11 @@ export function Sidebar() {
           ))}
           <button
             type="button"
-            onClick={() => (sheet === "more" ? closeSheet() : setSheet("more"))}
+            onClick={() => {
+              if (sheet === "more") return closeSheet();
+              setEditing(false);
+              setSheet("more");
+            }}
             className={cn(
               "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10.5px] font-semibold transition-colors",
               moreActive || sheet === "more" ? "text-sage-deep" : "text-ink-faint",
@@ -302,16 +307,25 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
 
 // Phone bottom sheet: scrim + panel docked to the bottom of the visible viewport
 // (so the keyboard never covers it), with a grab bar and a close button.
-function MobileSheet({ title, onClose, tall, children }: { title: string; onClose: () => void; tall?: boolean; children: React.ReactNode }) {
+function MobileSheet({
+  title,
+  closing,
+  onClose,
+  tall,
+  children,
+}: {
+  title: string;
+  closing: boolean;
+  onClose: () => void;
+  tall?: boolean;
+  children: React.ReactNode;
+}) {
   const { t } = useI18n();
-  // The parent unmounts us on close, so the sheet has to ask for its own exit
-  // animation first — otherwise it blinks out from under the scrim.
-  const { closing, close } = useClosing(true, onClose, 200);
   return (
     <div
       data-closing={closing || undefined}
       className="anim-scrim vv-overlay z-40 flex flex-col justify-end bg-black/35 md:hidden"
-      onClick={close}
+      onClick={onClose}
     >
       <div
         data-closing={closing || undefined}
@@ -326,7 +340,7 @@ function MobileSheet({ title, onClose, tall, children }: { title: string; onClos
           <h2 className="font-serif text-[20px] font-semibold text-ink">{title}</h2>
           <button
             type="button"
-            onClick={close}
+            onClick={onClose}
             aria-label={t("nav.close")}
             className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.04] hover:text-ink"
           >

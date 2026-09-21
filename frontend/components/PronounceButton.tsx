@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
 import { Mic, Square, Loader2 } from "lucide-react";
+import { usePresence } from "@/lib/motion";
 
 // 🎤 pronunciation self-check: say the word, we transcribe it and score how close it
 // sounded (text as a proxy — encouraging, not clinical). Engine is resolved per the
@@ -74,6 +75,11 @@ export function PronounceButton({
       document.removeEventListener("keydown", onEsc);
     };
   }, [listening, checking, result, err]);
+
+  const open = listening || checking || !!result || !!err;
+  const pop = usePresence(open);
+  // What the bubble last showed — see where it's filled in below.
+  const lastBody = useRef<React.ReactNode>(null);
 
   if (!ok) return null;
 
@@ -169,7 +175,31 @@ export function PronounceButton({
   const dim = size === "sm" ? "h-7 w-7 text-[13px]" : "h-9 w-9 text-[16px]";
   const bandCls = result?.band === "great" ? "text-sage-deep" : "text-warn-text";
   const bandKey = result ? (result.band === "great" ? "pron.great" : result.band === "close" ? "pron.close" : "pron.off") : "";
-  const open = listening || checking || !!result || !!err;
+
+  const body = listening ? (
+    <span className="block text-[13px] text-ink-soft">
+      {engineRef.current === "server" ? t("pron.recording") : interim || t("pron.listening")}
+    </span>
+  ) : checking ? (
+    <span className="block text-[13px] text-ink-soft">{t("mic.checking")}</span>
+  ) : err ? (
+    <span className="block text-[13px] text-ink-soft">{err}</span>
+  ) : result ? (
+    <>
+      <span className={cn("block text-[13px] font-semibold", bandCls)}>
+        {t(bandKey)} · {Math.round(result.score * 100)}%
+      </span>
+      {result.heard && (
+        <span className="mt-0.5 block text-[12px] text-ink-faint">{t("pron.heard", { heard: result.heard })}</span>
+      )}
+      <button type="button" onClick={start} className="mt-1.5 text-[12px] font-semibold text-sage hover:text-sage-deep">
+        {t("pron.again")}
+      </button>
+    </>
+  ) : null;
+  // Closing clears the very state the bubble shows (result/err), so while it
+  // fades out it keeps rendering what it last said instead of going blank.
+  if (open) lastBody.current = body;
 
   return (
     <span ref={wrapRef} className={cn("relative inline-flex", className)}>
@@ -197,29 +227,12 @@ export function PronounceButton({
         </button>
       </HoverTip>
 
-      {open && (
-        <span className="anim-popover absolute left-0 top-full z-30 mt-2 w-max max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-left shadow-[0_14px_40px_rgba(46,42,38,0.2)]">
-          {listening ? (
-            <span className="block text-[13px] text-ink-soft">
-              {engineRef.current === "server" ? t("pron.recording") : interim || t("pron.listening")}
-            </span>
-          ) : checking ? (
-            <span className="block text-[13px] text-ink-soft">{t("mic.checking")}</span>
-          ) : err ? (
-            <span className="block text-[13px] text-ink-soft">{err}</span>
-          ) : result ? (
-            <>
-              <span className={cn("block text-[13px] font-semibold", bandCls)}>
-                {t(bandKey)} · {Math.round(result.score * 100)}%
-              </span>
-              {result.heard && (
-                <span className="mt-0.5 block text-[12px] text-ink-faint">{t("pron.heard", { heard: result.heard })}</span>
-              )}
-              <button type="button" onClick={start} className="mt-1.5 text-[12px] font-semibold text-sage hover:text-sage-deep">
-                {t("pron.again")}
-              </button>
-            </>
-          ) : null}
+      {pop.mounted && (
+        <span
+          data-closing={pop.closing || undefined}
+          className="anim-popover absolute left-0 top-full z-30 mt-2 w-max max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-left shadow-[0_14px_40px_rgba(46,42,38,0.2)]"
+        >
+          {open ? body : lastBody.current}
         </span>
       )}
     </span>

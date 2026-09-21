@@ -14,6 +14,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
@@ -180,21 +181,13 @@ function ReportDeck({ id, code }: { id: string; code?: string }) {
   return (
     <div className="space-y-3 rounded-[14px] border border-black/[0.06] bg-paper/60 p-4">
       <p className="text-sm font-semibold text-ink">{t("report.title")}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {REASONS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setReason(r)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors",
-              r === reason ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-            )}
-          >
-            {t(`report.${r}`)}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        tone="chips"
+        itemClassName="px-3"
+        value={reason}
+        onChange={setReason}
+        options={REASONS.map((r) => ({ value: r, label: t(`report.${r}`) }))}
+      />
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}

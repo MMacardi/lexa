@@ -704,34 +704,34 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
       {showHanPicker && (
         <div className="anim-fade-up flex flex-wrap items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 p-2.5">
           <span className="text-[12px] font-semibold text-sage-deep">{t("han.inlinePrompt")}</span>
-          <div className="flex gap-1 rounded-[16px] bg-black/[0.05] p-1 text-sm font-semibold">
-            {/* Only Chinese vs Japanese — pure Han input is never Korean (Korean uses
-                hangul), and offering it caused mis-detections like 月 → 월. */}
-            {(["zh", "ja"] as const).map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => {
-                  setHanChoice(l);
-                  setHanLang(l); // remember for the rest of the session
-                }}
-                className={cn(
-                  "flex flex-col items-center rounded-[12px] px-3 py-1 leading-tight transition-colors",
-                  hanChoice === l ? "bg-sage text-white" : "text-ink-muted hover:text-ink",
-                )}
-              >
-                <span>{l === "zh" ? "中文" : "日本語"}</span>
-                <span
-                  className={cn(
-                    "text-[10px] font-medium",
-                    hanChoice === l ? "text-white/80" : "text-ink-faint",
-                  )}
-                >
-                  {l === "zh" ? t("han.chinese") : t("han.japanese")}
+          {/* Only Chinese vs Japanese — pure Han input is never Korean (Korean uses
+              hangul), and offering it caused mis-detections like 月 → 월. */}
+          <Segmented
+            size="lg"
+            shape="soft"
+            itemClassName="px-3 py-1 leading-tight"
+            value={hanChoice}
+            onChange={(l) => {
+              setHanChoice(l);
+              setHanLang(l); // remember for the rest of the session
+            }}
+            options={(["zh", "ja"] as const).map((l) => ({
+              value: l,
+              label: (
+                <span className="flex flex-col items-center">
+                  <span>{l === "zh" ? "中文" : "日本語"}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium transition-colors duration-200",
+                      hanChoice === l ? "text-white/80" : "text-ink-faint",
+                    )}
+                  >
+                    {l === "zh" ? t("han.chinese") : t("han.japanese")}
+                  </span>
                 </span>
-              </button>
-            ))}
-          </div>
+              ),
+            }))}
+          />
         </div>
       )}
 
@@ -896,6 +896,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
             {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
           </p>
 
+          <div>
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -905,7 +906,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
             {t("add.advanced")}
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
           </button>
-          <Collapse open={showAdvanced} className="space-y-2">
+          <Collapse open={showAdvanced} className="space-y-2 pt-2">
           {exMode !== "none" && (
             <div className="flex flex-wrap items-center gap-2">
               {/* register only applies to AI-composed examples */}
@@ -970,6 +971,7 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
           </Collapse>
+          </div>
         </div>
       )}
 

@@ -13,7 +13,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/Segmented";
 
 const POPULAR_COUNT = 6;
 
@@ -173,22 +173,20 @@ function Chips({
   onChange: (v: string) => void;
 }) {
   const { t } = useI18n();
-  const chip = (active: boolean) =>
-    cn(
-      "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-      active ? "bg-sage text-white" : "border border-black/[0.07] bg-surface text-ink-muted hover:bg-black/[0.03]",
-    );
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="mr-1 text-[13px] font-medium text-ink-soft">{label}</span>
-      <button onClick={() => onChange("all")} className={chip(value === "all")}>
-        {t("common.all")}
-      </button>
-      {options.map((o) => (
-        <button key={o} onClick={() => onChange(o)} className={chip(value === o)}>
-          {langFlag(o)} {langLabel(o)}
-        </button>
-      ))}
+      <Segmented
+        tone="chips"
+        size="lg"
+        itemClassName="px-3"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: "all", label: t("common.all") },
+          ...options.map((o) => ({ value: o, label: `${langFlag(o)} ${langLabel(o)}` })),
+        ]}
+      />
     </div>
   );
 }

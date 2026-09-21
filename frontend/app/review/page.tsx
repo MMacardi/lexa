@@ -33,9 +33,10 @@ import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
-import { ChevronDown, ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
+import { ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Segmented } from "@/components/ui/Segmented";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
@@ -458,15 +459,14 @@ export default function FlashcardsPage() {
         )}
 
         {/* card layout — tucked away; the defaults work for most people */}
-        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
+        <Disclosure
+          summary={
             <span>
               {t("review.cardLayout")}
               <span className="ml-2 font-medium text-ink-faint">{t(`layout.${activePreset}`)}</span>
             </span>
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
+          }
+        >
             <Segmented
               className="w-fit"
               scroll
@@ -516,8 +516,7 @@ export default function FlashcardsPage() {
 
             {/* hover/pin preview of the card with these settings */}
             <CardLayoutPreview layout={layout} />
-          </div>
-        </details>
+        </Disclosure>
       </div>
     );
   }

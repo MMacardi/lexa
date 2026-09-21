@@ -324,7 +324,7 @@ textarea::-webkit-resizer {
   .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out,
   .anim-sheet, .anim-scrim, .anim-scale-in, .anim-dialog { animation: none; }
   .seg-thumb, .anim-collapse { transition: none !important; }
-  .anim-msg, .anim-tab, .anim-card-in, .typing-dots > span { animation: none; }
+  .anim-msg, .anim-tab, .anim-card-in, .anim-panel, .typing-dots > span { animation: none; }
   button.rounded-full:active, a.rounded-full:active { scale: none; }
   details::details-content { transition: none !important; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
@@ -444,6 +444,24 @@ textarea::-webkit-resizer {
   to { opacity: 1; transform: none; }
 }
 .anim-card-in { animation: lexaCardIn 0.34s var(--ease-out) both; }
+
+/* The floating Mika panel on desktop grows out of its corner (where the
+   launcher button sits). It's positioned by an inline transform while dragged,
+   so the motion uses the standalone translate/scale properties, which stack on
+   that transform instead of replacing it. */
+@keyframes lexaPanelIn {
+  from { opacity: 0; translate: 0 10px; scale: 0.96; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes lexaPanelOut {
+  from { opacity: 1; translate: 0 0; scale: 1; }
+  to { opacity: 0; translate: 0 6px; scale: 0.97; }
+}
+.anim-panel {
+  animation: lexaPanelIn 0.24s var(--ease-out) both;
+  transform-origin: bottom right;
+}
+.anim-panel[data-closing] { animation: lexaPanelOut 0.15s var(--ease-in) both; }
 
 /* A new chat message rises into place instead of appearing in a block. */
 @keyframes lexaMsgIn {

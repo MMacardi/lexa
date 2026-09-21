@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
-import { BookOpen, ChevronDown, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput } from "lucide-react";
+import { BookOpen, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { HighlightWord } from "@/components/HighlightWord";
 import { OnceHint } from "@/components/OnceHint";
 import { cn } from "@/lib/utils";
 import { Segmented } from "@/components/ui/Segmented";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -506,17 +507,16 @@ export default function QuizPage() {
         </Button>
 
         {/* direction — tucked away; word → meaning suits most people */}
-        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
+        <Disclosure
+          summary={
             <span>
               {t("review.direction")}
               <span className="ml-2 font-medium text-ink-faint">
                 {flip ? t("review.meaningToWord") : t("review.wordToMeaning")}
               </span>
             </span>
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
+          }
+        >
             <Segmented
               className="w-fit"
               size="lg"
@@ -528,8 +528,7 @@ export default function QuizPage() {
                 { value: "flip", label: t("review.meaningToWord") },
               ]}
             />
-          </div>
-        </details>
+        </Disclosure>
       </div>
     );
   }

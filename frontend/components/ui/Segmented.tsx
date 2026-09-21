@@ -22,10 +22,10 @@ export interface SegOption<T extends string> {
 }
 
 const SIZES = {
-  xs: { box: "gap-0.5 p-0.5 text-[11px]", item: "px-2.5 py-1", icon: "h-3 w-3" },
-  sm: { box: "gap-0.5 p-0.5 text-[12px]", item: "px-3 py-1", icon: "h-3.5 w-3.5" },
-  md: { box: "gap-1 p-1 text-[13px]", item: "px-3 py-1.5", icon: "h-3.5 w-3.5" },
-  lg: { box: "gap-1 p-1 text-sm", item: "px-3.5 py-1.5", icon: "h-4 w-4" },
+  xs: { box: "gap-0.5 p-0.5", text: "text-[11px]", item: "px-2.5 py-1", icon: "h-3 w-3" },
+  sm: { box: "gap-0.5 p-0.5", text: "text-[12px]", item: "px-3 py-1", icon: "h-3.5 w-3.5" },
+  md: { box: "gap-1 p-1", text: "text-[13px]", item: "px-3 py-1.5", icon: "h-3.5 w-3.5" },
+  lg: { box: "gap-1 p-1", text: "text-sm", item: "px-3.5 py-1.5", icon: "h-4 w-4" },
 } as const;
 
 export function Segmented<T extends string>({
@@ -34,6 +34,8 @@ export function Segmented<T extends string>({
   onChange,
   size = "md",
   tone = "track",
+  shape = "pill",
+  grid,
   grow,
   scroll,
   className,
@@ -41,11 +43,18 @@ export function Segmented<T extends string>({
   ariaLabel,
 }: {
   options: SegOption<T>[];
-  value: T;
+  /** null = nothing picked yet: no pill until the first choice. */
+  value: T | null;
   onChange: (v: T) => void;
   size?: keyof typeof SIZES;
-  /** "track": a filled groove (the default). "outlined": a hairline on paper. */
-  tone?: "track" | "outlined";
+  /** "track": a filled groove (the default). "outlined": a hairline on paper.
+   *  "chips": no groove — separate bordered pills with gaps between them. */
+  tone?: "track" | "outlined" | "chips";
+  /** "pill": fully round (the default). "soft": rounded rectangles, for taller
+   *  two-line options. */
+  shape?: "pill" | "soft";
+  /** Lay the options out as a grid (pass the grid-cols classes in className). */
+  grid?: boolean;
   /** Options share the row evenly instead of sizing to their label. */
   grow?: boolean;
   /** Phones: swipe the row sideways rather than wrapping it (see `.scroll-row`). */
@@ -64,7 +73,7 @@ export function Segmented<T extends string>({
 
   useMeasureEffect(() => {
     const measure = () => {
-      const el = items.current.get(value);
+      const el = value === null ? undefined : items.current.get(value);
       const row = box.current;
       if (!el || !row) {
         setThumb(null);
@@ -89,7 +98,7 @@ export function Segmented<T extends string>({
     measure();
     const ro = new ResizeObserver(measure);
     if (box.current) ro.observe(box.current);
-    const active = items.current.get(value);
+    const active = value === null ? undefined : items.current.get(value);
     if (active) ro.observe(active); // labels change width when the UI language does
     return () => ro.disconnect();
   }, [value, keys]);
@@ -107,9 +116,14 @@ export function Segmented<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "relative isolate flex rounded-full font-semibold",
-        tone === "outlined" ? "border border-black/[0.07] bg-paper/60" : "bg-black/[0.05]",
-        s.box,
+        "relative isolate font-semibold",
+        grid ? "grid" : "flex",
+        shape === "soft" ? "rounded-[16px]" : "rounded-full",
+        tone === "outlined" && "border border-black/[0.07] bg-paper/60",
+        tone === "track" && "bg-black/[0.05]",
+        s.text,
+        // chips sit apart on the page, so they get real gaps and no groove padding
+        tone === "chips" ? "flex-wrap gap-2" : s.box,
         scroll && "scroll-row",
         className,
       )}
@@ -118,7 +132,8 @@ export function Segmented<T extends string>({
         <span
           aria-hidden
           className={cn(
-            "absolute left-0 top-0 -z-10 rounded-full bg-sage shadow-sm",
+            "absolute left-0 top-0 -z-10 bg-sage shadow-sm",
+            shape === "soft" ? "rounded-[12px]" : "rounded-full",
             ready && "seg-thumb",
           )}
           style={{
@@ -143,9 +158,19 @@ export function Segmented<T extends string>({
             disabled={o.disabled}
             onClick={() => !o.disabled && onChange(o.value)}
             className={cn(
-              "relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full transition-colors duration-200",
+              "relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors duration-200",
+              shape === "soft" ? "rounded-[12px]" : "rounded-full",
               s.item,
               grow && "flex-1",
+              // Chips keep their own white fill, but on a layer *under* the
+              // sliding pill (the ::before sits below it in the row's stacking
+              // context), so the pill can travel across them and still land
+              // beneath the border and the label.
+              tone === "chips" &&
+                cn(
+                  "border before:absolute before:inset-0 before:-z-20 before:rounded-[inherit] before:bg-surface",
+                  on ? "border-transparent" : "border-black/[0.07]",
+                ),
               on ? "text-white" : "text-ink-muted hover:text-ink",
               o.disabled && "opacity-40",
               itemClassName,
