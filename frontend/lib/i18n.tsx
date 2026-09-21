@@ -1698,6 +1698,7 @@ const DICT: Record<string, Entry> = {
     zh: "点击已保存的词可打开，点击新词可加入单词卡。",
   },
   "word.addedRelated": { en: "Adding “{word}”…", ru: "Добавляю «{word}»…", zh: "正在添加“{word}”…" },
+  "graph.resetLayout": { en: "Reset layout", ru: "Вернуть на места", zh: "重置布局" },
   "graph.addTitle": { en: "Add “{word}” as a card", ru: "Добавить «{word}» как карточку", zh: "把“{word}”加为卡片" },
   "graph.aiHint": { en: "AI fills meaning + example", ru: "ИИ добавит значение и пример", zh: "AI 补全释义和例句" },
   "graph.remember": {

@@ -8,12 +8,13 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
-import { X } from "lucide-react";
+import { RotateCcw, X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel, getGraphAddMethod, setGraphAddMethod, type GraphAddMethod } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/motion";
 
 type Kind = "center" | "syn" | "ant";
 interface SimNode {
@@ -29,9 +30,12 @@ interface SimNode {
   vy: number;
   w: number; // measured pill size — the layout separates boxes, not points, so
   h: number; // long multi-word terms can't slide under each other
-  hx: number; // home slot: where the node rests and springs back to after a drag
+  hx: number; // home slot: where the node rests and springs back to
   hy: number;
   placed: boolean; // seeded near the centre once its real slot was known
+  held: boolean; // dropped by the learner: its home is that spot, not a slot
+  ox: number; // …kept as an offset from the word, so a resize carries it along
+  oy: number;
 }
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -43,6 +47,34 @@ const BOTTOM_BAND = 40;
 // Under this width a column · centre · column row can't hold a multi-word term
 // without truncating it, so the family stacks vertically instead.
 const NARROW = 560;
+// The spring every free node rides home on: stiffness (rad/s) and a damping ratio
+// just under critical, so a node eases in over ~0.4s with no visible wobble.
+const OMEGA = 11;
+const ZETA = 0.9;
+// Physics runs in fixed steps of real time, so 60 and 120 Hz screens move alike.
+const STEP = 1 / 120;
+// A press has to travel this far (px) to become a drag; under it, it's a tap.
+const DRAG_SLOP = 5;
+
+// Where the learner dropped pills, per word, as offsets from the word. Kept for
+// the session, so opening a related word and coming back finds the family as
+// they left it.
+const heldStore = new Map<string, Map<string, { dx: number; dy: number }>>();
+
+const place = (n: SimNode) => `translate3d(${n.x}px, ${n.y}px, 0)`;
+
+// Mind-map links: each leaves the word and reaches its pill along the axis it
+// mostly travels (sideways to a column, up/down in the phone stack), bending in
+// between; a pill level with the word gets a straight line.
+function linkPath(c: SimNode, n: SimNode) {
+  const dx = n.x - c.x;
+  const dy = n.y - c.y;
+  const a = (dx * dx) / (dx * dx + dy * dy || 1);
+  const hx = (dx / 2) * a;
+  const hy = (dy / 2) * (1 - a);
+  const f = (v: number) => v.toFixed(1);
+  return `M${f(c.x)},${f(c.y)} C${f(c.x + hx)},${f(c.y + hy)} ${f(n.x - hx)},${f(n.y - hy)} ${f(n.x)},${f(n.y)}`;
+}
 
 // First real layout: drop each node partway out from the centre toward its slot
 // — it then springs the rest of the way. Seeding them all *on* the centre let the
@@ -58,18 +90,21 @@ function seed(nodes: SimNode[], ready: boolean) {
   }
 }
 
+function clampAxis(v: number, size: number, room: number) {
+  const half = size / 2 + 3;
+  return Math.min(Math.max(half, v), Math.max(half, room - half));
+}
+
 function clampToBox(n: SimNode, w: number, h: number) {
-  const hw = n.w / 2 + 3;
-  const hh = n.h / 2 + 3;
-  n.x = Math.min(Math.max(hw, n.x), Math.max(hw, w - hw));
-  n.y = Math.min(Math.max(hh, n.y), Math.max(hh, h - hh));
+  n.x = clampAxis(n.x, n.w, w);
+  n.y = clampAxis(n.y, n.h, h);
 }
 
 // A live, Obsidian-style "word family": the current word sits in the middle, its
 // synonyms orbit to the right and antonyms to the left, each in a fanned column
 // sized from the pills' real width/height. Nodes spring toward their slot, shove
-// each other aside when boxes overlap, and everything is draggable — release to
-// watch it settle back. No graph library; a tiny custom simulation on rAF.
+// each other aside when boxes overlap, and everything is draggable — a pill stays
+// where it's dropped until Reset. No graph library; a tiny simulation on rAF.
 export function WordFamilyGraph({ word }: { word: Word }) {
   const { t } = useI18n();
   const { accountId } = useAccount();
@@ -242,11 +277,15 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const dimsRef = useRef({ w: 640, h: 340 });
   const elRefs = useRef(new Map<string, HTMLDivElement>());
-  const [, setFrame] = useState(0); // bump to re-render node positions
+  const linkRefs = useRef(new Map<string, SVGPathElement>());
+  const [, setFrame] = useState(0); // bump to re-render (positions are painted directly)
+  const [anyHeld, setAnyHeld] = useState(false);
   const simRef = useRef<SimNode[]>([]);
   const runningRef = useRef(false);
   const rafRef = useRef<number | undefined>(undefined);
-  const dragRef = useRef<{ id: string; moved: boolean } | null>(null);
+  // (sx, sy): where the press began; (gx, gy): where on the pill it was grabbed,
+  // so the pill follows the pointer without its centre jumping under it.
+  const dragRef = useRef<{ id: string; moved: boolean; sx: number; sy: number; gx: number; gy: number } | null>(null);
   const draggingId = useRef<string | null>(null);
   const initedKey = useRef<string>("");
   const addingRef = useRef(false); // serialize adds so rapid taps don't race
@@ -265,6 +304,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const setEl = (id: string) => (el: HTMLDivElement | null) => {
     if (el) elRefs.current.set(id, el);
     else elRefs.current.delete(id);
+  };
+  const setLink = (id: string) => (el: SVGPathElement | null) => {
+    if (el) linkRefs.current.set(id, el);
+    else linkRefs.current.delete(id);
   };
 
   // Measure the rendered pills, then hand every node its home slot and grow the
@@ -287,6 +330,15 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     const arms = ([1, -1] as const).map((side) => nodes.filter((n) => n.kind !== "center" && n.side === side));
     const runs = arms.map((col) => col.reduce((s, n) => s + n.h, 0) + gapY * Math.max(0, col.length - 1));
     center.hx = w / 2;
+    const finish = (nextH: number) => {
+      for (const n of nodes) {
+        if (!n.held) continue;
+        n.hx = clampAxis(center.hx + n.ox, n.w, w);
+        n.hy = clampAxis(center.hy + n.oy, n.h, h);
+      }
+      seed(nodes, ready);
+      setBoxH(Math.round(nextH));
+    };
 
     if (w < NARROW) {
       const armGap = 16;
@@ -303,8 +355,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
           y += n.h + gapY;
         });
       });
-      seed(nodes, ready);
-      setBoxH(Math.round(Math.min(640, Math.max(300, tall + 20 + BOTTOM_BAND * 2))));
+      finish(Math.min(640, Math.max(300, tall + 20 + BOTTOM_BAND * 2)));
       return;
     }
 
@@ -329,29 +380,43 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         n.hy = slotY;
       });
     });
-    seed(nodes, ready);
-    setBoxH(Math.round(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND * 2))));
+    finish(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND * 2)));
   }, []);
 
-  const tick = useCallback(() => {
+  // One fixed step. Free nodes ride their spring home; then any two boxes that
+  // overlap are pushed apart outright — the old per-frame nudge let pills sit half
+  // under each other while one was dragged — and each node's velocity is re-read
+  // from where it actually ended up, so a blocked node doesn't keep pressing in.
+  const step = useCallback((dt: number, snap: boolean) => {
     const nodes = simRef.current;
     const { w, h } = dimsRef.current;
-    const fixed = (n: SimNode) => n.pinned || draggingId.current === n.id;
-    // pull every node toward its slot…
+    // Who gives way: the word and the pill in hand never do, a dropped pill only
+    // to those two, and the rest to everyone. Equals split the move.
+    const rank = (n: SimNode) => (n.pinned || draggingId.current === n.id ? 2 : n.held ? 1 : 0);
+    const prev = nodes.map((n) => [n.x, n.y]);
     for (const n of nodes) {
-      if (fixed(n)) continue;
-      n.vx += (n.hx - n.x) * 0.055;
-      n.vy += (n.hy - n.y) * 0.055;
+      if (n.pinned) {
+        n.x = n.hx;
+        n.y = n.hy;
+      }
+      if (rank(n) === 2) continue;
+      if (snap) {
+        n.x = n.hx;
+        n.y = n.hy;
+        continue;
+      }
+      n.vx += (OMEGA * OMEGA * (n.hx - n.x) - 2 * ZETA * OMEGA * n.vx) * dt;
+      n.vy += (OMEGA * OMEGA * (n.hy - n.y) - 2 * ZETA * OMEGA * n.vy) * dt;
+      n.x += n.vx * dt;
+      n.y += n.vy * dt;
     }
-    // …and shove apart any two boxes that still overlap, along whichever axis
-    // needs the smaller correction (so a dragged pill pushes, never covers).
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i];
         const b = nodes[j];
-        const aFixed = fixed(a);
-        const bFixed = fixed(b);
-        if (aFixed && bFixed) continue;
+        const ra = rank(a);
+        const rb = rank(b);
+        if (ra === 2 && rb === 2) continue;
         const minX = (a.w + b.w) / 2 + 10;
         const minY = (a.h + b.h) / 2 + 8;
         const dx = a.x - b.x || (Math.random() - 0.5) * 0.1;
@@ -359,56 +424,75 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         const ox = minX - Math.abs(dx);
         const oy = minY - Math.abs(dy);
         if (ox <= 0 || oy <= 0) continue;
-        const share = aFixed || bFixed ? 0.25 : 0.06; // a held node shoves; free ones only nudge
+        const ka = ra > rb ? 0 : ra < rb ? 1 : 0.5;
+        const kb = 1 - ka;
+        // along whichever axis needs the smaller move
         if (ox / minX < oy / minY) {
-          const f = Math.sign(dx) * ox * share;
-          if (!aFixed) a.vx += f;
-          if (!bFixed) b.vx -= f;
+          const m = Math.sign(dx) * ox;
+          a.x += m * ka;
+          b.x -= m * kb;
         } else {
-          const f = Math.sign(dy) * oy * share;
-          if (!aFixed) a.vy += f;
-          if (!bFixed) b.vy -= f;
+          const m = Math.sign(dy) * oy;
+          a.y += m * ka;
+          b.y -= m * kb;
         }
       }
     }
-    // integrate
-    for (const n of nodes) {
-      if (n.pinned) {
-        n.x = n.hx;
-        n.y = n.hy;
+    nodes.forEach((n, i) => {
+      if (rank(n) === 2) {
         n.vx = 0;
         n.vy = 0;
-        continue;
+        return;
       }
-      if (draggingId.current === n.id) {
-        n.vx = 0;
-        n.vy = 0;
-        continue; // position is driven by the pointer
-      }
-      n.vx *= 0.82;
-      n.vy *= 0.82;
-      n.x += n.vx;
-      n.y += n.vy;
       clampToBox(n, w, h);
+      n.vx = (n.x - prev[i][0]) / dt;
+      n.vy = (n.y - prev[i][1]) / dt;
+    });
+  }, []);
+
+  // Positions go straight to the DOM as a transform (nothing re-lays out) instead
+  // of re-rendering the whole graph on every frame.
+  const paint = useCallback(() => {
+    const nodes = simRef.current;
+    const c = nodes[0];
+    if (!c) return;
+    for (const n of nodes) {
+      const el = elRefs.current.get(n.id);
+      if (el) {
+        el.style.transform = place(n);
+        if (n.placed) el.style.visibility = "visible";
+      }
+      linkRefs.current.get(n.id)?.setAttribute("d", linkPath(c, n));
     }
   }, []);
 
   const ensureRunning = useCallback(() => {
     if (runningRef.current) return;
     runningRef.current = true;
-    const loop = () => {
+    const snap = prefersReducedMotion();
+    let last = -1;
+    let acc = 0;
+    let quiet = 0;
+    const loop = (now: number) => {
+      // real time in fixed steps; a stall (a background tab) is capped, not replayed
+      acc += last < 0 ? STEP : Math.min(0.05, Math.max(0, (now - last) / 1000));
+      last = now;
       layout(); // pills are measured live: a font swap or a resize re-slots them
-      tick();
-      setFrame((f) => (f + 1) % 1_000_000);
-      const e = simRef.current.reduce((s, n) => s + n.vx * n.vx + n.vy * n.vy, 0);
-      if (e < 0.03 && draggingId.current === null) {
+      while (acc >= STEP) {
+        step(STEP, snap);
+        acc -= STEP;
+      }
+      paint();
+      const moving = simRef.current.some((n) => Math.abs(n.vx) > 3 || Math.abs(n.vy) > 3);
+      quiet = moving || draggingId.current !== null ? 0 : quiet + 1;
+      if (quiet > 10) {
         runningRef.current = false;
         return;
       }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-  }, [layout, tick]);
+  }, [layout, step, paint]);
 
   // Measure the container and keep dims current. The canvas only mounts once the
   // family is known (often a fetch later), so this re-runs then — measuring on the
@@ -439,14 +523,19 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   // (Re)build the simulation whenever the related set changes.
   useEffect(() => {
     if (related.length === 0) return;
-    if (initedKey.current === relatedKey) return;
-    initedKey.current = relatedKey;
+    const key = `${word.id}|${relatedKey}`;
+    if (initedKey.current === key) return;
+    initedKey.current = key;
     const { w, h } = dimsRef.current;
     const cx = w / 2;
     const cy = h / 2;
     const nodes: SimNode[] = [
-      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true },
+      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true, held: false, ox: 0, oy: 0 },
     ];
+    // A pill already on screen (the family just grew by one) carries on from where
+    // it is instead of dropping back to the centre; a new one flies out.
+    const onScreen = new Map(simRef.current.map((n) => [n.id, n]));
+    const spots = heldStore.get(word.id);
     // Synonyms go right, antonyms left — but a word with only one of the two
     // would leave half the canvas bare, so then both columns share that kind.
     const oneSided = related.every((r) => r.kind === related[0].kind);
@@ -454,6 +543,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     // each term toward its real slot and the springs carry it the rest of the way.
     related.forEach((r, i) => {
       const side: 1 | -1 = oneSided ? (i % 2 === 0 ? 1 : -1) : r.kind === "syn" ? 1 : -1;
+      const was = onScreen.get(r.term);
+      const spot = spots?.get(r.term);
       nodes.push({
         id: r.term,
         label: r.term,
@@ -461,20 +552,26 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         saved: savedMap.has(r.term.trim().toLowerCase()),
         pinned: false,
         side,
-        x: cx + side * (20 + Math.random() * 10),
-        y: cy + (Math.random() - 0.5) * 20,
-        vx: 0,
-        vy: 0,
-        w: 120,
-        h: 36,
+        x: was?.x ?? cx + side * (20 + Math.random() * 10),
+        y: was?.y ?? cy + (Math.random() - 0.5) * 20,
+        vx: was?.vx ?? 0,
+        vy: was?.vy ?? 0,
+        w: was?.w ?? 120,
+        h: was?.h ?? 36,
         hx: cx + side * 120,
         hy: cy,
-        placed: false,
+        placed: was?.placed ?? false,
+        held: !!spot,
+        ox: spot?.dx ?? 0,
+        oy: spot?.dy ?? 0,
       });
     });
     simRef.current = nodes;
     elRefs.current.clear();
-  }, [relatedKey, related, savedMap, word.word]);
+    linkRefs.current.clear();
+    setAnyHeld(nodes.some((n) => n.held));
+    setFrame((f) => (f + 1) % 1_000_000); // render the new set; the loop paints it from here
+  }, [relatedKey, related, savedMap, word.id, word.word]);
 
   // Run the animation loop on every mount (guard-free), so React StrictMode's
   // mount→unmount→mount in dev — which cancels the first loop — can't leave the
@@ -553,29 +650,76 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
   function onDown(e: React.PointerEvent, node: SimNode) {
     if (node.pinned) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { id: node.id, moved: false };
-    draggingId.current = node.id;
-  }
-  function onMove(e: React.PointerEvent, node: SimNode) {
-    if (dragRef.current?.id !== node.id) return;
     const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    dragRef.current.moved = true;
     const n = simRef.current.find((x) => x.id === node.id);
-    if (n) {
-      n.x = e.clientX - rect.left;
-      n.y = e.clientY - rect.top;
-      clampToBox(n, dimsRef.current.w, dimsRef.current.h);
-    }
+    if (!rect || !n) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = {
+      id: n.id,
+      moved: false,
+      sx: e.clientX,
+      sy: e.clientY,
+      gx: e.clientX - rect.left - n.x,
+      gy: e.clientY - rect.top - n.y,
+    };
+    draggingId.current = n.id;
     ensureRunning();
   }
-  function onUp(node: SimNode) {
-    const moved = dragRef.current?.moved;
+  function onMove(e: React.PointerEvent, node: SimNode) {
+    const d = dragRef.current;
+    if (d?.id !== node.id) return;
+    // a finger never lands perfectly still — under the slop it's still a tap
+    if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < DRAG_SLOP) return;
+    const rect = wrapRef.current?.getBoundingClientRect();
+    const n = simRef.current.find((x) => x.id === node.id);
+    if (!rect || !n) return;
+    if (!d.moved) {
+      d.moved = true;
+      // lifted: it rides over the other pills and casts a deeper shadow
+      const el = elRefs.current.get(n.id);
+      if (el) {
+        el.style.zIndex = "30";
+        el.dataset.dragging = "";
+      }
+    }
+    n.x = e.clientX - rect.left - d.gx;
+    n.y = e.clientY - rect.top - d.gy;
+    clampToBox(n, dimsRef.current.w, dimsRef.current.h);
+    ensureRunning();
+  }
+  function onUp(node: SimNode, cancelled = false) {
+    const d = dragRef.current;
+    if (d?.id !== node.id) return;
     dragRef.current = null;
     draggingId.current = null;
-    ensureRunning(); // let it spring back
-    if (!moved) activate(node); // treated as a tap
+    const el = elRefs.current.get(node.id);
+    if (el) {
+      el.style.zIndex = "";
+      delete el.dataset.dragging;
+    }
+    const n = simRef.current.find((x) => x.id === node.id);
+    const c = simRef.current[0];
+    if (d.moved && n && c) {
+      // it stays where it was dropped: that spot is its home from now on
+      n.held = true;
+      n.ox = n.x - c.hx;
+      n.oy = n.y - c.hy;
+      n.hx = n.x;
+      n.hy = n.y;
+      const spots = heldStore.get(word.id) ?? new Map<string, { dx: number; dy: number }>();
+      spots.set(n.id, { dx: n.ox, dy: n.oy });
+      heldStore.set(word.id, spots);
+      setAnyHeld(true);
+    }
+    ensureRunning();
+    if (!d.moved && !cancelled) activate(node); // treated as a tap
+  }
+  // Every dropped pill springs back to its slot.
+  function resetLayout() {
+    heldStore.delete(word.id);
+    for (const n of simRef.current) n.held = false;
+    setAnyHeld(false);
+    ensureRunning();
   }
 
   const nodes = simRef.current;
@@ -591,7 +735,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       <div
         ref={wrapRef}
         style={{ height: boxH }}
-        className="relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06] bg-[radial-gradient(circle_at_50%_50%,rgba(124,152,133,0.10),transparent_70%)] bg-surface"
+        className="graph-canvas relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06]"
       >
         {/* add-your-own controls, each under the column it grows */}
         <button
@@ -608,22 +752,37 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         >
           + {t("word.synonyms")}
         </button>
+        {anyHeld && (
+          <button
+            type="button"
+            onClick={resetLayout}
+            className="anim-fade-up absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-ink-muted backdrop-blur transition-colors hover:bg-black/[0.04] hover:text-ink"
+          >
+            <RotateCcw className="h-3 w-3" /> {t("graph.resetLayout")}
+          </button>
+        )}
 
-        {/* links */}
+        {/* links — drawn out from the word as the family arrives */}
         {center && (
-          <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            {nodes.slice(1).map((n) => {
-              const active = hovered === null || hovered === n.id;
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" fill="none">
+            {nodes.slice(1).map((n, i) => {
+              const nkey = n.id.trim().toLowerCase();
+              const saved = savedMap.has(nkey) || addedIds.has(nkey);
+              const hot = hovered === n.id;
               return (
-                <line
+                <path
                   key={n.id}
-                  x1={center.x}
-                  y1={center.y}
-                  x2={n.x}
-                  y2={n.y}
-                  stroke={n.kind === "syn" ? "rgba(124,152,133,0.55)" : "rgba(192,145,128,0.6)"}
-                  strokeWidth={hovered === n.id ? 2.4 : 1.5}
-                  opacity={active ? 1 : 0.25}
+                  ref={setLink(n.id)}
+                  d={linkPath(center, n)}
+                  pathLength={1}
+                  className="graph-link"
+                  style={{
+                    stroke: n.kind === "syn" ? "var(--color-sage)" : "var(--color-warn)",
+                    strokeWidth: hot ? 2.4 : 1.5,
+                    // a saved word's link reads stronger than one still to add
+                    opacity: hovered === null ? (saved ? 0.85 : 0.5) : hot ? 1 : 0.15,
+                    animationDelay: `${110 + i * 45}ms`,
+                  }}
                 />
               );
             })}
@@ -632,19 +791,19 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
         {/* nodes — w-max, or an absolute box shrinks to the room left before the
             canvas edge and a pill near it wraps word by word */}
-        {nodes.map((n) => {
+        {nodes.map((n, i) => {
           if (n.kind === "center") {
             return (
               <div
                 key={n.id}
                 ref={setEl(n.id)}
-                className="pointer-events-none absolute z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5"
-                style={{ left: n.x, top: n.y }}
+                className="graph-node pointer-events-none absolute left-0 top-0 z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 will-change-transform"
+                style={{ transform: place(n) }}
               >
                 <div
                   style={{ maxWidth: centerMax }}
                   className={cn(
-                    "rounded-[16px] bg-onyx px-4 py-2 text-center text-[15px] font-bold leading-snug text-white shadow-[0_6px_18px_rgba(0,0,0,0.25)]",
+                    "graph-center relative rounded-[16px] bg-onyx px-4 py-2 text-center text-[15px] font-bold leading-snug text-white",
                     targetFont(word.sourceLang),
                   )}
                 >
@@ -662,11 +821,14 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               key={n.id}
               ref={setEl(n.id)}
               className={cn(
-                "group absolute z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 transition-opacity",
+                "graph-node group absolute left-0 top-0 z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 transition-opacity duration-200 will-change-transform",
+                // hidden until its first real slot is known (paint() reveals it),
+                // so the rough pre-measure spot never flashes
+                !n.placed && "invisible",
                 dim && "opacity-40",
                 busy && "opacity-60",
               )}
-              style={{ left: n.x, top: n.y }}
+              style={{ transform: place(n), animationDelay: `${60 + i * 45}ms` }}
               onPointerEnter={() => setHovered(n.id)}
               onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
             >
@@ -675,23 +837,19 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                 onPointerDown={(e) => onDown(e, n)}
                 onPointerMove={(e) => onMove(e, n)}
                 onPointerUp={() => onUp(n)}
+                onPointerCancel={() => onUp(n, true)}
                 title={saved ? n.label : `+ ${n.label}`}
+                data-kind={n.kind}
+                data-hot={hovered === n.id || undefined}
                 style={{ maxWidth: labelMax }}
                 className={cn(
-                  "block cursor-grab touch-none rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug shadow-sm transition-[transform,box-shadow] active:cursor-grabbing",
+                  "graph-pill block cursor-grab touch-none rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug",
                   targetFont(word.sourceLang),
                   saved
                     ? n.kind === "syn"
                       ? "border-sage/50 bg-sage-tint text-sage-deep"
                       : "border-warn/40 bg-warn-bg text-warn-text"
-                    : n.kind === "syn"
-                      ? "border-dashed border-black/25 bg-paper text-ink-muted hover:border-sage hover:text-sage-deep"
-                      : "border-dashed border-black/25 bg-paper text-ink-muted hover:border-warn hover:text-warn-text",
-                  hovered === n.id && "scale-[1.06]",
-                  hovered === n.id &&
-                    (n.kind === "ant"
-                      ? "border-warn shadow-[0_8px_22px_rgba(192,80,60,0.38)]"
-                      : "border-sage shadow-[0_8px_22px_rgba(124,152,133,0.4)]"),
+                    : "border-dashed border-black/25 bg-paper text-ink-muted",
                 )}
               >
                 <span className="line-clamp-3 break-words">

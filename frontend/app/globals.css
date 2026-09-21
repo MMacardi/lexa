@@ -438,6 +438,98 @@ textarea::-webkit-resizer {
   .skeleton::after { animation: none; }
 }
 
+/* ---- Word family graph ---- */
+/* The canvas: a soft glow behind the word over a faint dot grid that fades out
+   toward the edges, so the family reads as sitting on a surface. */
+.graph-canvas {
+  background: radial-gradient(circle at 50% 50%, rgba(124, 152, 133, 0.13), transparent 62%), var(--color-surface);
+}
+.graph-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(rgba(46, 42, 38, 0.13) 1px, transparent 1.5px) center / 18px 18px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 25%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 25%, transparent 75%);
+}
+html.dark .graph-canvas {
+  background: radial-gradient(circle at 50% 50%, rgba(135, 167, 145, 0.1), transparent 62%), var(--color-surface);
+}
+html.dark .graph-canvas::before {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.075) 1px, transparent 1.5px);
+}
+
+/* Links draw out from the word as the family arrives. Each path has
+   pathLength=1, so a single dash is the whole link however far it stretches. */
+@keyframes graphDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.graph-link {
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: graphDraw 0.7s var(--ease-out) backwards;
+  transition: opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+/* Each pill pops out as its link reaches it. It animates `scale`, not transform:
+   the node's position is an inline transform the simulation writes every frame. */
+@keyframes graphNodeIn {
+  from { opacity: 0; scale: 0.4; }
+}
+.graph-node { animation: graphNodeIn 0.5s var(--ease-out) backwards; }
+
+/* A pill lifts under the pointer, and a little more once it's in hand. Kept out
+   of shadow-[…] utilities: dark mode flattens those into one black shadow. */
+.graph-pill {
+  box-shadow: 0 1px 2px rgba(46, 42, 38, 0.08);
+  transition: scale 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), border-color 0.2s ease, color 0.2s ease;
+}
+.graph-pill[data-hot] { scale: 1.06; }
+.graph-pill[data-hot][data-kind="syn"] {
+  border-color: var(--color-sage);
+  color: var(--color-sage-deep);
+  box-shadow: 0 8px 22px rgba(124, 152, 133, 0.35);
+}
+.graph-pill[data-hot][data-kind="ant"] {
+  border-color: var(--color-warn);
+  color: var(--color-warn-text);
+  box-shadow: 0 8px 22px rgba(192, 110, 90, 0.3);
+}
+.graph-node[data-dragging] .graph-pill {
+  scale: 1.1;
+  cursor: grabbing;
+  box-shadow: 0 16px 34px rgba(46, 42, 38, 0.22);
+}
+/* the touch-screen press dim would leave a dragged pill see-through */
+button.graph-pill:active { opacity: 1; }
+html.dark .graph-pill { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+html.dark .graph-pill[data-hot][data-kind="syn"] { box-shadow: 0 8px 26px rgba(135, 167, 145, 0.22); }
+html.dark .graph-pill[data-hot][data-kind="ant"] { box-shadow: 0 8px 26px rgba(199, 154, 137, 0.2); }
+html.dark .graph-node[data-dragging] .graph-pill { box-shadow: 0 18px 38px rgba(0, 0, 0, 0.6); }
+
+/* The word itself; a soft ring ripples out of it twice as the family arrives. */
+.graph-center { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
+html.dark .graph-center { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6); }
+@keyframes graphRipple {
+  from { box-shadow: 0 0 0 0 rgba(124, 152, 133, 0.5); }
+  to { box-shadow: 0 0 0 18px rgba(124, 152, 133, 0); }
+}
+.graph-center::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: graphRipple 1.6s var(--ease-out) 0.15s 2 backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-node, .graph-link, .graph-center::after { animation: none; }
+  .graph-pill { transition: none; }
+}
+
 /* The next flashcard comes up off the deck as the graded one flies away. */
 @keyframes lexaCardIn {
   from { opacity: 0; transform: translateY(14px) scale(0.95); }
