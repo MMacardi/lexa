@@ -30,11 +30,10 @@ import { CardLayoutPreview } from "@/components/CardLayoutPreview";
 import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
-import { ChevronDown, ExternalLink, Pencil, Repeat } from "lucide-react";
+import { ChevronDown, ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -46,6 +45,10 @@ const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 // touch-action stops it, so a swipe begun on the edge would drag the whole page.
 const SWIPE_PX = 110;
 const EDGE_PX = 24;
+// A flick — short but fast — counts as a full swipe, so grading doesn't need the
+// card dragged a third of the way across the screen every single time.
+const FLICK_PX = 45;
+const FLICK_V = 0.55; // px per ms (~550 px/s)
 const SNAP_BACK = "transform 0.34s cubic-bezier(.22,.8,.26,1)";
 
 // The FSRS grades in button order — `g` doubles as the keyboard shortcut and
@@ -135,8 +138,13 @@ export default function FlashcardsPage() {
   const stampHard = useRef<HTMLDivElement | null>(null);
   const stampEasy = useRef<HTMLDivElement | null>(null);
   const draggedRef = useRef(false);
-  const gradable = useRef(false); // this gesture may grade — i.e. the card was flipped
   const pointerActive = useRef(false); // synchronous "a drag is in progress" flag
+  // Two samples ~30ms apart, for the release velocity: the last frame alone is far
+  // too noisy to tell a flick from a thumb that happened to stop moving.
+  const sampleD = useRef(0);
+  const sampleT = useRef(0);
+  const prevD = useRef(0);
+  const prevT = useRef(0);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
@@ -179,8 +187,8 @@ export default function FlashcardsPage() {
     };
   }, [started]);
 
-  // Anki's keys, so gating the grades behind a reveal doesn't cost desktop users a
-  // second click per card: space/enter reveals, then 1–4 grade and space is Good.
+  // Anki's keys: 1–4 grade from either face, space/enter reveals the back — and
+  // once the back is up, space is Good.
   useEffect(() => {
     if (!started || editing) return;
     const onKey = (e: KeyboardEvent) => {
@@ -192,11 +200,9 @@ export default function FlashcardsPage() {
       if ((e.key === " " || e.key === "Enter") && el?.closest("button, a")) return;
       const card = deck[index];
       if (!card) return;
-      if (!flipped) {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          setFlipped(true);
-        }
+      if (!flipped && (e.key === " " || e.key === "Enter")) {
+        e.preventDefault();
+        setFlipped(true);
         return;
       }
       const grade = e.key === " " ? 3 : Number(e.key);
@@ -512,34 +518,6 @@ export default function FlashcardsPage() {
             <CardLayoutPreview layout={layout} />
           </div>
         </details>
-
-        {/* swipes — left/right are always on; up/down are the opt-in extra */}
-        <details className="group rounded-[20px] border border-black/[0.06] bg-surface">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold text-ink-muted [&::-webkit-details-marker]:hidden">
-            <span>
-              {t("review.gestures")}
-              <span className="ml-2 font-medium text-ink-faint">
-                {t(swipeUpDown ? "review.gestures4" : "review.gestures2")}
-              </span>
-            </span>
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-black/[0.06] px-5 pb-5 pt-4">
-            <button
-              type="button"
-              onClick={() => setSwipeUpDown(!swipeUpDown)}
-              className="flex w-full items-start gap-3 text-left"
-            >
-              <Checkbox presentational checked={swipeUpDown} className="mt-0.5" />
-              <span>
-                <span className="block text-sm font-semibold text-ink">{t("review.swipeUpDown")}</span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-ink-faint">
-                  {t("review.swipeUpDownHint")}
-                </span>
-              </span>
-            </button>
-          </div>
-        </details>
       </div>
     );
   }
@@ -718,11 +696,11 @@ export default function FlashcardsPage() {
     dyRef.current = 0;
     axis.current = "";
     draggedRef.current = false;
-    // No grading a card you haven't read yet. Before the flip the drag is still
-    // tracked, but only so a long drag isn't mistaken for a tap on release.
-    gradable.current = flipped;
     pointerActive.current = true;
-    if (!flipped) return;
+    sampleD.current = 0;
+    sampleT.current = e.timeStamp;
+    prevD.current = 0;
+    prevT.current = e.timeStamp;
     if (cardRef.current) cardRef.current.style.transition = "none";
     setDragging(true);
   };
@@ -730,10 +708,6 @@ export default function FlashcardsPage() {
     if (!pointerActive.current) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
-    if (!gradable.current) {
-      if (Math.hypot(dx, dy) > 8) draggedRef.current = true;
-      return;
-    }
     // Lock to one axis on the first few px, so a swipe that drifts diagonally
     // doesn't end up grading on whichever direction happened to win at the end.
     if (!axis.current && Math.hypot(dx, dy) > 8) {
@@ -752,22 +726,35 @@ export default function FlashcardsPage() {
     if (!axis.current) return;
     dxRef.current = dx;
     dyRef.current = dy;
+    const d = axis.current === "y" ? dy : dx;
+    if (e.timeStamp - sampleT.current > 30) {
+      prevD.current = sampleD.current;
+      prevT.current = sampleT.current;
+      sampleD.current = d;
+      sampleT.current = e.timeStamp;
+    }
     schedule();
   };
   const onPointerEnd = (e: React.PointerEvent) => {
     if (!pointerActive.current) return;
     pointerActive.current = false;
-    if (!gradable.current) return;
     setDragging(false);
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
-    if (axis.current === "x") {
-      if (dx > SWIPE_PX) return commit(3, word, { x: 640, y: 0 }); // right → Good
-      if (dx < -SWIPE_PX) return commit(1, word, { x: -640, y: 0 }); // left → Again
-    } else if (axis.current === "y") {
-      if (dy < -SWIPE_PX) return commit(4, word, { x: 0, y: -640 }); // up → Easy
-      if (dy > SWIPE_PX) return commit(2, word, { x: 0, y: 640 }); // down → Hard
-    }
+    const d = axis.current === "y" ? dy : dx;
+    // `v * d > 0` so a drag that was yanked back at the last moment doesn't fire
+    // the direction it was pulled away from.
+    const dt = e.timeStamp - prevT.current;
+    const v = dt > 0 ? (d - prevD.current) / dt : 0;
+    const fired = Math.abs(d) > SWIPE_PX || (Math.abs(d) > FLICK_PX && Math.abs(v) > FLICK_V && v * d > 0);
+    if (fired && axis.current === "x")
+      return d > 0
+        ? commit(3, word, { x: 640, y: 0 }) // right → Good
+        : commit(1, word, { x: -640, y: 0 }); // left → Again
+    if (fired && axis.current === "y")
+      return d < 0
+        ? commit(4, word, { x: 0, y: -640 }) // up → Easy
+        : commit(2, word, { x: 0, y: 640 }); // down → Hard
     // Short of the threshold: snap back. A plain tap never moved, so this is a
     // no-op there and onClick handles the flip (reliable on double-taps).
     cancelAnimationFrame(rafRef.current);
@@ -781,7 +768,6 @@ export default function FlashcardsPage() {
   const onPointerCancel = () => {
     if (!pointerActive.current) return;
     pointerActive.current = false;
-    if (!gradable.current) return;
     setDragging(false);
     if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
     dxRef.current = 0;
@@ -941,43 +927,52 @@ export default function FlashcardsPage() {
         </div>
       </div>
 
-      {/* Anki's flow: the grades only appear once the answer is on screen, so a card
-          can't be graded before it has been read. The reveal button copies the grade
-          buttons' two-line shape so the row keeps its height across the flip. */}
-      {!flipped ? (
+      {/* All four grades from the moment the card lands, on either face: a word you
+          already know shouldn't need a reveal before Easy, and behind the button the
+          grades cost a tap on every single card. */}
+      <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
+        {GRADES.map(({ g, name, tone, dim }) => (
+          <button
+            key={g}
+            onClick={() => commit(g, word)}
+            className={cn(
+              "relative flex flex-col items-center rounded-2xl py-2.5 font-bold transition-transform active:scale-95",
+              tone,
+            )}
+          >
+            {/* the key that fires it, where there's a keyboard to fire it from */}
+            <span className="absolute left-2 top-1.5 hidden text-[10px] font-semibold opacity-40 sm:block">
+              {g}
+            </span>
+            <span className="text-sm">{t(`review.${name}`)}</span>
+            <span className={cn("text-[11px] font-medium", dim)}>{fmtInterval(iv[name], t)}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Up/down swipes are toggled here rather than on the setup screen: this is the
+          only place the gesture can be felt, so the switch sits under the card it
+          applies to — and it takes effect on the very next swipe. */}
+      <div className="mt-4 flex w-full max-w-[560px] flex-col items-center gap-2">
+        <p className="text-center text-[13px] font-medium text-ink-faint">
+          {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
+        </p>
         <button
-          onClick={() => setFlipped(true)}
-          className="flex w-full max-w-[560px] flex-col items-center rounded-2xl bg-sage py-2.5 font-bold text-white transition-transform active:scale-95"
+          type="button"
+          onClick={() => setSwipeUpDown(!swipeUpDown)}
+          aria-pressed={swipeUpDown}
+          title={t("review.swipeUpDownHint")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+            swipeUpDown
+              ? "border-sage bg-sage-tint text-sage-deep"
+              : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+          )}
         >
-          <span className="text-sm">{t("review.showAnswer")}</span>
-          <span className="invisible text-[11px] font-medium opacity-80 sm:visible">
-            {t("review.showAnswerKey")}
-          </span>
+          <MoveVertical className="h-3.5 w-3.5" />
+          {t("review.swipeUpDown")}
         </button>
-      ) : (
-        <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
-          {GRADES.map(({ g, name, tone, dim }) => (
-            <button
-              key={g}
-              onClick={() => commit(g, word)}
-              className={cn(
-                "relative flex flex-col items-center rounded-2xl py-2.5 font-bold transition-transform active:scale-95",
-                tone,
-              )}
-            >
-              {/* the key that fires it, where there's a keyboard to fire it from */}
-              <span className="absolute left-2 top-1.5 hidden text-[10px] font-semibold opacity-40 sm:block">
-                {g}
-              </span>
-              <span className="text-sm">{t(`review.${name}`)}</span>
-              <span className={cn("text-[11px] font-medium", dim)}>{fmtInterval(iv[name], t)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <p className="mt-4 text-center text-[13px] font-medium text-ink-faint">
-        {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
-      </p>
+      </div>
 
       {editing && (
         <EditWordModal

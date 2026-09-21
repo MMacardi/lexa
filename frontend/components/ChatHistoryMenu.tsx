@@ -70,14 +70,17 @@ export function ChatHistoryMenu({
         title={t("mika.history")}
         className={cn(
           "inline-flex items-center gap-1.5 font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink",
-          withLabel && "h-9 rounded-full px-3 text-[13px]",
+          withLabel && "h-9 rounded-full px-2.5 text-[13px] sm:px-3",
           compact && "h-8 rounded-full border border-black/[0.08] bg-surface px-2.5 text-[12px] hover:border-sage/50",
           !label && "rounded-lg p-1.5 text-ink-faint",
           open && (compact ? "border-sage bg-sage-tint text-sage-deep" : "bg-black/[0.04] text-ink"),
         )}
       >
         <History className="h-3.5 w-3.5" />
-        {label && t("mika.history")}
+        {/* on the /mika page the label hides on a phone, where the header needs the
+            room more than the word does — the icon and the tooltip carry it there */}
+        {compact && t("mika.history")}
+        {withLabel && <span className="hidden sm:inline">{t("mika.history")}</span>}
       </button>
 
       {open && (
