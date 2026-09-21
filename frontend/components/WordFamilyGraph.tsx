@@ -304,6 +304,14 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   } | null>(null);
   // This word's entry in heldStore (set when the family is built).
   const heldRef = useRef(new Map<string, { dx: number; dy: number }>());
+  // The canvas's own buttons (the two add buttons, Reset): solid boxes the pills
+  // are kept out of, re-measured with the pills.
+  const btnRefs = useRef(new Map<string, HTMLButtonElement>());
+  const obstaclesRef = useRef<{ x: number; y: number; w: number; h: number }[]>([]);
+  const setBtn = (id: string) => (el: HTMLButtonElement | null) => {
+    if (el) btnRefs.current.set(id, el);
+    else btnRefs.current.delete(id);
+  };
   const draggingId = useRef<string | null>(null);
   const initedKey = useRef<string>("");
   const addingRef = useRef(false); // serialize adds so rapid taps don't race
@@ -342,6 +350,12 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       }
     }
     const before = nodes.map((n) => [n.hx, n.hy]);
+    obstaclesRef.current = [...btnRefs.current.values()].map((b) => ({
+      x: b.offsetLeft + b.offsetWidth / 2,
+      y: b.offsetTop + b.offsetHeight / 2,
+      w: b.offsetWidth,
+      h: b.offsetHeight,
+    }));
     const { w, h } = dimsRef.current;
     const ready = nodes.every((n) => elRefs.current.has(n.id));
     const center = nodes[0];
@@ -467,6 +481,32 @@ export function WordFamilyGraph({ word }: { word: Word }) {
           const m = Math.sign(dy) * oy;
           a.y += m * ka;
           b.y -= m * kb;
+        }
+      }
+    }
+    // The buttons own their corners: a pill that drifts, is shoved or is thrown
+    // there gets pushed back out. One dropped there keeps the spot it was pushed
+    // to, instead of resting half under a button.
+    for (const n of nodes) {
+      if (rank(n) === 2) continue;
+      for (const o of obstaclesRef.current) {
+        const minX = (n.w + o.w) / 2 + 4;
+        const minY = (n.h + o.h) / 2 + 4;
+        const dx = n.x - o.x || 0.01;
+        const dy = n.y - o.y || 0.01;
+        const ox = minX - Math.abs(dx);
+        const oy = minY - Math.abs(dy);
+        if (ox <= 0 || oy <= 0) continue;
+        const mx = ox / minX < oy / minY ? Math.sign(dx) * ox : 0;
+        const my = mx ? 0 : Math.sign(dy) * oy;
+        n.x += mx;
+        n.y += my;
+        if (n.held && !n.glide) {
+          n.ox += mx;
+          n.oy += my;
+          n.hx += mx;
+          n.hy += my;
+          heldRef.current.set(n.id, { dx: n.ox, dy: n.oy });
         }
       }
     }
@@ -818,6 +858,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         {/* add-your-own controls, each under the column it grows */}
         <button
           type="button"
+          ref={setBtn("ant")}
           onClick={() => promptAdd("ant")}
           className="absolute bottom-3 left-3 z-20 max-w-[45%] truncate rounded-full border border-dashed border-warn/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-warn-text backdrop-blur transition-colors hover:bg-warn-bg"
         >
@@ -825,6 +866,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         </button>
         <button
           type="button"
+          ref={setBtn("syn")}
           onClick={() => promptAdd("syn")}
           className="absolute bottom-3 right-3 z-20 max-w-[45%] truncate rounded-full border border-dashed border-sage/50 bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-sage-deep backdrop-blur transition-colors hover:bg-sage-tint"
         >
@@ -833,6 +875,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         {anyHeld && (
           <button
             type="button"
+            ref={setBtn("reset")}
             onClick={resetLayout}
             className="anim-fade-up absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-surface/80 px-2.5 py-1 text-[12px] font-semibold text-ink-muted backdrop-blur transition-colors hover:bg-black/[0.04] hover:text-ink"
           >
