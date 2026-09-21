@@ -36,6 +36,8 @@ interface SimNode {
   held: boolean; // dropped by the learner: its home is that spot, not a slot
   ox: number; // …kept as an offset from the word, so a resize carries it along
   oy: number;
+  travel: boolean; // heading to a far-off home: passes the other pills on the way
+  glide: boolean; // thrown: coasting to a stop, where it will stay
 }
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
@@ -47,10 +49,14 @@ const BOTTOM_BAND = 40;
 // Under this width a column · centre · column row can't hold a multi-word term
 // without truncating it, so the family stacks vertically instead.
 const NARROW = 560;
-// The spring every free node rides home on: stiffness (rad/s) and a damping ratio
-// just under critical, so a node eases in over ~0.4s with no visible wobble.
+// The spring every free node rides home on: stiffness (rad/s) and damping ratio.
+// Under-damped on purpose: a nudged pill overshoots a touch (~15%) and settles
+// back, the bit of give that makes the family feel physical rather than snapped.
 const OMEGA = 11;
-const ZETA = 0.9;
+const ZETA = 0.5;
+// A thrown pill coasts and slows at this rate (1/s); its speed is capped (px/s).
+const FRICTION = 5;
+const FLING_MAX = 1600;
 // Physics runs in fixed steps of real time, so 60 and 120 Hz screens move alike.
 const STEP = 1 / 120;
 // A press has to travel this far (px) to become a drag; under it, it's a tap.
@@ -76,17 +82,18 @@ function linkPath(c: SimNode, n: SimNode) {
   return `M${f(c.x)},${f(c.y)} C${f(c.x + hx)},${f(c.y + hy)} ${f(n.x - hx)},${f(n.y - hy)} ${f(n.x)},${f(n.y)}`;
 }
 
-// First real layout: drop each node partway out from the centre toward its slot
-// — it then springs the rest of the way. Seeding them all *on* the centre let the
-// separation force lock two nodes in swapped slots, each blocking the other.
+// First real layout: each node starts just off the word and flies out to its
+// slot from behind it. It travels (passing the others), so nodes starting in a
+// bunch can't lock each other into swapped slots.
 function seed(nodes: SimNode[], ready: boolean) {
   if (!ready) return;
   const c = nodes[0];
   for (const n of nodes) {
     if (n.placed) continue;
     n.placed = true;
-    n.x = c.hx + (n.hx - c.hx) * 0.55;
-    n.y = c.hy + (n.hy - c.hy) * 0.55;
+    n.travel = true;
+    n.x = c.hx + (n.hx - c.hx) * 0.1;
+    n.y = c.hy + (n.hy - c.hy) * 0.1;
   }
 }
 
@@ -285,7 +292,18 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const rafRef = useRef<number | undefined>(undefined);
   // (sx, sy): where the press began; (gx, gy): where on the pill it was grabbed,
   // so the pill follows the pointer without its centre jumping under it.
-  const dragRef = useRef<{ id: string; moved: boolean; sx: number; sy: number; gx: number; gy: number } | null>(null);
+  // `samples`: recent pointer positions, for the speed a pill is thrown at.
+  const dragRef = useRef<{
+    id: string;
+    moved: boolean;
+    sx: number;
+    sy: number;
+    gx: number;
+    gy: number;
+    samples: { t: number; x: number; y: number }[];
+  } | null>(null);
+  // This word's entry in heldStore (set when the family is built).
+  const heldRef = useRef(new Map<string, { dx: number; dy: number }>());
   const draggingId = useRef<string | null>(null);
   const initedKey = useRef<string>("");
   const addingRef = useRef(false); // serialize adds so rapid taps don't race
@@ -323,6 +341,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         n.h = el.offsetHeight;
       }
     }
+    const before = nodes.map((n) => [n.hx, n.hy]);
     const { w, h } = dimsRef.current;
     const ready = nodes.every((n) => elRefs.current.has(n.id));
     const center = nodes[0];
@@ -336,6 +355,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         n.hx = clampAxis(center.hx + n.ox, n.w, w);
         n.hy = clampAxis(center.hy + n.oy, n.h, h);
       }
+      // A home that jumped (Reset, the phone/desktop switch, a column regrouping)
+      // sends its node travelling, so crossing paths can't jam into each other.
+      nodes.forEach((n, i) => {
+        if (!n.pinned && !n.held && Math.hypot(n.hx - before[i][0], n.hy - before[i][1]) > 40) n.travel = true;
+      });
       seed(nodes, ready);
       setBoxH(Math.round(nextH));
     };
@@ -383,16 +407,17 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     finish(Math.min(560, Math.max(300, Math.max(center.h, runs[0], runs[1]) + 24 + BOTTOM_BAND * 2)));
   }, []);
 
-  // One fixed step. Free nodes ride their spring home; then any two boxes that
-  // overlap are pushed apart outright — the old per-frame nudge let pills sit half
-  // under each other while one was dragged — and each node's velocity is re-read
-  // from where it actually ended up, so a blocked node doesn't keep pressing in.
+  // One fixed step. Free nodes ride their spring home and thrown ones coast; then
+  // any two boxes that overlap are pushed apart outright (a per-frame nudge let
+  // pills sit half under each other), and each node's velocity is re-read from
+  // where it actually ended up, so a blocked node doesn't keep pressing in.
   const step = useCallback((dt: number, snap: boolean) => {
     const nodes = simRef.current;
     const { w, h } = dimsRef.current;
+    const inHand = draggingId.current;
     // Who gives way: the word and the pill in hand never do, a dropped pill only
     // to those two, and the rest to everyone. Equals split the move.
-    const rank = (n: SimNode) => (n.pinned || draggingId.current === n.id ? 2 : n.held ? 1 : 0);
+    const rank = (n: SimNode) => (n.pinned || inHand === n.id ? 2 : n.held ? 1 : 0);
     const prev = nodes.map((n) => [n.x, n.y]);
     for (const n of nodes) {
       if (n.pinned) {
@@ -400,13 +425,18 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         n.y = n.hy;
       }
       if (rank(n) === 2) continue;
-      if (snap) {
+      if (n.glide) {
+        const k = Math.exp(-FRICTION * dt);
+        n.vx *= k;
+        n.vy *= k;
+      } else if (snap) {
         n.x = n.hx;
         n.y = n.hy;
         continue;
+      } else {
+        n.vx += (OMEGA * OMEGA * (n.hx - n.x) - 2 * ZETA * OMEGA * n.vx) * dt;
+        n.vy += (OMEGA * OMEGA * (n.hy - n.y) - 2 * ZETA * OMEGA * n.vy) * dt;
       }
-      n.vx += (OMEGA * OMEGA * (n.hx - n.x) - 2 * ZETA * OMEGA * n.vx) * dt;
-      n.vy += (OMEGA * OMEGA * (n.hy - n.y) - 2 * ZETA * OMEGA * n.vy) * dt;
       n.x += n.vx * dt;
       n.y += n.vy * dt;
     }
@@ -417,6 +447,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         const ra = rank(a);
         const rb = rank(b);
         if (ra === 2 && rb === 2) continue;
+        // a travelling node passes everything but the pill in hand
+        if ((a.travel && inHand !== b.id) || (b.travel && inHand !== a.id)) continue;
         const minX = (a.w + b.w) / 2 + 10;
         const minY = (a.h + b.h) / 2 + 8;
         const dx = a.x - b.x || (Math.random() - 0.5) * 0.1;
@@ -438,6 +470,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         }
       }
     }
+    const c = nodes[0];
     nodes.forEach((n, i) => {
       if (rank(n) === 2) {
         n.vx = 0;
@@ -447,6 +480,18 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       clampToBox(n, w, h);
       n.vx = (n.x - prev[i][0]) / dt;
       n.vy = (n.y - prev[i][1]) / dt;
+      const speed = Math.hypot(n.vx, n.vy);
+      // arrived: solid again, so it holds its place among the others
+      if (n.travel && speed < 80 && Math.hypot(n.hx - n.x, n.hy - n.y) < 10) n.travel = false;
+      // a thrown pill stays wherever it came to rest
+      if (n.glide && speed < 15) {
+        n.glide = false;
+        n.ox = n.x - c.hx;
+        n.oy = n.y - c.hy;
+        n.hx = n.x;
+        n.hy = n.y;
+        heldRef.current.set(n.id, { dx: n.ox, dy: n.oy });
+      }
     });
   }, []);
 
@@ -530,12 +575,14 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     const cx = w / 2;
     const cy = h / 2;
     const nodes: SimNode[] = [
-      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true, held: false, ox: 0, oy: 0 },
+      { id: "__center__", label: word.word, kind: "center", saved: true, pinned: true, side: 1, x: cx, y: cy, vx: 0, vy: 0, w: 140, h: 40, hx: cx, hy: cy, placed: true, held: false, ox: 0, oy: 0, travel: false, glide: false },
     ];
     // A pill already on screen (the family just grew by one) carries on from where
     // it is instead of dropping back to the centre; a new one flies out.
     const onScreen = new Map(simRef.current.map((n) => [n.id, n]));
-    const spots = heldStore.get(word.id);
+    const spots = heldStore.get(word.id) ?? new Map<string, { dx: number; dy: number }>();
+    heldStore.set(word.id, spots);
+    heldRef.current = spots;
     // Synonyms go right, antonyms left — but a word with only one of the two
     // would leave half the canvas bare, so then both columns share that kind.
     const oneSided = related.every((r) => r.kind === related[0].kind);
@@ -544,7 +591,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     related.forEach((r, i) => {
       const side: 1 | -1 = oneSided ? (i % 2 === 0 ? 1 : -1) : r.kind === "syn" ? 1 : -1;
       const was = onScreen.get(r.term);
-      const spot = spots?.get(r.term);
+      const spot = spots.get(r.term);
       nodes.push({
         id: r.term,
         label: r.term,
@@ -558,12 +605,14 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         vy: was?.vy ?? 0,
         w: was?.w ?? 120,
         h: was?.h ?? 36,
-        hx: cx + side * 120,
-        hy: cy,
+        hx: was?.hx ?? cx + side * 120,
+        hy: was?.hy ?? cy,
         placed: was?.placed ?? false,
         held: !!spot,
         ox: spot?.dx ?? 0,
         oy: spot?.dy ?? 0,
+        travel: was?.travel ?? false,
+        glide: false,
       });
     });
     simRef.current = nodes;
@@ -661,8 +710,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       sy: e.clientY,
       gx: e.clientX - rect.left - n.x,
       gy: e.clientY - rect.top - n.y,
+      samples: [{ t: e.timeStamp, x: n.x, y: n.y }],
     };
     draggingId.current = n.id;
+    n.glide = false; // caught mid-coast
+    n.travel = false;
     ensureRunning();
   }
   function onMove(e: React.PointerEvent, node: SimNode) {
@@ -685,9 +737,11 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     n.x = e.clientX - rect.left - d.gx;
     n.y = e.clientY - rect.top - d.gy;
     clampToBox(n, dimsRef.current.w, dimsRef.current.h);
+    d.samples.push({ t: e.timeStamp, x: n.x, y: n.y });
+    if (d.samples.length > 8) d.samples.shift();
     ensureRunning();
   }
-  function onUp(node: SimNode, cancelled = false) {
+  function onUp(e: React.PointerEvent, node: SimNode, cancelled = false) {
     const d = dragRef.current;
     if (d?.id !== node.id) return;
     dragRef.current = null;
@@ -706,18 +760,42 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       n.oy = n.y - c.hy;
       n.hx = n.x;
       n.hy = n.y;
-      const spots = heldStore.get(word.id) ?? new Map<string, { dx: number; dy: number }>();
-      spots.set(n.id, { dx: n.ox, dy: n.oy });
-      heldStore.set(word.id, spots);
+      heldRef.current.set(n.id, { dx: n.ox, dy: n.oy });
       setAnyHeld(true);
+      // Let go mid-swipe and it keeps going at the pointer's speed over the last
+      // ~0.1s, then slows to a stop and stays there. Still before letting go (the
+      // usual careful drop), it stays exactly where it was put.
+      const last = d.samples[d.samples.length - 1];
+      const first = d.samples.find((q) => q.t >= last.t - 100) ?? last;
+      const span = last.t - first.t;
+      if (!cancelled && span > 0 && e.timeStamp - last.t < 60 && !prefersReducedMotion()) {
+        let vx = ((last.x - first.x) / span) * 1000;
+        let vy = ((last.y - first.y) / span) * 1000;
+        const speed = Math.hypot(vx, vy);
+        if (speed > FLING_MAX) {
+          vx *= FLING_MAX / speed;
+          vy *= FLING_MAX / speed;
+        }
+        if (speed > 80) {
+          n.vx = vx;
+          n.vy = vy;
+          n.glide = true;
+        }
+      }
     }
     ensureRunning();
     if (!d.moved && !cancelled) activate(node); // treated as a tap
   }
-  // Every dropped pill springs back to its slot.
+  // Every dropped pill heads back to its slot, passing the others on the way —
+  // two pills crossing to opposite sides used to push each other to a standstill.
   function resetLayout() {
-    heldStore.delete(word.id);
-    for (const n of simRef.current) n.held = false;
+    heldRef.current.clear();
+    for (const n of simRef.current) {
+      if (!n.held) continue;
+      n.held = false;
+      n.glide = false;
+      n.travel = true;
+    }
     setAnyHeld(false);
     ensureRunning();
   }
@@ -793,11 +871,12 @@ export function WordFamilyGraph({ word }: { word: Word }) {
             canvas edge and a pill near it wraps word by word */}
         {nodes.map((n, i) => {
           if (n.kind === "center") {
+            // above the pills: one crossing the middle slides behind the word
             return (
               <div
                 key={n.id}
                 ref={setEl(n.id)}
-                className="graph-node pointer-events-none absolute left-0 top-0 z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 will-change-transform"
+                className="graph-node pointer-events-none absolute left-0 top-0 z-20 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 will-change-transform"
                 style={{ transform: place(n) }}
               >
                 <div
@@ -836,8 +915,8 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                 type="button"
                 onPointerDown={(e) => onDown(e, n)}
                 onPointerMove={(e) => onMove(e, n)}
-                onPointerUp={() => onUp(n)}
-                onPointerCancel={() => onUp(n, true)}
+                onPointerUp={(e) => onUp(e, n)}
+                onPointerCancel={(e) => onUp(e, n, true)}
                 title={saved ? n.label : `+ ${n.label}`}
                 data-kind={n.kind}
                 data-hot={hovered === n.id || undefined}
