@@ -307,13 +307,15 @@ export function WordFamilyGraph({ word }: { word: Word }) {
 
     const midY = (h - BOTTOM_BAND) / 2;
     center.hy = midY;
+    // links lengthen as the canvas widens, so a desktop row isn't one tight knot
+    const reach = 26 + Math.min(64, Math.max(0, w - 640) * 0.12);
     arms.forEach((col, gi) => {
       if (col.length === 0) return;
       const side = gi === 0 ? 1 : -1;
       const colW = Math.max(...col.map((n) => n.w));
       const minX = colW / 2 + 6;
       const maxX = Math.max(minX, w - colW / 2 - 6);
-      const colX = Math.min(Math.max(minX, w / 2 + side * (center.w / 2 + 26 + colW / 2)), maxX);
+      const colX = Math.min(Math.max(minX, w / 2 + side * (center.w / 2 + reach + colW / 2)), maxX);
       let y = midY - runs[gi] / 2;
       col.forEach((n) => {
         const slotY = y + n.h / 2;
@@ -405,7 +407,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     rafRef.current = requestAnimationFrame(loop);
   }, [layout, tick]);
 
-  // Measure the container and keep dims current.
+  // Measure the container and keep dims current. The canvas only mounts once the
+  // family is known (often a fetch later), so this re-runs then — measuring on the
+  // first render found no canvas and left a phone laid out as a 640px desktop.
+  const hasFamily = related.length > 0;
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -421,7 +426,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ensureRunning]);
+  }, [ensureRunning, hasFamily]);
 
   // Fonts land after first paint and change every pill's width — re-settle once.
   useEffect(() => {
@@ -622,14 +627,15 @@ export function WordFamilyGraph({ word }: { word: Word }) {
           </svg>
         )}
 
-        {/* nodes */}
+        {/* nodes — w-max, or an absolute box shrinks to the room left before the
+            canvas edge and a pill near it wraps word by word */}
         {nodes.map((n) => {
           if (n.kind === "center") {
             return (
               <div
                 key={n.id}
                 ref={setEl(n.id)}
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 p-1.5"
+                className="pointer-events-none absolute z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5"
                 style={{ left: n.x, top: n.y }}
               >
                 <div
@@ -653,7 +659,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               key={n.id}
               ref={setEl(n.id)}
               className={cn(
-                "group absolute z-10 -translate-x-1/2 -translate-y-1/2 p-1.5 transition-opacity",
+                "group absolute z-10 w-max -translate-x-1/2 -translate-y-1/2 p-1.5 transition-opacity",
                 dim && "opacity-40",
                 busy && "opacity-60",
               )}
