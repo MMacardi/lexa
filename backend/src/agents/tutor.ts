@@ -3,6 +3,7 @@ import { chatJson, FAST_MODEL } from "../services/llm.js";
 import { tutorSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
+import { DEFAULT_MEANING_INSTRUCTION } from "./enrich.js";
 
 /**
  * Vocabulary Tutor Agent.
@@ -34,10 +35,7 @@ export async function runTutor(params: {
       `${sourceName} antonyms). CRITICAL: "meaningZh" is only a field NAME — its value ` +
       `MUST be written in ${targetName}, NOT in ${sourceName} ` +
       `(even when the word itself is ${sourceName}). ` +
-      `Make "meaningZh" a CONCISE translation: the direct ${targetName} equivalent, ` +
-      `usually 1-4 words (e.g. for a pronoun just the pronoun, for a country just its ` +
-      `name). Add a short parenthetical clarifier ONLY when the word is ambiguous or has ` +
-      `no single equivalent. Do NOT write a long dictionary-style definition. ` +
+      `For "meaningZh" give ${DEFAULT_MEANING_INSTRUCTION} ` +
       `synonyms and antonyms MUST be written in ` +
       `${sourceName} — the SAME language as the word — never in ${targetName}. ` +
       scriptNote(params.sourceLang ?? "en") +

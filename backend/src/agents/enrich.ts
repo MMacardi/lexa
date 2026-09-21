@@ -19,8 +19,17 @@ const REGISTER: Record<string, string> = {
 
 // The default guidance for the meaning; the learner can override it (see the
 // per-user "meaning style" preference) to get richer or more specialised entries.
+// One sense, not the word's whole range: the word page lists the others for the
+// learner to add. The usage hint is what makes it readable — a bare "to save" for
+// 救 could just as well be saving money. Also used by the tutor and the importer,
+// so a card reads the same whichever way it was made.
 export const DEFAULT_MEANING_INSTRUCTION =
-  "a CONCISE translation — the direct equivalent, usually 1-4 words (a pronoun → just the pronoun, a country → its name). Add a short parenthetical clarifier ONLY when the word is ambiguous. Do NOT write a long dictionary-style definition.";
+  'the word\'s MOST COMMON sense only (the one a learner\'s dictionary lists first) as a short gloss: the direct equivalent in 1-4 words, near-synonyms separated by ", ". ' +
+  "Whenever that bare translation could be read another way, add in parentheses what the word typically applies to — 1-3 typical objects or contexts, never a definition — so the meaning is clear on its own " +
+  '(Chinese 救 → "to save (a person, a life)", since a bare "to save" could be money or a file; 打开 → "открыть (дверь, книгу)"). ' +
+  "Skip the parentheses when the translation already reads one way only, and never add a category label " +
+  '(table → "стол", not "стол (мебель)"; a country → just its name; a pronoun → just the pronoun). ' +
+  "Do NOT list the word's other senses and do NOT write a long dictionary-style definition.";
 
 export interface EnrichResult {
   phonetic: string;
@@ -72,7 +81,7 @@ export async function enrichWordEntry(params: {
   const sense = params.sense?.trim();
   const senseLine = sense
     ? `The learner reached this word by translating the ${targetName} word "${sense}" — that is the sense they want. ` +
-      `"meaningZh" MUST start with "${sense}" (in dictionary form), then add the word's other main sense(s) if it has any, ` +
+      `"meaningZh" MUST start with "${sense}" (in dictionary form), then (unlike a normal card) add the word's other main sense(s) if it has any, ` +
       `separated by "; " (e.g. "turn on; open"). The first collocation should use that sense too. `
     : "";
 

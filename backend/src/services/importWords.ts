@@ -2,6 +2,7 @@ import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
 
 const MAX_CARDS = 100;
 
@@ -48,6 +49,7 @@ export async function previewImportedWords(params: {
       `card's "example"/"exampleTranslation"/"synonyms" — never treat an indented line as a new word.\n` +
       `Normalize obvious ${sourceName} spelling mistakes and de-duplicate. Return at most ${MAX_CARDS} items, ` +
       `no commentary. If the input is empty or has no usable words, return an empty items array. ` +
+      `Every ${targetName} meaning you write yourself is ${DEFAULT_MEANING_INSTRUCTION} ` +
       `CRITICAL: NEVER invent an example. Fill "example" ONLY with a sentence the user explicitly wrote; ` +
       `if none, return "". If the user wrote an example but no translation, translate THAT example into ` +
       `${targetName} yourself; otherwise fill "exampleTranslation" only with what the user wrote. ` +

@@ -20,6 +20,8 @@ const tgtFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-z
 
 // A gloss without its usage hint: "открыть (дверь, книгу)" -> "открыть".
 const bare = (s: string) => s.replace(/\s*[(（][^)）]*[)）]/g, "").trim();
+// Just the usage hint: "открыть (дверь, книгу)" -> "(дверь, книгу)".
+const hint = (s: string) => s.match(/[(（][^)）]*[)）]/)?.[0] ?? "";
 
 // "включить, зажечь; открыть" -> ["включить", "зажечь", "открыть"]
 const terms = (s: string) =>
@@ -34,21 +36,25 @@ const testedSet = (senses: WordSense[]) => new Set(senses.flatMap((s, i) => (s.o
 /**
  * The card's meaning, written from the picked senses. A term an earlier sense
  * already said is dropped, so Chinese senses that share a head word
- * (指出（错误…）/ 指明，指出（位置…）) read as "指出；指明" instead of "指出; 指明，指出";
- * a sense left with nothing of its own keeps its full gloss, usage hint and all,
- * so two senses can never collapse into one word.
+ * (指出（错误…）/ 指明，指出（位置…）) read as "指出（错误…）；指明（位置…）" instead of
+ * "指出; 指明，指出"; a sense left with nothing of its own keeps its full gloss, so
+ * two senses can never collapse into one word. The usage hint always stays: it is
+ * what tells "to save (a person, a life)" from saving money.
  */
 function composeMeaning(picked: WordSense[], targetLang: string): string {
   const cjk = targetLang === "zh" || targetLang === "zh-Hant" || targetLang === "ja";
   const said = new Set<string>();
   const glosses = picked.map((s) => {
-    const kept = terms(s.meaning).filter((x) => {
+    const all = terms(s.meaning);
+    const kept = all.filter((x) => {
       const k = x.toLowerCase();
       if (said.has(k)) return false;
       said.add(k);
       return true;
     });
-    return kept.length ? kept.join(cjk ? "，" : ", ") : s.meaning.trim();
+    if (!kept.length || kept.length === all.length) return s.meaning.trim();
+    const h = hint(s.meaning);
+    return kept.join(cjk ? "，" : ", ") + (h && !cjk ? " " : "") + h;
   });
   return glosses.join(cjk ? "；" : "; ");
 }
@@ -76,7 +82,6 @@ export function WordSenses({ word }: { word: Word }) {
   const initial = useMemo(() => testedSet(senses), [senses]);
   const [picked, setPicked] = useState<Set<number>>(initial);
   useEffect(() => setPicked(initial), [initial]);
-  const dirty = picked.size !== initial.size || [...picked].some((i) => !initial.has(i));
   // What the card will say once saved — shown before the save, so "test these"
   // is a promise the learner can read rather than a surprise.
   const indexes = useMemo(() => [...picked].sort((a, b) => a - b), [picked]);
@@ -84,6 +89,11 @@ export function WordSenses({ word }: { word: Word }) {
     indexes.map((i) => senses[i]).filter(Boolean),
     word.targetLang,
   );
+  // Older cards say the bare gloss ("to save") where the sense reads "to save (a
+  // person, life…)": same pick, so offer the fuller wording as a save of its own.
+  const card = word.meaningZh ?? "";
+  const fuller = picked.size > 0 && preview !== card && bare(preview) === bare(card);
+  const dirty = picked.size !== initial.size || [...picked].some((i) => !initial.has(i)) || fuller;
 
   const save = useMutation({
     mutationFn: () => api.updateWord(word.id, { meaningZh: preview, senseIndexes: indexes }),

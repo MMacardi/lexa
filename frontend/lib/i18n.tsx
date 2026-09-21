@@ -1332,9 +1332,9 @@ const DICT: Record<string, Entry> = {
   },
   "meaning.concise": { en: "Concise", ru: "Кратко", zh: "简洁" },
   "meaning.conciseHint": {
-    en: "The direct translation — a short clarifier only if ambiguous. Cheapest.",
-    ru: "Прямой перевод — короткое уточнение только при неоднозначности. Дешевле всего.",
-    zh: "直接翻译——仅在歧义时加简短说明。最省。",
+    en: "The most common meaning, with what it applies to when the bare word could mislead. Cheapest.",
+    ru: "Самое частое значение и к чему оно относится, если голый перевод можно понять иначе. Дешевле всего.",
+    zh: "最常用的义项；单看译词易误解时，注明适用对象。最省。",
   },
   "meaning.detailed": { en: "Detailed", ru: "Подробно", zh: "详细" },
   "meaning.detailedHint": {
