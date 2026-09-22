@@ -8,7 +8,7 @@ import { EXAMPLE_STYLES, getExampleSource, getExampleStyle, getLevel, type Examp
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, textareaClass } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { langLabel } from "@/lib/langs";
 import { cn } from "@/lib/utils";
@@ -18,13 +18,6 @@ import { ProTag } from "@/components/ProTag";
 
 const csv = (a: string[]) => a.join(", ");
 const parse = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
-
-// Multi-line field styling (matches Input, but wraps so long examples/notes are
-// fully visible and editable instead of being clipped in a one-line box).
-// `field-sizing:content` auto-grows the box to fit the text, so the whole example
-// is visible by default (no manual dragging); resize-y still allows manual tweak.
-const taClass =
-  "w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-2.5 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:text-[15px] [field-sizing:content] min-h-[46px]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -150,7 +143,7 @@ export function EditWordForm({
           onChange={(e) => setNotes(e.target.value)}
           placeholder={t("edit.notesPlaceholder")}
           rows={2}
-          className={taClass}
+          className={textareaClass}
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -181,7 +174,7 @@ export function EditWordForm({
                 onChange={(ev) => setEx(i, { sentenceEn: ev.target.value })}
                 placeholder={t("edit.example")}
                 rows={2}
-                className={cn(taClass, "flex-1")}
+                className={cn(textareaClass, "flex-1")}
               />
               <button
                 type="button"
@@ -198,7 +191,7 @@ export function EditWordForm({
                 onChange={(ev) => setEx(i, { sentenceZh: ev.target.value })}
                 placeholder={t("edit.exampleTr")}
                 rows={2}
-                className={taClass}
+                className={textareaClass}
               />
               <Input value={e.sourceName} onChange={(ev) => setEx(i, { sourceName: ev.target.value })} placeholder={t("edit.source")} />
             </div>

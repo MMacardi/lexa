@@ -71,6 +71,7 @@ export async function addWordForUser(params: {
   exampleCount?: number; // how many examples to generate (1–2); default 1
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word the learner typed (add-by-translation): the sense they want
+  notes?: string; // learner's own notes, stored as typed
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
@@ -78,6 +79,7 @@ export async function addWordForUser(params: {
   const useWeb = params.exampleSource === "web";
   const withExample = params.exampleStyle !== "none";
   const count = Math.max(1, Math.min(2, Math.round(params.exampleCount ?? 1)));
+  const notes = params.notes?.trim() || null;
 
   let wordId: string;
 
@@ -94,6 +96,7 @@ export async function addWordForUser(params: {
       exampleSource: params.exampleSource,
     });
     wordId = example.wordId;
+    if (notes) await prisma.word.update({ where: { id: wordId }, data: { notes } });
     await runTutor({ wordId, word: params.word, sourceLang: params.sourceLang, targetLang: params.targetLang, synonymLevel: params.synonymLevel });
   } else {
     // AI-composed (default) or "none": ONE combined call for the whole entry
@@ -121,6 +124,7 @@ export async function addWordForUser(params: {
         collocations: entry.collocations,
         synonyms: entry.synonyms,
         antonyms: entry.antonyms,
+        notes,
         examples:
           withExample && entry.example
             ? {
@@ -179,6 +183,7 @@ export async function addWordManual(params: {
   collocations?: string[];
   synonyms?: string[];
   antonyms?: string[];
+  notes?: string;
   example?: {
     sentenceEn: string;
     sentenceZh?: string;
@@ -198,6 +203,7 @@ export async function addWordManual(params: {
     collocations: params.collocations ?? [],
     synonyms: params.synonyms ?? [],
     antonyms: params.antonyms ?? [],
+    notes: params.notes?.trim() || null,
   };
 
   // Duplicates are allowed, so always create a new card rather than upserting

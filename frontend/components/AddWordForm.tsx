@@ -43,7 +43,7 @@ import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, textareaClass } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Segmented";
 import { HoverTip } from "@/components/ui/HoverTip";
@@ -154,6 +154,8 @@ export function AddWordForm({
   const [meaning, setMeaning] = useState("");
   const [manualEx, setManualEx] = useState<{ en: string; tr: string }[]>([{ en: "", tr: "" }]);
   const [src, setSrc] = useState("");
+  // Personal notes (P.S.) — both modes: under Advanced in Auto, inline in Manual.
+  const [notes, setNotes] = useState("");
   const MAX_EX = 10;
   const updateEx = (i: number, patch: Partial<{ en: string; tr: string }>) =>
     setManualEx((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -169,7 +171,7 @@ export function AddWordForm({
   const [reverse, setReverse] = useState<{ native: string; nativeLang: string } | null>(null);
   const [reverseTo, setReverseTo] = useState("");
   const [reversing, setReversing] = useState(false);
-  // Example/synonym tuning is collapsed by default to keep the form light.
+  // Example/synonym tuning and notes are collapsed by default to keep the form light.
   const [showAdvanced, setShowAdvanced] = useState(false);
   // "Ввожу на" — which side of the pair the learner types. false = source
   // (studied, normal); true = target (their known language → translate first).
@@ -299,6 +301,7 @@ export function AddWordForm({
     setMeaning("");
     setManualEx([{ en: "", tr: "" }]);
     setSrc("");
+    setNotes("");
     setResolvedSourceLang(null);
     setReverse(null);
   };
@@ -313,6 +316,7 @@ export function AddWordForm({
         telegramId: accountId,
         sourceLang: sourceLangOverride ?? sourceLang,
         targetLang,
+        notes: notes.trim() || undefined,
       };
       let created;
       if (manual) {
@@ -495,9 +499,10 @@ export function AddWordForm({
     // Offline: adding needs the server (spell-check + AI enrichment), so queue the
     // raw word — it'll be added automatically when the connection is back.
     if (!isOnline()) {
-      await queueAdd(typed, resolvedSourceLang ?? (sourceLang === "auto" ? "en" : sourceLang), targetLang);
+      await queueAdd(typed, resolvedSourceLang ?? (sourceLang === "auto" ? "en" : sourceLang), targetLang, notes.trim() || undefined);
       show({ icon: "📴", title: t("add.queuedOffline") });
       setWord("");
+      setNotes("");
       return;
     }
     if (mode === "manual") {
@@ -903,6 +908,15 @@ export function AddWordForm({
             </button>
           )}
           <Input value={src} onChange={(e) => setSrc(e.target.value)} placeholder={t("add.sourcePlaceholder")} />
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={t("edit.notesPlaceholder")}
+            aria-label={t("edit.notes")}
+            rows={2}
+            maxLength={4000}
+            className={textareaClass}
+          />
         </div>
       )}
     </>
@@ -929,7 +943,7 @@ export function AddWordForm({
 
       {/* Example tuning (auto mode). The example source is the most-used knob, so it
           stays visible above "Advanced"; the finer controls (register, level, count,
-          synonyms) live under Advanced, collapsed by default. */}
+          synonyms) and your notes live under Advanced, collapsed by default. */}
       {mode === "auto" && (
         <div className="space-y-2">
           {/* source of examples: AI-composed, mined from the web, or none */}
@@ -1042,6 +1056,18 @@ export function AddWordForm({
             />
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("edit.notes")}</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t("edit.notesPlaceholder")}
+              rows={2}
+              maxLength={4000}
+              className={textareaClass}
+            />
+          </label>
           </Collapse>
           </div>
         </div>

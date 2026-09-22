@@ -48,8 +48,8 @@ export async function submitReview(wordId: string, grade: number): Promise<boole
 }
 
 /** Queue a word to be added (with AI enrichment) once back online. */
-export async function queueAdd(word: string, sourceLang: string, targetLang: string): Promise<void> {
-  await outboxAdd({ kind: "add", word, sourceLang, targetLang, at: Date.now() });
+export async function queueAdd(word: string, sourceLang: string, targetLang: string, notes?: string): Promise<void> {
+  await outboxAdd({ kind: "add", word, sourceLang, targetLang, notes, at: Date.now() });
   notify();
 }
 
@@ -67,7 +67,7 @@ export async function flushOutbox(accountId: string): Promise<number> {
         if (op.kind === "review") {
           await api.reviewWord(op.wordId, op.grade);
         } else {
-          await api.addWord({ telegramId: accountId, word: op.word, sourceLang: op.sourceLang, targetLang: op.targetLang });
+          await api.addWord({ telegramId: accountId, word: op.word, sourceLang: op.sourceLang, targetLang: op.targetLang, notes: op.notes });
         }
         if (op.id != null) await outboxDelete(op.id);
         done++;

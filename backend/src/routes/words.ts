@@ -360,6 +360,7 @@ const addBody = z.object({
   exampleCount: z.number().int().min(1).max(2).optional(),
   meaningPrompt: z.string().max(400).optional(), // learner override for meaning style
   sense: z.string().max(80).optional(), // known-language word it was translated from (the wanted sense)
+  notes: z.string().max(4000).optional(), // learner's own notes (P.S.), kept in both modes
   // manual-mode fields (ignored in auto mode)
   phonetic: z.string().optional(),
   partOfSpeech: z.string().optional(),
