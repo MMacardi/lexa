@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -11,7 +11,7 @@ import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
-import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots } from "@/lib/mobileNav";
+import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots, useSheetDrag } from "@/lib/mobileNav";
 import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
 // The quick-add sheet's form is only needed once "+" is tapped — keep it out of
@@ -243,7 +243,7 @@ export function Sidebar() {
 
       {/* ---------- Mobile quick-add sheet ---------- */}
       {addSheet.mounted && (
-        <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} full>
+        <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} composer>
           <AddWordForm bare compose />
         </MobileSheet>
       )}
@@ -313,65 +313,72 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
 }
 
 // Phone bottom sheet: scrim + panel docked to the bottom of the visible viewport
-// (so the keyboard never covers it), with a grab bar and a close button.
+// (so the keyboard never covers it), with a grab bar and a close button. Swipe
+// it down by the grab bar or title (or the content, when scrolled to the top) to
+// close it.
 //
-// `full` is the quick-add composer: the whole screen, content from the top. As a
-// bottom sheet its word box sat low, so the keyboard covered it, iOS panned the
-// page to reach it and the sheet jumped to follow, then again as the viewport
-// settled. Here the box is right under the header, where the keyboard never
-// reaches, and the panel isn't sized by the keyboard at all: opening it moves
-// nothing. The body only gains bottom room (--kb) so the rest can still be
-// scrolled into view above the keyboard.
+// `composer` is quick add, whose word box sits at the top of the sheet. Docked
+// to the visible viewport, the sheet rode up with the keyboard and bounced;
+// with the box down low, iOS also panned the page to reach it. Pinned to the
+// screen instead, the sheet stays where it is when the keyboard opens: the box
+// is high enough that the keyboard doesn't reach it, and only the options
+// under it are covered while typing.
 function MobileSheet({
   title,
   closing,
   onClose,
-  full,
+  composer,
   children,
 }: {
   title: string;
   closing: boolean;
   onClose: () => void;
-  full?: boolean;
+  composer?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
+  const scrim = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const grip = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  useSheetDrag({ scrim, panel, grip, body }, closing, onClose);
   return (
     <div
+      ref={scrim}
       data-closing={closing || undefined}
       className={cn(
-        "anim-scrim z-40 flex flex-col bg-black/35 md:hidden",
-        full ? "fixed inset-0 pt-[calc(12px+env(safe-area-inset-top))]" : "vv-overlay justify-end",
+        "anim-scrim z-40 flex flex-col justify-end bg-black/35 md:hidden",
+        composer ? "fixed inset-0 pt-[calc(12px+env(safe-area-inset-top))]" : "vv-overlay",
       )}
       onClick={onClose}
     >
       <div
+        ref={panel}
         data-closing={closing || undefined}
         className={cn(
           "anim-sheet flex flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
-          full ? "min-h-0 flex-1" : "max-h-[calc(100%-12px)]",
+          composer ? "max-h-full" : "max-h-[calc(100%-12px)]",
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-black/15" />
-        <div className="flex items-center justify-between px-5 pt-2 pb-1">
-          <h2 className="font-serif text-[20px] font-semibold text-ink">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("nav.close")}
-            className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.04] hover:text-ink"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        {/* the grip: grab bar + title row, draggable to close */}
+        <div ref={grip} className="shrink-0 touch-none">
+          <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-black/15" />
+          <div className="flex items-center justify-between px-5 pt-2 pb-1">
+            <h2 className="font-serif text-[20px] font-semibold text-ink">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("nav.close")}
+              className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         <div
-          className={cn(
-            "overflow-y-auto overscroll-contain px-4 pt-2",
-            full
-              ? "min-h-0 flex-1 pb-[calc(24px+env(safe-area-inset-bottom)+var(--kb,0px))]"
-              : "pb-[calc(16px+env(safe-area-inset-bottom))]",
-          )}
+          ref={body}
+          className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(16px+env(safe-area-inset-bottom))]"
         >
           {children}
         </div>

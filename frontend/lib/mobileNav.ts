@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { TutorCardCtx } from "./useTutorChat";
 
 // Mobile shell helpers: the customizable bottom-bar slots, the "open X" events
@@ -63,8 +63,6 @@ export function useIsMobile() {
 // iOS Safari doesn't shrink the layout viewport when the keyboard opens, so a
 // `fixed inset-0` modal ends up under the keyboard. Mirror the *visual* viewport
 // into --vv-top / --vv-h; the `.vv-overlay` class (globals.css) sizes overlays by it.
-// --kb is how much of the layout viewport the keyboard covers, for a full-screen
-// panel that stays put and only pads its scroll area.
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -73,7 +71,6 @@ export function useViewportVars() {
     const sync = () => {
       root.setProperty("--vv-top", `${vv.offsetTop}px`);
       root.setProperty("--vv-h", `${vv.height}px`);
-      root.setProperty("--kb", `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
     };
     sync();
     vv.addEventListener("resize", sync);
@@ -95,4 +92,132 @@ export function useLockScroll(active: boolean) {
       document.body.style.overflow = prev;
     };
   }, [active]);
+}
+
+// Swipe a bottom sheet down to close it, the way iOS sheets go. The grip (grab
+// bar + title row) drags it any time; the body only when it's scrolled to the top
+// and the swipe starts downward, so scrolling the form still scrolls it. The
+// panel follows the finger through `translate`, since the open/close animations
+// own `transform` and an animation beats an inline style. Let go past a third of
+// its height, or with a flick, and it closes from where it is; otherwise it
+// springs back. The scrim thins as the panel travels.
+export function useSheetDrag(
+  refs: {
+    scrim: RefObject<HTMLElement | null>;
+    panel: RefObject<HTMLElement | null>;
+    grip: RefObject<HTMLElement | null>;
+    body: RefObject<HTMLElement | null>;
+  },
+  closing: boolean,
+  onDismiss: () => void,
+) {
+  const dismiss = useRef(onDismiss);
+  dismiss.current = onDismiss;
+  const { scrim, panel, grip, body } = refs;
+
+  const place = (y: number, animate: boolean) => {
+    const p = panel.current;
+    const s = scrim.current;
+    if (!p || !s) return;
+    const ease = "0.32s var(--ease-out)";
+    p.style.transition = animate ? `translate ${ease}` : "none";
+    s.style.transition = animate ? `background-color ${ease}` : "none";
+    p.style.translate = `0 ${y}px`;
+    const fade = Math.max(0, 1 - y / (p.offsetHeight || 1));
+    s.style.backgroundColor = `rgba(0, 0, 0, ${(0.35 * fade).toFixed(3)})`;
+  };
+  const reset = () => {
+    for (const el of [panel.current, scrim.current]) {
+      el?.style.removeProperty("transition");
+      el?.style.removeProperty("translate");
+      el?.style.removeProperty("background-color");
+    }
+  };
+
+  // Opened again while still sliding away: start from a clean panel.
+  useEffect(() => {
+    if (!closing) reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closing]);
+
+  useEffect(() => {
+    const p = panel.current;
+    if (!p) return;
+    let mode: null | "pending" | "drag" = null;
+    let fromGrip = false;
+    let startX = 0;
+    let startY = 0;
+    let dy = 0;
+    let samples: { y: number; t: number }[] = [];
+    let settle: ReturnType<typeof setTimeout> | undefined;
+
+    const onStart = (e: TouchEvent) => {
+      mode = null;
+      if (e.touches.length !== 1) return;
+      const target = e.target as Node;
+      fromGrip = !!grip.current?.contains(target);
+      const b = body.current;
+      if (!fromGrip && !(b?.contains(target) && b.scrollTop <= 0)) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dy = 0;
+      mode = "pending";
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!mode) return;
+      const { clientX: x, clientY: y } = e.touches[0];
+      if (mode === "pending") {
+        const ddx = x - startX;
+        const ddy = y - startY;
+        // The grip has touch-action: none, so it can wait for a clear gesture.
+        // The body must decide on its first move: once the browser starts
+        // scrolling it, the swipe can't be taken over any more.
+        if (fromGrip && Math.abs(ddx) < 4 && Math.abs(ddy) < 4) return;
+        if (Math.abs(ddy) < Math.abs(ddx) || (!fromGrip && ddy <= 0)) {
+          mode = null;
+          return;
+        }
+        mode = "drag";
+        clearTimeout(settle);
+        startY = y; // follow from here, so the panel doesn't jump the threshold
+        samples = [];
+      }
+      if (e.cancelable) e.preventDefault();
+      dy = Math.max(0, y - startY);
+      samples.push({ y, t: e.timeStamp });
+      place(dy, false);
+    };
+    const onEnd = () => {
+      if (mode !== "drag") {
+        mode = null;
+        return;
+      }
+      mode = null;
+      // Speed over the last ~100ms of the swipe, in px/ms.
+      const last = samples[samples.length - 1];
+      const recent = samples.filter((s) => last && s.t >= last.t - 100);
+      const first = recent[0];
+      const v = first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
+      const h = p.offsetHeight;
+      if (dy > h / 3 || (v > 0.5 && dy > 24)) {
+        dismiss.current(); // the close animation carries on from the current offset
+        return;
+      }
+      place(0, true);
+      settle = setTimeout(reset, 340);
+    };
+
+    p.addEventListener("touchstart", onStart, { passive: true });
+    p.addEventListener("touchmove", onMove, { passive: false });
+    p.addEventListener("touchend", onEnd);
+    p.addEventListener("touchcancel", onEnd);
+    return () => {
+      clearTimeout(settle);
+      p.removeEventListener("touchstart", onStart);
+      p.removeEventListener("touchmove", onMove);
+      p.removeEventListener("touchend", onEnd);
+      p.removeEventListener("touchcancel", onEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
