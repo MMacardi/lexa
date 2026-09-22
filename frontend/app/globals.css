@@ -345,6 +345,9 @@ textarea::-webkit-resizer {
 .flip-scene { perspective: 1800px; }
 .flip-card {
   display: grid;
+  /* One column exactly as wide as the card's slot: an `auto` column grew to fit the
+     widest unbreakable word and pushed the card off a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   transform-style: preserve-3d;
   /* Symmetric ease-in-out ON PURPOSE: the visibility swap below fires at half the
      duration, so the turn must cross 90deg exactly then. A fast-out curve crosses

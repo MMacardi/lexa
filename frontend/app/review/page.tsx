@@ -22,6 +22,7 @@ import { pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
+import { FitText } from "@/components/FitText";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { Confetti } from "@/components/Confetti";
@@ -592,23 +593,40 @@ export default function FlashcardsPage() {
       case "word":
         return (
           <div className="flex items-center justify-center gap-3">
-            <span className={cn(primary ? "font-serif text-[52px] font-medium leading-tight tracking-[-0.025em] text-ink" : "font-serif text-[26px] font-medium text-ink", sourceFont(word.sourceLang))}>
-              {word.word}
-            </span>
+            {/* A long headword ("intertextuality") at 52px is wider than a phone, so the hero shrinks to fit */}
+            {primary ? (
+              <FitText
+                text={word.word}
+                max={52}
+                min={28}
+                className={cn("font-serif font-medium leading-tight tracking-[-0.025em] text-ink", sourceFont(word.sourceLang))}
+              />
+            ) : (
+              <span className={cn("min-w-0 break-words font-serif text-[26px] font-medium text-ink", sourceFont(word.sourceLang))}>
+                {word.word}
+              </span>
+            )}
             <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} />
           </div>
         );
       case "phonetic":
-        return word.phonetic ? <div className="text-[18px] text-ink-faint">{word.phonetic}</div> : null;
+        return word.phonetic ? <div className="break-words text-[18px] text-ink-faint">{word.phonetic}</div> : null;
       case "pos":
         return word.partOfSpeech ? (
           <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{word.partOfSpeech}</div>
         ) : null;
       case "meaning":
         return word.meaningZh ? (
-          <div className={cn(primary ? "font-serif text-[36px] font-bold leading-tight text-sage-deep" : "text-[22px] font-bold text-sage-deep", targetFont(word.targetLang))}>
-            {word.meaningZh}
-          </div>
+          primary ? (
+            <FitText
+              text={word.meaningZh}
+              max={36}
+              min={22}
+              className={cn("font-serif font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}
+            />
+          ) : (
+            <div className={cn("break-words text-[22px] font-bold text-sage-deep", targetFont(word.targetLang))}>{word.meaningZh}</div>
+          )
         ) : null;
       case "example":
         return word.examples.length ? (
@@ -883,7 +901,7 @@ export default function FlashcardsPage() {
                 </span>
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                   {frontFields.map((f, i) => (
-                    <div key={f}>{fieldNode(f, i === 0, frontTr)}</div>
+                    <div key={f} className="max-w-full">{fieldNode(f, i === 0, frontTr)}</div>
                   ))}
                   <div className="mt-6 text-sm font-medium text-ink-faint">{t("review.reveal")}</div>
                 </div>
