@@ -992,68 +992,79 @@ export function AddWordForm({
             {t("add.advanced")}
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")} />
           </button>
-          <Collapse open={showAdvanced} className="space-y-2 pt-2">
-          {exMode !== "none" && (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* register only applies to AI-composed examples */}
-              {exMode === "ai" && (
-                <>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
-                  <Select
-                    value={style}
-                    onChange={(v) => setExampleStyle(v as ExampleStyle)}
-                    ariaLabel={t("style.label")}
-                    className="w-[150px]"
-                    options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
-                  />
-                </>
-              )}
-              {sourceLang !== "auto" && (
-                <>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
-                  <Select
-                    value={currentLevel ?? ""}
-                    onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
-                    ariaLabel={t("level.title")}
-                    placeholder={t("level.pick")}
-                    className="w-[136px]"
-                    options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
-                  />
-                </>
-              )}
-              {pro ? (
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
-              ) : (
-                <button type="button" onClick={() => upsell({ word })} className="inline-flex items-center text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted">
-                  {t("count.label")}
-                  <ProTag />
-                </button>
-              )}
+          <Collapse open={showAdvanced} className="space-y-3 pt-2.5">
+          {/* A two-column grid, each label above its control: laid out as label +
+              control pairs in a wrapping row, a phone split them across lines and
+              left a label stranded at the end of one. Cells come and go with the
+              example source (no register for web, nothing but synonyms for none). */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+            {/* register only applies to AI-composed examples */}
+            {exMode === "ai" && (
+              <div className="min-w-0 space-y-1">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("style.field")}</span>
+                <Select
+                  value={style}
+                  onChange={(v) => setExampleStyle(v as ExampleStyle)}
+                  ariaLabel={t("style.field")}
+                  options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+                />
+              </div>
+            )}
+            {exMode !== "none" && sourceLang !== "auto" && (
+              <div className="min-w-0 space-y-1">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                <Select
+                  value={currentLevel ?? ""}
+                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                  ariaLabel={t("level.title")}
+                  placeholder={t("level.notSet")}
+                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                />
+              </div>
+            )}
+            {exMode !== "none" && (
+              <div className="min-w-0 space-y-1">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
+                {/* Two options only, so a toggle rather than a dropdown. Free plan
+                    adds 1 example per word; tapping 2 opens the Pro upsell. */}
+                <Segmented
+                  size="sm"
+                  grow
+                  ariaLabel={t("count.label")}
+                  className="w-full"
+                  itemClassName="h-8"
+                  value={String(pro ? exCount : 1)}
+                  onChange={(v) => (v === "2" && !pro ? upsell({ word }) : setExampleCount(Number(v)))}
+                  options={[1, 2].map((n) => {
+                    const locked = n === 2 && !pro;
+                    return {
+                      value: String(n),
+                      title: locked ? t("pro.locked") : undefined,
+                      label: (
+                        <>
+                          {n}
+                          {locked && <ProTag />}
+                        </>
+                      ),
+                    };
+                  })}
+                />
+              </div>
+            )}
+            {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
+                prep). Applies to every auto sub-mode, since synonyms are always found. */}
+            <div className="min-w-0 space-y-1">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
               <Select
-                value={String(pro ? exCount : 1)}
-                onChange={(v) => setExampleCount(Number(v))}
-                ariaLabel={t("count.label")}
-                className="w-[92px]"
-                // Free plan can only add 1 example per word; 2 is Pro.
-                options={(pro ? [1, 2] : [1]).map((n) => ({ value: String(n), label: String(n) }))}
+                value={synLevel}
+                onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
+                ariaLabel={t("syn.level")}
+                options={[
+                  { value: "", label: t("syn.auto") },
+                  ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+                ]}
               />
             </div>
-          )}
-
-          {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
-              prep). Applies to every auto sub-mode, since synonyms are always found. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
-            <Select
-              value={synLevel}
-              onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
-              ariaLabel={t("syn.level")}
-              className="w-[150px]"
-              options={[
-                { value: "", label: t("syn.auto") },
-                ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
-              ]}
-            />
           </div>
           <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
 

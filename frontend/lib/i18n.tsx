@@ -1015,6 +1015,7 @@ const DICT: Record<string, Entry> = {
     zh: "每张新卡片都会配一个例句。下面是同一个词的不同风格（{lang}）——选一个你喜欢的。之后可以在设置里更改。",
   },
   "style.label": { en: "Examples", ru: "Примеры", zh: "例句" },
+  "style.field": { en: "Style", ru: "Стиль", zh: "风格" },
   "count.label": { en: "How many", ru: "Сколько", zh: "数量" },
   "exmode.label": { en: "Examples", ru: "Примеры", zh: "例句" },
   "exmode.ai": { en: "AI", ru: "ИИ", zh: "AI" },
@@ -1070,6 +1071,7 @@ const DICT: Record<string, Entry> = {
     zh: "你的{lang}水平如何？例句会据此匹配。",
   },
   "level.pick": { en: "Level", ru: "Уровень", zh: "水平" },
+  "level.notSet": { en: "Not set", ru: "Не задан", zh: "未设置" },
   "level.forLevel": { en: "tuned for {level}", ru: "под уровень {level}", zh: "适配 {level}" },
   "native.label": { en: "My native language", ru: "Мой родной язык", zh: "我的母语" },
   "native.hint": {
@@ -1500,9 +1502,9 @@ const DICT: Record<string, Entry> = {
   "syn.auto": { en: "Natural", ru: "Обычные", zh: "自然" },
   "syn.hint": { en: "at this level — good for IELTS/exam prep", ru: "под уровень — для IELTS и экзаменов", zh: "按此等级——适合雅思/备考" },
   "syn.desc": {
-    en: "“Natural” keeps everyday synonyms. Pick a CEFR level to aim them higher — e.g. C1 gives “mitigate” instead of “ease” (handy for IELTS/exams).",
-    ru: "«Обычные» — синонимы из живой речи. Выберите уровень CEFR, чтобы подобрать посложнее: например, C1 даст «mitigate» вместо «ease» — пригодно для IELTS и экзаменов.",
-    zh: "「自然」保留日常同义词；选择 CEFR 等级可提高难度——例如 C1 会给出「mitigate」而非「ease」,适合雅思/备考。",
+    en: "Synonyms: “Natural” keeps everyday words; a CEFR level aims them higher — C1 gives “mitigate”, not “ease”.",
+    ru: "Синонимы: «Обычные» — из живой речи; уровень CEFR подберёт посложнее — C1 даст «mitigate», а не «ease».",
+    zh: "同义词：「自然」保留日常用词；选 CEFR 等级可提高难度——C1 给出「mitigate」而非「ease」。",
   },
 
   // --- soft one-time hints (shown once per screen, dismissible, then never again) ---
