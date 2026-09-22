@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { TutorCardCtx } from "./useTutorChat";
+import { dragFollower } from "./dragFollow";
 
 // Mobile shell helpers: the customizable bottom-bar slots, the "open X" events
 // the bar/header fire at always-mounted overlays (Mika, bug report), and the
@@ -102,8 +103,9 @@ export function useLockScroll(active: boolean) {
 // `translate` (the open/close animations own `transform`, and an animation beats
 // an inline style) and the shade behind it through `opacity`. Fading the scrim by
 // its background colour instead repainted the whole page under it on each touch
-// move, which is what made the drag stutter. Writes are batched to one per frame
-// and the panel is measured once, when the drag starts.
+// move, which is what made the drag stutter. The panel follows a smoothed finger
+// (see dragFollow.ts), written once per frame, and is measured once, when the
+// drag starts.
 //
 // Let go past a third of the panel's height, or with a flick, and it is thrown
 // off the screen at the speed the finger left it, then closed; otherwise it
@@ -144,21 +146,19 @@ export function useSheetDrag(
     let startY = 0;
     let dy = 0;
     let height = 1;
-    let frame = 0;
     let samples: { y: number; t: number }[] = [];
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const paint = () => {
-      frame = 0;
-      p.style.translate = `0 ${dy}px`;
-      if (shade.current) shade.current.style.opacity = String(Math.max(0, 1 - dy / height));
+    const paint = (y: number) => {
+      p.style.translate = `0 ${y}px`;
+      if (shade.current) shade.current.style.opacity = String(Math.max(0, 1 - y / height));
     };
+    const follow = dragFollower((_, y) => paint(y));
     const animateTo = (y: number, ms: number, curve: string) => {
       const tr = `${ms}ms ${curve}`;
       p.style.transition = `translate ${tr}`;
       if (shade.current) shade.current.style.transition = `opacity ${tr}`;
-      dy = y;
-      paint();
+      paint(y);
     };
 
     const onStart = (e: TouchEvent) => {
@@ -200,20 +200,22 @@ export function useSheetDrag(
           shade.current.style.transition = "none";
           shade.current.style.willChange = "opacity";
         }
+        paint(current);
+        follow.start(0, current);
       }
       if (e.cancelable) e.preventDefault();
       dy = Math.max(0, y - startY);
+      follow.to(0, dy);
       samples.push({ y, t: e.timeStamp });
       if (samples.length > 8) samples.shift();
-      if (!frame) frame = requestAnimationFrame(paint);
     };
     const onEnd = () => {
       if (mode !== "drag") {
         if (mode === "pending") mode = null;
         return;
       }
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
+      // The transitions below start from where the panel was last painted.
+      const shown = follow.stop().y;
       // Speed over the last ~80ms of the swipe, in px/ms (down is positive).
       const last = samples[samples.length - 1];
       const first = samples.find((s) => last && s.t >= last.t - 80);
@@ -222,7 +224,7 @@ export function useSheetDrag(
         mode = "thrown";
         // Leave at the finger's speed: an ease-out curve starts at ~2x its average
         // speed, so the duration that matches the release speed is 2 * distance / v.
-        const distance = height + 24 - dy; // + the shadow
+        const distance = height + 24 - shown; // + the shadow
         const ms = Math.round(Math.min(320, Math.max(140, (2 * distance) / Math.max(v, 0.6))));
         animateTo(height + 24, ms, "cubic-bezier(0.25, 0.5, 0.35, 1)");
         timer = setTimeout(() => {
@@ -242,7 +244,7 @@ export function useSheetDrag(
     p.addEventListener("touchcancel", onEnd);
     return () => {
       clearTimeout(timer);
-      if (frame) cancelAnimationFrame(frame);
+      follow.stop();
       p.removeEventListener("touchstart", onStart);
       p.removeEventListener("touchmove", onMove);
       p.removeEventListener("touchend", onEnd);

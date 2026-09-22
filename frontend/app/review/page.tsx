@@ -35,6 +35,7 @@ import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
 import { ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
 import { Disclosure } from "@/components/ui/Disclosure";
 
@@ -117,7 +118,6 @@ export default function FlashcardsPage() {
   const [deck, setDeck] = useState<Word[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const [known, setKnown] = useState(0);
   const [learning, setLearning] = useState(0);
   const [editing, setEditing] = useState<Word | null>(null);
@@ -127,13 +127,13 @@ export default function FlashcardsPage() {
   // The drag never goes through React state: a setState per pointermove re-rendered
   // the whole card — both stamps, every field, and the FSRS interval preview — a
   // hundred-odd times a second, which is what made the swipe feel heavy on a phone.
-  // The card and the stamps are written straight to the DOM inside one rAF instead.
+  // The card and the stamps are written straight to the DOM, once per frame, from
+  // a smoothed finger position (lib/dragFollow.ts: raw touch points made a slow
+  // drag step instead of glide). Not even the grab cursor is state, since a
+  // re-render on touch-down cost the first frames of the drag.
   const startX = useRef(0);
   const startY = useRef(0);
-  const dxRef = useRef(0);
-  const dyRef = useRef(0);
   const axis = useRef<"" | "x" | "y">(""); // direction lock, decided on the first few px
-  const rafRef = useRef(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const stampAgain = useRef<HTMLDivElement | null>(null);
   const stampGood = useRef<HTMLDivElement | null>(null);
@@ -148,7 +148,21 @@ export default function FlashcardsPage() {
   const prevD = useRef(0);
   const prevT = useRef(0);
 
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+  function paintCard(dx: number, dy: number) {
+    if (cardRef.current)
+      cardRef.current.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.035}deg)`;
+    const op = (r: typeof stampGood, v: number) => {
+      if (r.current) r.current.style.opacity = String(Math.max(0, Math.min(1, v)));
+    };
+    op(stampGood, dx / SWIPE_PX);
+    op(stampAgain, -dx / SWIPE_PX);
+    op(stampEasy, -dy / SWIPE_PX); // up → Easy
+    op(stampHard, dy / SWIPE_PX); // down → Hard
+  }
+  const follow = useDragFollower(paintCard);
+  const grabbing = (on: boolean) => {
+    if (cardRef.current) cardRef.current.style.cursor = on ? "grabbing" : "";
+  };
 
   // A focused session handed off from the Coach ("drill weak words"): start
   // immediately with exactly those cards, skipping the setup screen.
@@ -223,10 +237,7 @@ export default function FlashcardsPage() {
   // Put the card back at rest with no animation — for a fresh card, where snapping
   // in from the last one's fly-off would look like the new card arriving pre-swiped.
   function restCard() {
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
-    dxRef.current = 0;
-    dyRef.current = 0;
+    follow.stop();
     axis.current = "";
     const el = cardRef.current;
     if (el) {
@@ -302,14 +313,13 @@ export default function FlashcardsPage() {
   // card keeps going the way the thumb was pushing it; the buttons use the default.
   function commit(grade: number, word: Word, fly?: { x: number; y: number }) {
     const to = fly ?? { x: grade >= 3 ? 640 : -640, y: 0 };
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
+    follow.stop();
     const el = cardRef.current;
     if (el) {
       el.style.transition = SNAP_BACK;
       el.style.transform = `translate(${to.x}px, ${to.y}px) rotate(${to.x * 0.035}deg)`;
     }
-    setDragging(false);
+    grabbing(false);
     void recordGrade(word, grade);
     if (grade >= 3) setKnown((k) => k + 1);
     else setLearning((l) => l + 1);
@@ -554,7 +564,6 @@ export default function FlashcardsPage() {
 
   const word = deck[index];
   const iv = previewMinutes(word); // FSRS "next due" for each grade
-  const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
   // Render one card field. `primary` = the big hero field on the front.
   const chips = (items: string[], tone: "syn" | "ant" | "muted") =>
@@ -660,25 +669,6 @@ export default function FlashcardsPage() {
   const frontFields = visibleFields(layout.front, true, frontTr);
   const backFields = visibleFields(layout.back, false, backTr);
 
-  // Paint the drag straight to the DOM, coalesced into one frame — see the refs.
-  const paint = () => {
-    rafRef.current = 0;
-    const dx = axis.current === "y" ? 0 : dxRef.current;
-    const dy = axis.current === "y" ? dyRef.current : 0;
-    if (cardRef.current)
-      cardRef.current.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.035}deg)`;
-    const op = (r: typeof stampGood, v: number) => {
-      if (r.current) r.current.style.opacity = String(clamp(v));
-    };
-    op(stampGood, dx / SWIPE_PX);
-    op(stampAgain, -dx / SWIPE_PX);
-    op(stampEasy, -dy / SWIPE_PX); // up → Easy
-    op(stampHard, dy / SWIPE_PX); // down → Hard
-  };
-  const schedule = () => {
-    if (!rafRef.current) rafRef.current = requestAnimationFrame(paint);
-  };
-
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
@@ -691,8 +681,6 @@ export default function FlashcardsPage() {
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     startX.current = e.clientX;
     startY.current = e.clientY;
-    dxRef.current = 0;
-    dyRef.current = 0;
     axis.current = "";
     draggedRef.current = false;
     pointerActive.current = true;
@@ -701,7 +689,7 @@ export default function FlashcardsPage() {
     prevD.current = 0;
     prevT.current = e.timeStamp;
     if (cardRef.current) cardRef.current.style.transition = "none";
-    setDragging(true);
+    grabbing(true);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!pointerActive.current) return;
@@ -716,28 +704,28 @@ export default function FlashcardsPage() {
         // Still a drag though, so releasing must not read as a tap and flip it.
         draggedRef.current = true;
         pointerActive.current = false;
-        setDragging(false);
+        grabbing(false);
         return;
       }
       axis.current = vertical ? "y" : "x";
       draggedRef.current = true;
+      follow.start(0, 0);
     }
     if (!axis.current) return;
-    dxRef.current = dx;
-    dyRef.current = dy;
     const d = axis.current === "y" ? dy : dx;
+    follow.to(axis.current === "y" ? 0 : dx, axis.current === "y" ? dy : 0);
     if (e.timeStamp - sampleT.current > 30) {
       prevD.current = sampleD.current;
       prevT.current = sampleT.current;
       sampleD.current = d;
       sampleT.current = e.timeStamp;
     }
-    schedule();
   };
   const onPointerEnd = (e: React.PointerEvent) => {
     if (!pointerActive.current) return;
     pointerActive.current = false;
-    setDragging(false);
+    grabbing(false);
+    follow.stop();
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
     const d = axis.current === "y" ? dy : dx;
@@ -756,22 +744,17 @@ export default function FlashcardsPage() {
         : commit(2, word, { x: 0, y: 640 }); // down → Hard
     // Short of the threshold: snap back. A plain tap never moved, so this is a
     // no-op there and onClick handles the flip (reliable on double-taps).
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
     if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
-    dxRef.current = 0;
-    dyRef.current = 0;
-    paint();
+    paintCard(0, 0);
     axis.current = "";
   };
   const onPointerCancel = () => {
     if (!pointerActive.current) return;
     pointerActive.current = false;
-    setDragging(false);
+    grabbing(false);
+    follow.stop();
     if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
-    dxRef.current = 0;
-    dyRef.current = 0;
-    paint();
+    paintCard(0, 0);
     axis.current = "";
   };
   // Flip on a genuine tap/click (skipped right after a drag). Using onClick keeps
@@ -864,17 +847,16 @@ export default function FlashcardsPage() {
 
         <div
           ref={cardRef}
-          className="w-full max-w-[560px] select-none"
+          className="w-full max-w-[560px] cursor-grab select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
           onPointerCancel={onPointerCancel}
           onClick={onFlip}
           style={{
-            // transform/transition are written imperatively during a drag and so are
-            // deliberately absent here — React must not clobber them on a re-render.
+            // transform/transition/cursor are written imperatively during a drag and
+            // so are deliberately absent here — React must not clobber them on a re-render.
             willChange: "transform",
-            cursor: dragging ? "grabbing" : "grab",
             // With up/down on we own both axes, so the card can no longer scroll the
             // page under it (the back face keeps its own scroll area below).
             touchAction: swipeUpDown ? "none" : "pan-y",

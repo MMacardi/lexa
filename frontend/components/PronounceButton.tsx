@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { recognizeOnce, dictationSupported, speechLang, type DictationController } from "@/lib/dictation";
 import { recorderSupported, startRecording, type Recording } from "@/lib/record";
@@ -80,6 +80,21 @@ export function PronounceButton({
   const pop = usePresence(open);
   // What the bubble last showed — see where it's filled in below.
   const lastBody = useRef<React.ReactNode>(null);
+
+  // The bubble hangs from the button's left edge. Near the right side of the
+  // screen (the mic in a flashcard's corner) that ran it off the edge, so it is
+  // pulled back to stay inside the screen.
+  const popRef = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
+    const w = wrapRef.current;
+    const m = popRef.current;
+    if (!w || !m) return;
+    const left = w.getBoundingClientRect().left;
+    const right = document.documentElement.clientWidth - 8;
+    const next = Math.max(8 - left, Math.min(0, right - (left + m.offsetWidth)));
+    setShift((s) => (s === next ? s : next));
+  });
 
   if (!ok) return null;
 
@@ -229,8 +244,10 @@ export function PronounceButton({
 
       {pop.mounted && (
         <span
+          ref={popRef}
           data-closing={pop.closing || undefined}
-          className="anim-popover absolute left-0 top-full z-30 mt-2 w-max max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-left shadow-[0_14px_40px_rgba(46,42,38,0.2)]"
+          style={{ left: shift }}
+          className="anim-popover absolute top-full z-30 mt-2 w-max max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-left shadow-[0_14px_40px_rgba(46,42,38,0.2)]"
         >
           {open ? body : lastBody.current}
         </span>
