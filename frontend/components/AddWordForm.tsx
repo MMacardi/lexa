@@ -105,8 +105,18 @@ type AddVars = {
 // `defaultCollectionId` is the active "Set" filter from My words ("all" or an
 // id). When it's a real collection, the new word is pre-assigned to it.
 // `bare` drops the card frame when the form sits inside another surface (the
-// phone quick-add sheet).
-export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId?: string; bare?: boolean }) {
+// phone quick-add sheet). `compose` (the phone composer) puts the word box first:
+// high on the screen the keyboard never covers it, so iOS has no reason to pan
+// the page when it opens.
+export function AddWordForm({
+  defaultCollectionId,
+  bare,
+  compose,
+}: {
+  defaultCollectionId?: string;
+  bare?: boolean;
+  compose?: boolean;
+}) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
@@ -534,14 +544,8 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
     }
   }
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSubmit();
-      }}
-      className={cn("space-y-3", !bare && "rounded-[18px] border border-black/[0.06] bg-surface/70 p-4")}
-    >
+  const modeBlock = (
+    <>
       {/* mode toggle */}
       <div className="flex flex-wrap items-center gap-2">
         <Segmented
@@ -561,7 +565,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           <span className="text-[12px] font-medium text-ink-faint">{t("add.aiUnsupported", { lang: langLabel(sourceLang) })}</span>
         )}
       </div>
-
+    </>
+  );
+  const pairBlock = (
+    <>
       {/* Language pair, both sides labelled. A bare "A → B" between two dropdowns
           reads as a translation direction, so people set it backwards and get a card
           in the language they already speak — the card is always in the first one.
@@ -631,7 +638,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           </button>
         </div>
       )}
-
+    </>
+  );
+  const recentBlock = (
+    <>
       {/* recently used pairs — quick re-select */}
       {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
         <div className="scroll-row flex flex-wrap items-center gap-1.5">
@@ -653,7 +663,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
             ))}
         </div>
       )}
-
+    </>
+  );
+  const inputPickerBlock = (
+    <>
       {/* Which side of the pair you type. It used to hide under Advanced, so the
           "type the meaning you know, get the word you don't" path — the reason you
           open a dictionary at all — was invisible; it now sits on the field it
@@ -681,8 +694,11 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           </p>
         </div>
       )}
-
-      {/* the word itself — the main action, right under the pair it's in */}
+    </>
+  );
+  const wordBlock = (
+    <>
+      {/* the word itself — the main action, right under the pair it's in (or on top, in compose) */}
       <div className="flex gap-2">
         <Input
           value={word}
@@ -854,7 +870,10 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           </div>
         </div>
       )}
-
+    </>
+  );
+  const manualBlock = (
+    <>
       {mode === "manual" && (
         <div className="space-y-2">
           <Input value={meaning} onChange={(e) => setMeaning(e.target.value)} placeholder={t("add.meaningPlaceholder", { lang: langLabel(targetLang) })} />
@@ -886,6 +905,27 @@ export function AddWordForm({ defaultCollectionId, bare }: { defaultCollectionId
           <Input value={src} onChange={(e) => setSrc(e.target.value)} placeholder={t("add.sourcePlaceholder")} />
         </div>
       )}
+    </>
+  );
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      className={cn("space-y-3", !bare && "rounded-[18px] border border-black/[0.06] bg-surface/70 p-4")}
+    >
+      {/* Default: the pair first, then the word typed in it. The phone composer
+          (compose) puts the word box first, directly under its header. */}
+      {compose && wordBlock}
+      {modeBlock}
+      {compose && manualBlock}
+      {pairBlock}
+      {recentBlock}
+      {inputPickerBlock}
+      {!compose && wordBlock}
+      {!compose && manualBlock}
 
       {/* Example tuning (auto mode). The example source is the most-used knob, so it
           stays visible above "Advanced"; the finer controls (register, level, count,

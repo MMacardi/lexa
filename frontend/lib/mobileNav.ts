@@ -63,6 +63,8 @@ export function useIsMobile() {
 // iOS Safari doesn't shrink the layout viewport when the keyboard opens, so a
 // `fixed inset-0` modal ends up under the keyboard. Mirror the *visual* viewport
 // into --vv-top / --vv-h; the `.vv-overlay` class (globals.css) sizes overlays by it.
+// --kb is how much of the layout viewport the keyboard covers, for a full-screen
+// panel that stays put and only pads its scroll area.
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -71,6 +73,7 @@ export function useViewportVars() {
     const sync = () => {
       root.setProperty("--vv-top", `${vv.offsetTop}px`);
       root.setProperty("--vv-h", `${vv.height}px`);
+      root.setProperty("--kb", `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
     };
     sync();
     vv.addEventListener("resize", sync);

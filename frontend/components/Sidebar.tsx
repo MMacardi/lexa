@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { prefersReducedMotion, usePresence } from "@/lib/motion";
+import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
@@ -243,8 +243,8 @@ export function Sidebar() {
 
       {/* ---------- Mobile quick-add sheet ---------- */}
       {addSheet.mounted && (
-        <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} tall>
-          <AddWordForm bare />
+        <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} full>
+          <AddWordForm bare compose />
         </MobileSheet>
       )}
 
@@ -314,73 +314,42 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
 
 // Phone bottom sheet: scrim + panel docked to the bottom of the visible viewport
 // (so the keyboard never covers it), with a grab bar and a close button.
+//
+// `full` is the quick-add composer: the whole screen, content from the top. As a
+// bottom sheet its word box sat low, so the keyboard covered it, iOS panned the
+// page to reach it and the sheet jumped to follow, then again as the viewport
+// settled. Here the box is right under the header, where the keyboard never
+// reaches, and the panel isn't sized by the keyboard at all: opening it moves
+// nothing. The body only gains bottom room (--kb) so the rest can still be
+// scrolled into view above the keyboard.
 function MobileSheet({
   title,
   closing,
   onClose,
-  tall,
+  full,
   children,
 }: {
   title: string;
   closing: boolean;
   onClose: () => void;
-  tall?: boolean;
+  full?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const body = useRef<HTMLDivElement>(null);
-  // Keep the field being typed in on screen. The keyboard shrinks the visual
-  // viewport and the sheet with it, so a field near the bottom (the word box in
-  // quick add) ended up half under the sheet's edge. Once the viewport settles,
-  // scroll the sheet just enough to show the whole field.
-  useEffect(() => {
-    const el = body.current;
-    const vv = window.visualViewport;
-    if (!el) return;
-    let field: HTMLElement | null = null;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // Scrolls only the sheet: scrollIntoView would also move the page behind it,
-    // which on iOS drags the whole overlay along.
-    const reveal = () => {
-      if (!field) return;
-      const box = el.getBoundingClientRect();
-      const r = field.getBoundingClientRect();
-      const gap = 12;
-      const dy = r.bottom > box.bottom - gap ? r.bottom - box.bottom + gap : r.top < box.top + gap ? r.top - box.top - gap : 0;
-      if (dy) el.scrollBy({ top: dy, behavior: prefersReducedMotion() ? "auto" : "smooth" });
-    };
-    const onFocus = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.matches("input:not([type=checkbox]):not([type=radio]), textarea")) return;
-      field = target;
-      // No resize comes when the keyboard was already up (moving between fields).
-      clearTimeout(timer);
-      timer = setTimeout(reveal, 350);
-    };
-    const onBlur = () => {
-      field = null;
-    };
-    el.addEventListener("focusin", onFocus);
-    el.addEventListener("focusout", onBlur);
-    vv?.addEventListener("resize", reveal);
-    return () => {
-      clearTimeout(timer);
-      el.removeEventListener("focusin", onFocus);
-      el.removeEventListener("focusout", onBlur);
-      vv?.removeEventListener("resize", reveal);
-    };
-  }, []);
   return (
     <div
       data-closing={closing || undefined}
-      className="anim-scrim vv-overlay z-40 flex flex-col justify-end bg-black/35 md:hidden"
+      className={cn(
+        "anim-scrim z-40 flex flex-col bg-black/35 md:hidden",
+        full ? "fixed inset-0 pt-[calc(12px+env(safe-area-inset-top))]" : "vv-overlay justify-end",
+      )}
       onClick={onClose}
     >
       <div
         data-closing={closing || undefined}
         className={cn(
-          "anim-sheet flex max-h-[calc(100%-12px)] flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
-          tall && "min-h-[min(480px,calc(100%-12px))]",
+          "anim-sheet flex flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
+          full ? "min-h-0 flex-1" : "max-h-[calc(100%-12px)]",
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -396,7 +365,14 @@ function MobileSheet({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div ref={body} className="overflow-y-auto px-4 pt-2 pb-[calc(16px+env(safe-area-inset-bottom))]">
+        <div
+          className={cn(
+            "overflow-y-auto overscroll-contain px-4 pt-2",
+            full
+              ? "min-h-0 flex-1 pb-[calc(24px+env(safe-area-inset-bottom)+var(--kb,0px))]"
+              : "pb-[calc(16px+env(safe-area-inset-bottom))]",
+          )}
+        >
           {children}
         </div>
       </div>

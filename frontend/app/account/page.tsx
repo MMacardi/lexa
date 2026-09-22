@@ -402,8 +402,10 @@ function PrivacyRow({
         <p className="text-sm font-semibold text-ink">{label}</p>
         <p className="text-[12px] text-ink-soft">{hint}</p>
       </div>
+      {/* self-start: stacked on a phone, the row would stretch the track to the
+          card's full width with the options bunched at its left end */}
       <Segmented
-        className="shrink-0"
+        className="shrink-0 self-start sm:self-auto"
         tone="outlined"
         value={value}
         onChange={onChange}
