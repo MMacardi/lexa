@@ -769,8 +769,11 @@ export default function FlashcardsPage() {
     setFlipped((f) => !f);
   };
 
+  // Nothing on the session screen is text to copy, and a long press anywhere on it
+  // (even on a hidden grade stamp) used to start an iOS selection that grew across
+  // the card and the grade row. The edit modal is portalled out, so it still selects.
   return (
-    <div className="mx-auto flex max-w-[560px] flex-col items-center">
+    <div className="mx-auto flex max-w-[560px] select-none flex-col items-center [-webkit-touch-callout:none]">
       <div className="w-full">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
@@ -847,7 +850,7 @@ export default function FlashcardsPage() {
 
         <div
           ref={cardRef}
-          className="w-full max-w-[560px] cursor-grab select-none"
+          className="w-full max-w-[560px] cursor-grab"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
