@@ -12,7 +12,6 @@ Graded university final project; the student is the sole author.
   - LLM = Qwen via Bailian only (`services/llm.ts`, OpenAI SDK). Never add other providers.
 - `frontend/` Next.js 15 App Router, Tailwind 4, TanStack Query. `lib/api.ts` = the
   one typed API client; `lib/i18n.tsx` = en/ru/zh strings; pages in `app/`, UI in `components/`.
-- `openclaw/` legacy Telegram gateway, NOT deployed (see DEPLOY.md).
 
 ## Commands
 - Everything local: `docker compose up -d` → app :3001, API :3000 (Postgres on host **5433**, not 5432).

@@ -114,10 +114,6 @@ app.listen(env.PORT, () => {
   startImportWorker();
   // Onomika Library starter decks for the Community tab (skips unchanged decks).
   seedLibrary().catch((err) => console.error("[library] seed failed:", err));
-  // No-op unless ENABLE_TELEGRAM_BOT=true (keeps OpenClaw as the default poller).
+  // No-op unless ENABLE_TELEGRAM_BOT=true.
   launchBot();
 });
-
-// NOTE: The Telegram entry point is now OpenClaw (a self-hosted assistant
-// gateway), which calls this REST API. The old in-process Telegraf bot is kept
-// as backup in src/bot/index.ts but is no longer launched here.

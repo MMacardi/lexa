@@ -15,7 +15,7 @@ const schema = z.object({
   TAVILY_API_KEY: z.string().default(""),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   // "true" starts the in-process Telegram tutor bot (long polling). Keep it off
-  // when another process (e.g. OpenClaw) already polls the same bot token.
+  // when another process (e.g. prod, if this is local) already polls the same token.
   // Reminders are per-user opt-in (via /remind), so no extra flag is needed.
   ENABLE_TELEGRAM_BOT: z.string().default("false"),
   // Auth / sessions

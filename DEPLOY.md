@@ -15,7 +15,6 @@ Telegram ─────┘  @onomikabot, long polling from inside the backend
 - **Vercel**: 1 project, the Next.js app (root dir `frontend/`). Free Hobby plan.
 - The **Telegram bot runs inside the backend** (`ENABLE_TELEGRAM_BOT=true`). It handles
   "Continue with Telegram" login, `/practice`, reminders and bug-report delivery.
-  OpenClaw is not part of the deploy (see [OpenClaw](#openclaw-not-deployed)).
 
 ### What it costs
 
@@ -211,21 +210,6 @@ Magic-link sign-in and emailed bug reports go through `nodemailer`
 Until SMTP is set, testers should sign in with Telegram (or Google). Never enable
 `ALLOW_DEV_LOGIN` in prod: it lets anyone sign in as anyone, and it returns email login
 links in API responses.
-
-## OpenClaw (not deployed)
-
-`openclaw/` holds the original Telegram gateway (an OpenClaw agent plus the
-`vocab-assistant` skill). It is **not deployed** and does not work with the current
-backend:
-
-- its skill scripts send `telegramId` in the request body, but the API now trusts only
-  the session cookie, so every call gets `401`;
-- it would need its own bot token, because the backend bot already polls @onomikabot;
-- it adds another always-on container that the $5 Hobby credit won't cover.
-
-The built-in bot already covers login, practice and reminders. Reviving OpenClaw would
-need a server-to-server auth path first (e.g. a shared-secret header that maps to a
-user). It is listed in `IDEAS.md`.
 
 ---
 

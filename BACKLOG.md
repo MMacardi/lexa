@@ -116,4 +116,4 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       a set of 100+ needs zoom/pan and a cap on what's drawn at once.
 
 ## Parked (🧊, only if asked)
-Phoneme-level pronunciation scoring · Traditional Chinese toggle · OpenClaw revival · Custom free-text scenes · Anki export.
+Phoneme-level pronunciation scoring · Traditional Chinese toggle · Custom free-text scenes · Anki export.

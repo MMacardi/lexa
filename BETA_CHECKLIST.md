@@ -14,7 +14,7 @@ What to prepare before inviting testers. Grouped by priority.
 - [ ] **`ADMIN_TELEGRAM_IDS`** = your Telegram id (`123456789`) so `/admin` + `GET /api/admin/stats` (usage + token/cost dashboard) open for you. Falls back to `PRO_ALLOWLIST` if unset; everyone else gets 403 / a 404 page.
 - [ ] `CORS_ORIGIN` / `FRONTEND_URL` = the real Vercel URL (no localhost).
 - [ ] Secrets set as env vars, never committed: `BAILIAN_API_KEY`, `TAVILY_API_KEY`, `TELEGRAM_BOT_TOKEN`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `SMTP_URL`.
-- [ ] Confirm only **one** process polls the Telegram token (prod backend vs your local backend) — two pollers fight (`409 Conflict`). OpenClaw is not deployed.
+- [ ] Confirm only **one** process polls the Telegram token (prod backend vs your local backend) — two pollers fight (`409 Conflict`).
 
 ### Auth delivery
 - [ ] **Email login**: set `SMTP_URL` + `EMAIL_FROM` (e.g. Resend/Postmark), or email sign-in won't deliver in prod. Send a test link.

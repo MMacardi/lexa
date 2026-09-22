@@ -3,10 +3,8 @@ import { readSession } from "./auth.js";
 
 // Tiny in-memory fixed-window rate limiter (single backend instance). Guards the
 // expensive LLM endpoints against scripted cost-abuse without a new dependency.
-// Keyed by the caller's identity (verified session, else the telegramId a
-// server-to-server caller like OpenClaw sends, else IP) so one noisy client
-// can't exhaust the budget for everyone — and a shared gateway IP still gets
-// per-user buckets.
+// Keyed by the caller's verified session, else IP (see callerKey), so one noisy
+// client can't exhaust the budget for everyone.
 
 type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();

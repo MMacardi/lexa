@@ -62,24 +62,7 @@ services:
       - frontend-node-modules:/app/node_modules
     command: sh -lc "npm install && npm run dev -- -p 3000 -H 0.0.0.0"
 
-  openclaw:
-    build:
-      context: ./openclaw
-    container_name: onomika-openclaw
-    profiles: ["bot"]
-    restart: unless-stopped
-    env_file:
-      - ./backend/.env
-    environment:
-      VOCAB_API_URL: http://backend:3000
-      TELEGRAM_ALLOW_FROM: ${TELEGRAM_ALLOW_FROM:-123456789}
-    depends_on:
-      - backend
-    volumes:
-      - openclaw-data:/root/.openclaw
-
 volumes:
   lexa-pgdata:
   backend-node-modules:
   frontend-node-modules:
-  openclaw-data:

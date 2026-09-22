@@ -782,7 +782,7 @@ function startReminderLoop(bot: Telegraf): void {
 
 /**
  * Launch the bot via long polling, if enabled. Guarded behind ENABLE_TELEGRAM_BOT
- * so it never fights OpenClaw (or another poller) over the same token.
+ * so it never fights another poller (e.g. a local backend) over the same token.
  */
 export function launchBot(): void {
   if (env.ENABLE_TELEGRAM_BOT !== "true") {
