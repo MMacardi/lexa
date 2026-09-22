@@ -10,7 +10,9 @@ import { prisma } from "../dist/services/db.js";
 const WORD = process.argv[2] || "brave";
 const src = "en";
 const tgt = "ru";
-const user = await prisma.user.findFirst({ where: { telegramId: "123456789" }, select: { id: true } });
+// The owner's account: first id in ADMIN_TELEGRAM_IDS / PRO_ALLOWLIST (backend/.env).
+const ownerId = (process.env.ADMIN_TELEGRAM_IDS || process.env.PRO_ALLOWLIST || "").split(",")[0].trim();
+const user = await prisma.user.findFirst({ where: { telegramId: ownerId }, select: { id: true } });
 
 console.log(`\n=== NEW (combined, 1 call) — "${WORD}" ===`);
 const nw = await enrichWordEntry({ word: WORD, sourceLang: src, targetLang: tgt, exampleStyle: "casual", withExample: true });

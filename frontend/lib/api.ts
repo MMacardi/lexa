@@ -6,9 +6,6 @@
 // the session/beta cookies first-party, so Safari ITP won't drop them.
 const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-// Default account when the user hasn't picked one yet (see lib/account.tsx).
-export const DEFAULT_TELEGRAM_ID = process.env.NEXT_PUBLIC_TELEGRAM_ID ?? "dev-user";
-
 export interface Example {
   id: string;
   wordId: string;

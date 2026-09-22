@@ -77,8 +77,8 @@ payments, move the frontend to Vercel Pro.
    TELEGRAM_BOT_TOKEN=<@onomikabot token>
    ENABLE_TELEGRAM_BOT=true
 
-   PRO_ALLOWLIST=123456789
-   ADMIN_TELEGRAM_IDS=123456789
+   PRO_ALLOWLIST=<your Telegram id>
+   ADMIN_TELEGRAM_IDS=<your Telegram id>
    BETA_KEY=<shared beta code>
    BETA_ALL_PRO=true
 

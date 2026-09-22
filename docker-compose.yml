@@ -33,8 +33,6 @@ services:
       # public launch; free users then get FREE_DAILY_AI AI actions per day.
       BETA_ALL_PRO: "${BETA_ALL_PRO:-true}"
       FREE_DAILY_AI: "${FREE_DAILY_AI:-20}"
-      # Always-Pro accounts (owner / comped friends), even after beta ends.
-      PRO_ALLOWLIST: "${PRO_ALLOWLIST:-123456789}"
     depends_on:
       db:
         condition: service_healthy
@@ -52,7 +50,6 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3000
-      NEXT_PUBLIC_TELEGRAM_ID: ${NEXT_PUBLIC_TELEGRAM_ID:-123456789}
     depends_on:
       - backend
     ports:
