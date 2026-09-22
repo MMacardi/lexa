@@ -27,3 +27,4 @@ Thumbs.db
 
 # local doc generator (not part of deploy)
 make_report.py
+.playwright-cli/

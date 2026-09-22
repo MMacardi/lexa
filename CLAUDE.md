@@ -34,7 +34,8 @@ Graded university final project; the student is the sole author.
   `package-lock.json`.
 - Use an Explore subagent for broad "where is X" searches instead of reading many files.
 - Don't WebFetch large doc pages; ask a narrow question or use WebSearch.
-- No browser automation (Playwright MCP disabled on purpose: too many tokens).
+- Browser only when the user asks: `npx -y @playwright/cli@latest <cmd>` via Bash, run outside
+  the repo. Use `find` or grep the saved snapshot instead of printing full snapshots. No Playwright MCP.
 - When a task is done: tick it in `BACKLOG.md` (and IDEAS.md status), then end the session.
 
 ## Docs
