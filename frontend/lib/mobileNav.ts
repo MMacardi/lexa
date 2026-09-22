@@ -96,14 +96,21 @@ export function useLockScroll(active: boolean) {
 
 // Swipe a bottom sheet down to close it, the way iOS sheets go. The grip (grab
 // bar + title row) drags it any time; the body only when it's scrolled to the top
-// and the swipe starts downward, so scrolling the form still scrolls it. The
-// panel follows the finger through `translate`, since the open/close animations
-// own `transform` and an animation beats an inline style. Let go past a third of
-// its height, or with a flick, and it closes from where it is; otherwise it
-// springs back. The scrim thins as the panel travels.
+// and the swipe starts downward, so scrolling the form still scrolls it.
+//
+// Every frame of the drag only moves compositor layers: the panel through
+// `translate` (the open/close animations own `transform`, and an animation beats
+// an inline style) and the shade behind it through `opacity`. Fading the scrim by
+// its background colour instead repainted the whole page under it on each touch
+// move, which is what made the drag stutter. Writes are batched to one per frame
+// and the panel is measured once, when the drag starts.
+//
+// Let go past a third of the panel's height, or with a flick, and it is thrown
+// off the screen at the speed the finger left it, then closed; otherwise it
+// settles back.
 export function useSheetDrag(
   refs: {
-    scrim: RefObject<HTMLElement | null>;
+    shade: RefObject<HTMLElement | null>;
     panel: RefObject<HTMLElement | null>;
     grip: RefObject<HTMLElement | null>;
     body: RefObject<HTMLElement | null>;
@@ -113,45 +120,49 @@ export function useSheetDrag(
 ) {
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
-  const { scrim, panel, grip, body } = refs;
+  const { shade, panel, grip, body } = refs;
 
-  const place = (y: number, animate: boolean) => {
-    const p = panel.current;
-    const s = scrim.current;
-    if (!p || !s) return;
-    const ease = "0.32s var(--ease-out)";
-    p.style.transition = animate ? `translate ${ease}` : "none";
-    s.style.transition = animate ? `background-color ${ease}` : "none";
-    p.style.translate = `0 ${y}px`;
-    const fade = Math.max(0, 1 - y / (p.offsetHeight || 1));
-    s.style.backgroundColor = `rgba(0, 0, 0, ${(0.35 * fade).toFixed(3)})`;
-  };
-  const reset = () => {
-    for (const el of [panel.current, scrim.current]) {
-      el?.style.removeProperty("transition");
-      el?.style.removeProperty("translate");
-      el?.style.removeProperty("background-color");
+  const clear = () => {
+    for (const el of [panel.current, shade.current]) {
+      if (!el) continue;
+      for (const prop of ["transition", "translate", "opacity", "will-change"]) el.style.removeProperty(prop);
     }
   };
 
   // Opened again while still sliding away: start from a clean panel.
   useEffect(() => {
-    if (!closing) reset();
+    if (!closing) clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closing]);
 
   useEffect(() => {
     const p = panel.current;
     if (!p) return;
-    let mode: null | "pending" | "drag" = null;
+    let mode: null | "pending" | "drag" | "thrown" = null;
     let fromGrip = false;
     let startX = 0;
     let startY = 0;
     let dy = 0;
+    let height = 1;
+    let frame = 0;
     let samples: { y: number; t: number }[] = [];
-    let settle: ReturnType<typeof setTimeout> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const paint = () => {
+      frame = 0;
+      p.style.translate = `0 ${dy}px`;
+      if (shade.current) shade.current.style.opacity = String(Math.max(0, 1 - dy / height));
+    };
+    const animateTo = (y: number, ms: number, curve: string) => {
+      const tr = `${ms}ms ${curve}`;
+      p.style.transition = `translate ${tr}`;
+      if (shade.current) shade.current.style.transition = `opacity ${tr}`;
+      dy = y;
+      paint();
+    };
 
     const onStart = (e: TouchEvent) => {
+      if (mode === "thrown") return;
       mode = null;
       if (e.touches.length !== 1) return;
       const target = e.target as Node;
@@ -160,11 +171,10 @@ export function useSheetDrag(
       if (!fromGrip && !(b?.contains(target) && b.scrollTop <= 0)) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      dy = 0;
       mode = "pending";
     };
     const onMove = (e: TouchEvent) => {
-      if (!mode) return;
+      if (mode !== "pending" && mode !== "drag") return;
       const { clientX: x, clientY: y } = e.touches[0];
       if (mode === "pending") {
         const ddx = x - startX;
@@ -178,33 +188,52 @@ export function useSheetDrag(
           return;
         }
         mode = "drag";
-        clearTimeout(settle);
-        startY = y; // follow from here, so the panel doesn't jump the threshold
+        clearTimeout(timer);
+        height = p.offsetHeight || 1; // the only read: before any write this drag
+        // Pick the panel up where it is (it may still be settling back).
+        const current = parseFloat(getComputedStyle(p).translate.split(" ")[1] ?? "0") || 0;
+        startY = y - current;
         samples = [];
+        p.style.transition = "none";
+        p.style.willChange = "transform, translate";
+        if (shade.current) {
+          shade.current.style.transition = "none";
+          shade.current.style.willChange = "opacity";
+        }
       }
       if (e.cancelable) e.preventDefault();
       dy = Math.max(0, y - startY);
       samples.push({ y, t: e.timeStamp });
-      place(dy, false);
+      if (samples.length > 8) samples.shift();
+      if (!frame) frame = requestAnimationFrame(paint);
     };
     const onEnd = () => {
       if (mode !== "drag") {
-        mode = null;
+        if (mode === "pending") mode = null;
+        return;
+      }
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      // Speed over the last ~80ms of the swipe, in px/ms (down is positive).
+      const last = samples[samples.length - 1];
+      const first = samples.find((s) => last && s.t >= last.t - 80);
+      const v = first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
+      if (dy > height / 3 || (v > 0.45 && dy > 16)) {
+        mode = "thrown";
+        // Leave at the finger's speed: an ease-out curve starts at ~2x its average
+        // speed, so the duration that matches the release speed is 2 * distance / v.
+        const distance = height + 24 - dy; // + the shadow
+        const ms = Math.round(Math.min(320, Math.max(140, (2 * distance) / Math.max(v, 0.6))));
+        animateTo(height + 24, ms, "cubic-bezier(0.25, 0.5, 0.35, 1)");
+        timer = setTimeout(() => {
+          mode = null;
+          dismiss.current();
+        }, ms);
         return;
       }
       mode = null;
-      // Speed over the last ~100ms of the swipe, in px/ms.
-      const last = samples[samples.length - 1];
-      const recent = samples.filter((s) => last && s.t >= last.t - 100);
-      const first = recent[0];
-      const v = first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
-      const h = p.offsetHeight;
-      if (dy > h / 3 || (v > 0.5 && dy > 24)) {
-        dismiss.current(); // the close animation carries on from the current offset
-        return;
-      }
-      place(0, true);
-      settle = setTimeout(reset, 340);
+      animateTo(0, 300, "var(--ease-out)");
+      timer = setTimeout(clear, 320);
     };
 
     p.addEventListener("touchstart", onStart, { passive: true });
@@ -212,7 +241,8 @@ export function useSheetDrag(
     p.addEventListener("touchend", onEnd);
     p.addEventListener("touchcancel", onEnd);
     return () => {
-      clearTimeout(settle);
+      clearTimeout(timer);
+      if (frame) cancelAnimationFrame(frame);
       p.removeEventListener("touchstart", onStart);
       p.removeEventListener("touchmove", onMove);
       p.removeEventListener("touchend", onEnd);

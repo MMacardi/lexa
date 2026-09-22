@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -10,15 +10,20 @@ import { useI18n } from "@/lib/i18n";
 import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
-import dynamic from "next/dynamic";
 import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots, useSheetDrag } from "@/lib/mobileNav";
 import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
 // The quick-add sheet's form is only needed once "+" is tapped — keep it out of
-// the shell's first-load JS. It's fetched once the page is idle, though: loaded
-// on the tap, the sheet slid up empty and then jumped when the form landed.
-const loadAddWordForm = () => import("@/components/AddWordForm");
-const AddWordForm = dynamic(() => loadAddWordForm().then((m) => m.AddWordForm), { ssr: false });
+// the shell's first-load JS. It's fetched once the page is idle, and the sheet
+// only opens once it's here. (next/dynamic rendered nothing on the first open
+// even when the file was already loaded, so the sheet slid up empty and grew
+// when the form landed.)
+type AddWordFormType = (typeof import("@/components/AddWordForm"))["AddWordForm"];
+let AddWordForm: AddWordFormType | null = null;
+const loadAddWordForm = () =>
+  import("@/components/AddWordForm").then((m) => {
+    AddWordForm = m.AddWordForm;
+  });
 
 type NavItem = { href: string; key: string; Icon: LucideIcon };
 
@@ -52,17 +57,26 @@ export function Sidebar() {
   const [editing, setEditing] = useState(false);
   const [slots, setSlots] = useNavSlots(SLOT_OPTIONS);
   useLockScroll(sheet !== null);
+  const openAdd = () => {
+    if (AddWordForm) setSheet("add");
+    else loadAddWordForm().then(() => setSheet("add"));
+  };
   // Pages can open the quick-add sheet too (e.g. My words' compact "Add a word" row).
   useEffect(() => {
-    const on = () => setSheet("add");
+    const on = () => openAdd();
     window.addEventListener(OPEN_ADD, on);
     return () => window.removeEventListener(OPEN_ADD, on);
   }, []);
+  const qc = useQueryClient();
   useEffect(() => {
     if (!window.matchMedia("(max-width: 767px)").matches) return; // the sheet is phone-only
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
-    idle(() => void loadAddWordForm());
-  }, []);
+    idle(() => {
+      void loadAddWordForm();
+      // The form's "Add to set" row appears once the sets are known.
+      if (accountId) void qc.prefetchQuery({ queryKey: ["collections", accountId], queryFn: () => api.collections(accountId) });
+    });
+  }, [accountId, qc]);
   // Every way of closing a sheet — scrim, ×, a link inside it, the tab bar —
   // goes through here; presence keeps it mounted long enough to slide away.
   const closeSheet = () => setSheet(null);
@@ -186,7 +200,7 @@ export function Sidebar() {
           {/* quick add — reachable from every screen */}
           <button
             type="button"
-            onClick={() => setSheet("add")}
+            onClick={openAdd}
             aria-label={t("nav.addWord")}
             className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-sage text-white shadow-[0_6px_16px_rgba(63,90,74,0.35)] transition-transform active:scale-95"
           >
@@ -242,7 +256,7 @@ export function Sidebar() {
       )}
 
       {/* ---------- Mobile quick-add sheet ---------- */}
-      {addSheet.mounted && (
+      {addSheet.mounted && AddWordForm && (
         <MobileSheet closing={addSheet.closing} onClose={closeSheet} title={t("nav.addWord")} composer>
           <AddWordForm bare compose />
         </MobileSheet>
@@ -337,26 +351,38 @@ function MobileSheet({
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const scrim = useRef<HTMLDivElement>(null);
+  const shade = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const grip = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
-  useSheetDrag({ scrim, panel, grip, body }, closing, onClose);
+  useSheetDrag({ shade, panel, grip, body }, closing, onClose);
+  // The slide starts two frames after mounting. The form's saved settings (pair,
+  // mode, recent pairs) land in effects right after the first paint and change
+  // its height; sliding from the first frame, the sheet jumped partway up.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    let id = requestAnimationFrame(() => {
+      id = requestAnimationFrame(() => setEntered(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
   return (
     <div
-      ref={scrim}
       data-closing={closing || undefined}
       className={cn(
-        "anim-scrim z-40 flex flex-col justify-end bg-black/35 md:hidden",
+        "anim-scrim z-40 flex flex-col justify-end md:hidden",
         composer ? "fixed inset-0 pt-[calc(12px+env(safe-area-inset-top))]" : "vv-overlay",
       )}
       onClick={onClose}
     >
+      {/* the dim layer on its own, so a drag can fade it by opacity alone */}
+      <div ref={shade} aria-hidden className="absolute inset-0 bg-black/35" />
       <div
         ref={panel}
         data-closing={closing || undefined}
         className={cn(
-          "anim-sheet flex flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
+          "relative flex flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
+          entered ? "anim-sheet" : "invisible",
           composer ? "max-h-full" : "max-h-[calc(100%-12px)]",
         )}
         onClick={(e) => e.stopPropagation()}
