@@ -6,7 +6,10 @@ import { cn } from "@/lib/utils";
 
 // Small styled tooltip that matches the app (onyx bubble, title + optional
 // subtitle). Portaled to <body> so it's never clipped by an overflow-hidden or
-// transformed ancestor, and it works on touch (tap to show, tap-away to dismiss).
+// transformed ancestor. Hover means a real mouse only: a phone fakes mouseenter
+// on tap and never sends the mouseleave, which left the tip stuck on screen.
+// On touch a tap on a working button or link is just the action; only info
+// (a badge, a day, a disabled button's "why") opens on tap, tap-away dismisses.
 export function HoverTip({
   title,
   subtitle,
@@ -53,10 +56,19 @@ export function HoverTip({
     <span
       ref={ref}
       className={className}
-      onMouseEnter={show}
-      onMouseLeave={() => setPos(null)}
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") show();
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") setPos(null);
+      }}
       onPointerDown={(e) => {
-        if (e.pointerType !== "mouse") show();
+        if (e.pointerType === "mouse") return;
+        const control = (e.target as Element).closest<HTMLButtonElement>(
+          "button, a, input, select, textarea, [role=button]",
+        );
+        if (control && !control.disabled) return;
+        show();
       }}
     >
       {children}
