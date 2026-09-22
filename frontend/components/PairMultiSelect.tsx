@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
+import { focusOnOpen, useAnchor } from "@/lib/anchor";
 
 // Compact multi-select for language pairs (each item is "src>tgt"). Replaces a
 // long wrapping chip row with a searchable dropdown + select-all/clear, so it
@@ -24,9 +25,9 @@ export function PairMultiSelect({
   const [open, setOpen] = useState(false);
   const menu = usePresence(open);
   const [query, setQuery] = useState("");
-  const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const anchor = useAnchor(open, triggerRef, menuRef);
 
   const label = (p: string) => {
     const [s, tgt] = p.split(">");
@@ -34,13 +35,11 @@ export function PairMultiSelect({
   };
 
   useLayoutEffect(() => {
-    if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
     if (open) setQuery("");
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const reposition = () => triggerRef.current && setRect(triggerRef.current.getBoundingClientRect());
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node;
       if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
@@ -48,13 +47,9 @@ export function PairMultiSelect({
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 
@@ -83,17 +78,17 @@ export function PairMultiSelect({
       </button>
 
       {menu.mounted &&
-        rect &&
+        anchor &&
         createPortal(
           <div
             data-closing={menu.closing || undefined}
             ref={menuRef}
-            className="anim-scale-in fixed z-[80] flex max-h-80 w-[min(320px,90vw)] flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
-            style={{ left: rect.left, top: rect.bottom + 6 }}
+            className="anim-scale-in z-[80] flex max-h-80 w-[min(320px,90vw)] flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            style={{ position: anchor.position, left: anchor.left, top: anchor.bottom + 6 }}
           >
             {pairs.length > 6 && (
               <input
-                autoFocus
+                autoFocus={focusOnOpen()}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("review.searchPairs")}

@@ -14,6 +14,8 @@ type AccountCtx = {
   loginDev: (id: string) => Promise<void>;
   loginTelegram: (data: Record<string, unknown>) => Promise<void>;
   refresh: () => Promise<void>;
+  /** Apply a change locally right away (optimistic), before the server confirms. */
+  patchProfile: (patch: Partial<Profile>) => void;
   logout: () => Promise<void>;
 };
 
@@ -25,6 +27,7 @@ const Ctx = createContext<AccountCtx>({
   loginDev: async () => {},
   loginTelegram: async () => {},
   refresh: async () => {},
+  patchProfile: () => {},
   logout: async () => {},
 });
 
@@ -80,6 +83,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setAccountId(r.telegramId);
     setProfile(r);
   };
+  const patchProfile = useCallback((patch: Partial<Profile>) => {
+    setProfile((p) => (p ? { ...p, ...patch } : p));
+  }, []);
   const logout = async () => {
     await api.logout();
     setAccountId("");
@@ -88,7 +94,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ accountId, profile, authed: !!accountId, ready, loginDev, loginTelegram, refresh, logout }}
+      value={{ accountId, profile, authed: !!accountId, ready, loginDev, loginTelegram, refresh, patchProfile, logout }}
     >
       {children}
     </Ctx.Provider>

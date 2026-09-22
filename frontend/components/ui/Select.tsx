@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
+import { useAnchor } from "@/lib/anchor";
 
 export interface SelectOption {
   value: string;
@@ -11,8 +12,8 @@ export interface SelectOption {
   hint?: string; // small secondary text (e.g. "upper-intermediate")
 }
 
-// Compact, app-styled single-select dropdown (portal-based, repositions on
-// scroll instead of closing). A prettier replacement for a native <select>.
+// Compact, app-styled single-select dropdown (portal-based, stays with its
+// trigger on scroll instead of closing). A prettier replacement for a native <select>.
 export function Select({
   value,
   onChange,
@@ -32,19 +33,12 @@ export function Select({
 }) {
   const [open, setOpen] = useState(false);
   const menu = usePresence(open);
-  const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
-  }, [open]);
+  const anchor = useAnchor(open, triggerRef, menuRef);
 
   useEffect(() => {
     if (!open) return;
-    const reposition = () => {
-      if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
-    };
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node;
       if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
@@ -52,13 +46,9 @@ export function Select({
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 
@@ -89,25 +79,25 @@ export function Select({
       </button>
 
       {menu.mounted &&
-        rect &&
+        anchor &&
         (() => {
           // Flip the menu above the trigger when there isn't enough room below,
           // and cap its height to the available space so it always scrolls.
-          const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-          const spaceBelow = vh - rect.bottom;
-          const spaceAbove = rect.top;
+          const { spaceAbove, spaceBelow } = anchor;
           const openUp = spaceBelow < 240 && spaceAbove > spaceBelow;
           const maxHeight = Math.max(140, Math.min(288, (openUp ? spaceAbove : spaceBelow) - 12));
           return createPortal(
             <div
               data-closing={menu.closing || undefined}
               ref={menuRef}
-              className="anim-scale-in fixed z-[220] flex flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+              className="anim-scale-in z-[220] flex flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
               style={{
-                left: rect.left,
-                minWidth: Math.max(rect.width, menuMinWidth),
+                position: anchor.position,
+                left: anchor.left,
+                minWidth: Math.max(anchor.width, menuMinWidth),
                 maxHeight,
-                ...(openUp ? { bottom: vh - rect.top + 6 } : { top: rect.bottom + 6 }),
+                // Opening up, the menu hangs from the trigger's top edge by its own height.
+                ...(openUp ? { top: anchor.top - 6, translate: "0 -100%" } : { top: anchor.bottom + 6 }),
                 ...(openUp ? ({ "--drop": "6px", "--drop-origin": "bottom" } as React.CSSProperties) : null),
               }}
             >

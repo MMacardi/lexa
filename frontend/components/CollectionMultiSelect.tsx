@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
+import { focusOnOpen, useAnchor } from "@/lib/anchor";
 
 // Pretty dropdown multi-select for collections (same look as LangSelect, but you
 // can tick several). Menu is portalled to <body> so it floats above the page.
@@ -32,9 +33,9 @@ export function CollectionMultiSelect({
   const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [newName, setNewName] = useState("");
-  const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const anchor = useAnchor(open, triggerRef, menuRef);
 
   // Create a new set inline and immediately select it.
   const createSet = useMutation({
@@ -47,7 +48,6 @@ export function CollectionMultiSelect({
   });
 
   useLayoutEffect(() => {
-    if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
     if (open) setQuery("");
   }, [open]);
 
@@ -61,18 +61,11 @@ export function CollectionMultiSelect({
       if (!triggerRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const reposition = () => {
-      if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
-    };
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 
@@ -112,20 +105,20 @@ export function CollectionMultiSelect({
       </button>
 
       {menu.mounted &&
-        rect &&
+        anchor &&
         createPortal(
           <div
             data-closing={menu.closing || undefined}
             ref={menuRef}
             className={cn(
-              "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              "anim-scale-in z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
               menuClassName,
             )}
-            style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 220) }}
+            style={{ position: anchor.position, left: anchor.left, top: anchor.bottom + 6, minWidth: Math.max(anchor.width, 220) }}
           >
             {options.length > 6 && (
               <input
-                autoFocus
+                autoFocus={focusOnOpen()}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("col.searchSets")}

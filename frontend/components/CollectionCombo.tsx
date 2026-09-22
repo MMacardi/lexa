@@ -6,10 +6,11 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { usePresence } from "@/lib/motion";
+import { focusOnOpen, useAnchor } from "@/lib/anchor";
 
 // Pretty dropdown for choosing a collection — styled like LangSelect, but freeform:
 // pick an existing collection, clear it, or type a new name to create one. The
-// menu is portaled (fixed) so it floats above the modal and repositions on scroll.
+// menu is portaled so it floats above the modal and stays with its trigger on scroll.
 export function CollectionCombo({
   value,
   onChange,
@@ -27,18 +28,16 @@ export function CollectionCombo({
   const [open, setOpen] = useState(false);
   const menu = usePresence(open);
   const [query, setQuery] = useState("");
-  const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const anchor = useAnchor(open, triggerRef, menuRef);
 
   useLayoutEffect(() => {
-    if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
     if (open) setQuery("");
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const reposition = () => triggerRef.current && setRect(triggerRef.current.getBoundingClientRect());
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node;
       if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
@@ -46,13 +45,9 @@ export function CollectionCombo({
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 
@@ -83,16 +78,16 @@ export function CollectionCombo({
       </button>
 
       {menu.mounted &&
-        rect &&
+        anchor &&
         createPortal(
           <div
             data-closing={menu.closing || undefined}
             ref={menuRef}
-            className="anim-scale-in fixed z-[95] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
-            style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 200) }}
+            className="anim-scale-in z-[95] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]"
+            style={{ position: anchor.position, left: anchor.left, top: anchor.bottom + 6, minWidth: Math.max(anchor.width, 200) }}
           >
             <input
-              autoFocus
+              autoFocus={focusOnOpen()}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {

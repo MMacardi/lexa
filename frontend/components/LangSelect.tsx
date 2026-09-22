@@ -10,10 +10,11 @@ import { useI18n } from "@/lib/i18n";
 import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
+import { focusOnOpen, useAnchor } from "@/lib/anchor";
 
 // Pretty custom dropdown for picking a language. The menu is rendered in a
-// portal (position: fixed) so it always floats above the page, repositions on
-// scroll/resize (instead of closing), and has a search box.
+// portal so it always floats above the page, stays with its trigger on scroll
+// (lib/anchor), and has a search box.
 export function LangSelect({
   value,
   onChange,
@@ -37,9 +38,9 @@ export function LangSelect({
   const menu = usePresence(open);
   const [query, setQuery] = useState("");
   const [checking, setChecking] = useState(false);
-  const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const anchor = useAnchor(open, triggerRef, menuRef);
   const custom = useCustomLangs();
   const all = [
     ...(allowAuto ? [{ code: "auto", label: autoLabel, name: autoLabel }] : []),
@@ -51,15 +52,11 @@ export function LangSelect({
   const current = all.find((l) => l.code === displayCode(value));
 
   useLayoutEffect(() => {
-    if (open && triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
     if (open) setQuery("");
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const reposition = () => {
-      if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
-    };
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!triggerRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
@@ -67,13 +64,9 @@ export function LangSelect({
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 
@@ -154,7 +147,7 @@ export function LangSelect({
       </button>
 
       {menu.mounted &&
-        rect &&
+        anchor &&
         createPortal(
           <div
             data-closing={menu.closing || undefined}
@@ -164,13 +157,13 @@ export function LangSelect({
             // in a portal, not inside them.
             data-lang-menu=""
             className={cn(
-              "anim-scale-in fixed z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              "anim-scale-in z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
               menuClassName,
             )}
-            style={{ left: rect.left, top: rect.bottom + 6, minWidth: Math.max(rect.width, 160) }}
+            style={{ position: anchor.position, left: anchor.left, top: anchor.bottom + 6, minWidth: Math.max(anchor.width, 160) }}
           >
             <input
-              autoFocus
+              autoFocus={focusOnOpen()}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("col.searchLang")}

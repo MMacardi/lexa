@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { api, type PrivacyLevel } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -433,7 +433,7 @@ function PrivacyEye({ hidden, onClick, t }: { hidden: boolean; onClick: () => vo
 }
 
 export default function AccountPage() {
-  const { accountId, profile, logout, refresh } = useAccount();
+  const { accountId, profile, logout, refresh, patchProfile } = useAccount();
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
 
@@ -465,12 +465,19 @@ export default function AccountPage() {
       setSavingName(false);
     }
   }
+  // The switch moves on tap and the save follows; waiting for the save and then
+  // a full profile reload before showing the new value felt like a dead button.
+  // Only the latest tap's reply is applied, so a quick second tap isn't undone
+  // by the first one's answer arriving after it.
+  const privacySeq = useRef(0);
   async function togglePrivacy(patch: Parameters<typeof api.updatePrivacy>[0]) {
+    const seq = ++privacySeq.current;
+    patchProfile(patch);
     try {
-      await api.updatePrivacy(patch);
-      await refresh();
+      const saved = await api.updatePrivacy(patch);
+      if (seq === privacySeq.current) patchProfile(saved);
     } catch {
-      /* ignore */
+      await refresh(); // put back what the server actually has
     }
   }
   const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();

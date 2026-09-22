@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { usePresence } from "@/lib/motion";
+import { prefersReducedMotion, usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import dynamic from "next/dynamic";
@@ -15,8 +15,10 @@ import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLock
 import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
 // The quick-add sheet's form is only needed once "+" is tapped — keep it out of
-// the shell's first-load JS.
-const AddWordForm = dynamic(() => import("@/components/AddWordForm").then((m) => m.AddWordForm), { ssr: false });
+// the shell's first-load JS. It's fetched once the page is idle, though: loaded
+// on the tap, the sheet slid up empty and then jumped when the form landed.
+const loadAddWordForm = () => import("@/components/AddWordForm");
+const AddWordForm = dynamic(() => loadAddWordForm().then((m) => m.AddWordForm), { ssr: false });
 
 type NavItem = { href: string; key: string; Icon: LucideIcon };
 
@@ -55,6 +57,11 @@ export function Sidebar() {
     const on = () => setSheet("add");
     window.addEventListener(OPEN_ADD, on);
     return () => window.removeEventListener(OPEN_ADD, on);
+  }, []);
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return; // the sheet is phone-only
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+    idle(() => void loadAddWordForm());
   }, []);
   // Every way of closing a sheet — scrim, ×, a link inside it, the tab bar —
   // goes through here; presence keeps it mounted long enough to slide away.
@@ -321,6 +328,48 @@ function MobileSheet({
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
+  const body = useRef<HTMLDivElement>(null);
+  // Keep the field being typed in on screen. The keyboard shrinks the visual
+  // viewport and the sheet with it, so a field near the bottom (the word box in
+  // quick add) ended up half under the sheet's edge. Once the viewport settles,
+  // scroll the sheet just enough to show the whole field.
+  useEffect(() => {
+    const el = body.current;
+    const vv = window.visualViewport;
+    if (!el) return;
+    let field: HTMLElement | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Scrolls only the sheet: scrollIntoView would also move the page behind it,
+    // which on iOS drags the whole overlay along.
+    const reveal = () => {
+      if (!field) return;
+      const box = el.getBoundingClientRect();
+      const r = field.getBoundingClientRect();
+      const gap = 12;
+      const dy = r.bottom > box.bottom - gap ? r.bottom - box.bottom + gap : r.top < box.top + gap ? r.top - box.top - gap : 0;
+      if (dy) el.scrollBy({ top: dy, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    };
+    const onFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.matches("input:not([type=checkbox]):not([type=radio]), textarea")) return;
+      field = target;
+      // No resize comes when the keyboard was already up (moving between fields).
+      clearTimeout(timer);
+      timer = setTimeout(reveal, 350);
+    };
+    const onBlur = () => {
+      field = null;
+    };
+    el.addEventListener("focusin", onFocus);
+    el.addEventListener("focusout", onBlur);
+    vv?.addEventListener("resize", reveal);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener("focusin", onFocus);
+      el.removeEventListener("focusout", onBlur);
+      vv?.removeEventListener("resize", reveal);
+    };
+  }, []);
   return (
     <div
       data-closing={closing || undefined}
@@ -347,7 +396,9 @@ function MobileSheet({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="overflow-y-auto px-4 pt-2 pb-[calc(16px+env(safe-area-inset-bottom))]">{children}</div>
+        <div ref={body} className="overflow-y-auto px-4 pt-2 pb-[calc(16px+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </div>
     </div>
   );
