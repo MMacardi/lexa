@@ -274,6 +274,19 @@ export interface HskReadiness extends Omit<HskLevelReadiness, "level"> {
   levels: HskLevelReadiness[];
 }
 
+/** One headword off the official list, as the check and the gap deck return it. */
+export interface HskWord {
+  word: string;
+  pinyin: string;
+  level: number;
+}
+
+export interface HskWordList {
+  version: HskVersion;
+  level: number;
+  words: HskWord[];
+}
+
 // Which surface graded an answer. Logged per review so the learner model can tell
 // "recognised it on a card" from "produced it in a sentence".
 export type ReviewSource = "review" | "quiz" | "drill" | "scene" | "chat";
@@ -755,6 +768,19 @@ export const api = {
     if (version) q.set("version", version);
     if (level) q.set("level", String(level));
     return http<HskReadiness>(`/api/hsk/readiness${q.toString() ? `?${q}` : ""}`);
+  },
+  // The onboarding check: a sample of the list to tap through. The taps go back
+  // via savePlacement, so the mark picks them up like any placement run.
+  hskCheck: (version: HskVersion, level: number, size?: number) => {
+    const q = new URLSearchParams({ version, level: String(level) });
+    if (size) q.set("size", String(size));
+    return http<HskWordList>(`/api/hsk/check?${q}`);
+  },
+  // Words up to the target with neither a card nor an "I know it" — the gap deck.
+  hskGap: (version: HskVersion, level: number, limit?: number) => {
+    const q = new URLSearchParams({ version, level: String(level) });
+    if (limit) q.set("limit", String(limit));
+    return http<HskWordList>(`/api/hsk/gap?${q}`);
   },
 
   // --- collections ---

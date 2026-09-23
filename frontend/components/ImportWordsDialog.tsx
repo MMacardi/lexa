@@ -78,7 +78,19 @@ function ImportCardPreview({ text }: { text: string }) {
   );
 }
 
-export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId?: string }) {
+export function ImportWordsDialog({
+  defaultCollectionId,
+  defaultSourceLang = "en",
+  defaultTargetLang = "ru",
+  triggerLabel,
+}: {
+  defaultCollectionId?: string;
+  // Onboarding opens this already pointed at the learner's pair (the textbook
+  // path), so the pair is a prop rather than always the en → ru default.
+  defaultSourceLang?: string;
+  defaultTargetLang?: string;
+  triggerLabel?: string;
+}) {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { trackImport, show } = useToast();
@@ -88,8 +100,8 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
   const [extracting, setExtracting] = useState(false); // reading a PDF
-  const [sourceLang, setSourceLang] = useState("en");
-  const [targetLang, setTargetLang] = useState("ru");
+  const [sourceLang, setSourceLang] = useState(defaultSourceLang);
+  const [targetLang, setTargetLang] = useState(defaultTargetLang);
   const [direction, setDirection] = useState<ImportDirection>("en-ru");
   const [cards, setCards] = useState<PreviewCard[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
@@ -267,7 +279,7 @@ export function ImportWordsDialog({ defaultCollectionId }: { defaultCollectionId
   return (
     <>
       <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        ↑ {t("import.open")}
+        ↑ {triggerLabel ?? t("import.open")}
       </Button>
 
       {open && mounted &&

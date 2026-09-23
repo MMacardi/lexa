@@ -1208,6 +1208,55 @@ const DICT: Record<string, Entry> = {
   "today.neverReviewed": { en: "New · never reviewed", ru: "Новое · без повторений", zh: "新词 · 未复习" },
   "today.reviewsDone": { en: "reviewed {n}×", ru: "повторено {n}×", zh: "已复习 {n} 次" },
 
+  // --- HSK onboarding: target -> check -> gap deck -> review -> use-step ---
+  "hskFirst.step": { en: "Step {n} of {total}", ru: "Шаг {n} из {total}", zh: "第 {n} 步，共 {total} 步" },
+  "hskFirst.title": { en: "Your HSK readiness, in five minutes", ru: "Твоя готовность к HSK — за пять минут", zh: "五分钟看清你的 HSK 准备度" },
+  "hskFirst.sub": {
+    en: "Pick the level you're aiming at, tap through a short check, and the words you're missing become your first deck — with examples, and a step where you actually use them.",
+    ru: "Выбери целевой уровень, пройди короткую проверку — и недостающие слова станут твоей первой колодой: с примерами и шагом, где ты их используешь.",
+    zh: "选好目标等级，做一个简短的自测，缺的词就会变成你的第一套卡组——带例句，还有一步真正去用它们。",
+  },
+  "hskFirst.learning": { en: "Learning", ru: "Учу", zh: "我在学" },
+  "hskFirst.chinese": { en: "Chinese", ru: "Китайский", zh: "中文" },
+  "hskFirst.explainIn": { en: "Explain in", ru: "Объяснять на", zh: "用哪种语言讲解" },
+  "hskFirst.startCheck": { en: "Run the check", ru: "Пройти проверку", zh: "开始自测" },
+  "hskFirst.checkLen": { en: "{n} words, about a minute", ru: "{n} слов, примерно минута", zh: "{n} 个词，约一分钟" },
+  "hskFirst.tapTitle": { en: "Tap the words you DON'T know", ru: "Нажми на слова, которые НЕ знаешь", zh: "点出你不认识的词" },
+  "hskFirst.tapSub": {
+    en: "Words from the official list, spread over every level up to your target. Whatever you leave untapped counts as known.",
+    ru: "Слова из официального списка, со всех уровней до твоей цели. Всё, что не нажато, считается знакомым.",
+    zh: "取自官方词表，覆盖目标等级以下的各级。没点到的词算作你已经认识。",
+  },
+  "hskFirst.tapped": { en: "{n} marked unknown", ru: "Отмечено незнакомых: {n}", zh: "已标记 {n} 个不认识" },
+  "hskFirst.seeMark": { en: "See my mark", ru: "Показать результат", zh: "查看结果" },
+  "hskFirst.markLine": {
+    en: "You knew {known} of {shown} — here's what HSK {level} is still missing",
+    ru: "Знакомо {known} из {shown} — вот чего не хватает до HSK {level}",
+    zh: "{shown} 个里你认识 {known} 个——以下是 HSK {level} 还缺的词",
+  },
+  "hskFirst.markSub": {
+    en: "Your full readiness mark lives on the home screen and moves as you review.",
+    ru: "Полная оценка готовности — на главной, она меняется по мере повторений.",
+    zh: "完整的准备度显示在主页，会随你的复习而变化。",
+  },
+  "hskFirst.buildGap": { en: "Build my gap deck · {n} words", ru: "Собрать колоду пробелов · {n} слов", zh: "生成查漏卡组 · {n} 个词" },
+  "hskFirst.doneTitle": { en: "{n} cards are being prepared", ru: "Готовлю карточки: {n}", zh: "正在准备 {n} 张卡片" },
+  "hskFirst.doneSub": {
+    en: "Two steps left: review them once, then say one of them in a sentence — that's the step that turns “know” into “can use”.",
+    ru: "Осталось два шага: повторить их и произнести одно из них в предложении — именно этот шаг превращает «знаю» в «умею использовать».",
+    zh: "还差两步：先复习一遍，再用其中一个词造句——正是这一步把「认识」变成「会用」。",
+  },
+  "hskFirst.review": { en: "First review", ru: "Первое повторение", zh: "第一次复习" },
+  "hskFirst.useStep": { en: "Use one in a sentence", ru: "Использовать в предложении", zh: "用一个词造句" },
+  "hskFirst.textbookTitle": { en: "This week's textbook words", ru: "Слова из учебника на эту неделю", zh: "本周课本上的生词" },
+  "hskFirst.textbookSub": {
+    en: "Photograph or paste the list from your lesson and it becomes cards in the same pair, with the sense you met it in.",
+    ru: "Сфотографируй или вставь список из урока — он станет карточками в той же паре, со значением из твоего текста.",
+    zh: "拍照或粘贴课上的生词表，它会变成同一语言对的卡片，并采用你遇到的那个义项。",
+  },
+  "hskFirst.textbookOpen": { en: "Photo or paste a list", ru: "Фото или вставить список", zh: "拍照或粘贴词表" },
+  "hskFirst.other": { en: "I'm learning another language", ru: "Я учу другой язык", zh: "我在学别的语言" },
+
   // --- HSK readiness ---
   "hsk.title": { en: "HSK readiness", ru: "Готовность к HSK", zh: "HSK 准备度" },
   "hsk.subtitle": {

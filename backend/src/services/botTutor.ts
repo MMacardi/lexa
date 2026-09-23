@@ -7,6 +7,9 @@ import { prisma } from "./db.js";
 export interface Pair {
   source: string;
   target: string;
+  /** The learner's CEFR level for `source`, when they have set one (F2 moved it
+   * onto the User, so the bot can finally tune generation the way the web does). */
+  level?: string;
 }
 
 /** Ensure the bot user exists and remember their chat id for proactive messages. */
@@ -42,18 +45,27 @@ export async function ensureBotUser(
 export async function resolveUserPair(telegramId: string): Promise<Pair> {
   const user = await prisma.user.findUnique({
     where: { telegramId },
-    select: { preferredSource: true, preferredTarget: true },
+    select: { preferredSource: true, preferredTarget: true, levels: true },
   });
+  const withLevel = (source: string, target: string): Pair => ({ source, target, level: levelFor(user?.levels, source) });
+
   if (user?.preferredSource && user?.preferredTarget) {
-    return { source: user.preferredSource, target: user.preferredTarget };
+    return withLevel(user.preferredSource, user.preferredTarget);
   }
   const recent = await prisma.word.findFirst({
     where: { user: { telegramId } },
     orderBy: { createdAt: "desc" },
     select: { sourceLang: true, targetLang: true },
   });
-  if (recent) return { source: recent.sourceLang, target: recent.targetLang };
-  return { source: "en", target: "zh" };
+  if (recent) return withLevel(recent.sourceLang, recent.targetLang);
+  return withLevel("en", "zh");
+}
+
+/** `User.levels` is a `{ [lang]: "A1".."C2" }` JSON blob; read one language out of it. */
+function levelFor(levels: unknown, source: string): string | undefined {
+  if (!levels || typeof levels !== "object") return undefined;
+  const hit = (levels as Record<string, unknown>)[source];
+  return typeof hit === "string" ? hit : undefined;
 }
 
 export async function setUserPair(telegramId: string, source: string, target: string): Promise<void> {

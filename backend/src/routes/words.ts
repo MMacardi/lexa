@@ -21,7 +21,7 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskCheckWords, hskGapWords, readinessForUser } from "../services/hsk.js";
 import {
   addWordForUser,
   addWordManual,
@@ -216,6 +216,28 @@ wordsRouter.get("/hsk/readiness", async (req, res) => {
   // Session only: requireIdentity has already run, and the mark is personal.
   const telegramId = readSession(req)!;
   res.json(await readinessForUser(telegramId, req.query.version, req.query.level));
+});
+
+// GET /api/hsk/check?version=3.0&level=4&size=24  -> the onboarding readiness
+// check: a sample of the list spread over levels 1..target for the learner to
+// tap through. The taps come back to POST /api/words/placement like any other
+// placement run, so the mark above picks them up with no extra plumbing.
+wordsRouter.get("/hsk/check", async (req, res) => {
+  const version = asHskVersion(req.query.version) ?? "3.0";
+  const level = Number(req.query.level) || 4;
+  const size = Math.min(Math.max(Number(req.query.size) || 24, 6), 60);
+  res.json({ version, level, words: hskCheckWords(version, level, size) });
+});
+
+// GET /api/hsk/gap?version=3.0&level=4&limit=30  -> the gap deck: words up to
+// the target the learner has neither a card for nor claimed to know, easiest
+// level first. The client turns them into cards with the usual batch add.
+wordsRouter.get("/hsk/gap", async (req, res) => {
+  const telegramId = readSession(req)!;
+  const version = asHskVersion(req.query.version) ?? "3.0";
+  const level = Number(req.query.level) || 4;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
+  res.json({ version, level, words: await hskGapWords(telegramId, version, level, limit) });
 });
 
 // ---------------- Collections ----------------

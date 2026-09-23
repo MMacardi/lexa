@@ -130,44 +130,53 @@ export async function readinessForUser(telegramId: string, version?: unknown, le
   return hskReadiness(telegramId, v, n);
 }
 
-/**
- * Coverage of every level of one HSK list, plus the cumulative mark for the
- * target level (all words up to and including it — that is what an exam asks).
- */
-export async function hskReadiness(telegramId: string, version: HskVersion, level: number): Promise<Readiness> {
-  const target = Math.min(Math.max(Math.round(level) || 1, 1), HSK_MAX_LEVEL[version]);
-  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+type WordStatus = "canUse" | "recognise" | "learning";
 
-  // Best status per headword: a learner may keep several cards for one word
-  // (different senses), and the strongest one is the honest answer.
-  const status = new Map<string, "canUse" | "recognise" | "learning">();
+/**
+ * Best status per headword, keyed by the normalised hanzi. A learner may keep
+ * several cards for one word (different senses), and the strongest one is the
+ * honest answer. Shared by the mark and the gap deck so the two never disagree.
+ */
+async function learnerStatus(telegramId: string): Promise<Map<string, WordStatus>> {
+  const status = new Map<string, WordStatus>();
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return status;
+
   const rank = { learning: 0, recognise: 1, canUse: 2 };
-  const put = (word: string, s: "canUse" | "recognise" | "learning") => {
+  const put = (word: string, s: WordStatus) => {
     const key = normalizeHanzi(word);
     if (!key) return;
     const prev = status.get(key);
     if (!prev || rank[s] > rank[prev]) status.set(key, s);
   };
 
-  if (user) {
-    const [cards, placement] = await Promise.all([
-      prisma.word.findMany({
-        where: { userId: user.id, sourceLang: "zh" },
-        select: { word: true, state: true, canUseAt: true },
-      }),
-      prisma.placementAnswer.findMany({
-        where: { userId: user.id, sourceLang: "zh", known: true },
-        select: { word: true },
-      }),
-    ]);
-    for (const c of cards) {
-      put(c.word, c.canUseAt ? "canUse" : c.state >= FSRS_REVIEW ? "recognise" : "learning");
-    }
-    // The placement test's "I know this" is about words that never became cards,
-    // so it can only ever raise a gap to recognise — `put` keeps the stronger of
-    // the two when the learner also has the card.
-    for (const p of placement) put(p.word, "recognise");
+  const [cards, placement] = await Promise.all([
+    prisma.word.findMany({
+      where: { userId: user.id, sourceLang: "zh" },
+      select: { word: true, state: true, canUseAt: true },
+    }),
+    prisma.placementAnswer.findMany({
+      where: { userId: user.id, sourceLang: "zh", known: true },
+      select: { word: true },
+    }),
+  ]);
+  for (const c of cards) {
+    put(c.word, c.canUseAt ? "canUse" : c.state >= FSRS_REVIEW ? "recognise" : "learning");
   }
+  // The placement test's "I know this" is about words that never became cards,
+  // so it can only ever raise a gap to recognise — `put` keeps the stronger of
+  // the two when the learner also has the card.
+  for (const p of placement) put(p.word, "recognise");
+  return status;
+}
+
+/**
+ * Coverage of every level of one HSK list, plus the cumulative mark for the
+ * target level (all words up to and including it — that is what an exam asks).
+ */
+export async function hskReadiness(telegramId: string, version: HskVersion, level: number): Promise<Readiness> {
+  const target = clampLevel(version, level);
+  const status = await learnerStatus(telegramId);
 
   const levels: LevelReadiness[] = [];
   for (let n = 1; n <= HSK_MAX_LEVEL[version]; n++) {
@@ -198,4 +207,66 @@ export async function hskReadiness(telegramId: string, version: HskVersion, leve
     gap: sum((l) => l.gap),
     levels,
   };
+}
+
+// --- The onboarding check, and the gap deck it feeds ---
+//
+// Onboarding asks for a target level, then shows a sample of the list to tap
+// through ("which of these don't you know"). That is the readiness check: it
+// writes PlacementAnswers, which the mark above already reads. The gap deck is
+// then the other half of the same list — words at or below the target that the
+// learner has neither a card for nor claimed to know.
+
+export type HskWord = { word: string; pinyin: string; level: number };
+
+/**
+ * A sample spread evenly over levels 1..target, `size` words in total. Taken by
+ * stride rather than at random so one level is never represented by a single
+ * corner of the alphabet, with a random offset so a re-take asks new words.
+ */
+export function hskCheckWords(version: HskVersion, level: number, size = 24): HskWord[] {
+  const target = clampLevel(version, level);
+  const perLevel = Math.max(1, Math.round(size / target));
+  const out: HskWord[] = [];
+  for (let n = 1; n <= target; n++) {
+    const words = hskLevelWords(version, n);
+    if (!words.length) continue;
+    const take = Math.min(perLevel, words.length);
+    const stride = words.length / take;
+    const offset = Math.random() * stride;
+    for (let i = 0; i < take; i++) {
+      const hit = words[Math.min(words.length - 1, Math.floor(offset + i * stride))];
+      out.push({ word: hit.word, pinyin: hit.pinyin, level: n });
+    }
+  }
+  return out.slice(0, size);
+}
+
+/**
+ * The words standing between the learner and their target: no card, no "I know
+ * it" in the check. Easiest level first, because a gap at HSK 2 hurts more than
+ * one at HSK 5 — and a deck that starts with words you can almost read is the
+ * one that gets reviewed.
+ */
+export async function hskGapWords(
+  telegramId: string,
+  version: HskVersion,
+  level: number,
+  limit = 30,
+): Promise<HskWord[]> {
+  const target = clampLevel(version, level);
+  const status = await learnerStatus(telegramId);
+  const out: HskWord[] = [];
+  for (let n = 1; n <= target && out.length < limit; n++) {
+    for (const w of hskLevelWords(version, n)) {
+      if (status.has(w.word)) continue;
+      out.push({ word: w.word, pinyin: w.pinyin, level: n });
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+function clampLevel(version: HskVersion, level: number): number {
+  return Math.min(Math.max(Math.round(level) || 1, 1), HSK_MAX_LEVEL[version]);
 }

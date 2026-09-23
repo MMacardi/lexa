@@ -335,6 +335,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
       words: p.words.map((w) => ({ word: w.word, meaning: w.meaning })),
       sourceLang: p.pair.source,
       targetLang: p.pair.target,
+      level: p.pair.level,
       profileNote: telegramId ? profilePreamble(await getProfile(telegramId, p.pair.source), p.pair.source) : "",
     });
   } catch (err) {
@@ -479,7 +480,7 @@ export function createBot(): Telegraf {
     const pair = await resolveUserPair(telegramId);
     await ctx.replyWithChatAction("typing");
     try {
-      const w = await addWordForUser({ telegramId, word, sourceLang: pair.source, targetLang: pair.target });
+      const w = await addWordForUser({ telegramId, word, sourceLang: pair.source, targetLang: pair.target, level: pair.level });
       await ctx.replyWithHTML(cardBack(w), { link_preview_options: { is_disabled: true } });
     } catch (err) {
       console.error(err);
@@ -666,7 +667,7 @@ export function createBot(): Telegraf {
     let ok = 0;
     for (const w of words) {
       try {
-        await addWordForUser({ telegramId, word: w, sourceLang: pair.source, targetLang: pair.target });
+        await addWordForUser({ telegramId, word: w, sourceLang: pair.source, targetLang: pair.target, level: pair.level });
         ok++;
       } catch (err) {
         console.error(err);

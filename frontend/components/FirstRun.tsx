@@ -15,6 +15,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/button";
 import { AddWordForm } from "@/components/AddWordForm";
+import { HskFirstRun } from "@/components/HskFirstRun";
 import { Sparkles, Plus, Loader2, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,11 +59,21 @@ function dropCache(id: string) {
   }
 }
 
-// First-run: pick what you're learning (flags) + your level, then run a tiny
-// placement test — tap the words you DON'T know and exactly those become your
-// starter deck. Falls back to a curated set if the AI is unreachable. Adding your
-// own word stays one click away, never forced.
+// First-run. The HSK path is the default and the one the product is built
+// around; everything below it is the generic flow, kept whole for learners of
+// another language (and reached from the link at the bottom of the HSK path)
+// rather than deleted. It is a separate component, not a branch, so its
+// placement-test call is never spent on a learner who never sees it.
 export function FirstRun() {
+  const [other, setOther] = useState(false);
+  return other ? <GenericFirstRun /> : <HskFirstRun onOther={() => setOther(true)} />;
+}
+
+// Pick what you're learning (flags) + your level, then run a tiny placement
+// test — tap the words you DON'T know and exactly those become your starter
+// deck. Falls back to a curated set if the AI is unreachable. Adding your own
+// word stays one click away, never forced.
+function GenericFirstRun() {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
   const { show, trackImport } = useToast();

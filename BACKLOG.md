@@ -39,12 +39,20 @@ deleted — `onomika_old` holds the full-featured build.
       - Known gap for F5: upstream is ~9 headwords short of the official HSK 2.0 5000 and
         has no 你好 entry (it counts 你 + 好). Worth a pass over the missing ones before the
         gap deck is built on these counts.
-- [ ] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
+- [x] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
       first use-step, in ~5 minutes. Russian native by default; infer the pair from the input.
       Plus the textbook path: photo/paste this week's word list → cards with the sense met.
       - Found during F2: the bot's `add` passes no `level` at all, so a card added from
         Telegram is generated levelless while the same word added on the web is tuned to the
         learner's CEFR. The level now lives on the User, so the bot can read it — do it here.
+      - Shipped as `components/HskFirstRun.tsx`, now the default first run; the generic
+        flag-grid flow is kept behind "I'm learning another language". Two new list
+        primitives back it: `GET /api/hsk/check` (a sample spread over levels 1..target,
+        whose taps go back through the existing placement endpoint) and `GET /api/hsk/gap`
+        (words up to the target with neither a card nor an "I know it"). The bot's `add`,
+        `tut:addall` and practice drill now read the level off the User via `resolveUserPair`.
+      - Left for F7/F8: the HSK path is chosen by the learner on that first screen, not by
+        the focus flag — when the flag lands it should pick the path instead.
 - [ ] **F6. Dictionary-grounded Chinese senses (+ a RU/EN quality eval).** Senses are LLM-only
       today and produced 3 correctness bugs in 3 days, all on the Chinese→Russian path
       («включить» → 打开 only; the 指出 sense ticks). Design: **the dictionary owns the sense
