@@ -2,6 +2,7 @@ import { chatJson } from "../services/llm.js";
 import { enrichEntrySchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
+import { cedictInventory, isChinese } from "../services/cedict.js";
 
 // Combined enrichment agent: ONE model call returns the full dictionary entry
 // (phonetic, part of speech, meaning, collocations, synonyms, antonyms) AND a
@@ -54,6 +55,7 @@ export async function enrichWordEntry(params: {
   meaningInstruction?: string; // learner override; falls back to the concise default
   avoid?: string[]; // existing examples to differ from (for "add another")
   sense?: string; // target-language word the learner typed to reach this one (add-by-translation)
+  ground?: boolean; // default true; scripts/eval-senses.ts turns it off for its control arm
 }): Promise<EnrichResult> {
   const word = params.word.trim();
   const sourceLang = params.sourceLang ?? "en";
@@ -88,6 +90,26 @@ export async function enrichWordEntry(params: {
 
   const inSense = sense ? ` in the sense "${sense}" (the translation must say "${sense}" or a form of it)` : "";
 
+  // Chinese headwords are grounded in CC-CEDICT: the dictionary states which
+  // senses exist and the model picks one of them. This is the add-by-translation
+  // bug's home — «включить» returned 打开 glossed only as "открыть", while the
+  // dictionary lists "to turn on" as sense 3. See services/cedict.ts.
+  const inventory = params.ground !== false && isChinese(sourceLang) ? cedictInventory(word) : null;
+  const groundingLine = inventory
+    ? `The senses of this ${sourceName} word are fixed by CC-CEDICT, a ${sourceName}–English dictionary:\n${inventory}\n` +
+      `"meaningZh" MUST render one of those senses (or, where they overlap, a group of them) into ${targetName}. ` +
+      `Never gloss the word with a sense that is not in that list, however plausible it sounds. ` +
+      // The inventory is in English, and a gloss that half-copies it comes out as
+      // "бог, божество, deity" — the dictionary decides WHICH sense, never the words.
+      `That list is in English only because CC-CEDICT is a ${sourceName}–English dictionary. It fixes WHICH sense you may use, never the wording: ` +
+      `translate the sense into ${targetName} as a ${targetName} learner's dictionary would, following the instruction above, ` +
+      (targetLang === "en" ? "" : `and never leave an English word in the gloss. `) +
+      (sense
+        ? `Pick the listed sense that "${sense}" corresponds to; if none of them does, use the first listed sense instead of inventing one. `
+        : `Pick the first listed sense that is not a classifier, a surname or a cross-reference. `) +
+      `"collocations" must use the word in the sense you picked. `
+    : "";
+
   const examplePart = !params.withExample
     ? `Leave "example" and "exampleTranslation" as empty strings "". `
     : style === "dialogue"
@@ -113,6 +135,7 @@ export async function enrichWordEntry(params: {
       `synonyms and antonyms MUST be written in ${sourceName} — the SAME language as the word — never in ${targetName}. ` +
       `Only include TRUE synonyms/antonyms; many words have none, in which case return an empty array rather than ` +
       `inventing loose ones. ` +
+      groundingLine +
       senseLine +
       examplePart +
       scriptNote(sourceLang) +

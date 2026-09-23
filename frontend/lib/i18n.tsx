@@ -495,6 +495,8 @@ const DICT: Record<string, Entry> = {
   "admin.collections": { en: "Collections", ru: "Коллекции", zh: "合集" },
   "admin.invitesRedeemed": { en: "Codes redeemed", ru: "Кодов использовано", zh: "已用邀请码" },
   "admin.minted": { en: "Minted", ru: "Выдано", zh: "已发放" },
+  "admin.dictCoverage": { en: "Dictionary hits", ru: "Покрытие словарём", zh: "词典命中率" },
+  "admin.dictMisses": { en: "Misses", ru: "Промахов", zh: "未命中" },
   "admin.tokens": { en: "tokens", ru: "токенов", zh: "token" },
   "admin.tokensAllTime": { en: "AI spend (all time)", ru: "Расход ИИ (всё время)", zh: "AI 消耗（累计）" },
   "admin.calls": { en: "Calls", ru: "Вызовов", zh: "调用" },
@@ -1825,6 +1827,13 @@ const DICT: Record<string, Entry> = {
   "word.meaningsPreview": { en: "The card will say:", ru: "На карточке будет:", zh: "卡片上将写：" },
   "word.meaningsFuller": { en: "Update the card", ru: "Обновить карточку", zh: "更新卡片" },
   "word.meaningsSaved": { en: "Card meaning updated", ru: "Значение карточки обновлено", zh: "卡片释义已更新" },
+  // Attribution for the dictionary the sense list is grounded in — a condition of
+  // CC-CEDICT's licence, so it shows where the senses do.
+  "word.meaningsSource": {
+    en: "the dictionary these meanings come from; the wording is AI, for learners.",
+    ru: "словарь, из которого взяты значения; формулировки — ИИ, для изучающих.",
+    zh: "义项来源词典；表述由 AI 为学习者改写。",
+  },
   "word.synonyms": { en: "Synonyms", ru: "Синонимы", zh: "同义词" },
   "word.antonyms": { en: "Antonyms", ru: "Антонимы", zh: "反义词" },
   "word.addExample": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },

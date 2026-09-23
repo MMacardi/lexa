@@ -5,6 +5,7 @@ import { prisma } from "../services/db.js";
 import { requireAdmin } from "../lib/gate.js";
 import { costCny } from "../lib/pricing.js";
 import { moderateDeck, moderationQueue } from "../services/moderation.js";
+import { cedictCoverage } from "../services/cedict.js";
 
 // Owner-only operations dashboard: one aggregated snapshot of how the beta is
 // being used (users, content, engagement, invites) and exactly what the AI is
@@ -205,6 +206,11 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
         wau: new Set([...wauRows, ...produceWauRows].map((r) => r.userId)).size,
       },
       invites: { minted: invitesMinted, redeemed: invitesRedeemed },
+      // How often the CC-CEDICT subset covers the Chinese words learners actually
+      // add. A miss is a word generated ungrounded, so a climbing miss share is
+      // the signal to widen the subset beyond the HSK lists. Counted in memory,
+      // so it resets with the process — a rate, not a total.
+      dictionary: cedictCoverage(),
       tokens: {
         totals: {
           calls: tokTotals._count._all,

@@ -212,7 +212,10 @@ export default function AdminPage() {
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (error || !data) return <ErrorState message={t("common.error")} />;
 
-  const { users, content, engagement, invites, tokens } = data;
+  const { users, content, engagement, invites, tokens, dictionary } = data;
+  // Share of Chinese look-ups the shipped dictionary covered; a falling number is
+  // the case for widening the subset past the HSK lists.
+  const dictLookups = (dictionary?.hits ?? 0) + (dictionary?.misses ?? 0);
 
   return (
     <div className="space-y-6">
@@ -238,6 +241,11 @@ export default function AdminPage() {
         <Tile label={t("admin.scenes")} value={fmtInt(content.sceneSessions)} sub={`${t("admin.readerTexts")}: ${fmtInt(content.readerTexts)}`} />
         <Tile label={t("admin.imports")} value={fmtInt(content.importJobs)} sub={`${t("admin.collections")}: ${fmtInt(content.collections)}`} />
         <Tile label={t("admin.invitesRedeemed")} value={fmtInt(invites.redeemed)} sub={`${t("admin.minted")}: ${fmtInt(invites.minted)}`} />
+        <Tile
+          label={t("admin.dictCoverage")}
+          value={dictLookups ? `${Math.round((100 * (dictionary?.hits ?? 0)) / dictLookups)}%` : "—"}
+          sub={`${t("admin.dictMisses")}: ${fmtInt(dictionary?.misses ?? 0)} · ${fmtInt(dictionary?.words ?? 0)}`}
+        />
       </div>
 
       {/* Token spend */}

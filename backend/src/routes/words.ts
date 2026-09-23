@@ -22,6 +22,7 @@ import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskCheckWords, hskGapWords, readinessForUser } from "../services/hsk.js";
+import { cedictCredit } from "../services/cedict.js";
 import {
   addWordForUser,
   addWordManual,
@@ -726,7 +727,10 @@ wordsRouter.post("/words/:id/explain", async (req, res) => {
 wordsRouter.post("/words/:id/senses", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   try {
-    res.json({ senses: await wordSenses(req.params.id) });
+    // `credit` rides along when CC-CEDICT stated the inventory: BY-SA asks for
+    // attribution where the data is seen, so the page shows it, not just a file header.
+    const { senses, grounded } = await wordSenses(req.params.id);
+    res.json({ senses, ...(grounded ? { credit: cedictCredit() } : {}) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });

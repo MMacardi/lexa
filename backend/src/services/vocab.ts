@@ -11,6 +11,7 @@ import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type Wor
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
+import { cedictInventory, isChinese } from "./cedict.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -578,12 +579,15 @@ export async function explainWord(id: string): Promise<string> {
 }
 
 // Bump when the senses prompt changes so cards regenerate on their next open.
-const SENSES_VERSION = 4;
+const SENSES_VERSION = 5;
 
 // How the sense list is cached on the card. `for` is the meaning the learner's
 // picks (the onCard flags) were saved for — once the card's meaning moves on, the
 // flags no longer describe it.
-type StoredSenses = { v?: number; list?: WordSense[]; for?: string };
+type StoredSenses = { v?: number; list?: WordSense[]; for?: string; grounded?: boolean };
+
+/** A sense list plus whether CC-CEDICT stated the inventory (the word page credits it). */
+export type SenseList = { senses: WordSense[]; grounded: boolean };
 
 // The leading gloss of a sense or of one segment of a card's meaning:
 // "指明，指出（位置、方向、人或物）" -> "指明", "показать, продемонстрировать" -> "показать".
@@ -672,7 +676,7 @@ function mergePosVariants(list: WordSense[]): WordSense[] {
  * Generated lazily on the first word-page open and cached on the card, so most
  * cards (never opened) cost nothing. The card's meaningZh stays what it tests.
  */
-export async function wordSenses(id: string): Promise<WordSense[]> {
+export async function wordSenses(id: string): Promise<SenseList> {
   const word = await prisma.word.findUnique({
     where: { id },
     select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, senses: true },
@@ -683,23 +687,46 @@ export async function wordSenses(id: string): Promise<WordSense[]> {
   // A pick the learner made by hand is kept with the meaning it was made for and
   // stands as long as that meaning does; otherwise the ticks follow the card.
   if (stored?.v === SENSES_VERSION && stored.list?.length)
-    return stored.for === (word.meaningZh ?? "") ? stored.list : flagByMeaning(stored.list, word.meaningZh ?? "");
+    return {
+      senses: stored.for === (word.meaningZh ?? "") ? stored.list : flagByMeaning(stored.list, word.meaningZh ?? ""),
+      grounded: stored.grounded === true,
+    };
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
   const cjk = ["zh", "zh-Hant", "ja", "ko"].includes(word.sourceLang);
+  // Chinese: the dictionary owns the inventory and the model only picks and
+  // shortens (see services/cedict.ts). Anything CC-CEDICT doesn't cover, and
+  // every other language, keeps the model-invented list below.
+  const inventory = isChinese(word.sourceLang) ? cedictInventory(word.word) : null;
   const { senses } = await chatJson({
     system:
       `You are a bilingual ${sourceName}–${targetName} learner's dictionary (like Pleco or Oxford Learner's). ` +
-      `List the distinct senses of the ${sourceName} word or phrase for a learner whose language is ${targetName}. ` +
-      `Split senses the way a dictionary does: whenever the word in a different use needs a DIFFERENT ${targetName} translation, ` +
-      `that is a separate sense (e.g. Chinese 打开 → 1 открыть (дверь, книгу); 2 включить (свет, телевизор); 3 развернуть, раскрыть (карту, ситуацию)). ` +
-      `Most everyday words have 2–4 such senses; give just one when the word really has a single use (e.g. 值得 = стоить (того)). Max 4, most frequent first. Never list two senses with the same or near-identical translation — that is one sense; merge them. ` +
+      (inventory
+        ? `Below is the word's sense inventory from CC-CEDICT, a ${sourceName}–English dictionary. It is AUTHORITATIVE: ` +
+          `every sense you return must be one of these, and you must NOT add a sense that is not in the list, however plausible. ` +
+          `Your job is to select, group and translate, never to invent.\n${inventory}\n` +
+          `Group the numbered glosses into 1–4 senses for the learner: glosses that would take the same ${targetName} translation are ONE sense. ` +
+          `Keep the dictionary's order, most frequent first. Drop glosses marked rare, literary, archaic, dialect, Taiwan-only or purely technical, ` +
+          `and drop classifier-only, surname-only and cross-reference glosses ("variant of …", "see …") unless the word has nothing else. ` +
+          `Ignore grammar labels like "(bound form)" — they are not part of the meaning. ` +
+          `Write each sense's "meaning" in ${targetName} as a learner's dictionary would gloss it, not as a literal rendering of the English: ` +
+          `the English is the dictionary's own target language, so it may read stiffly. `
+        : `List the distinct senses of the ${sourceName} word or phrase for a learner whose language is ${targetName}. ` +
+          `Split senses the way a dictionary does: whenever the word in a different use needs a DIFFERENT ${targetName} translation, ` +
+          `that is a separate sense (e.g. Chinese 打开 → 1 открыть (дверь, книгу); 2 включить (свет, телевизор); 3 развернуть, раскрыть (карту, ситуацию)). ` +
+          `Most everyday words have 2–4 such senses; give just one when the word really has a single use (e.g. 值得 = стоить (того)). Max 4, most frequent first. Never list two senses with the same or near-identical translation — that is one sense; merge them. ` +
+          `Order the senses by how common each one is in ${sourceName} itself, so the same word gets the same order whatever the learner's language. ` +
+          `Leave out rare, archaic, dialect and purely technical senses. `) +
       `Senses differ in MEANING, never in grammar: a word that works as both an adjective and an adverb, or that ${targetName} renders once as a verb and once as a noun, is ONE sense — put both labels in "pos" ("прилагательное / наречие") instead of splitting the row. ` +
       `E.g. 仔细 is one sense (внимательный, тщательный — and adverbially внимательно), not two. ` +
-      `Order the senses by how common each one is in ${sourceName} itself, so the same word gets the same order whatever the learner's language. ` +
-      `Leave out rare, archaic, dialect and purely technical senses. ` +
       `The card currently says it means "${word.meaningZh ?? ""}": that must be one of your senses, glossed with the same wording, and marked "onCard": true (all others false). ` +
+      // Grounding can contradict a card written before it: the card's meaning may
+      // be a sense the dictionary doesn't have. The inventory wins — a wrong gloss
+      // is exactly what this is here to stop — and no sense is ticked.
+      (inventory
+        ? `The one exception: if the card's meaning matches NO sense in the inventory above, leave it out and set "onCard": false everywhere — never add a sense to justify it. `
+        : "") +
       `For each sense: "pos" = the part of speech written in ${targetName}, lowercase (e.g. for Russian "глагол", "существительное"); ` +
       `"meaning" = a short ${targetName} gloss of THIS sense only, 1–4 words, near-synonyms separated by ", ", optionally a typical object in parentheses; ` +
       `"phrases" = 2 SHORT, natural ${sourceName} phrases or collocations using the word in exactly that sense (2–6 words, not full sentences), ` +
@@ -731,10 +758,15 @@ Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
   const flagged = flagByMeaning(clean, word.meaningZh ?? "");
   if (flagged.length) {
     await prisma.word
-      .update({ where: { id }, data: { senses: { v: SENSES_VERSION, list: flagged } as unknown as Prisma.InputJsonValue } })
+      .update({
+        where: { id },
+        data: {
+          senses: { v: SENSES_VERSION, list: flagged, grounded: inventory !== null } as unknown as Prisma.InputJsonValue,
+        },
+      })
       .catch(() => {});
   }
-  return flagged;
+  return { senses: flagged, grounded: inventory !== null };
 }
 
 /**

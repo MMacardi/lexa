@@ -53,7 +53,7 @@ deleted — `onomika_old` holds the full-featured build.
         `tut:addall` and practice drill now read the level off the User via `resolveUserPair`.
       - Left for F7/F8: the HSK path is chosen by the learner on that first screen, not by
         the focus flag — when the flag lands it should pick the path instead.
-- [ ] **F6. Dictionary-grounded Chinese senses (+ a RU/EN quality eval).** Senses are LLM-only
+- [x] **F6. Dictionary-grounded Chinese senses (+ a RU/EN quality eval).** Senses are LLM-only
       today and produced 3 correctness bugs in 3 days, all on the Chinese→Russian path
       («включить» → 打开 only; the 指出 sense ticks). Design: **the dictionary owns the sense
       inventory, the model only picks and shortens.** Never let the LLM invent the list of senses,
@@ -69,6 +69,22 @@ deleted — `onomika_old` holds the full-featured build.
         toward polysemous ones, generate `zh→ru` and `zh→en` cards, count wrong-sense and
         wrong-register errors against BKRS + CC-CEDICT. If the two rates match, plain generation is
         fine and grounding can wait; if Russian is worse, the numbers say where to spend the work.
+      - Shipped: `data/cedict.jsonl` (CC-CEDICT cut down to the 11.4k HSK headwords, 29 of them
+        not in the dictionary), built by `scripts/build-cedict.mjs` from the release stamped in
+        the file's own `_meta`. Read by `services/cedict.ts`, which also counts misses — words
+        outside the subset fall back to the ungrounded path, and the hit rate is a tile on the
+        admin dashboard. Both places that could invent a sense are grounded: `agents/enrich.ts`
+        (the add path) and `wordSenses` (the word page, senses v5). Attribution shows under the
+        Meanings list, not just in a file header — BY-SA asks for it where the data is seen.
+      - Grounding shipped ahead of the eval on purpose: the eval sizes the RU-vs-EN gap, it was
+        never what decides whether the model invents senses — 打开 and 指出 already settled that.
+      - **Left for you (one sitting, offline):** run the eval. `npx tsx scripts/eval-senses.ts`
+        generates the same 100 HSK 4–5 words through both the old prompt and the grounded one and
+        writes a CSV; mark `ungrounded_ok` / `grounded_ok` 1 or 0 — one binary question, "is the
+        sense right" — then `--score` it. zh→ru only, because 400 judgments is how an eval dies
+        and zh→en is the path CC-CEDICT grounds directly. Register notes go in `notes`, not
+        the score. Caveat while marking: the `reference` column *is* the grounded arm's source,
+        so check contested words against BKRS or Pleco rather than treating it as an answer key.
 - [ ] **F6a. Shared dictionary that learners correct (not just a cache).** Today every
       `addWordForUser` spends an LLM call even when another learner already has a good card for
       the same (word, pair). `UNIT_ECONOMICS.md` proposed this and it was never built.

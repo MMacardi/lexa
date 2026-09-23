@@ -73,11 +73,12 @@ export function WordSenses({ word }: { word: Word }) {
   const sensesKey = ["senses", word.id, word.word, word.sourceLang, word.targetLang];
   const q = useQuery({
     queryKey: sensesKey,
-    queryFn: () => api.wordSenses(word.id).then((r) => r.senses),
+    queryFn: () => api.wordSenses(word.id),
     staleTime: Infinity,
     retry: 1,
   });
-  const senses = q.data ?? NO_SENSES;
+  const senses = q.data?.senses ?? NO_SENSES;
+  const credit = q.data?.credit;
 
   const initial = useMemo(() => testedSet(senses), [senses]);
   const [picked, setPicked] = useState<Set<number>>(initial);
@@ -106,10 +107,10 @@ export function WordSenses({ word }: { word: Word }) {
       qc.setQueryData(["word", word.id], w);
       // The pick is what the card tests now — mirror it onto the cached senses so
       // the row stops offering to save what has just been saved.
-      qc.setQueryData(
-        sensesKey,
-        senses.map((s, i) => ({ ...s, onCard: picked.has(i) })),
-      );
+      qc.setQueryData(sensesKey, {
+        ...q.data,
+        senses: senses.map((s, i) => ({ ...s, onCard: picked.has(i) })),
+      });
       qc.invalidateQueries({ queryKey: ["words"] });
       show({ icon: "✓", title: t("word.meaningsSaved") });
     },
@@ -232,6 +233,31 @@ export function WordSenses({ word }: { word: Word }) {
             <p className="text-[12px] text-ink-faint">{t("word.meaningsHint")}</p>
           )}
         </div>
+      )}
+      {/* The dictionary behind the senses. Its licence asks for the name and a link
+          to the licence wherever the data appears, which is here. */}
+      {credit && (
+        <p className="text-[11px] text-ink-faint">
+          <a
+            href={credit.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline underline-offset-2 hover:text-ink-soft"
+          >
+            {credit.source}
+          </a>
+          {" · "}
+          <a
+            href={credit.licenseUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline underline-offset-2 hover:text-ink-soft"
+          >
+            {credit.license}
+          </a>
+          {" — "}
+          {t("word.meaningsSource")}
+        </p>
       )}
     </div>
   );

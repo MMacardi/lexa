@@ -523,7 +523,7 @@ words"), and it's the free, voice-friendly entry point, so give it a proper page
   "What should I study today?" (due cards / Coach picks).
 - Presets fill the input (editable) rather than sending right away. All strings en/ru/zh.
 
-## Word senses (Pleco-style) — ✅ done 2026-09-19 (LLM-only; CC-CEDICT not used)
+## Word senses (Pleco-style) — ✅ done 2026-09-19; grounded in CC-CEDICT 2026-09-23 (F6)
 Beta feedback (2026-09-19): typed «включить», got 打开 = «открывать» only. Add-by-translation
 now leads the meaning with the typed sense (`sense` → enrich), but polysemous words still
 show one flat meaning.
@@ -541,6 +541,10 @@ show one flat meaning.
 - **Accuracy risk:** LLMs invent plausible rare senses. Cap at common senses, "skip if
   unsure". For zh, CC-CEDICT could supply the sense list with the LLM only translating —
   more accurate, more work; start LLM-only.
+  - Done (F6, 2026-09-23): CC-CEDICT now states the inventory for the 11.4k HSK headwords and
+    the model only picks and translates, on the add path and the word page both. The
+    English glosses are a *choice* of sense, never wording — the first cut wrote "бог,
+    божество, deity" until the prompt said so outright. Credited under the Meanings list.
 - en/ru/zh strings; migration `word_senses`.
 
 ## Library decks: no synonyms/antonyms (found 2026-09-20)

@@ -69,6 +69,15 @@ export interface WordSense {
   phrases: { text: string; reading: string; translation: string }[];
 }
 
+// The dictionary a grounded sense list came from, shown as a credit under it.
+export interface DictCredit {
+  source: string;
+  url: string;
+  license: string;
+  licenseUrl: string;
+  release: string;
+}
+
 export type Visibility = "private" | "friends" | "code" | "public";
 
 export interface Collection {
@@ -344,6 +353,10 @@ export interface AdminStats {
   };
   engagement: { reviewsTotal: number; reviewsToday: number; dau: number; wau: number };
   invites: { minted: number; redeemed: number };
+  // CC-CEDICT coverage of the Chinese words being looked up, since this process
+  // started: `words` is the shipped subset, `misses` the ones that fell back to
+  // ungrounded generation.
+  dictionary: { words: number; hits: number; misses: number };
   tokens: {
     totals: { calls: number; prompt: number; completion: number; total: number; costCny: number };
     byModel: { model: string; calls: number; prompt: number; completion: number; total: number; costCny: number }[];
@@ -694,8 +707,10 @@ export const api = {
     id: string,
     payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
+  // `credit` comes back only for senses the dictionary grounded (Chinese words
+  // CC-CEDICT covers); its licence asks for attribution wherever the data shows.
   wordSenses: (id: string) =>
-    http<{ senses: WordSense[] }>(`/api/words/${id}/senses`, { method: "POST" }),
+    http<{ senses: WordSense[]; credit?: DictCredit }>(`/api/words/${id}/senses`, { method: "POST" }),
   wordFamily: (id: string) =>
     http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
   explainWord: (id: string) =>
