@@ -1,5 +1,6 @@
 "use client";
 
+import { HskBadge } from "@/components/HskBadge";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
@@ -183,6 +184,7 @@ export default function WordDetailPage() {
           <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
             {pairLabel(word.sourceLang, word.targetLang)}
           </span>
+          <HskBadge hsk={word.hsk} />
         </div>
         {word.meaningZh && (
           <p className={cn("text-[22px] font-medium text-sage-deep", targetFont(word.targetLang))}>

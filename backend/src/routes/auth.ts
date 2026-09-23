@@ -19,7 +19,7 @@ import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/aut
 import { rateLimit, take } from "../lib/rateLimit.js";
 import { isAdmin } from "../lib/entitlements.js";
 import { PRIVACY_LEVELS } from "../services/profiles.js";
-import { learnerPrefsSchema, learnerPrefsSelect } from "../services/learnerPrefs.js";
+import { clampHskTarget, learnerPrefsSchema, learnerPrefsSelect } from "../services/learnerPrefs.js";
 import { readBetaCookie } from "./beta.js";
 import { track } from "../services/analytics.js";
 
@@ -295,6 +295,8 @@ authRouter.patch("/auth/me", async (req, res) => {
     nativeLang?: string | null;
     dailyGoal?: number | null;
     retention?: number | null;
+    hskVersion?: string | null;
+    hskTarget?: number | null;
   } = {};
   const privacy = (v: unknown) => (PRIVACY_LEVELS as readonly string[]).includes(v as string);
   if (typeof b.displayName === "string") data.displayName = b.displayName.trim().slice(0, 60) || null;
@@ -315,6 +317,14 @@ authRouter.patch("/auth/me", async (req, res) => {
   if (prefs.data.nativeLang !== undefined) data.nativeLang = prefs.data.nativeLang;
   if (prefs.data.dailyGoal !== undefined) data.dailyGoal = prefs.data.dailyGoal;
   if (prefs.data.retention !== undefined) data.retention = prefs.data.retention;
+  if (prefs.data.hskVersion !== undefined) data.hskVersion = prefs.data.hskVersion;
+  if (prefs.data.hskTarget !== undefined) {
+    // The picker sends both halves together, so the version in this PATCH is the
+    // one the target belongs to; without it, level 7 would be stored against a
+    // 2.0 list that ends at 6. The readiness endpoint clamps again on read.
+    data.hskTarget =
+      prefs.data.hskTarget === null ? null : clampHskTarget(prefs.data.hskVersion ?? null, prefs.data.hskTarget);
+  }
   try {
     const user = await prisma.user.update({
       where: { telegramId },

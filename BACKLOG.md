@@ -28,9 +28,17 @@ deleted — `onomika_old` holds the full-featured build.
       FSRS Good. Per-word production evidence (correct / partial / wrong, when, which error),
       separate from the recognition schedule, plus a "can use" status and a weekly
       "know → can use" count.
-- [ ] **F4. HSK lists + readiness mark.** Official HSK 2.0 (2026 exams) and 3.0 lists as data,
+- [x] **F4. HSK lists + readiness mark.** Official HSK 2.0 (2026 exams) and 3.0 lists as data,
       a level tag per card, and a readiness mark per target level split into recognise vs can
       use. Label it *vocabulary* readiness — never a predicted exam score.
+      - Both lists ship as `backend/src/data/hskWords.ts` (word + pinyin + level only, MIT
+        source, regenerate with `scripts/build-hsk-lists.mjs`); the level tag is derived on
+        read, so nothing needs backfilling when the lists change. Recognise = past the FSRS
+        learning steps or "known" in the placement test; can use = F3's ledger; the target
+        (list + level) lives on the User.
+      - Known gap for F5: upstream is ~9 headwords short of the official HSK 2.0 5000 and
+        has no 你好 entry (it counts 你 + 好). Worth a pass over the missing ones before the
+        gap deck is built on these counts.
 - [ ] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
       first use-step, in ~5 minutes. Russian native by default; infer the pair from the input.
       Plus the textbook path: photo/paste this week's word list → cards with the sense met.

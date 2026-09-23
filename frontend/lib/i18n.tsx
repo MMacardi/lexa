@@ -1208,6 +1208,50 @@ const DICT: Record<string, Entry> = {
   "today.neverReviewed": { en: "New · never reviewed", ru: "Новое · без повторений", zh: "新词 · 未复习" },
   "today.reviewsDone": { en: "reviewed {n}×", ru: "повторено {n}×", zh: "已复习 {n} 次" },
 
+  // --- HSK readiness ---
+  "hsk.title": { en: "HSK readiness", ru: "Готовность к HSK", zh: "HSK 准备度" },
+  "hsk.subtitle": {
+    en: "Vocabulary coverage of the official list — not a predicted exam score.",
+    ru: "Охват официального списка слов — это не прогноз балла на экзамене.",
+    zh: "这是对官方词表的覆盖率，不是考试分数预测。",
+  },
+  "hsk.list": { en: "List", ru: "Список", zh: "词表" },
+  "hsk.list2": { en: "HSK 2.0", ru: "HSK 2.0", zh: "HSK 2.0" },
+  "hsk.list3": { en: "HSK 3.0", ru: "HSK 3.0", zh: "HSK 3.0" },
+  "hsk.listHint": {
+    en: "2.0 is what the 2026 exams are sat against; 3.0 is where the textbooks are heading.",
+    ru: "По 2.0 сдают экзамены 2026 года, на 3.0 переходят учебники.",
+    zh: "2026 年的考试仍按 2.0，教材正在转向 3.0。",
+  },
+  "hsk.target": { en: "Target level", ru: "Целевой уровень", zh: "目标等级" },
+  "hsk.level": { en: "HSK {n}", ru: "HSK {n}", zh: "HSK {n}" },
+  "hsk.band79": { en: "HSK 7–9", ru: "HSK 7–9", zh: "HSK 7–9" },
+  "hsk.recognise": { en: "recognise", ru: "узнаёте", zh: "认识" },
+  "hsk.canUse": { en: "can use", ru: "умеете использовать", zh: "会用" },
+  "hsk.ofTotal": {
+    en: "{a} of {b} words at HSK {n}",
+    ru: "{a} из {b} слов уровня HSK {n}",
+    zh: "HSK {n} 的 {b} 个词中已掌握 {a} 个",
+  },
+  "hsk.canUseOf": {
+    en: "{a} of those you can use",
+    ru: "из них {a} умеете использовать",
+    zh: "其中 {a} 个你会用",
+  },
+  "hsk.byLevel": { en: "By level", ru: "По уровням", zh: "按等级" },
+  "hsk.levelRow": {
+    en: "{a}/{b} recognised, {c} you can use",
+    ru: "{a}/{b} узнаёте, {c} умеете использовать",
+    zh: "认识 {a}/{b}，会用 {c}",
+  },
+  "hsk.gapWords": { en: "{n} not started", ru: "не начато: {n}", zh: "{n} 个还没开始" },
+  "hsk.empty": {
+    en: "Add some Chinese words and the mark starts moving.",
+    ru: "Добавьте китайские слова — и оценка начнёт расти.",
+    zh: "添加一些中文词，这个数字就会开始变化。",
+  },
+  "hsk.tag": { en: "On the HSK {v} list, level {n}", ru: "В списке HSK {v}, уровень {n}", zh: "HSK {v} 词表，第 {n} 级" },
+
   // --- stats ---
   "stats.title": { en: "Your progress", ru: "Ваш прогресс", zh: "你的进度" },
   "stats.streakSummary": { en: "{n}-day streak", ru: "{n} дн. подряд", zh: "连续 {n} 天" },

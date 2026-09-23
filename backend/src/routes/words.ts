@@ -21,6 +21,7 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
+import { readinessForUser } from "../services/hsk.js";
 import {
   addWordForUser,
   addWordManual,
@@ -206,6 +207,15 @@ wordsRouter.get("/stats", async (req, res) => {
   const telegramId = readSession(req) ?? String(req.query.telegramId ?? "dev-user");
   const stats = await getStats(telegramId);
   res.json(stats);
+});
+
+// GET /api/hsk/readiness?version=3.0&level=4  -> vocabulary coverage of that HSK
+// list: how many of its words the learner recognises and how many they can use.
+// Not an exam-score prediction, and the UI must not present it as one.
+wordsRouter.get("/hsk/readiness", async (req, res) => {
+  // Session only: requireIdentity has already run, and the mark is personal.
+  const telegramId = readSession(req)!;
+  res.json(await readinessForUser(telegramId, req.query.version, req.query.level));
 });
 
 // ---------------- Collections ----------------

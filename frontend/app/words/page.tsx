@@ -1,5 +1,6 @@
 "use client";
 
+import { HskBadge } from "@/components/HskBadge";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -344,8 +345,9 @@ export default function WordsPage() {
                       {w.word}
                     </span>{" "}
                     {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
-                    <span className="mt-0.5 block text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
                       {pairLabel(w.sourceLang, w.targetLang)}
+                      <HskBadge hsk={w.hsk} />
                     </span>
                     <span className={cn("mt-0.5 block truncate text-sm text-sage sm:hidden", targetFont(w.targetLang))}>
                       {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3 w-28 animate-pulse rounded bg-sage/25 align-middle" />}

@@ -44,6 +44,11 @@ model User {
   nativeLang  String?
   dailyGoal   Int?
   retention   Float?
+  // The exam goal the readiness mark is measured against: which HSK list
+  // ("2.0" | "3.0") and which level on it (1–6, or 7 = the 3.0 7–9 band).
+  // Null until the learner picks one.
+  hskVersion  String?
+  hskTarget   Int?
   // Telegram chat id for proactive messages (review reminders). Set on /start.
   botChatId   String?
   // Hour of day (0–23, server time) the learner wants their review nudge, or null

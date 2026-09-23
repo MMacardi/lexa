@@ -10,6 +10,7 @@ import { FirstRun } from "@/components/FirstRun";
 import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
+import { HskReadiness } from "@/components/HskReadiness";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, PartyPopper, ArrowRight } from "lucide-react";
@@ -191,6 +192,8 @@ export default function TodayPage() {
       </div>
 
       <DailyGoalCard />
+
+      <HskReadiness />
 
       <StatsPanel />
 

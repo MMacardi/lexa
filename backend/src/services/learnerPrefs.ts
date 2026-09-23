@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { HSK_MAX_LEVEL, HSK_VERSIONS, type HskVersion } from "./hsk.js";
 
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export type CefrLevel = (typeof CEFR_LEVELS)[number];
@@ -27,6 +28,11 @@ export const learnerPrefsSchema = z.object({
   nativeLang: langCode.nullable().optional(),
   dailyGoal: z.number().int().min(1).max(100).nullable().optional(),
   retention: z.number().min(0.7).max(0.98).nullable().optional(),
+  // Which HSK list the learner is climbing and the level they're aiming at —
+  // the readiness mark's target. 7 means the 7–9 band and only exists on 3.0;
+  // the pair is checked together below because "2.0 level 7" is not a thing.
+  hskVersion: z.enum(HSK_VERSIONS).nullable().optional(),
+  hskTarget: z.number().int().min(1).max(7).nullable().optional(),
 });
 
 export type LearnerPrefs = z.infer<typeof learnerPrefsSchema>;
@@ -37,7 +43,15 @@ export const learnerPrefsSelect = {
   nativeLang: true,
   dailyGoal: true,
   retention: true,
+  hskVersion: true,
+  hskTarget: true,
 } as const;
+
+/** Keep the target on its list's ladder: HSK 2.0 has no level 7. */
+export function clampHskTarget(version: HskVersion | null | undefined, target: number): number {
+  const max = version ? HSK_MAX_LEVEL[version] : 7;
+  return Math.min(Math.max(target, 1), max);
+}
 
 // --- Placement test answers ---
 // The onboarding mini-test asks the learner to tap the words they do NOT know.

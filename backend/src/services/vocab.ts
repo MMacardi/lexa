@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 import { productionDays, productionSummary } from "./production.js";
+import { hskTagFor } from "./hsk.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -240,10 +241,20 @@ export async function addWordManual(params: {
 }
 
 /** All of a user's saved words, newest first, each with its examples. */
+/**
+ * The HSK level(s) this card sits at, as a field the client can render as a
+ * badge. Derived on read rather than stored: it is a pure function of the
+ * headword, so a card never goes stale when the lists are regenerated, and
+ * nothing needs backfilling. Only Chinese cards can carry it.
+ */
+function withHskTag<T extends { word: string; sourceLang: string }>(w: T) {
+  return { ...w, hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null };
+}
+
 export async function listWordsForUser(telegramId: string) {
   const user = await prisma.user.findUnique({ where: { telegramId } });
   if (!user) return [];
-  return prisma.word.findMany({
+  const words = await prisma.word.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     include: {
@@ -251,17 +262,19 @@ export async function listWordsForUser(telegramId: string) {
       collections: { select: { id: true, name: true } },
     },
   });
+  return words.map(withHskTag);
 }
 
 /** A single word by id, with its examples. */
 export async function getWord(id: string) {
-  return prisma.word.findUnique({
+  const word = await prisma.word.findUnique({
     where: { id },
     include: {
       examples: { orderBy: { createdAt: "desc" } },
       collections: { select: { id: true, name: true } },
     },
   });
+  return word ? withHskTag(word) : null;
 }
 
 /** Append a ready-made example (e.g. one the tutor produced in chat) to a card. */

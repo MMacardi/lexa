@@ -54,6 +54,10 @@ export interface Word {
   produceStreak?: number;
   lastProducedAt?: string | null;
   canUseAt?: string | null; // non-null = the learner can use this word
+  // Which HSK level(s) this word sits at, e.g. { "2.0": 3, "3.0": 1 }. Derived
+  // on the server from the official lists; null for words on neither (and for
+  // every card that isn't Chinese).
+  hsk?: HskTag | null;
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -243,6 +247,31 @@ export interface LearnerPrefs {
   nativeLang?: string | null;
   dailyGoal?: number | null;
   retention?: number | null;
+  hskVersion?: HskVersion | null;
+  hskTarget?: number | null;
+}
+
+// --- HSK lists and the readiness mark ---
+// Two official lists are live at once: HSK 2.0 is what the 2026 exams are sat
+// against, HSK 3.0 is where the textbooks are heading. Level 7 exists only on
+// 3.0 and means the combined 7–9 band.
+export type HskVersion = "2.0" | "3.0";
+export type HskTag = Partial<Record<HskVersion, number>>;
+
+export interface HskLevelReadiness {
+  level: number;
+  total: number;
+  recognise: number; // reviewed past the learning steps, or known in the placement test
+  canUse: number; // of those, produced correctly twice on different days
+  learning: number; // a card exists but hasn't survived an interval yet
+  gap: number; // no card at all
+}
+
+// Vocabulary coverage of one HSK list — never a predicted exam score.
+export interface HskReadiness extends Omit<HskLevelReadiness, "level"> {
+  version: HskVersion;
+  level: number; // the target level these totals cover (everything up to it)
+  levels: HskLevelReadiness[];
 }
 
 // Which surface graded an answer. Logged per review so the learner model can tell
@@ -721,6 +750,12 @@ export const api = {
     ),
   stats: (telegramId: string) =>
     http<Stats>(`/api/stats?telegramId=${encodeURIComponent(telegramId)}`),
+  hskReadiness: (version?: HskVersion, level?: number) => {
+    const q = new URLSearchParams();
+    if (version) q.set("version", version);
+    if (level) q.set("level", String(level));
+    return http<HskReadiness>(`/api/hsk/readiness${q.toString() ? `?${q}` : ""}`);
+  },
 
   // --- collections ---
   collections: (telegramId: string) =>
