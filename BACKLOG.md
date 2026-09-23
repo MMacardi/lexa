@@ -50,7 +50,7 @@ deleted — `onomika_old` holds the full-featured build.
         toward polysemous ones, generate `zh→ru` and `zh→en` cards, count wrong-sense and
         wrong-register errors against BKRS + CC-CEDICT. If the two rates match, plain generation is
         fine and grounding can wait; if Russian is worse, the numbers say where to spend the work.
-- [ ] **F6a. Shared dictionary cache (generate 你好 once, not once per user).** Today every
+- [ ] **F6a. Shared dictionary that learners correct (not just a cache).** Today every
       `addWordForUser` spends an LLM call even when another learner already has a good card for
       the same (word, pair). `UNIT_ECONOMICS.md` proposed this and it was never built.
       - **Split the card in two.** A shared `DictEntry` keyed (word, srcLang, tgtLang, version)
@@ -66,9 +66,26 @@ deleted — `onomika_old` holds the full-featured build.
       - **Free quality signal:** count uses and edits per entry. A high edit rate names exactly
         which senses the model gets wrong for this pair — this is the start of the pair-specific
         error data in STRATEGY.md §H, and it costs nothing to collect.
-      - **Why it matters more than cost:** tokens are already ~¥0.0007/card. The win is latency:
-        F5 promises a 30-word textbook list becomes a deck in seconds, and a cache hit is instant
-        where a generation is seconds. Do it after F6 so what gets cached is worth caching.
+      - **Corrections are the point.** A learner who spots a wrong meaning fixes it. The fix
+        lands on **their own card immediately** (never make someone argue with a queue to study),
+        and becomes a **suggestion** against the shared entry. Promote a suggestion when it repeats
+        across learners or when you approve it — reuse the `DeckReport` admin-queue pattern rather
+        than building voting or reputation for a handful of users.
+      - **Structured corrections, not free text:** wrong sense / missing sense / wrong register /
+        bad example / typo. That turns edits into a labelled dataset of where the model fails for
+        this pair, instead of noise. Free text stays as an optional note.
+      - **Human fixes outrank regeneration.** Keep the AI original, the correction, who made it and
+        when. A `version` bump re-generates untouched fields only — a verified field is never
+        silently overwritten.
+      - **Show provenance on the card** ("AI · verified by N learners" / "from CC-CEDICT"). It is a
+        trust signal against Pleco, and later a marketing asset in its own right.
+      - **Terms:** if contributions become a shared asset, the ToS has to say so, and CC-CEDICT-derived
+        data keeps its BY-SA obligations. Fix this before the dictionary is worth anything.
+      - **Why it matters more than cost:** tokens are already ~¥0.0007/card. The wins are latency
+        (F5's 30-word list becomes a deck instantly on cache hits) and, over time, **a Chinese–Russian
+        sense inventory verified by learners** — the one asset here that compounds and cannot be
+        copied quickly (STRATEGY.md §H). It only compounds with users, so it stays after F1–F5.
+        With one user it is still your own verified dictionary, which is worth having anyway.
 - [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
