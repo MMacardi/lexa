@@ -1,6 +1,7 @@
 "use client";
 
 import { HskBadge } from "@/components/HskBadge";
+import { DictMeaningLabel, pollWhileUpgrading } from "@/components/DictMeaningLabel";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -72,6 +73,8 @@ export default function WordsPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
+    // Cards just made from the dictionary get their meaning a few seconds later.
+    refetchInterval: (q) => pollWhileUpgrading(q.state.data),
   });
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -352,9 +355,13 @@ export default function WordsPage() {
                     <span className={cn("mt-0.5 block truncate text-sm text-sage sm:hidden", targetFont(w.targetLang))}>
                       {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3 w-28 animate-pulse rounded bg-sage/25 align-middle" />}
                     </span>
+                    <DictMeaningLabel word={w} className="block truncate sm:hidden" />
                   </Link>
-                  <span className={cn("hidden truncate text-[17px] text-sage-deep sm:block", targetFont(w.targetLang))}>
-                    {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3.5 w-32 animate-pulse rounded bg-sage/25 align-middle" />}
+                  <span className="hidden min-w-0 sm:block">
+                    <span className={cn("block truncate text-[17px] text-sage-deep", targetFont(w.targetLang))}>
+                      {w.meaningZh?.trim() ? w.meaningZh : <span className="inline-block h-3.5 w-32 animate-pulse rounded bg-sage/25 align-middle" />}
+                    </span>
+                    <DictMeaningLabel word={w} className="block truncate" />
                   </span>
                   <span className="hidden text-sm font-medium text-ink-soft sm:block">
                     {w.examples[0]?.sourceName ?? "—"}

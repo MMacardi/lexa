@@ -40,7 +40,7 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
 
-2. **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
+2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
    "Pleco lookup + star"*. Today every add waits 5–10 s on the LLM, and a card is a blank shell
    until a background job fills it.
@@ -65,6 +65,16 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    - **Done when:** adding 一下 / 打 / a textbook word returns a reviewable card in < 1 s with pinyin
      and gloss, and the Russian fills in behind it. `backend/scripts/check-capture.ts` asserts the
      card is complete before any LLM call; then add three words in the local app as a learner would.
+   - **Shipped 2026-09-23.** `services/capture.ts`: a Chinese word CC-CEDICT knows is written with
+     pinyin + English at once (single add, bot, Reader batch); one grounded `enrichWordEntry` call
+     upgrades it behind the card — the Russian in the sense of the sentence the word came from, an
+     example built from the learner's own words. No migration: "still the dictionary's English" is
+     derived on read (`dictMeaning`, like the HSK badge), labelled "English · CC-CEDICT" on the card,
+     list, review and Reader, and the pages poll while it fills in. `POST /api/words/:id/enrich` +
+     "Fill this in" on the word page. The spell-check before an add skips the model for a CEDICT
+     word, so nothing on the add path waits on it. The subset now keeps the base of each 儿 word
+     (一下儿 → 一下). Measured in the local app: 0.3–0.8 s to a reviewable card, Russian at ~6 s;
+     `scripts/check-capture.ts` passes with the model down, and with `--live`.
 
 3. **Pick HSK N, get HSK N words — every day.** `[F13 + F16 + F14]` One session, `services/hsk.ts`
    plus the deck step. The fault a real run found: an HSK 4 learner is handed 一下儿, 一些, 七, 三 …
@@ -179,6 +189,11 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
 
 20. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
     Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
+
+21. **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
+    篮球 renders a tappable "了三", so the learner can't tap 了 on its own. The bot already has a
+    CC-CEDICT longest-match segmenter (`segmentHanzi` in `services/botTutor.ts`); the Reader should
+    use the same one. Small, but it sits on the main capture entry — reorder up if it bites.
 
 ## Later — only after the retention test passes
 

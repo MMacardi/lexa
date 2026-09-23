@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
 import { FitText } from "@/components/FitText";
+import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HighlightWord } from "@/components/HighlightWord";
 import { Confetti } from "@/components/Confetti";
@@ -617,16 +618,20 @@ export default function FlashcardsPage() {
         ) : null;
       case "meaning":
         return word.meaningZh ? (
-          primary ? (
-            <FitText
-              text={word.meaningZh}
-              max={36}
-              min={22}
-              className={cn("font-serif font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}
-            />
-          ) : (
-            <div className={cn("break-words text-[22px] font-bold text-sage-deep", targetFont(word.targetLang))}>{word.meaningZh}</div>
-          )
+          <div>
+            {primary ? (
+              <FitText
+                text={word.meaningZh}
+                max={36}
+                min={22}
+                className={cn("font-serif font-bold leading-tight text-sage-deep", targetFont(word.targetLang))}
+              />
+            ) : (
+              <div className={cn("break-words text-[22px] font-bold text-sage-deep", targetFont(word.targetLang))}>{word.meaningZh}</div>
+            )}
+            {/* Instant capture: still the dictionary's English, labelled until the model's meaning lands. */}
+            <DictMeaningLabel word={word} className="mt-1 block" />
+          </div>
         ) : null;
       case "example":
         return word.examples.length ? (

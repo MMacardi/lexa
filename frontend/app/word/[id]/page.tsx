@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn, safeHttpUrl } from "@/lib/utils";
-import { pairLabel } from "@/lib/langs";
+import { isAiSupported, pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
@@ -24,7 +24,8 @@ import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
 import { FOCUS } from "@/lib/focus";
-import { Link as LinkIcon, BookOpen, Lightbulb, Trash2 } from "lucide-react";
+import { DictMeaningLabel, pollWhileUpgrading, upgradePending } from "@/components/DictMeaningLabel";
+import { Link as LinkIcon, BookOpen, Lightbulb, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -80,10 +81,30 @@ export default function WordDetailPage() {
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [filling, setFilling] = useState(false);
   const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
+    // A card made from the dictionary a moment ago: its meaning is on its way.
+    refetchInterval: (q) => pollWhileUpgrading(q.state.data ? [q.state.data] : null),
   });
+
+  // "Fill this in": the recovery for a card whose enrichment failed or was
+  // stopped, so no card stays without a meaning in the learner's language.
+  async function fillIn() {
+    if (!word || filling) return;
+    setFilling(true);
+    try {
+      const fresh = await api.enrichWord(word.id);
+      qc.setQueryData(["word", id], fresh);
+      qc.invalidateQueries({ queryKey: ["words"] });
+      show({ icon: "✨", title: t("capture.filled") });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setFilling(false);
+    }
+  }
 
   async function removeCard() {
     if (!word || deleting) return;
@@ -131,6 +152,8 @@ export default function WordDetailPage() {
     );
 
   const filled = word.reviewCount >= 5 ? 3 : word.reviewCount >= 3 ? 2 : word.reviewCount >= 1 ? 1 : 0;
+  const needsFill =
+    isAiSupported(word.sourceLang) && !upgradePending(word) && (!word.meaningZh?.trim() || Boolean(word.dictMeaning));
 
   return (
     <div className="anim-fade-up space-y-7">
@@ -188,9 +211,23 @@ export default function WordDetailPage() {
           <HskBadge hsk={word.hsk} />
         </div>
         {word.meaningZh && (
-          <p className={cn("text-[22px] font-medium text-sage-deep", targetFont(word.targetLang))}>
+          <p className={cn("text-[22px] font-medium text-sage-deep", targetFont(word.dictMeaning ? "en" : word.targetLang))}>
             {word.meaningZh}
           </p>
+        )}
+        <DictMeaningLabel word={word} className="block" />
+        {needsFill && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={fillIn}
+              disabled={filling}
+              className="inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint px-3 py-1.5 text-xs font-semibold text-sage-deep transition-colors hover:bg-sage-tint/70 disabled:opacity-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {filling ? "…" : t("capture.fill")}
+            </button>
+            <span className="text-xs text-ink-faint">{t("capture.fillHint")}</span>
+          </div>
         )}
         <div className="flex items-center gap-2 pt-1">
           {[0, 1, 2].map((i) => (

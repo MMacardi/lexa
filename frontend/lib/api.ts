@@ -58,6 +58,10 @@ export interface Word {
   // on the server from the official lists; null for words on neither (and for
   // every card that isn't Chinese).
   hsk?: HskTag | null;
+  // The meaning is still CC-CEDICT's English gloss: instant capture made the card
+  // from the dictionary and the model's meaning hasn't replaced it yet. Derived
+  // on the server; the UI labels it (BY-SA wants the source named where shown).
+  dictMeaning?: boolean;
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -717,6 +721,13 @@ export const api = {
   // CC-CEDICT covers); its licence asks for attribution wherever the data shows.
   wordSenses: (id: string) =>
     http<{ senses: WordSense[]; credit?: DictCredit }>(`/api/words/${id}/senses`, { method: "POST" }),
+  // "Fill this in": whatever the card is missing (meaning, details, an example),
+  // for a card whose background enrichment failed or was stopped.
+  enrichWord: (id: string) => http<Word>(`/api/words/${id}/enrich`, { method: "POST" }),
+  // The dictionary's pinyin + English gloss for a Chinese word — no model call,
+  // so the Reader shows it the moment a word is tapped. null outside CC-CEDICT.
+  dictLookup: (word: string) =>
+    http<{ entry: { phonetic: string; gloss: string } | null; credit?: DictCredit }>(`/api/dict?word=${encodeURIComponent(word)}`),
   wordFamily: (id: string) =>
     http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
   explainWord: (id: string) =>

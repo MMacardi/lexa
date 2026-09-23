@@ -15,7 +15,10 @@ import { normalizeHanzi } from "./hsk.js";
  * is never written into our own generated text, and is credited in the app —
  * `cedictCredit()` feeds the line the word page shows. A raw entry is never
  * displayed: it goes into a prompt as the allowed inventory, and what the learner
- * reads is the model's short gloss of the sense it picked.
+ * reads is the model's short gloss of the sense it picked. The one exception is
+ * instant capture (`cedictCard`): a new card's first meaning is a few of the
+ * dictionary's own English glosses, shown labelled and credited, until the
+ * model's meaning in the learner's language replaces it.
  *
  * Shipped as JSONL outside `src/` and read with `fs`, unlike the HSK list: 11k
  * entries as a TypeScript literal would be type-checked on every `tsc` run, and
@@ -107,6 +110,120 @@ export function cedictCredit() {
 export function cedictCoverage() {
   if (!index) build();
   return { words: index!.size, hits, misses };
+}
+
+// --- Instant capture: the card the dictionary can make on its own ---
+
+// Glosses that are not a meaning: cross-references, surnames, variant forms and
+// pronunciation notes. "打 [da2]" is "(loanword) dozen" plus "Taiwan pr. [da3]".
+const NOT_A_MEANING = /^(CL:|surname\b|(old |archaic |erhua )?variant of|erhua form of|see (also )?\S|used in|also written|(Taiwan |also )?pr\. )/i;
+const CLASSIFIER = /^classifier for/i;
+
+// Usage notes make a gloss too long for a card face: drop the "(bound form)" tag
+// and any parenthesis long enough to be an explanation — 一下's first gloss is
+// "(after a verb) a bit; a little (indicating brief duration, or softening …)".
+// Unless that leaves nothing: 个 is one long parenthesis and nothing else.
+function tidyGloss(g: string): string {
+  const short = g.replace(/^\(bound form\) /, "").replace(/\s*\([^()]{25,}\)/g, "").trim();
+  return short || g;
+}
+
+// Readings pinyin-pro gets wrong for a character standing on its own — it gives
+// 了 as liǎo and 只 as zhī, where a learner adding the bare word means le / zhǐ.
+const LEARNER_READING: Record<string, string> = { 了: "le5", 只: "zhi3" };
+
+/**
+ * A few of one reading's glosses, as a card's first meaning: the ones that are
+ * meanings, a classifier sense only when there is nothing else, at most three and
+ * short enough for a flashcard. Pure and deterministic — `isCedictGloss` rebuilds
+ * it to recognise a meaning nobody has replaced yet.
+ */
+function readingGloss(r: CedictReading): string {
+  const usable = r.glosses.filter((g) => !NOT_A_MEANING.test(g)).map(tidyGloss);
+  const plain = usable.filter((g) => !CLASSIFIER.test(g));
+  const pool = plain.length ? plain : usable;
+  const out: string[] = [];
+  for (const g of pool) {
+    if (out.length === 3) break;
+    if (out.length && [...out, g].join("; ").length > 60) break;
+    out.push(g);
+  }
+  return out.join("; ");
+}
+
+// CC-CEDICT's numbered pinyin ("lu:4 se4") in the tone-mark form cards use ("lǜ sè").
+const MARKS: Record<string, string> = { a: "āáǎà", e: "ēéěè", i: "īíǐì", o: "ōóǒò", u: "ūúǔù", ü: "ǖǘǚǜ" };
+function toneMarked(numbered: string): string {
+  return numbered
+    .toLowerCase()
+    .split(" ")
+    .map((syl) => {
+      const m = /^([a-z:]+)([1-5])$/.exec(syl);
+      if (!m) return syl;
+      const body = m[1].replace(/u:|v/g, "ü");
+      const tone = Number(m[2]);
+      if (tone === 5) return body;
+      // a or e takes the mark; in "ou" the o does; otherwise the last vowel.
+      let at = body.search(/[ae]/);
+      if (at < 0) at = body.indexOf("ou");
+      if (at < 0) for (let i = 0; i < body.length; i++) if (MARKS[body[i]]) at = i;
+      if (at < 0) return body;
+      return body.slice(0, at) + MARKS[body[at]][tone - 1] + body.slice(at + 1);
+    })
+    .join(" ");
+}
+
+// pinyin-pro and CC-CEDICT spell the same reading differently (ü vs u:, 0 vs 5).
+const sameReading = (a: string, b: string) => {
+  const norm = (p: string) => p.toLowerCase().replace(/u:|ü/g, "v").replace(/0/g, "5");
+  return norm(a) === norm(b);
+};
+
+export type DictCard = { phonetic: string; gloss: string };
+
+/**
+ * The card the dictionary can make with no model call: pinyin plus a short
+ * English gloss, for the reading the learner most likely means. That reading is
+ * the one pinyin-pro gives the word (it knows 长 is cháng and 着 is zhe, where
+ * "the reading with most senses" would pick zhǎng and zháo), falling back to the
+ * first one that has a real meaning. Null when the word isn't in the subset.
+ * `count: false` for lookups that aren't an add (a Reader tap) — see `hits`.
+ */
+export async function cedictCard(word: string, opts: { count?: boolean } = {}): Promise<DictCard | null> {
+  const entry = opts.count === false ? (idx().get(normalizeHanzi(word)) ?? null) : cedictLookup(word);
+  if (!entry) return null;
+  const { pinyin } = await import("pinyin-pro");
+  const head = entry.word;
+  // Tone sandhi off to match the dictionary (一下 is yi1 xia4 there, yí xià spoken).
+  const expected = LEARNER_READING[head] ?? pinyin(head, { toneType: "num", type: "string", toneSandhi: false });
+  // Capitalised readings are proper nouns ("Huan2" is the surname reading of 还).
+  const common = entry.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase());
+  const matched = common.find((r) => sameReading(r.pinyin, expected) && readingGloss(r));
+  const reading = matched ?? common.find((r) => readingGloss(r)) ?? entry.readings[0];
+  // 一下儿 is only "erhua form of 一下": the meaning is the base form's.
+  if (!readingGloss(reading) && head.length > 1 && head.endsWith("儿")) {
+    const base = await cedictCard(head.slice(0, -1), { count: false });
+    // pinyin-pro reads that 儿 as a syllable ("yí xià ér"); it is the r of yí xiàr.
+    if (base) return { phonetic: `${base.phonetic}r`, gloss: base.gloss };
+  }
+  const gloss = readingGloss(reading) || reading.glosses[0] || "";
+  if (!gloss) return null;
+  // The matched reading keeps pinyin-pro's spoken form (yí xià), as every other card does.
+  const phonetic = matched && !LEARNER_READING[head] ? pinyin(head, { toneType: "symbol", type: "string" }) : toneMarked(reading.pinyin);
+  return { phonetic, gloss };
+}
+
+/**
+ * Is this meaning still the dictionary's English placeholder? Checked against
+ * every reading, so it doesn't depend on which one `cedictCard` picked; a meaning
+ * the learner or the model wrote never matches. Doesn't move the counters.
+ */
+export function isCedictGloss(word: string, meaning: string | null | undefined): boolean {
+  const m = meaning?.trim();
+  if (!m) return false;
+  const head = normalizeHanzi(word);
+  const forms = head.length > 1 && head.endsWith("儿") ? [head, head.slice(0, -1)] : [head];
+  return forms.some((f) => idx().get(f)?.readings.some((r) => (readingGloss(r) || r.glosses[0]) === m));
 }
 
 /** Grounding only applies to Chinese headwords; everything else keeps the old path. */

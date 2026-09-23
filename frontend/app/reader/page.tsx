@@ -117,6 +117,10 @@ export default function ReaderPage() {
   const [glossTr, setGlossTr] = useState<string>(""); // transcription (pinyin/romaji)
   const [glossLoading, setGlossLoading] = useState(false);
   const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
+  // Instant capture: CC-CEDICT's pinyin + English, shown the moment a Chinese word
+  // is tapped while the contextual gloss (a model call) is still on its way.
+  const [glossCedict, setGlossCedict] = useState<{ phonetic: string; gloss: string } | null>(null);
+  const cedictCache = useRef<Map<string, { phonetic: string; gloss: string } | null>>(new Map());
   const glossKeyRef = useRef<string>("");
   const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
   const glossPopRef = useRef<HTMLDivElement | null>(null); // popup box, to ignore taps inside it
@@ -131,7 +135,7 @@ export default function ReaderPage() {
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
-  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; sentence: string; x: number; y: number } | null>(null);
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; dictMeaning?: boolean; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [knownClosing, setKnownClosing] = useState(false);
@@ -526,7 +530,8 @@ export default function ReaderPage() {
   }
 
   // Show a quick translation of a single word, anchored under the tapped token.
-  function openGloss(key: string, wordText: string, el: HTMLElement) {
+  // `sentence` is the one the token sits in, so the gloss is the sense used there.
+  function openGloss(key: string, wordText: string, el: HTMLElement, sentence: string) {
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     setGlossClosing(false);
     const rect = el.getBoundingClientRect();
@@ -534,6 +539,20 @@ export default function ReaderPage() {
     setGloss({ key, word: wordText, x, y: rect.bottom });
     glossKeyRef.current = key;
     glossElRef.current = el;
+    // The dictionary answers at once, with no model call; the gloss in the
+    // learner's language follows below it.
+    setGlossCedict(cedictCache.current.get(wordText) ?? null);
+    if ((sourceLang === "zh" || sourceLang === "zh-Hant") && !cedictCache.current.has(wordText)) {
+      api
+        .dictLookup(wordText)
+        .then((r) => {
+          cedictCache.current.set(wordText, r.entry);
+          if (glossKeyRef.current === key) setGlossCedict(r.entry);
+        })
+        .catch(() => {
+          /* the contextual gloss still comes */
+        });
+    }
     // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
     // the cross-session cache, inflight dedupe, local zh/ko transcription and the
     // gloss request — so the Reader no longer carries its own copy of it.
@@ -547,7 +566,7 @@ export default function ReaderPage() {
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
-    resolveMeaning({ word: wordText, sentence: wordText, sourceLang, targetLang })
+    resolveMeaning({ word: wordText, sentence, sourceLang, targetLang })
       .then((r) => {
         const entry = { gloss: r.meaning, tr: r.transcription };
         glossCache.current.set(key, entry);
@@ -693,6 +712,7 @@ export default function ReaderPage() {
       wordId,
       word: wordText,
       meaning: w?.meaningZh ?? null,
+      dictMeaning: w?.dictMeaning,
       sentence: sentenceAround(index),
       x,
       y: rect.bottom,
@@ -1220,7 +1240,7 @@ export default function ReaderPage() {
               const wasSelected = selected.has(key);
               toggle(key);
               if (wasSelected) setGloss(null); // deselecting → hide gloss
-              else if (autoGloss) openGloss(key, tk.text, el); // selecting → quick translation (opt-in)
+              else if (autoGloss) openGloss(key, tk.text, el, sentenceAround(i)); // selecting → quick translation (opt-in)
             };
             return (
               <span
@@ -1306,8 +1326,16 @@ export default function ReaderPage() {
                 <span className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</span>
                 <SpeakButton text={gloss.word} lang={sourceLang} size="sm" />
               </div>
-              {!glossLoading && glossTr && (
-                <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">{glossTr}</div>
+              {(glossTr && !glossLoading) || glossCedict ? (
+                <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">
+                  {(!glossLoading && glossTr) || glossCedict?.phonetic}
+                </div>
+              ) : null}
+              {glossCedict && (
+                <div className="mt-0.5 select-text text-[12px] text-ink-soft">
+                  {glossCedict.gloss}
+                  <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+                </div>
               )}
               <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>
                 {glossLoading ? t("reader.translating") : glossText}
@@ -1333,7 +1361,12 @@ export default function ReaderPage() {
                 <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
               </div>
               {knownPop.meaning && (
-                <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>{knownPop.meaning}</div>
+                <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>
+                  {knownPop.meaning}
+                  {knownPop.dictMeaning && (
+                    <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+                  )}
+                </div>
               )}
               <div className="mt-2.5 flex flex-col gap-1.5">
                 <button

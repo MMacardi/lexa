@@ -13,6 +13,7 @@ import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
 import { cedictInventory, isChinese } from "./cedict.js";
+import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -85,6 +86,48 @@ export async function addWordForUser(params: {
   const withExample = params.exampleStyle !== "none";
   const count = Math.max(1, Math.min(2, Math.round(params.exampleCount ?? 1)));
   const notes = params.notes?.trim() || null;
+
+  // Instant capture: a Chinese word the dictionary knows is a card the moment
+  // this returns, and the model's part lands behind it (services/capture.ts).
+  // Web-mined examples keep the slow path — the search is the point of them.
+  const dict = useWeb ? null : await dictCardFields(params.word, sourceLang);
+  if (dict) {
+    const created = await prisma.word.create({
+      data: {
+        userId: user.id,
+        word: params.word.trim().toLowerCase(),
+        sourceLang,
+        targetLang,
+        phonetic: dict.phonetic,
+        meaningZh: dict.meaningZh,
+        collocations: [],
+        synonyms: [],
+        antonyms: [],
+        notes,
+      },
+      select: { id: true },
+    });
+    const upgrade = { level: params.level, exampleStyle: params.exampleStyle };
+    void upgradeCard(created.id, {
+      ...upgrade,
+      synonymLevel: params.synonymLevel,
+      withExample,
+      meaningInstruction: params.meaningPrompt,
+      sense: params.sense,
+    })
+      .then(async () => {
+        for (let i = 1; withExample && i < count; i++) await addExampleToWord(created.id, { ...upgrade, exampleSource: params.exampleSource });
+      })
+      // The card already stands on the dictionary; the word page offers "fill this in".
+      .catch((err) => console.error(`[capture] upgrade failed for ${params.word}`, err));
+    track("word_add", { telegramId: params.telegramId, props: { mode: "ai", dict: true } });
+    return withDerived(
+      await prisma.word.findUniqueOrThrow({
+        where: { id: created.id },
+        include: { examples: { orderBy: { createdAt: "desc" } }, collections: { select: { id: true, name: true } } },
+      }),
+    );
+  }
 
   let wordId: string;
 
@@ -247,10 +290,12 @@ export async function addWordManual(params: {
  * The HSK level(s) this card sits at, as a field the client can render as a
  * badge. Derived on read rather than stored: it is a pure function of the
  * headword, so a card never goes stale when the lists are regenerated, and
- * nothing needs backfilling. Only Chinese cards can carry it.
+ * nothing needs backfilling. Only Chinese cards can carry it. `dictMeaning` is
+ * derived the same way: the meaning is still CC-CEDICT's English, waiting for
+ * the model's (services/capture.ts) — the client labels it.
  */
-function withHskTag<T extends { word: string; sourceLang: string }>(w: T) {
-  return { ...w, hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null };
+function withDerived<T extends { word: string; sourceLang: string; meaningZh: string | null }>(w: T) {
+  return { ...w, hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null, dictMeaning: hasDictMeaning(w) };
 }
 
 export async function listWordsForUser(telegramId: string) {
@@ -264,7 +309,7 @@ export async function listWordsForUser(telegramId: string) {
       collections: { select: { id: true, name: true } },
     },
   });
-  return words.map(withHskTag);
+  return words.map(withDerived);
 }
 
 /** A single word by id, with its examples. */
@@ -276,7 +321,7 @@ export async function getWord(id: string) {
       collections: { select: { id: true, name: true } },
     },
   });
-  return word ? withHskTag(word) : null;
+  return word ? withDerived(word) : null;
 }
 
 /** Append a ready-made example (e.g. one the tutor produced in chat) to a card. */

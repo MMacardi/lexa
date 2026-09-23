@@ -97,11 +97,14 @@ function cardBack(word: {
   phonetic: string | null;
   partOfSpeech: string | null;
   meaningZh: string | null;
+  dictMeaning?: boolean;
   examples: { sentenceEn: string; sentenceZh: string }[];
 }): string {
   const bits = [word.phonetic, word.partOfSpeech].filter(Boolean).map((b) => esc(String(b)));
   const lines = [`🃏 <b>${esc(word.word)}</b>${bits.length ? " " + bits.join(" · ") : ""}`];
-  if (word.meaningZh) lines.push(esc(word.meaningZh));
+  // Instant capture: until the model's meaning lands, this is CC-CEDICT's English,
+  // and BY-SA wants the source named where the text is shown.
+  if (word.meaningZh) lines.push(esc(word.meaningZh) + (word.dictMeaning ? " <i>(англ., CC-CEDICT)</i>" : ""));
   const ex = word.examples[0];
   if (ex) {
     lines.push("");

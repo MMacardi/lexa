@@ -1820,6 +1820,20 @@ const DICT: Record<string, Entry> = {
   "word.back": { en: "← My words", ru: "← Мои слова", zh: "← 我的单词" },
   "word.share": { en: "↗ Share", ru: "↗ Поделиться", zh: "↗ 分享" },
   "word.edit": { en: "✎ Edit", ru: "✎ Изменить", zh: "✎ 编辑" },
+  // Instant capture: a new card's first meaning is the dictionary's English.
+  "capture.dictLabel": { en: "English · CC-CEDICT", ru: "англ. · CC-CEDICT", zh: "英文 · CC-CEDICT" },
+  "capture.filling": {
+    en: "Writing the meaning in your language…",
+    ru: "Пишем значение на вашем языке…",
+    zh: "正在用你的语言写释义…",
+  },
+  "capture.fill": { en: "Fill this in", ru: "Дополнить", zh: "补全" },
+  "capture.fillHint": {
+    en: "The meaning or example didn't arrive — ask for it again.",
+    ru: "Значение или пример не пришли — запросите ещё раз.",
+    zh: "释义或例句没有生成——再请求一次。",
+  },
+  "capture.filled": { en: "Card filled in", ru: "Карточка дополнена", zh: "卡片已补全" },
   "word.delete": { en: "Delete", ru: "Удалить", zh: "删除" },
   "word.addExampleBtn": { en: "Add example", ru: "Добавить пример", zh: "添加例句" },
   "word.aiExample": { en: "AI example", ru: "Пример от ИИ", zh: "AI 例句" },

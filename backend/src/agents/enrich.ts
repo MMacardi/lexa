@@ -55,6 +55,8 @@ export async function enrichWordEntry(params: {
   meaningInstruction?: string; // learner override; falls back to the concise default
   avoid?: string[]; // existing examples to differ from (for "add another")
   sense?: string; // target-language word the learner typed to reach this one (add-by-translation)
+  context?: string; // the sentence the learner met the word in (Reader): the meaning is that sentence's sense
+  knownWords?: string[]; // the learner's own words: the example is built from these
   ground?: boolean; // default true; scripts/eval-senses.ts turns it off for its control arm
 }): Promise<EnrichResult> {
   const word = params.word.trim();
@@ -90,6 +92,22 @@ export async function enrichWordEntry(params: {
 
   const inSense = sense ? ` in the sense "${sense}" (the translation must say "${sense}" or a form of it)` : "";
 
+  // Captured from a text: the card is for the sense the word has THERE, which is
+  // the one thing a dictionary lookup can't tell. A typed sense still wins.
+  const context = sense ? "" : params.context?.trim().slice(0, 300) ?? "";
+  const contextLine = context
+    ? `The learner met this word in the sentence "${context}". "meaningZh" MUST give the sense "${word}" has in that sentence, ` +
+      `even when it is not the word's most common one. `
+    : "";
+
+  // An example made of words the learner already has is one they can read
+  // without looking anything else up — the new word is the only unknown in it.
+  const known = (params.knownWords ?? []).map((w) => w.trim()).filter((w) => w && w !== word).slice(0, 40);
+  const knownLine = known.length
+    ? `Build the example mostly from words the learner already knows: ${known.join(", ")}. ` +
+      `Any other word in it must be simpler and more common than "${word}". `
+    : "";
+
   // Chinese headwords are grounded in CC-CEDICT: the dictionary states which
   // senses exist and the model picks one of them. This is the add-by-translation
   // bug's home — «включить» returned 打开 glossed only as "открыть", while the
@@ -106,7 +124,9 @@ export async function enrichWordEntry(params: {
       (targetLang === "en" ? "" : `and never leave an English word in the gloss. `) +
       (sense
         ? `Pick the listed sense that "${sense}" corresponds to; if none of them does, use the first listed sense instead of inventing one. `
-        : `Pick the first listed sense that is not a classifier, a surname or a cross-reference. `) +
+        : context
+          ? `Pick the listed sense the word has in the learner's sentence. `
+          : `Pick the first listed sense that is not a classifier, a surname or a cross-reference. `) +
       `"collocations" must use the word in the sense you picked. `
     : "";
 
@@ -117,12 +137,14 @@ export async function enrichWordEntry(params: {
         `line prefixed with "— ", making the word's meaning clear from the situation; ` +
         `"exampleTranslation": that dialogue translated to ${targetName} (keep the line breaks). ` +
         avoidLine +
-        levelLine
+        levelLine +
+        knownLine
       : `"example": ONE natural, correct ${sourceName} sentence (about 8-14 words, a ${register} tone) that ` +
         `uses "${word}"${inSense} in a concrete context so its meaning is clear on its own — never a bare "It's small."; ` +
         `"exampleTranslation": that sentence translated to ${targetName}. ` +
         avoidLine +
-        levelLine;
+        levelLine +
+        knownLine;
 
   const result = await chatJson({
     system:
@@ -137,6 +159,7 @@ export async function enrichWordEntry(params: {
       `inventing loose ones. ` +
       groundingLine +
       senseLine +
+      contextLine +
       examplePart +
       scriptNote(sourceLang) +
       scriptNote(targetLang) +

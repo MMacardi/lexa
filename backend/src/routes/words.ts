@@ -22,7 +22,8 @@ import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskCheckWords, hskGapWords, readinessForUser } from "../services/hsk.js";
-import { cedictCredit } from "../services/cedict.js";
+import { cedictCard, cedictCredit } from "../services/cedict.js";
+import { upgradeCard } from "../services/capture.js";
 import {
   addWordForUser,
   addWordManual,
@@ -66,7 +67,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family)$/;
+  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -710,6 +711,22 @@ wordsRouter.post("/words/:id/example/manual", async (req, res) => {
   }
 });
 
+// POST /api/words/:id/enrich -> "fill this in": whatever the card is missing — the
+// meaning when it is empty or still the dictionary's English, the details, an
+// example if it has none. The recovery for an upgrade that failed or a job the
+// learner stopped, so no card stays dead. Rate-limited, but not charged to the
+// daily pool: the add that made the card already was.
+wordsRouter.post("/words/:id/enrich", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  try {
+    await upgradeCard(req.params.id);
+    res.json(await getWord(req.params.id));
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
 // POST /api/words/:id/explain -> on-demand AI explanation (nuance, usage, etc.)
 wordsRouter.post("/words/:id/explain", async (req, res) => {
   if (!(await guardWord(req, res))) return;
@@ -879,6 +896,16 @@ wordsRouter.post("/gloss", async (req, res) => {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
   }
+});
+
+// GET /api/dict?word= -> the dictionary's pinyin + English gloss for a Chinese word,
+// with no model call: what a Reader tap shows at once while the contextual gloss
+// is on its way. `entry` is null outside the CC-CEDICT subset; `credit` rides
+// along whenever the data is shown (BY-SA).
+wordsRouter.get("/dict", async (req, res) => {
+  const word = String(req.query.word ?? "").trim().slice(0, 40);
+  const card = word ? await cedictCard(word, { count: false }) : null;
+  res.json({ entry: card, ...(card ? { credit: cedictCredit() } : {}) });
 });
 
 // POST /api/languages/check -> is this learner-typed custom language a real one?

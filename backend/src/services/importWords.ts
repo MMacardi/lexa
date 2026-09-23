@@ -3,6 +3,7 @@ import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
+import { dictCardFields } from "./capture.js";
 
 const MAX_CARDS = 100;
 
@@ -126,6 +127,10 @@ export async function importWordsForUser(params: {
 
   for (const item of normalized) {
     if (existingWords.has(item.word)) continue;
+    // Instant capture: a Chinese word with no meaning of its own (a Reader tap) is
+    // written with the dictionary's pinyin and gloss, so it is reviewable now and
+    // the queued enrichment upgrades it rather than filling a blank.
+    const dict = item.meaning ? null : await dictCardFields(item.word, params.sourceLang);
     try {
       const record = await prisma.word.create({
         data: {
@@ -133,7 +138,8 @@ export async function importWordsForUser(params: {
           word: item.word,
           sourceLang: params.sourceLang,
           targetLang: params.targetLang,
-          meaningZh: item.meaning,
+          phonetic: dict?.phonetic ?? null,
+          meaningZh: dict?.meaningZh ?? item.meaning,
           synonyms: params.keepProvidedExtras ? item.synonyms : [],
           collocations: [],
           antonyms: [],

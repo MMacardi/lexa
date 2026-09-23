@@ -5,6 +5,8 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
 import { runAsUser } from "../lib/usageContext.js";
+import { upgradeCard } from "./capture.js";
+import { isChinese } from "./cedict.js";
 
 const queuedCardsSchema = z.array(z.object({ id: z.string(), word: z.string() }));
 const LEASE_MS = 5 * 60_000;
@@ -101,7 +103,18 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
         let failed = false;
         try {
           const wantAiExample = job.generateExamples && job.exampleSource !== "web";
-          if (job.generateDetails && wantAiExample) {
+          if (job.generateDetails && isChinese(word.sourceLang) && job.exampleSource !== "web") {
+            // Chinese: the card already stands on the dictionary (instant capture).
+            // One grounded call upgrades it — the meaning in the learner's language,
+            // in the sense its Reader sentence uses — and a provided sentence still
+            // gets its translation.
+            await upgradeCard(word.id, {
+              withExample: wantAiExample,
+              level: job.level ?? undefined,
+              exampleStyle: job.exampleStyle ?? undefined,
+            });
+            if (!job.generateExamples) await translateProvidedExample(word);
+          } else if (job.generateDetails && wantAiExample) {
             // Common case (full AI enrich, no provided example) → ONE combined call
             // for the dictionary entry + example + translation, instead of three.
             const entry = await enrichWordEntry({
@@ -161,21 +174,7 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
               exampleSource: job.exampleSource ?? undefined,
             });
           } else {
-            // A provided example (e.g. from the Reader) may have no translation yet —
-            // fill it in so the card's back shows both lines.
-            const ex = await prisma.example.findFirst({
-              where: { wordId: word.id },
-              orderBy: { createdAt: "desc" },
-              select: { id: true, sentenceEn: true, sentenceZh: true },
-            });
-            if (ex?.sentenceEn && !ex.sentenceZh.trim()) {
-              const { translation } = await translateText({
-                text: ex.sentenceEn,
-                sourceLang: word.sourceLang,
-                targetLang: word.targetLang,
-              });
-              await prisma.example.update({ where: { id: ex.id }, data: { sentenceZh: translation } });
-            }
+            await translateProvidedExample(word);
           }
           }
         } catch (error) {
@@ -221,6 +220,26 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
       where: { id: job.id, status: "processing" },
       data: { status: "failed", errorMessage: (error as Error).message, completedAt: new Date(), leaseUntil: null },
     });
+  }
+}
+
+/**
+ * A provided example (e.g. from the Reader) may have no translation yet — fill
+ * it in so the card's back shows both lines.
+ */
+async function translateProvidedExample(word: { id: string; sourceLang: string; targetLang: string }) {
+  const ex = await prisma.example.findFirst({
+    where: { wordId: word.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, sentenceEn: true, sentenceZh: true },
+  });
+  if (ex?.sentenceEn && !ex.sentenceZh.trim()) {
+    const { translation } = await translateText({
+      text: ex.sentenceEn,
+      sourceLang: word.sourceLang,
+      targetLang: word.targetLang,
+    });
+    await prisma.example.update({ where: { id: ex.id }, data: { sentenceZh: translation } });
   }
 }
 

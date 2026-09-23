@@ -1,10 +1,12 @@
-{"_meta":{"source":"CC-CEDICT","url":"https://www.mdbg.net/chinese/dictionary?page=cc-cedict","license":"CC BY-SA 4.0","licenseUrl":"https://creativecommons.org/licenses/by-sa/4.0/","release":"2026-09-23T05:36:01Z","subset":"HSK 2.0 + 3.0 headwords","words":11441,"entries":12374,"generatedBy":"scripts/build-cedict.mjs"}}
+{"_meta":{"source":"CC-CEDICT","url":"https://www.mdbg.net/chinese/dictionary?page=cc-cedict","license":"CC BY-SA 4.0","licenseUrl":"https://creativecommons.org/licenses/by-sa/4.0/","release":"2026-09-23T05:36:01Z","subset":"HSK 2.0 + 3.0 headwords","words":11482,"entries":12417,"generatedBy":"scripts/build-cedict.mjs"}}
 {"s":"一","r":[{"p":"yi1","g":["one","single","a (article)","as soon as","entire; whole; all; throughout","\"one\" radical in Chinese characters (Kangxi radical 1)","also pr. [yao1] for greater clarity when spelling out numbers digit by digit"]}]}
 {"s":"一一","r":[{"p":"yi1 yi1","g":["one by one; one after another"]}]}
+{"s":"一下","r":[{"p":"yi1 xia4","g":["(after a verb) a bit; a little (indicating brief duration, or softening the tone, or suggesting giving sth a try)","all at once; suddenly"]}]}
 {"s":"一下儿","r":[{"p":"yi1 xia4 r5","g":["erhua form of 一下"]}],"t":"一下兒"}
 {"s":"一下子","r":[{"p":"yi1 xia4 zi5","g":["once; one time","(following a verb) for a moment; briefly","for a little while; in no time; almost immediately","all at once; all of a sudden"]}]}
 {"s":"一不小心","r":[{"p":"yi1 bu4 xiao3 xin1","g":["to be a little bit careless; to have a moment of inattentiveness; accidentally"]}]}
 {"s":"一丝不苟","r":[{"p":"yi1 si1 bu4 gou3","g":["not one thread loose (idiom); strictly according to the rules","meticulous","not one hair out of place"]}],"t":"一絲不苟"}
+{"s":"一个劲","r":[{"p":"yi1 ge4 jin4","g":["continuously","persistently","incessantly"]}],"t":"一個勁"}
 {"s":"一个劲儿","r":[{"p":"yi1 ge4 jin4 r5","g":["erhua variant of 一个劲"]}],"t":"一個勁兒"}
 {"s":"一举","r":[{"p":"yi1 ju3","g":["a move","an action","in one move","at a stroke","in one go"]}],"t":"一舉"}
 {"s":"一举一动","r":[{"p":"yi1 ju3 yi1 dong4","g":["(idiom) every movement; each and every move"]}],"t":"一舉一動"}
@@ -12,6 +14,7 @@
 {"s":"一事无成","r":[{"p":"yi1 shi4 wu2 cheng2","g":["(idiom) to have achieved nothing; to be a total failure; to get nowhere"]}],"t":"一事無成"}
 {"s":"一些","r":[{"p":"yi1 xie1","g":["some; a few; a little; (following an adjective) slightly ...er"]}]}
 {"s":"一代","r":[{"p":"yi1 dai4","g":["an era; an age; a generation"]}]}
+{"s":"一会","r":[{"p":"yi1 hui4","g":["a moment","a while","in a moment","also pr. [yi1 hui3]"]}],"t":"一會"}
 {"s":"一会儿","r":[{"p":"yi1 hui4 r5","g":["a moment","a while","in a moment","now...now...","also pr. [yi1 hui3 r5]"]}],"t":"一會兒"}
 {"s":"一体","r":[{"p":"yi1 ti3","g":["an integral whole","all concerned","everybody"]}],"t":"一體"}
 {"s":"一共","r":[{"p":"yi1 gong4","g":["in total; altogether"]}]}
@@ -27,6 +30,7 @@
 {"s":"一向","r":[{"p":"yi1 xiang4","g":["a period of time in the recent past","(indicating a period of time up to the present) all along; the whole time"]}]}
 {"s":"一味","r":[{"p":"yi1 wei4","g":["persistently; stubbornly; blindly"]}]}
 {"s":"一回事","r":[{"p":"yi1 hui2 shi4","g":["one and the same (thing)","one thing (as distinct from another)"]}]}
+{"s":"一块","r":[{"p":"yi1 kuai4","g":["a piece; a chunk","(fig.) (coll.) (typically preceded by a specifier such as 这) aspect; area; dimension (Example: 情感这一块 \"the emotional aspect (of it)\")","(coll.) one yuan; a dollar","together; in the same place; in company"]}],"t":"一塊"}
 {"s":"一块儿","r":[{"p":"yi1 kuai4 r5","g":["erhua variant of 一块"]}],"t":"一塊兒"}
 {"s":"一塌糊涂","r":[{"p":"yi1 ta1 hu2 tu5","g":["muddled and completely collapsing (idiom); in an awful condition","complete shambles","a total mess"]}],"t":"一塌糊塗"}
 {"s":"一声不吭","r":[{"p":"yi1 sheng1 bu4 keng1","g":["to not say a word"]}],"t":"一聲不吭"}
@@ -65,6 +69,7 @@
 {"s":"一次性","r":[{"p":"yi1 ci4 xing4","g":["one-off (offer)","one-time","single-use","disposable (goods)"]}]}
 {"s":"一毛不拔","r":[{"p":"yi1 mao2 bu4 ba2","g":["(lit.) unwilling to spare a single hair (idiom)","(fig.) extremely stingy"]}]}
 {"s":"一流","r":[{"p":"yi1 liu2","g":["top quality","front ranking"]}]}
+{"s":"一点","r":[{"p":"yi1 dian3","g":["a bit; a little bit","(used in negative expressions) (not) the least bit","(after an adjective, used to form the comparative) a bit more, -er","a point (in a discussion etc)","(calligraphy) dot stroke (、)","one o'clock (abbr. for 一点钟)"]}],"t":"一點"}
 {"s":"一点儿","r":[{"p":"yi1 dian3 r5","g":["erhua variant of 一点"]}],"t":"一點兒"}
 {"s":"一点点","r":[{"p":"yi1 dian3 dian3","g":["a little bit"]}],"t":"一點點"}
 {"s":"一生","r":[{"p":"yi1 sheng1","g":["all one's life; throughout one's life"]}]}
@@ -204,6 +209,7 @@
 {"s":"下雪","r":[{"p":"xia4 xue3","g":["to snow"]}]}
 {"s":"下面","r":[{"p":"xia4 mian4","g":["below","under","next","the following","also pr. [xia4 mian5]","to boil noodles"]}],"t":"下麵"}
 {"s":"不","r":[{"p":"bu4","g":["no; not so","(bound form) not; un-"]}]}
+{"s":"不一会","r":[{"p":"bu4 yi1 hui4","g":["soon"]}],"t":"不一會"}
 {"s":"不一定","r":[{"p":"bu4 yi1 ding4","g":["not necessarily","maybe"]}]}
 {"s":"不为人知","r":[{"p":"bu4 wei2 ren2 zhi1","g":["not known to anyone","secret","unknown"]}],"t":"不為人知"}
 {"s":"不久","r":[{"p":"bu4 jiu3","g":["not long (after)","before too long","soon","soon after"]}]}
@@ -401,6 +407,7 @@
 {"s":"个体","r":[{"p":"ge4 ti3","g":["an individual","self-employed individual; small business operator (abbr. for 个体户)"]}],"t":"個體"}
 {"s":"个儿","r":[{"p":"ge4 r5","g":["size","height","stature"]}],"t":"個兒"}
 {"s":"个别","r":[{"p":"ge4 bie2","g":["individually; one by one","just one or two; exceptional; rare"]}],"t":"個別"}
+{"s":"个头","r":[{"p":"ge4 tou2","g":["size","height"]},{"p":"ge5 tou2","g":["(coll.) my ass!; yeah, right! (used to mock a claim sb just made, as in 专家个头 \"expert\", my ass!)"]}],"t":"個頭"}
 {"s":"个头儿","r":[{"p":"ge4 tou2 r5","g":["size","height","stature"]}],"t":"個頭兒"}
 {"s":"个子","r":[{"p":"ge4 zi5","g":["stature; height; size (of a person or object)","(agriculture) bundle of cereal stalks tied together"]}],"t":"個子"}
 {"s":"个性","r":[{"p":"ge4 xing4","g":["individuality","personality"]}],"t":"個性"}
@@ -738,6 +745,7 @@
 {"s":"人物","r":[{"p":"ren2 wu4","g":["person; personage; figure (esp. sb of importance)","character (in a play, novel etc)","(genre of traditional Chinese painting) figure painting"]}]}
 {"s":"人生","r":[{"p":"ren2 sheng1","g":["life (one's time on earth)"]}]}
 {"s":"人类","r":[{"p":"ren2 lei4","g":["humanity","human race","mankind"]}],"t":"人類"}
+{"s":"人缘","r":[{"p":"ren2 yuan2","g":["the quality of one's relationships with other people (e.g. 人缘好 \"to be well liked\")"]}],"t":"人緣"}
 {"s":"人缘儿","r":[{"p":"ren2 yuan2 r5","g":["erhua form of 人缘"]}],"t":"人緣兒"}
 {"s":"人群","r":[{"p":"ren2 qun2","g":["crowd"]}]}
 {"s":"人行道","r":[{"p":"ren2 xing2 dao4","g":["sidewalk"]}]}
@@ -1538,6 +1546,7 @@
 {"s":"冬季","r":[{"p":"dong1 ji4","g":["winter"]}]}
 {"s":"冰","r":[{"p":"bing1","g":["ice","to chill sth","(of an object or substance) to feel cold","(of a person) cold","unfriendly","(slang) methamphetamine"]}]}
 {"s":"冰山","r":[{"p":"bing1 shan1","g":["iceberg","ice-covered mountain","(fig.) a backer one cannot rely on for long"]}]}
+{"s":"冰棍","r":[{"p":"bing1 gun4","g":["popsicle","ice lolly"]}]}
 {"s":"冰棍儿","r":[{"p":"bing1 gun4 r5","g":["ice lolly","popsicle"]}],"t":"冰棍兒"}
 {"s":"冰箱","r":[{"p":"bing1 xiang1","g":["refrigerator","(old) icebox"]}]}
 {"s":"冰雪","r":[{"p":"bing1 xue3","g":["ice and snow"]}]}
@@ -2681,6 +2690,7 @@
 {"s":"周末","r":[{"p":"zhou1 mo4","g":["weekend"]}],"t":"週末"}
 {"s":"周转","r":[{"p":"zhou1 zhuan3","g":["to rotate","to circulate (cash, stock etc)","turnover","circulation","cash flow"]}],"t":"周轉"}
 {"s":"周边","r":[{"p":"zhou1 bian1","g":["periphery; rim; perimeter; surroundings","(computing) (attributive) peripheral","merch (abbr. for 周边商品)"]}],"t":"周邊"}
+{"s":"味","r":[{"p":"wei4","g":["taste","smell","(fig.) (noun suffix) feel","quality","sense","(TCM) classifier for ingredients of a medicine prescription"]}]}
 {"s":"味儿","r":[{"p":"wei4 r5","g":["taste"]}],"t":"味兒"}
 {"s":"味精","r":[{"p":"wei4 jing1","g":["monosodium glutamate (MSG)"]}]}
 {"s":"味道","r":[{"p":"wei4 dao5","g":["flavor; taste","(fig.) feeling (of ...); sense (of ...); hint (of ...)","(fig.) interest; delight","(dialect) smell; odor"]}]}
@@ -3257,6 +3267,7 @@
 {"s":"大于","r":[{"p":"da4 yu2","g":["greater than; bigger than; more than"]}],"t":"大於"}
 {"s":"大人","r":[{"p":"da4 ren5","g":["adult","grownup","title of respect toward superiors"]}]}
 {"s":"大众","r":[{"p":"Da4 zhong4","g":["Volkswagen (automobile manufacturer)"]},{"p":"da4 zhong4","g":["the masses","the great bulk of the population","popular (of music, science etc)"]}],"t":"大眾"}
+{"s":"大伙","r":[{"p":"da4 huo3","g":["everyone; all of us; all of you"]}],"t":"大夥"}
 {"s":"大伙儿","r":[{"p":"da4 huo3 r5","g":["erhua variant of 大伙"]}],"t":"大伙兒"}
 {"s":"大会","r":[{"p":"da4 hui4","g":["general assembly","general meeting","convention"]}],"t":"大會"}
 {"s":"大体","r":[{"p":"da4 ti3","g":["in general; more or less; in rough terms; basically; on the whole","overall situation; the big picture","cadaver for dissection in training medical students"]}],"t":"大體"}
@@ -3316,6 +3327,7 @@
 {"s":"大肆","r":[{"p":"da4 si4","g":["wantonly","without restraint (of enemy or malefactor)","unbridled"]}]}
 {"s":"大胆","r":[{"p":"da4 dan3","g":["brazen","audacious","outrageous","bold","daring","fearless"]}],"t":"大膽"}
 {"s":"大脑","r":[{"p":"da4 nao3","g":["brain","cerebrum"]}],"t":"大腦"}
+{"s":"大腕","r":[{"p":"da4 wan4","g":["(coll.) big shot; big name; bigwig; heavyweight"]}]}
 {"s":"大腕儿","r":[{"p":"da4 wan4 r5","g":["erhua variant of 大腕"]}],"t":"大腕兒"}
 {"s":"大臣","r":[{"p":"da4 chen2","g":["chancellor (of a monarchy)","cabinet minister"]}]}
 {"s":"大自然","r":[{"p":"da4 zi4 ran2","g":["nature (the natural world)"]}]}
@@ -3452,6 +3464,7 @@
 {"s":"女士","r":[{"p":"nu:3 shi4","g":["lady","madam","Miss","Ms"]}]}
 {"s":"女婿","r":[{"p":"nu:3 xu5","g":["daughter's husband; son-in-law"]}]}
 {"s":"女子","r":[{"p":"nu:3 zi3","g":["woman","female"]}]}
+{"s":"女孩","r":[{"p":"nu:3 hai2","g":["girl; lass"]}]}
 {"s":"女孩儿","r":[{"p":"nu:3 hai2 r5","g":["erhua form of 女孩"]}],"t":"女孩兒"}
 {"s":"女性","r":[{"p":"nu:3 xing4","g":["woman","the female sex"]}]}
 {"s":"女朋友","r":[{"p":"nu:3 peng2 you5","g":["girlfriend"]}]}
@@ -3492,6 +3505,7 @@
 {"s":"好感","r":[{"p":"hao3 gan3","g":["good opinion","favorable impression"]}]}
 {"s":"好歹","r":[{"p":"hao3 dai3","g":["good and bad","most unfortunate occurrence","in any case","whatever"]}]}
 {"s":"好比","r":[{"p":"hao3 bi3","g":["to be just like; can be compared to"]}]}
+{"s":"好玩","r":[{"p":"hao3 wan2","g":["amusing","fun","interesting"]},{"p":"hao4 wan2","g":["to be playful","to be fond of one's fun"]}]}
 {"s":"好玩儿","r":[{"p":"hao3 wan2 r5","g":["erhua variant of 好玩"]}],"t":"好玩兒"}
 {"s":"好看","r":[{"p":"hao3 kan4","g":["good-looking; nice-looking","(of a movie, book, TV show etc) good","in an embarrassing situation"]}]}
 {"s":"好笑","r":[{"p":"hao3 xiao4","g":["laughable; funny; ridiculous"]}]}
@@ -3564,6 +3578,7 @@
 {"s":"婚姻","r":[{"p":"hun1 yin1","g":["marriage; matrimony"]}]}
 {"s":"婚礼","r":[{"p":"hun1 li3","g":["wedding ceremony","wedding"]}],"t":"婚禮"}
 {"s":"婚纱","r":[{"p":"hun1 sha1","g":["wedding dress"]}],"t":"婚紗"}
+{"s":"婴","r":[{"p":"ying1","g":["infant","baby"]}],"t":"嬰"}
 {"s":"婴儿","r":[{"p":"ying1 er2","g":["infant","baby","lead (Pb)"]}],"t":"嬰兒"}
 {"s":"媒介","r":[{"p":"mei2 jie4","g":["intermediary","vehicle","vector","medium","media"]}]}
 {"s":"媒体","r":[{"p":"mei2 ti3","g":["media, esp. news media"]}],"t":"媒體"}
@@ -3608,6 +3623,7 @@
 {"s":"季军","r":[{"p":"ji4 jun1","g":["third in a race","bronze medalist"]}],"t":"季軍"}
 {"s":"季度","r":[{"p":"ji4 du4","g":["quarter of a year","season (sports)"]}]}
 {"s":"季节","r":[{"p":"ji4 jie2","g":["time","season","period"]}],"t":"季節"}
+{"s":"孤","r":[{"p":"gu1","g":["lone","lonely"]}]}
 {"s":"孤儿","r":[{"p":"gu1 er2","g":["orphan"]}],"t":"孤兒"}
 {"s":"孤单","r":[{"p":"gu1 dan1","g":["lone","lonely","loneliness"]}],"t":"孤單"}
 {"s":"孤独","r":[{"p":"gu1 du2","g":["lonely","solitary"]}],"t":"孤獨"}
@@ -3925,6 +3941,7 @@
 {"s":"小姐","r":[{"p":"xiao3 jie5","g":["young lady","miss","(slang) prostitute"]}]}
 {"s":"小学","r":[{"p":"xiao3 xue2","g":["elementary school; primary school"]}],"t":"小學"}
 {"s":"小学生","r":[{"p":"xiao3 xue2 sheng1","g":["primary school student","schoolchild","(fig.) beginner"]}],"t":"小學生"}
+{"s":"小孩","r":[{"p":"xiao3 hai2","g":["child"]}]}
 {"s":"小孩儿","r":[{"p":"xiao3 hai2 r5","g":["erhua variant of 小孩"]}],"t":"小孩兒"}
 {"s":"小康","r":[{"p":"Xiao3 kang1","g":["Xiaokang, a Confucian near-ideal state of society, second only to Datong 大同"]},{"p":"xiao3 kang1","g":["moderately affluent","well-off","a period of peace and prosperity"]}]}
 {"s":"小心","r":[{"p":"xiao3 xin1","g":["to be careful","to take care"]}]}
@@ -4114,10 +4131,12 @@
 {"s":"巩固","r":[{"p":"gong3 gu4","g":["to consolidate; to strengthen","firm; solid; stable"]}],"t":"鞏固"}
 {"s":"巫婆","r":[{"p":"wu1 po2","g":["witch","sorceress","female shaman"]}]}
 {"s":"差","r":[{"p":"cha1","g":["difference; discrepancy","(math.) difference (amount remaining after a subtraction)","(literary) a little; somewhat; slightly"]},{"p":"cha4","g":["different","wrong; mistaken","to fall short; to lack","not up to standard; inferior","Taiwan pr. [cha1]"]},{"p":"chai1","g":["to send (on an errand)","(archaic) person sent on such an errand","job; official post"]},{"p":"ci1","g":["used in 参差"]}]}
+{"s":"差一点","r":[{"p":"cha4 yi1 dian3","g":["see 差点"]}],"t":"差一點"}
 {"s":"差一点儿","r":[{"p":"cha4 yi1 dian3 r5","g":["erhua variant of 差一点"]}],"t":"差一點兒"}
 {"s":"差不多","r":[{"p":"cha4 bu5 duo1","g":["almost","nearly","more or less","about the same","good enough","not bad"]}]}
 {"s":"差别","r":[{"p":"cha1 bie2","g":["difference; distinction; disparity"]}],"t":"差別"}
 {"s":"差异","r":[{"p":"cha1 yi4","g":["difference; discrepancy"]}],"t":"差異"}
+{"s":"差点","r":[{"p":"cha4 dian3","g":["almost","nearly"]}],"t":"差點"}
 {"s":"差点儿","r":[{"p":"cha4 dian3 r5","g":["erhua variant of 差点"]}],"t":"差點兒"}
 {"s":"差距","r":[{"p":"cha1 ju4","g":["disparity; gap"]}]}
 {"s":"差错","r":[{"p":"cha1 cuo4","g":["mistake; slip-up; fault; error","accident; mishap"]}],"t":"差錯"}
@@ -4199,6 +4218,7 @@
 {"s":"干扰","r":[{"p":"gan1 rao3","g":["to disturb","to interfere","perturbation","interference (physics)"]}],"t":"干擾"}
 {"s":"干旱","r":[{"p":"gan1 han4","g":["drought","(of land, climate etc) arid; dry"]}],"t":"乾旱"}
 {"s":"干杯","r":[{"p":"gan1 bei1","g":["to drink a toast","Cheers! (proposing a toast)","Here's to you!","Bottoms up!","lit. dry cup"]}],"t":"乾杯"}
+{"s":"干活","r":[{"p":"gan4 huo2","g":["to work; to be employed"]}],"t":"幹活"}
 {"s":"干活儿","r":[{"p":"gan4 huo2 r5","g":["erhua variant of 干活"]}],"t":"幹活兒"}
 {"s":"干涉","r":[{"p":"gan1 she4","g":["to interfere","to meddle","interference"]}]}
 {"s":"干燥","r":[{"p":"gan1 zao4","g":["(of weather, climate, soil etc) dry; arid","(of skin, mouth etc) dry","(fig.) dull; dry; boring","(of timber etc) to dry out; to season; to cure"]}],"t":"乾燥"}
@@ -4533,6 +4553,7 @@
 {"s":"征求","r":[{"p":"zheng1 qiu2","g":["to solicit","to seek","to request (opinions, feedback etc)","to petition"]}],"t":"徵求"}
 {"s":"征集","r":[{"p":"zheng1 ji2","g":["to collect","to recruit"]}],"t":"徵集"}
 {"s":"待","r":[{"p":"dai1","g":["to stay; to remain"]},{"p":"dai4","g":["to wait","to treat","to deal with","to need","going to (do sth)","about to","intending to"]}]}
+{"s":"待会","r":[{"p":"dai1 hui5","g":["wait a minute","stop a while"]}],"t":"待會"}
 {"s":"待会儿","r":[{"p":"dai1 hui4 r5","g":["in a moment","later","also pr. [dai1 hui3 r5] or [dai1 hui5 r5]"]}],"t":"待會兒"}
 {"s":"待遇","r":[{"p":"dai4 yu4","g":["treatment","pay","salary","status","rank"]}]}
 {"s":"很","r":[{"p":"hen3","g":["very; quite","(also, often used before an adjective without intensifying its meaning, i.e. as a meaningless syntactic element)"]}]}
@@ -4592,6 +4613,7 @@
 {"s":"心疼","r":[{"p":"xin1 teng2","g":["to love dearly","to feel sorry for sb","to regret","to grudge","to be distressed"]}]}
 {"s":"心病","r":[{"p":"xin1 bing4","g":["anxiety","sore point","secret worry","mental disorder","heart disease (medicine)"]}]}
 {"s":"心目","r":[{"p":"xin1 mu4","g":["mind"]}]}
+{"s":"心眼","r":[{"p":"xin1 yan3","g":["heart","intention","conscience","consideration","cleverness","tolerance"]}]}
 {"s":"心眼儿","r":[{"p":"xin1 yan3 r5","g":["one's thoughts","mind","intention","willingness to accept new ideas","baseless suspicions"]}],"t":"心眼兒"}
 {"s":"心肠","r":[{"p":"xin1 chang2","g":["heart","intention","one's inclination","state of mind","to have the heart for sth","mood"]}],"t":"心腸"}
 {"s":"心胸","r":[{"p":"xin1 xiong1","g":["heart","mind","ambition","aspiration"]}]}
@@ -4642,6 +4664,7 @@
 {"s":"快乐","r":[{"p":"kuai4 le4","g":["happy; joyful"]}],"t":"快樂"}
 {"s":"快捷","r":[{"p":"kuai4 jie2","g":["quick","fast","nimble","agile","(computer) shortcut"]}]}
 {"s":"快活","r":[{"p":"kuai4 huo5","g":["happy","cheerful"]}]}
+{"s":"快点","r":[{"p":"kuai4 dian3","g":["to do sth more quickly","Hurry up!","Get a move on!"]}],"t":"快點"}
 {"s":"快点儿","r":[{"p":"kuai4 dian3 r5","g":["erhua variant of 快点"]}],"t":"快點兒"}
 {"s":"快要","r":[{"p":"kuai4 yao4","g":["nearly at the point of (doing sth); about to (do sth)"]}]}
 {"s":"快车","r":[{"p":"kuai4 che1","g":["express (train, bus etc)"]}],"t":"快車"}
@@ -5056,6 +5079,7 @@
 {"s":"打猎","r":[{"p":"da3 lie4","g":["to go hunting"]}],"t":"打獵"}
 {"s":"打球","r":[{"p":"da3 qiu2","g":["to play ball","to play with a ball"]}]}
 {"s":"打电话","r":[{"p":"da3 dian4 hua4","g":["to make a telephone call"]}],"t":"打電話"}
+{"s":"打盹","r":[{"p":"da3 dun3","g":["to doze off"]}]}
 {"s":"打盹儿","r":[{"p":"da3 dun3 r5","g":["erhua variant of 打盹"]}],"t":"打盹兒"}
 {"s":"打破","r":[{"p":"da3 po4","g":["to break; to smash"]}]}
 {"s":"打磨","r":[{"p":"da3 mo2","g":["to polish; to burnish; to shine"]}]}
@@ -6178,6 +6202,7 @@
 {"s":"月饼","r":[{"p":"yue4 bing3","g":["mooncake (esp. for the Mid-Autumn Festival)"]}],"t":"月餅"}
 {"s":"有","r":[{"p":"you3","g":["to have; there is","(bound form) having; with; -ful; -ed; -al (as in 有意 intentional)"]}]}
 {"s":"有一些","r":[{"p":"you3 yi1 xie1","g":["somewhat","rather","some"]}]}
+{"s":"有一点","r":[{"p":"you3 yi1 dian3","g":["a little; somewhat"]}],"t":"有一點"}
 {"s":"有一点儿","r":[{"p":"you3 yi1 dian3 r5","g":["a bit","a little"]}],"t":"有一點兒"}
 {"s":"有两下子","r":[{"p":"you3 liang3 xia4 zi5","g":["to have real skill","to know one's stuff"]}],"t":"有兩下子"}
 {"s":"有事","r":[{"p":"you3 shi4","g":["to be occupied with sth","to have sth on one's mind","there is something the matter"]}]}
@@ -6188,6 +6213,7 @@
 {"s":"有利于","r":[{"p":"you3 li4 yu2","g":["to be advantageous to; to be beneficial for"]}],"t":"有利於"}
 {"s":"有力","r":[{"p":"you3 li4","g":["powerful","forceful","vigorous"]}]}
 {"s":"有助于","r":[{"p":"you3 zhu4 yu2","g":["to contribute to; to promote"]}],"t":"有助於"}
+{"s":"有劲","r":[{"p":"you3 jin4","g":["vigorous; energetic","interesting; amusing"]}],"t":"有勁"}
 {"s":"有口无心","r":[{"p":"you3 kou3 wu2 xin1","g":["to speak harshly but without any bad intent (idiom)"]}],"t":"有口無心"}
 {"s":"有名","r":[{"p":"you3 ming2","g":["famous","well-known"]}]}
 {"s":"有声有色","r":[{"p":"you3 sheng1 you3 se4","g":["having sound and color (idiom); vivid","dazzling"]}],"t":"有聲有色"}
@@ -6209,6 +6235,7 @@
 {"s":"有条不紊","r":[{"p":"you3 tiao2 bu4 wen3","g":["regular and thorough (idiom); methodically arranged"]}],"t":"有條不紊"}
 {"s":"有毒","r":[{"p":"you3 du2","g":["poisonous"]}]}
 {"s":"有没有","r":[{"p":"you3 mei2 you3","g":["(before a noun) Do (you, they etc) have ...?","Is there a ...?","(before a verb) Did (you, they etc) (verb, infinitive)?","Have (you, they etc) (verb, past participle)?"]}],"t":"有沒有"}
+{"s":"有点","r":[{"p":"you3 dian3","g":["a little"]}],"t":"有點"}
 {"s":"有点儿","r":[{"p":"you3 dian3 r5","g":["slightly","a little","somewhat"]}],"t":"有點兒"}
 {"s":"有用","r":[{"p":"you3 yong4","g":["useful"]}]}
 {"s":"有的","r":[{"p":"you3 de5","g":["(there are) some (who are...)","some (exist)"]}]}
@@ -6216,6 +6243,7 @@
 {"s":"有的是","r":[{"p":"you3 de5 shi4","g":["have plenty of","there's no lack of"]}]}
 {"s":"有益","r":[{"p":"you3 yi4","g":["useful","beneficial","profitable"]}]}
 {"s":"有着","r":[{"p":"you3 zhe5","g":["to have","to possess"]}],"t":"有著"}
+{"s":"有空","r":[{"p":"you3 kong4","g":["to have time (to do sth)"]}]}
 {"s":"有空儿","r":[{"p":"you3 kong4 r5","g":["erhua form of 有空"]}],"t":"有空兒"}
 {"s":"有趣","r":[{"p":"you3 qu4","g":["interesting; fascinating; amusing"]}]}
 {"s":"有限","r":[{"p":"you3 xian4","g":["limited; finite"]}]}
@@ -6542,6 +6570,7 @@
 {"s":"模式","r":[{"p":"mo2 shi4","g":["mode; pattern; model"]}]}
 {"s":"模拟","r":[{"p":"mo2 ni3","g":["imitation","to simulate","to imitate","analog (device, as opposed to digital)"]}],"t":"模擬"}
 {"s":"模样","r":[{"p":"mu2 yang4","g":["look","style","appearance","approximation","about","also pr. [mo2 yang4]"]}],"t":"模樣"}
+{"s":"模特","r":[{"p":"mo2 te4","g":["(fashion) model (loanword)"]}]}
 {"s":"模特儿","r":[{"p":"mo2 te4 r5","g":["(fashion) model (loanword)"]}],"t":"模特兒"}
 {"s":"模糊","r":[{"p":"mo2 hu5","g":["vague; indistinct; fuzzy","to blur; to obscure; to confuse; to mix up"]}]}
 {"s":"模范","r":[{"p":"mo2 fan4","g":["model","fine example"]}],"t":"模範"}
@@ -6827,9 +6856,11 @@
 {"s":"沟","r":[{"p":"gou1","g":["ditch","gutter","groove","gully","ravine"]}],"t":"溝"}
 {"s":"沟通","r":[{"p":"gou1 tong1","g":["to join; to connect; to link up","to communicate"]}],"t":"溝通"}
 {"s":"没","r":[{"p":"mei2","g":["(negative prefix for verbs) have not; not"]},{"p":"mo4","g":["drowned","to end","to die","to inundate"]}],"t":"沒"}
+{"s":"没事","r":[{"p":"mei2 shi4","g":["it's not important","it's nothing","never mind","to have nothing to do","to be free","to be all right (out of danger or trouble)"]}],"t":"沒事"}
 {"s":"没事儿","r":[{"p":"mei2 shi4 r5","g":["to have spare time","free from work","it's not important","it's nothing","never mind"]}],"t":"沒事兒"}
 {"s":"没什么","r":[{"p":"mei2 shen2 me5","g":["it doesn't matter; it's nothing; never mind","think nothing of it; it's my pleasure; you're welcome"]}],"t":"沒什麼"}
 {"s":"没关系","r":[{"p":"mei2 guan1 xi5","g":["it doesn't matter"]}],"t":"沒關係"}
+{"s":"没准","r":[{"p":"mei2 zhun3","g":["not sure","maybe"]}],"t":"沒準"}
 {"s":"没准儿","r":[{"p":"mei2 zhun3 r5","g":["erhua variant of 没准"]}],"t":"沒準兒"}
 {"s":"没劲","r":[{"p":"mei2 jin4","g":["to have no strength","to feel weak","exhausted","feeling listless","boring","of no interest"]}],"t":"沒勁"}
 {"s":"没完没了","r":[{"p":"mei2 wan2 mei2 liao3","g":["without end","incessantly","on and on"]}],"t":"沒完沒了"}
@@ -6837,6 +6868,7 @@
 {"s":"没意思","r":[{"p":"mei2 yi4 si5","g":["boring","of no interest"]}],"t":"沒意思"}
 {"s":"没收","r":[{"p":"mo4 shou1","g":["to confiscate; to seize"]}],"t":"沒收"}
 {"s":"没有","r":[{"p":"mei2 you3","g":["haven't","hasn't","doesn't exist","to not have","to not be"]}],"t":"沒有"}
+{"s":"没法","r":[{"p":"mei2 fa3","g":["at a loss","unable to do anything about it","to have no choice"]}],"t":"沒法"}
 {"s":"没法儿","r":[{"p":"mei2 fa3 r5","g":["(coll.) can't do anything about it","(coll.) there's no way that ...; it's simply not credible that ...","(coll.) couldn't be (better) (i.e. simply wonderful)"]}],"t":"沒法兒"}
 {"s":"没用","r":[{"p":"mei2 yong4","g":["useless"]}],"t":"沒用"}
 {"s":"没落","r":[{"p":"mo4 luo4","g":["to decline","to wane"]}],"t":"沒落"}
@@ -7564,6 +7596,7 @@
 {"s":"玩儿","r":[{"p":"wan2 r5","g":["to play","to have fun","to hang out"]}],"t":"玩兒"}
 {"s":"玩具","r":[{"p":"wan2 ju4","g":["plaything","toy"]}]}
 {"s":"玩弄","r":[{"p":"wan2 nong4","g":["to play with","to toy with","to dally with","to engage in","to resort to"]}]}
+{"s":"玩意","r":[{"p":"wan2 yi4","g":["toy","plaything","thing","act","trick (in a performance, stage show, acrobatics etc)"]}]}
 {"s":"玩意儿","r":[{"p":"wan2 yi4 r5","g":["erhua variant of 玩意"]}],"t":"玩意兒"}
 {"s":"玩耍","r":[{"p":"wan2 shua3","g":["to play (as children do)","to amuse oneself"]}]}
 {"s":"玫瑰","r":[{"p":"mei2 gui1","g":["rugosa rose (shrub) (Rosa rugosa) (CL:棵)","rose flower (CL:朵)"]}]}
@@ -7739,6 +7772,7 @@
 {"s":"男士","r":[{"p":"nan2 shi4","g":["man","gentleman"]}]}
 {"s":"男女","r":[{"p":"nan2 nu:3","g":["male-female","male and female"]}]}
 {"s":"男子","r":[{"p":"nan2 zi3","g":["a man; a male"]}]}
+{"s":"男孩","r":[{"p":"nan2 hai2","g":["boy"]}]}
 {"s":"男孩儿","r":[{"p":"nan2 hai2 r5","g":["erhua form of 男孩"]}],"t":"男孩兒"}
 {"s":"男性","r":[{"p":"nan2 xing4","g":["the male sex","a male"]}]}
 {"s":"男朋友","r":[{"p":"nan2 peng2 you5","g":["boyfriend"]}]}
@@ -8210,6 +8244,7 @@
 {"s":"离婚","r":[{"p":"li2 hun1","g":["to divorce"]}],"t":"離婚"}
 {"s":"离开","r":[{"p":"li2 kai1","g":["to depart; to leave"]}],"t":"離開"}
 {"s":"离职","r":[{"p":"li2 zhi2","g":["to leave one's job temporarily (e.g. for study)","to leave one's job; to resign"]}],"t":"離職"}
+{"s":"离谱","r":[{"p":"li2 pu3","g":["inappropriate; improper; out of place"]}],"t":"離譜"}
 {"s":"离谱儿","r":[{"p":"li2 pu3 r5","g":["erhua form of 离谱"]}],"t":"離譜兒"}
 {"s":"禾苗","r":[{"p":"he2 miao2","g":["seedling (of rice or other grain)"]}]}
 {"s":"秀丽","r":[{"p":"xiu4 li4","g":["pretty; beautiful"]}],"t":"秀麗"}
@@ -8614,6 +8649,7 @@
 {"s":"纳入","r":[{"p":"na4 ru4","g":["to bring into","to channel into","to integrate into","to incorporate"]}],"t":"納入"}
 {"s":"纳税","r":[{"p":"na4 shui4","g":["to pay taxes"]}],"t":"納稅"}
 {"s":"纳税人","r":[{"p":"na4 shui4 ren2","g":["taxpayer"]}],"t":"納稅人"}
+{"s":"纳闷","r":[{"p":"na4 men4","g":["puzzled","bewildered"]}],"t":"納悶"}
 {"s":"纳闷儿","r":[{"p":"na4 men4 r5","g":["erhua variant of 纳闷"]}],"t":"納悶兒"}
 {"s":"纵容","r":[{"p":"zong4 rong2","g":["to tolerate or condone wrongdoing; to allow (sb) to engage in bad behavior"]}],"t":"縱容"}
 {"s":"纵横","r":[{"p":"zong4 heng2","g":["lit. warp and weft in weaving; vertically and horizontal","length and breadth","criss-crossed","able to move unhindered","abbr. for 合纵连横, School of Diplomacy during the Warring States Period (475-221 BC)"]}],"t":"縱橫"}
@@ -8849,11 +8885,13 @@
 {"s":"老乡","r":[{"p":"lao3 xiang1","g":["fellow townsman; fellow villager; sb from the same hometown"]}],"t":"老鄉"}
 {"s":"老人","r":[{"p":"lao3 ren2","g":["old man or woman","the elderly","one's aged parents or grandparents"]}]}
 {"s":"老人家","r":[{"p":"lao3 ren2 jia1","g":["polite term for old woman or man"]}]}
+{"s":"老伴","r":[{"p":"lao3 ban4","g":["(of an elderly couple) husband or wife"]}]}
 {"s":"老伴儿","r":[{"p":"lao3 ban4 r5","g":["erhua variant of 老伴"]}],"t":"老伴兒"}
 {"s":"老公","r":[{"p":"lao3 gong1","g":["(coll.) husband"]},{"p":"lao3 gong5","g":["(coll.) eunuch","see also 老公"]}]}
 {"s":"老化","r":[{"p":"lao3 hua4","g":["(of a person, population or material) to age","(of knowledge) to become outdated"]}]}
 {"s":"老大","r":[{"p":"lao3 da4","g":["old age","very","eldest child in a family","leader of a group","boss","captain of a boat","leader of a criminal gang"]}]}
 {"s":"老太太","r":[{"p":"lao3 tai4 tai5","g":["elderly lady (respectful)","esteemed mother"]}]}
+{"s":"老头","r":[{"p":"lao3 tou2","g":["old fellow","old man","father","husband"]}],"t":"老頭"}
 {"s":"老头儿","r":[{"p":"lao3 tou2 r5","g":["see 老头子"]}],"t":"老頭兒"}
 {"s":"老婆","r":[{"p":"lao3 po2","g":["(coll.) wife"]}]}
 {"s":"老字号","r":[{"p":"lao3 zi4 hao4","g":["shop, firm, or brand of merchandise with a long-established reputation"]}],"t":"老字號"}
@@ -9252,6 +9290,7 @@
 {"s":"茶","r":[{"p":"cha2","g":["tea","tea plant"]}]}
 {"s":"茶叶","r":[{"p":"cha2 ye4","g":["tea","tea leaves"]}],"t":"茶葉"}
 {"s":"茶道","r":[{"p":"cha2 dao4","g":["Japanese tea ceremony","sado"]}]}
+{"s":"茶馆","r":[{"p":"cha2 guan3","g":["teahouse"]}],"t":"茶館"}
 {"s":"茶馆儿","r":[{"p":"cha2 guan3 r5","g":["erhua form of 茶馆"]}],"t":"茶館兒"}
 {"s":"荆棘","r":[{"p":"jing1 ji2","g":["thistles and thorns","brambles","thorny undergrowth"]}],"t":"荊棘"}
 {"s":"草","r":[{"p":"cao3","g":["grass","straw","manuscript","draft (of a document)","careless","rough"]},{"p":"cao4","g":["variant of 肏"]}]}
@@ -9902,6 +9941,7 @@
 {"s":"贪","r":[{"p":"tan1","g":["to have a voracious desire for","to covet","greedy","corrupt"]}],"t":"貪"}
 {"s":"贪婪","r":[{"p":"tan1 lan2","g":["avaricious","greedy","rapacious","insatiable","avid"]}],"t":"貪婪"}
 {"s":"贪污","r":[{"p":"tan1 wu1","g":["to be corrupt","corruption","to embezzle"]}],"t":"貪污"}
+{"s":"贪玩","r":[{"p":"tan1 wan2","g":["to only want to have a good time","to just want to have fun, and to shy away from self-discipline"]}],"t":"貪玩"}
 {"s":"贪玩儿","r":[{"p":"tan1 wan2 r5","g":["erhua variant of 贪玩"]}],"t":"貪玩兒"}
 {"s":"贫乏","r":[{"p":"pin2 fa2","g":["impoverished","lacking","deficient","limited","meager","impoverishment","lack","deficiency"]}],"t":"貧乏"}
 {"s":"贫困","r":[{"p":"pin2 kun4","g":["impoverished","poverty"]}],"t":"貧困"}
@@ -11261,6 +11301,7 @@
 {"s":"饼","r":[{"p":"bing3","g":["round flat cake","cookie","cake","pastry"]}],"t":"餅"}
 {"s":"饼干","r":[{"p":"bing3 gan1","g":["biscuit; cracker; cookie"]}],"t":"餅乾"}
 {"s":"饿","r":[{"p":"e4","g":["hungry","to starve (sb)"]}],"t":"餓"}
+{"s":"馅","r":[{"p":"xian4","g":["filling; stuffing (for dumplings, pies etc)"]}],"t":"餡"}
 {"s":"馅儿","r":[{"p":"xian4 r5","g":["erhua variant of 馅"]}],"t":"餡兒"}
 {"s":"馋","r":[{"p":"chan2","g":["gluttonous","greedy","to have a craving"]}],"t":"饞"}
 {"s":"馒头","r":[{"p":"man2 tou5","g":["steamed bun"]}],"t":"饅頭"}

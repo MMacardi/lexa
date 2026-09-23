@@ -1,6 +1,7 @@
 import { chatJson, FAST_MODEL } from "./llm.js";
 import { suggestSchema, type SuggestResult } from "../lib/schemas.js";
 import { langName } from "../lib/langs.js";
+import { cedictHas, isChinese } from "./cedict.js";
 
 // Detect a language from the word's script when it's unambiguous. This is far
 // more reliable than asking the LLM (which sometimes omits detectedLang), so we
@@ -35,6 +36,12 @@ export async function suggestWord(
   sourceLang = "en",
 ): Promise<SuggestResult & { ambiguousHan: boolean }> {
   const autoDetect = sourceLang === "auto";
+  // Instant capture: a Chinese word CC-CEDICT lists is spelled right by
+  // definition, so the add doesn't wait on a model to say so.
+  if (isChinese(sourceLang) && cedictHas(word.trim())) {
+    const w = word.trim();
+    return { corrected: w, suggestions: [w], detectedLang: sourceLang, ambiguousHan: false };
+  }
   const lang = autoDetect ? "the language of the word the user typed" : langName(sourceLang);
   const result = await chatJson({
     system:

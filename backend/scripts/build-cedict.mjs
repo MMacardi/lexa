@@ -38,6 +38,10 @@ const release = text.match(/^#! date=(\S+)/m)?.[1] ?? "";
 
 // The headwords we keep: every word on either HSK list, in simplified form.
 const wanted = new Set(HSK_WORDS.split("\n").map((l) => l.split("\t")[0]).filter(Boolean));
+// The lists spell 一下儿 and 一点儿; learners (and textbooks) type 一下 and 一点, and
+// CC-CEDICT's entry for the erhua form says only "erhua form of 一下". Keep the
+// base form too, or instant capture has nothing to show for the commonest words.
+for (const w of [...wanted]) if (w.length > 1 && w.endsWith("儿")) wanted.add(w.slice(0, -1));
 
 /**
  * One CC-CEDICT gloss, tidied just enough to go into a prompt.
