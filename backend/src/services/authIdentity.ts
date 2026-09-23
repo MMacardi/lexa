@@ -5,7 +5,7 @@ import { prisma } from "./db.js";
 // Rules, in order:
 //   1. Known identity (provider+subject) → its account.
 //   2. Linking: if a session is active, attach this identity to that account
-//      (unless it's already linked to a different one).
+//      (unless it's already linked to a different one that holds real work).
 //   3. Auto-link: a *verified* email that matches an existing account's email
 //      joins it (so Google + magic-link for one address are one account).
 //   4. Otherwise create a new account (reusing a bot-created row if the canonical
@@ -39,6 +39,48 @@ async function applyProfile(userId: string, input: ResolveInput): Promise<void> 
   await prisma.user.update({ where: { id: userId }, data });
 }
 
+/**
+ * Move a Telegram identity off an empty bot-created account onto the account the
+ * learner is signed into. "Empty" is strict — no cards, no collections and no
+ * other way to sign in — so nothing can be lost; the row itself is left behind
+ * (unreachable, since no identity points at it) rather than cascade-deleted.
+ * Returns false when the other account holds real work: that is a genuine clash.
+ */
+async function absorbStub(stubId: string, intoId: string): Promise<boolean> {
+  const stub = await prisma.user.findUnique({
+    where: { id: stubId },
+    select: {
+      authVia: true,
+      botChatId: true,
+      reminderHour: true,
+      reminderDays: true,
+      _count: { select: { words: true, collections: true, identities: true } },
+    },
+  });
+  if (!stub) return false;
+  if (stub.authVia !== "telegram" || stub._count.words > 0 || stub._count.collections > 0) return false;
+  if (stub._count.identities !== 1) return false;
+
+  const target = await prisma.user.findUnique({ where: { id: intoId }, select: { reminderHour: true } });
+  await prisma.$transaction([
+    prisma.authIdentity.updateMany({ where: { userId: stubId }, data: { userId: intoId } }),
+    prisma.user.update({
+      where: { id: intoId },
+      data: {
+        botChatId: stub.botChatId,
+        // Only carry the nudge settings over when the real account has none —
+        // a reminder the learner set on the site outranks the bot's default.
+        ...(target?.reminderHour == null && stub.reminderHour != null
+          ? { reminderHour: stub.reminderHour, reminderDays: stub.reminderDays }
+          : {}),
+      },
+    }),
+    // Stop the reminder sweep from messaging the shell we just emptied.
+    prisma.user.update({ where: { id: stubId }, data: { botChatId: null, reminderHour: null } }),
+  ]);
+  return true;
+}
+
 /** Returns the canonical telegramId (session subject) for the resolved account. */
 export async function resolveIdentity(input: ResolveInput): Promise<{ telegramId: string }> {
   const { provider, subject } = input;
@@ -57,7 +99,14 @@ export async function resolveIdentity(input: ResolveInput): Promise<{ telegramId
     });
     if (!me) throw new Error("Session account not found");
     if (existing && existing.userId !== me.id) {
-      throw new Error("That sign-in method is already linked to another account.");
+      // Before the bot learned to resolve through AuthIdentity it created a bare
+      // account for anyone who opened the chat, and that shell then blocked the
+      // learner from linking Telegram to the account they actually use. An empty
+      // shell isn't an account: move the identity (and the chat id, so reminders
+      // keep arriving) over instead of refusing.
+      if (!(await absorbStub(existing.userId, me.id))) {
+        throw new Error("That sign-in method is already linked to another account.");
+      }
     }
     if (!existing) await prisma.authIdentity.create({ data: { userId: me.id, provider, subject } });
     await applyProfile(me.id, input);

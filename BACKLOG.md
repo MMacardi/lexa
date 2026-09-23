@@ -171,9 +171,24 @@ deleted — `onomika_old` holds the full-featured build.
         hidden in `LangSelect` while focused. **The "another language" link stays** — English
         is a first-class learning language here, so the link leads somewhere real. Backend
         untouched (still permissive), no migration; `NEXT_PUBLIC_FOCUS_MODE=off` restores all eight.
-- [ ] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
+- [x] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
       Google/email users (`ensureBotUser` keys on the numeric Telegram id). Then: morning push →
       review → one use-step, and `add`/photo capture into the deck.
+      - Identity: `ensureBotUser` now resolves the numeric id through `AuthIdentity` and returns
+        the **canonical** `User.telegramId`; one middleware in `bot/index.ts` does it once per
+        update and every handler reads `acct(ctx)` — no handler keys on `ctx.from.id` any more
+        (except the `login_` deep link, which must stay a Telegram identity). Linking Telegram on
+        the site no longer dead-ends either: `absorbStub` moves the identity (and the chat id) off
+        an empty bot-created account instead of throwing. Verified against the local DB for all
+        three cases — web-first, bot-first, and the real clash, which is still refused.
+      - Daily loop: the nudge is **one** button ("Начать"), and when the review queue empties the
+        bot offers the day's one use-step (`us:start` → a single-word coach drill, graded as
+        production, not as a review). One tap, not automatic — it costs a model call.
+      - Capture: send a **photo** → OCR (same `FREE_MONTHLY_OCR` allowance as the Reader, via the
+        new request-free `takeMonthly`) → the Chinese words you don't have yet, as one-tap buttons.
+        Segmentation is greedy longest-match over CC-CEDICT (`cedictHas`, which deliberately skips
+        the coverage counters); single characters are dropped, and non-Chinese pairs get the text
+        plus `add слово`. `/add <word>` now works alongside `add <word>`.
 
 ## Before public launch
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".

@@ -82,6 +82,15 @@ export function cedictLookup(word: string): CedictEntry | null {
   return hit;
 }
 
+/**
+ * Is this headword in the subset? Deliberately does NOT move the hit/miss
+ * counters: the capture segmenter probes every substring of a scanned page, and
+ * those misses would drown the only signal we have about real coverage.
+ */
+export function cedictHas(word: string): boolean {
+  return idx().has(normalizeHanzi(word));
+}
+
 /** Attribution — a licence condition, so the app shows it rather than just this file. */
 export function cedictCredit() {
   if (!meta) build();

@@ -5,10 +5,11 @@ import { recordProduction, asProductionError } from "../services/production.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
 import { getProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
-import { transcribeAudio } from "../services/llm.js";
+import { transcribeAudio, ocrImage } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
 import { take } from "../lib/rateLimit.js";
+import { takeMonthly } from "../lib/entitlements.js";
 import { runAsUser } from "../lib/usageContext.js";
 import {
   ensureBotUser,
@@ -19,6 +20,7 @@ import {
   dueCountForUser,
   drillWordsForUser,
   weakCountForUser,
+  captureCandidates,
   ownedWord,
   getReminderHour,
   setReminderHour,
@@ -47,16 +49,23 @@ type ChatState = {
   suggested: string[];
   history: { role: "user" | "assistant"; content: string }[];
   practice?: PracticeState;
+  /** Words a scanned photo offered, indexed by the `cap:<i>` buttons under it. */
+  captured: string[];
 };
 const chatState = new Map<string, ChatState>();
 const stateFor = (id: string): ChatState => {
   let s = chatState.get(id);
   if (!s) {
-    s = { suggested: [], history: [] };
+    s = { suggested: [], history: [], captured: [] };
     chatState.set(id, s);
   }
   return s;
 };
+
+// The account this update belongs to, resolved once per update by the middleware
+// in createBot(). Never `ctx.from.id`: that is a Telegram identity, and the
+// learner's account may be keyed on their email instead (see ensureBotUser).
+const acct = (ctx: Context): string => (ctx.state as { account?: string }).account ?? String(ctx.from?.id ?? "");
 
 function welcome(pair: Pair): string {
   return [
@@ -65,8 +74,9 @@ function welcome(pair: Pair): string {
     `Пара: <b>${esc(langName(pair.source))} → ${esc(langName(pair.target))}</b>`,
     "",
     "Что я умею:",
-    "• <b>/review</b> — повторить карточки, которым пришло время (с оценкой прямо в чате)",
+    "• <b>/review</b> — повторить карточки, которым пришло время, и закрыть день шагом на использование",
     "• <code>add &lt;слово&gt;</code> — сохранить слово с примером и разбором",
+    "• <b>📷 фото страницы</b> — прочитаю её и предложу слова, которых у тебя ещё нет",
     "• <b>/list</b> — твои слова · <b>/due</b> — сколько ждёт повторения",
     "• <b>/remind 9</b> — напоминать о повторении каждый день в 9:00",
     "• просто напиши вопрос — объясню, приведу примеры, помогу с грамматикой",
@@ -142,14 +152,12 @@ const gradeKeyboard = (id: string) =>
 // ---- Shared actions (used by both slash-commands and the reply-keyboard buttons) ----
 async function replyReview(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
-  const telegramId = String(ctx.from.id);
-  await ensureBotUser(telegramId, String(ctx.chat.id));
-  await sendNextCard(ctx, telegramId);
+  await sendNextCard(ctx, acct(ctx));
 }
 
 async function replyDue(ctx: Context): Promise<void> {
   if (!ctx.from) return;
-  const telegramId = String(ctx.from.id);
+  const telegramId = acct(ctx);
   const pair = await resolveUserPair(telegramId);
   const n = await dueCountForUser(telegramId, pair);
   if (n === 0) {
@@ -182,7 +190,7 @@ function wordsPage(words: { word: string; meaningZh: string | null }[], page: nu
 
 async function replyList(ctx: Context): Promise<void> {
   if (!ctx.from) return;
-  const words = await listWordsForUser(String(ctx.from.id));
+  const words = await listWordsForUser(acct(ctx));
   if (words.length === 0) {
     await ctx.reply("Пока пусто. Добавь слово: отправь «add sanction».");
     return;
@@ -239,8 +247,7 @@ function remindText(hour: number | null, daysCsv: string): string {
 
 async function replyRemindStatus(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
-  const telegramId = String(ctx.from.id);
-  await ensureBotUser(telegramId, String(ctx.chat.id));
+  const telegramId = acct(ctx);
   const [hour, days] = await Promise.all([getReminderHour(telegramId), getReminderDays(telegramId)]);
   await ctx.replyWithHTML(remindText(hour, days), remindKeyboard(hour, days));
 }
@@ -249,8 +256,7 @@ async function replyRemindStatus(ctx: Context): Promise<void> {
 // cards in, plus a few common presets, so it never needs the /lang command.
 async function replyLangPicker(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
-  const telegramId = String(ctx.from.id);
-  await ensureBotUser(telegramId, String(ctx.chat.id));
+  const telegramId = acct(ctx);
   const cur = await resolveUserPair(telegramId);
   const seen = new Set<string>();
   const pairs: { source: string; target: string }[] = [];
@@ -294,8 +300,27 @@ async function replySite(ctx: Context): Promise<void> {
 
 async function replyAddHelp(ctx: Context): Promise<void> {
   await ctx.replyWithHTML(
-    "➕ Чтобы добавить слово, просто отправь: <code>add слово</code>\nНапример: <code>add resilient</code>",
+    "➕ Чтобы добавить слово, просто отправь: <code>add слово</code>\nНапример: <code>add resilient</code>" +
+      "\n\n📷 Или пришли <b>фото страницы</b> — я прочитаю её и предложу слова, которых у тебя ещё нет.",
   );
+}
+
+/**
+ * Save one word into the deck with its example and dictionary entry. Every way
+ * into the deck from the chat — typed `add`, a candidate tapped off a photo —
+ * goes through here.
+ */
+async function captureWord(ctx: Context, word: string): Promise<void> {
+  const telegramId = acct(ctx);
+  const pair = await resolveUserPair(telegramId);
+  await ctx.replyWithChatAction("typing");
+  try {
+    const w = await addWordForUser({ telegramId, word, sourceLang: pair.source, targetLang: pair.target, level: pair.level });
+    await ctx.replyWithHTML(cardBack(w), { link_preview_options: { is_disabled: true } });
+  } catch (err) {
+    console.error(err);
+    await ctx.reply(`⚠️ Не смог добавить «${word}»: ${(err as Error).message}`);
+  }
 }
 
 // ---- Coach practice (adaptive drill over the learner's own words) ----
@@ -304,16 +329,14 @@ const practiceStopKeyboard = () =>
 
 async function startPractice(ctx: Context): Promise<void> {
   if (!ctx.from || !ctx.chat) return;
-  const telegramId = String(ctx.from.id);
-  const chatId = String(ctx.chat.id);
-  await ensureBotUser(telegramId, chatId);
+  const telegramId = acct(ctx);
   const pair = await resolveUserPair(telegramId);
   const words = await drillWordsForUser(telegramId, pair, 6);
   if (words.length === 0) {
     await ctx.reply("Сначала добавь несколько слов — потом попрактикуем. Напиши, например: add resilient");
     return;
   }
-  const st = stateFor(chatId);
+  const st = stateFor(String(ctx.chat.id));
   st.practice = { words, pair, messages: [], graded: new Set(), correct: 0 };
   await ctx.replyWithHTML(
     `🎯 <b>Практика</b> — отработаем ${words.length} ${words.length === 1 ? "слово" : "слов"}. ` +
@@ -323,11 +346,36 @@ async function startPractice(ctx: Context): Promise<void> {
   await runPracticeTurn(ctx, st);
 }
 
+/**
+ * The day's one use-step: a single word, once the review queue is empty.
+ *
+ * Reviewing says you recognise a word; this asks you to use it, which is the
+ * thing the app is actually for. One word, not six — it closes the daily loop
+ * instead of starting a second session the learner didn't come for.
+ */
+async function startUseStep(ctx: Context): Promise<void> {
+  if (!ctx.from || !ctx.chat) return;
+  const telegramId = acct(ctx);
+  const pair = await resolveUserPair(telegramId);
+  const words = await drillWordsForUser(telegramId, pair, 1);
+  if (words.length === 0) {
+    await ctx.reply("Сначала добавь слово — потом отработаем. Напиши, например: add resilient");
+    return;
+  }
+  const st = stateFor(String(ctx.chat.id));
+  st.practice = { words, pair, messages: [], graded: new Set(), correct: 0 };
+  await ctx.replyWithHTML(
+    `🗣 <b>Шаг на использование</b> — одно слово: <b>${esc(words[0].word)}</b>. Ответь текстом или голосовым 🎙`,
+  );
+  await ctx.replyWithChatAction("typing");
+  await runPracticeTurn(ctx, st);
+}
+
 /** One coach turn: ask the model, grade the previous answer into the SRS, reply. */
 async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
   const p = st.practice;
   if (!p) return;
-  const telegramId = String(ctx.from?.id ?? "");
+  const telegramId = acct(ctx);
   let res;
   try {
     res = await coachDrill({
@@ -387,15 +435,21 @@ async function handlePracticeAnswer(ctx: Context, st: ChatState, text: string): 
 /** Build the bot. Not launched here — see launchBot(). */
 export function createBot(): Telegraf {
   const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN);
-  // Attribute any LLM spend in this update to the Telegram user who sent it.
-  bot.use((ctx, next) => (ctx.from ? runAsUser(String(ctx.from.id), next, "bot") : next()));
-
-  bot.start(async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat.id), {
+  // Resolve the sender to their account once per update, and attribute this
+  // update's LLM spend to it. Handlers read it back with acct(ctx) — they must
+  // never key on ctx.from.id, which is only one of the ways into an account.
+  bot.use(async (ctx, next) => {
+    if (!ctx.from) return next();
+    const account = await ensureBotUser(String(ctx.from.id), String(ctx.chat?.id ?? ctx.from.id), {
       firstName: ctx.from.first_name,
       username: ctx.from.username,
     });
+    (ctx.state as { account?: string }).account = account;
+    return runAsUser(account, next, "bot");
+  });
+
+  bot.start(async (ctx) => {
+    const telegramId = acct(ctx);
     // Deep-link login: /start login_<token>. We DON'T bind silently — the user
     // must tap confirm, so a link someone else sent can't log them in unaware.
     const payload = ctx.startPayload;
@@ -413,9 +467,11 @@ export function createBot(): Telegraf {
 
   // /site — quick link to the web app.
   bot.command("site", (ctx) => replySite(ctx));
-  bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(String(ctx.from.id))), mainKeyboard()));
+  bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(acct(ctx))), mainKeyboard()));
 
-  // Confirm a web sign-in (from the /start login_<token> deep link).
+  // Confirm a web sign-in (from the /start login_<token> deep link). The numeric
+  // id, not acct(ctx): the site resolves it as a Telegram identity, which is how
+  // it finds (or links) the account on its side.
   bot.action(/^login:ok:(.+)$/, async (ctx) => {
     const ok = bindLoginToken(ctx.match[1], String(ctx.from.id), {
       firstName: ctx.from.first_name ?? null,
@@ -430,7 +486,7 @@ export function createBot(): Telegraf {
 
   // /lang <src> <tgt> — set the pair used for chat + review.
   bot.command("lang", async (ctx) => {
-    const telegramId = String(ctx.from.id);
+    const telegramId = acct(ctx);
     const parts = ctx.message.text.trim().split(/\s+/).slice(1);
     if (parts.length < 2) {
       const p = await resolveUserPair(telegramId);
@@ -439,7 +495,6 @@ export function createBot(): Telegraf {
       );
       return;
     }
-    await ensureBotUser(telegramId, String(ctx.chat.id));
     await setUserPair(telegramId, parts[0].toLowerCase(), parts[1].toLowerCase());
     const p = await resolveUserPair(telegramId);
     await ctx.replyWithHTML(`✅ Пара: <b>${esc(langName(p.source))} → ${esc(langName(p.target))}</b>`);
@@ -447,8 +502,7 @@ export function createBot(): Telegraf {
 
   // /remind — choose when the daily review nudge arrives (server time), or off.
   bot.command("remind", async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat.id));
+    const telegramId = acct(ctx);
     const arg = ctx.message.text.trim().split(/\s+/)[1]?.toLowerCase();
     if (!arg) {
       await replyRemindStatus(ctx);
@@ -468,25 +522,18 @@ export function createBot(): Telegraf {
     await ctx.replyWithHTML(`🔔 Буду напоминать о повторении каждый день в <b>${String(hour).padStart(2, "0")}:00</b>.`);
   });
 
-  // "add <word>" — save a word with example + dictionary entry.
-  bot.hears(/^add\s+(.+)$/i, async (ctx) => {
+  // "add <word>" / "/add <word>" — save a word with example + dictionary entry.
+  bot.hears(/^\/?add\s+(.+)$/i, async (ctx) => {
     const word = ctx.match[1].trim();
-    const telegramId = String(ctx.from.id);
-    if (!take(`bot:add:${telegramId}`, 20, 60_000)) {
+    if (!take(`bot:add:${acct(ctx)}`, 20, 60_000)) {
       await ctx.reply("Слишком часто — подожди минутку.");
       return;
     }
-    await ensureBotUser(telegramId, String(ctx.chat.id));
-    const pair = await resolveUserPair(telegramId);
-    await ctx.replyWithChatAction("typing");
-    try {
-      const w = await addWordForUser({ telegramId, word, sourceLang: pair.source, targetLang: pair.target, level: pair.level });
-      await ctx.replyWithHTML(cardBack(w), { link_preview_options: { is_disabled: true } });
-    } catch (err) {
-      console.error(err);
-      await ctx.reply(`⚠️ Не смог добавить «${word}»: ${(err as Error).message}`);
-    }
+    await captureWord(ctx, word);
   });
+
+  // /add with nothing after it — explain both ways in.
+  bot.command("add", (ctx) => replyAddHelp(ctx));
 
   // /list — saved words (first 50).
   bot.command("list", (ctx) => replyList(ctx));
@@ -512,7 +559,7 @@ export function createBot(): Telegraf {
 
   // ---- inline pagination for "Мои слова" ----
   bot.action(/^wl:(\d+)$/, async (ctx) => {
-    const words = await listWordsForUser(String(ctx.from.id));
+    const words = await listWordsForUser(acct(ctx));
     const { text, markup } = wordsPage(words, Number(ctx.match[1]));
     await ctx.answerCbQuery();
     await ctx.editMessageText(text, { parse_mode: "HTML", link_preview_options: { is_disabled: true }, ...(markup ?? {}) });
@@ -520,8 +567,7 @@ export function createBot(): Telegraf {
 
   // ---- reminder time picker ----
   bot.action(/^rm:(off|\d{1,2})$/, async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const telegramId = acct(ctx);
     const hour = ctx.match[1] === "off" ? null : Number(ctx.match[1]);
     await setReminderHour(telegramId, hour);
     const days = await getReminderDays(telegramId);
@@ -531,8 +577,7 @@ export function createBot(): Telegraf {
 
   // ---- reminder weekday multi-select ----
   bot.action(/^rd:(all|[0-6])$/, async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const telegramId = acct(ctx);
     const hour = await getReminderHour(telegramId);
     let store: string;
     if (ctx.match[1] === "all") {
@@ -552,8 +597,7 @@ export function createBot(): Telegraf {
 
   // ---- language pair picker ----
   bot.action(/^lp:([a-zA-Z-]+):([a-zA-Z-]+)$/, async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    await ensureBotUser(telegramId, String(ctx.chat?.id ?? telegramId));
+    const telegramId = acct(ctx);
     const source = ctx.match[1].toLowerCase();
     const target = ctx.match[2].toLowerCase();
     await setUserPair(telegramId, source, target);
@@ -564,12 +608,12 @@ export function createBot(): Telegraf {
   // ---- review callbacks ----
   bot.action("rv:next", async (ctx) => {
     await ctx.answerCbQuery();
-    await sendNextCard(ctx, String(ctx.from.id));
+    await sendNextCard(ctx, acct(ctx));
   });
 
   bot.action(/^rv:show:(.+)$/, async (ctx) => {
     const id = ctx.match[1];
-    const telegramId = String(ctx.from.id);
+    const telegramId = acct(ctx);
     const word = await ownedWord(telegramId, id);
     await ctx.answerCbQuery();
     if (!word) {
@@ -586,7 +630,7 @@ export function createBot(): Telegraf {
   bot.action(/^rv:g:(.+):([1-4])$/, async (ctx) => {
     const id = ctx.match[1];
     const grade = Number(ctx.match[2]) as 1 | 2 | 3 | 4;
-    const telegramId = String(ctx.from.id);
+    const telegramId = acct(ctx);
     const word = await ownedWord(telegramId, id);
     if (!word) {
       await ctx.answerCbQuery("Карточка недоступна");
@@ -612,6 +656,13 @@ export function createBot(): Telegraf {
     await startPractice(ctx);
   });
 
+  // ---- the day's one use-step, offered when the review queue runs out ----
+  bot.action("us:start", async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+    await startUseStep(ctx);
+  });
+
   // ---- practice: stop the drill ----
   bot.action("pr:stop", async (ctx) => {
     const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
@@ -624,7 +675,7 @@ export function createBot(): Telegraf {
 
   // ---- practice: a voice answer (transcribe → grade) ----
   bot.on("voice", async (ctx) => {
-    const telegramId = String(ctx.from.id);
+    const telegramId = acct(ctx);
     const chatId = String(ctx.chat.id);
     const st = stateFor(chatId);
     if (!st.practice) {
@@ -653,10 +704,100 @@ export function createBot(): Telegraf {
     }
   });
 
+  // ---- capture: a photo of a page -> OCR -> words you don't have yet ----
+  bot.on("photo", async (ctx) => {
+    const telegramId = acct(ctx);
+    if (!take(`bot:ocr:${telegramId}`, 5, 60_000)) {
+      await ctx.reply("Слишком часто — подожди минутку.");
+      return;
+    }
+    // Same monthly allowance as the Reader's "scan a photo": one OCR is one OCR,
+    // whichever surface it came from.
+    if (!(await takeMonthly(telegramId, "ocr", env.FREE_MONTHLY_OCR))) {
+      await ctx.reply("📷 Бесплатные сканы на этот месяц закончились. Открой сайт, чтобы перейти на Pro.");
+      return;
+    }
+    const pair = await resolveUserPair(telegramId);
+    await ctx.replyWithChatAction("typing");
+    try {
+      // Telegram sends the same photo in several sizes, largest last.
+      const photo = ctx.message.photo[ctx.message.photo.length - 1];
+      const link = await ctx.telegram.getFileLink(photo.file_id);
+      const resp = await fetch(link.href);
+      const b64 = Buffer.from(await resp.arrayBuffer()).toString("base64");
+      const text = await ocrImage({ dataUrl: `data:image/jpeg;base64,${b64}`, sourceLang: pair.source });
+      if (!text.trim()) {
+        await ctx.reply("📷 Не разобрал текст на фото — попробуй снять поближе и при свете.");
+        return;
+      }
+      await ctx.replyWithHTML(`📷 <i>${esc(text.slice(0, 600))}</i>`, { link_preview_options: { is_disabled: true } });
+      const candidates = await captureCandidates(telegramId, pair, text);
+      // No buttons for a language the segmenter doesn't cover (it's Chinese-only,
+      // see captureCandidates) — and none when the page holds nothing new.
+      if (candidates.length === 0) {
+        await ctx.replyWithHTML("Выбери слово из текста сам и пришли: <code>add слово</code>");
+        return;
+      }
+      const st = stateFor(String(ctx.chat.id));
+      st.captured = candidates;
+      const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+      for (let i = 0; i < candidates.length; i += 3) {
+        rows.push(candidates.slice(i, i + 3).map((w, j) => Markup.button.callback(w, `cap:${i + j}`)));
+      }
+      rows.push([Markup.button.callback(`➕ Добавить все (${candidates.length})`, "cap:all")]);
+      await ctx.replyWithHTML(
+        `🌱 <b>Нашёл ${candidates.length} ${candidates.length === 1 ? "слово" : "слов"}</b>, которых у тебя ещё нет. Нажми, чтобы добавить:`,
+        Markup.inlineKeyboard(rows),
+      );
+    } catch (err) {
+      console.error("photo capture failed:", (err as Error).message);
+      await ctx.reply("📷 Не смог обработать фото — попробуй ещё раз.");
+    }
+  });
+
+  // One captured word (the button carries its index — a word doesn't fit the
+  // 64-byte callback payload reliably).
+  bot.action(/^cap:(\d+)$/, async (ctx) => {
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const i = Number(ctx.match[1]);
+    const word = st.captured[i];
+    if (!word) {
+      // The slot is blanked once added, so a second tap on a button that stays
+      // on screen costs neither a duplicate card nor another model call.
+      await ctx.answerCbQuery(st.captured.length ? "Уже добавлено" : "Список устарел — пришли фото ещё раз");
+      return;
+    }
+    st.captured[i] = "";
+    await ctx.answerCbQuery(`➕ ${word}`);
+    await captureWord(ctx, word);
+  });
+
+  bot.action("cap:all", async (ctx) => {
+    const telegramId = acct(ctx);
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const words = st.captured.filter(Boolean); // minus the ones already tapped
+    st.captured = [];
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+    if (words.length === 0) return;
+    const pair = await resolveUserPair(telegramId);
+    await ctx.replyWithChatAction("typing");
+    let ok = 0;
+    for (const w of words) {
+      try {
+        await addWordForUser({ telegramId, word: w, sourceLang: pair.source, targetLang: pair.target, level: pair.level });
+        ok++;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    await ctx.reply(`🌱 Добавил карточек: ${ok}/${words.length}`);
+  });
+
   // ---- add a tutor-suggested word ----
   bot.action("tut:addall", async (ctx) => {
-    const telegramId = String(ctx.from.id);
-    const st = stateFor(String(ctx.chat?.id ?? telegramId));
+    const telegramId = acct(ctx);
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
     const words = st.suggested.slice(0, 20);
     st.suggested = [];
     await ctx.answerCbQuery();
@@ -680,7 +821,7 @@ export function createBot(): Telegraf {
   bot.on("text", async (ctx) => {
     const text = ctx.message.text.trim();
     if (!text || text.startsWith("/")) return; // commands handled above
-    const telegramId = String(ctx.from.id);
+    const telegramId = acct(ctx);
     const chatId = String(ctx.chat.id);
     // While a practice drill is active, plain text is the learner's answer — route
     // it to the coach instead of the free-form tutor.
@@ -697,7 +838,6 @@ export function createBot(): Telegraf {
       await ctx.reply("Слишком часто — подожди минутку.");
       return;
     }
-    await ensureBotUser(telegramId, chatId);
     const pair = await resolveUserPair(telegramId);
     const st = stateFor(chatId);
     st.history.push({ role: "user", content: text });
@@ -732,7 +872,13 @@ async function sendNextCard(ctx: Context, telegramId: string): Promise<void> {
   const pair = await resolveUserPair(telegramId);
   const due = await dueWordsForUser(telegramId, pair, 1);
   if (due.length === 0) {
-    await ctx.reply("🎉 Всё повторено — отличная работа!");
+    // The end of the queue is where the daily loop closes: recognising the cards
+    // was the easy half, so offer the use-step rather than just applauding. One
+    // tap, not automatic — it costs a model call the learner may not want.
+    await ctx.replyWithHTML(
+      "🎉 <b>Всё повторено</b> — отличная работа!\n\nОстался один шаг: <i>использовать</i> слово, а не просто узнать его.",
+      Markup.inlineKeyboard([[Markup.button.callback("🗣 Шаг на использование", "us:start")]]),
+    );
     return;
   }
   const word = due[0];
@@ -762,13 +908,13 @@ function startReminderLoop(bot: Telegraf): void {
         if (n === 0) continue;
         const weak = await weakCountForUser(u.telegramId, pair);
         lastSent.set(u.telegramId, day);
-        const weakLine = weak > 0 ? `\n🎯 И ${weak} ${weak === 1 ? "слово ускользает" : "слов ускользают"} — можно отработать с наставником.` : "";
-        const buttons = [[Markup.button.callback("▶️ Повторить", "rv:next")]];
-        if (weak > 0) buttons.push([Markup.button.callback("🎯 Практика со слабыми", "pr:start")]);
+        const weakLine = weak > 0 ? `\n🎯 ${weak} ${weak === 1 ? "слово ускользает" : "слов ускользают"} — их и отработаем в конце.` : "";
+        // One button on purpose: the nudge starts the day's whole loop (review →
+        // one use-step), and a second choice here is where people stall.
         try {
           await bot.telegram.sendMessage(u.botChatId, `⏰ Пора повторить: <b>${n}</b> ${n === 1 ? "карточка" : "карточек"} ждёт.${weakLine}`, {
             parse_mode: "HTML",
-            ...Markup.inlineKeyboard(buttons),
+            ...Markup.inlineKeyboard([[Markup.button.callback("▶️ Начать", "rv:next")]]),
           });
         } catch (err) {
           // A user may have blocked the bot — skip and continue.
@@ -800,6 +946,7 @@ export function launchBot(): void {
     .setMyCommands([
       { command: "review", description: "Повторить карточки" },
       { command: "practice", description: "Практика с наставником" },
+      { command: "add", description: "Добавить слово (или пришли фото страницы)" },
       { command: "due", description: "Сколько ждёт повторения" },
       { command: "remind", description: "Напоминания о повторении" },
       { command: "list", description: "Мои слова" },

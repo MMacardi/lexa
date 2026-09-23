@@ -138,13 +138,30 @@ export async function aiQuotaGuard(req: Request, res: Response, next: NextFuncti
   next();
 }
 
+/** Spend one unit of a free monthly allowance; false when it's already gone. */
+async function spendMonthlyFree(id: string, name: string, limit: number): Promise<boolean> {
+  const key = monthKey(id, name);
+  if ((await peekCounter(key)) >= limit) return false;
+  await bumpCounter(key, endOfMonth());
+  return true;
+}
+
+/**
+ * monthlyGuard for a surface that has no `req` — the Telegram bot, whose photo
+ * capture runs the same OCR the Reader does and must come out of the same
+ * allowance. False means the free allowance is spent.
+ */
+export async function takeMonthly(id: string, name: string, limit: number): Promise<boolean> {
+  if (await isPro(id)) return true;
+  return spendMonthlyFree(id, name, limit);
+}
+
 /** Guard factory: free users get `limit` of a named action per month; Pro is uncapped. */
 export function monthlyGuard(name: string, limit: number) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const id = callerId(req);
     if (!simulatingFree(req) && (await isPro(id))) return next();
-    const key = monthKey(id, name);
-    if ((await peekCounter(key)) >= limit) {
+    if (!(await spendMonthlyFree(id, name, limit))) {
       res.status(429).json({
         error: "You've used this month's free allowance for this feature. Upgrade to Pro for unlimited.",
         code: "quota_monthly",
@@ -154,7 +171,6 @@ export function monthlyGuard(name: string, limit: number) {
       });
       return;
     }
-    await bumpCounter(key, endOfMonth());
     next();
   };
 }

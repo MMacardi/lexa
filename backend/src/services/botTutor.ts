@@ -1,4 +1,5 @@
 import { prisma } from "./db.js";
+import { cedictHas, isChinese } from "./cedict.js";
 
 // Server-side helpers for the Telegram tutor bot. The bot has no browser
 // localStorage, so the learner's language pair lives on the User row (resolved
@@ -12,12 +13,33 @@ export interface Pair {
   level?: string;
 }
 
-/** Ensure the bot user exists and remember their chat id for proactive messages. */
+/**
+ * Resolve a Telegram sender to the account behind them, remembering their chat
+ * id for proactive messages. Returns the **canonical** `User.telegramId` — the
+ * key every other service here takes.
+ *
+ * That key is not always the numeric Telegram id. Someone who signed in with
+ * Google first has `telegramId = "email:…"`, so keying the bot on `ctx.from.id`
+ * handed them a second, empty account and their deck vanished the moment they
+ * opened the chat. The linked AuthIdentity is the source of truth; the numeric
+ * id is only the fallback for a learner who arrived through Telegram.
+ */
 export async function ensureBotUser(
   telegramId: string,
   chatId: string,
   profile?: { firstName?: string | null; username?: string | null },
-): Promise<void> {
+): Promise<string> {
+  const linked = await prisma.authIdentity.findUnique({
+    where: { provider_subject: { provider: "telegram", subject: telegramId } },
+    select: { user: { select: { id: true, telegramId: true, botChatId: true } } },
+  });
+  if (linked) {
+    // Runs on every update, so only write when the chat id actually changed.
+    if (linked.user.botChatId !== chatId) {
+      await prisma.user.update({ where: { id: linked.user.id }, data: { botChatId: chatId } });
+    }
+    return linked.user.telegramId;
+  }
   const user = await prisma.user.upsert({
     where: { telegramId },
     create: {
@@ -30,12 +52,14 @@ export async function ensureBotUser(
     update: { botChatId: chatId },
     select: { id: true },
   });
-  // Keep a matching identity so this Telegram account is linkable/listed.
+  // Keep a matching identity so this Telegram account is linkable/listed — and
+  // so the lookup above finds it on the next update.
   await prisma.authIdentity.upsert({
     where: { provider_subject: { provider: "telegram", subject: telegramId } },
     create: { userId: user.id, provider: "telegram", subject: telegramId },
     update: {},
   });
+  return telegramId;
 }
 
 /**
@@ -141,6 +165,71 @@ export async function drillWordsForUser(
   const due = words.filter((w) => !w.nextReviewAt || new Date(w.nextReviewAt).getTime() <= now);
   const ordered = [...new Map([...weak, ...due, ...words].map((w) => [w.id, w])).values()];
   return ordered.slice(0, limit).map((w) => ({ id: w.id, word: w.word, meaning: w.meaningZh ?? "" }));
+}
+
+// ---- Capture: a photographed page turned into cards you don't have yet ----
+
+const HANZI = /^\p{Script=Han}+$/u;
+// CC-CEDICT headwords run longer, but past four characters they are idioms and
+// names — not what a textbook page is teaching this week.
+const MAX_HANZI_WORD = 4;
+
+/**
+ * Greedy longest-match segmentation of Chinese against CC-CEDICT.
+ *
+ * Single characters are dropped on purpose: alone on a scanned page they are
+ * mostly particles (的, 了, 是), and a one-character card with no context is the
+ * weakest card there is. `add 好` still works when the learner wants one.
+ *
+ * Greedy costs the odd boundary — 说明天 comes out as 说明, not 说 + 明天 — but
+ * every candidate is a real dictionary word the learner chooses to tap or not,
+ * so a wrong split loses a suggestion, never data.
+ */
+function segmentHanzi(text: string): string[] {
+  const chars = Array.from(text);
+  const out: string[] = [];
+  let i = 0;
+  while (i < chars.length) {
+    if (!HANZI.test(chars[i])) {
+      i++;
+      continue;
+    }
+    let taken = 0;
+    for (let n = Math.min(MAX_HANZI_WORD, chars.length - i); n >= 2; n--) {
+      const candidate = chars.slice(i, i + n).join("");
+      if (HANZI.test(candidate) && cedictHas(candidate)) {
+        out.push(candidate);
+        taken = n;
+        break;
+      }
+    }
+    i += taken || 1;
+  }
+  return out;
+}
+
+/**
+ * Words worth capturing out of scanned text: in the order the page teaches them,
+ * minus the ones already in the deck. Chinese only — the other languages have no
+ * dictionary loaded here, so the bot shows them the text and lets them pick.
+ */
+export async function captureCandidates(telegramId: string, pair: Pair, text: string, limit = 12): Promise<string[]> {
+  if (!isChinese(pair.source)) return [];
+  const tokens = segmentHanzi(text);
+  if (tokens.length === 0) return [];
+  const owned = await prisma.word.findMany({
+    where: { user: { telegramId }, sourceLang: pair.source },
+    select: { word: true },
+  });
+  const have = new Set(owned.map((w) => w.word.trim()));
+  const out: string[] = [];
+  for (const token of tokens) {
+    if (have.has(token)) continue;
+    have.add(token); // also de-duplicates repeats within the page
+    out.push(token);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /** The learner's chosen reminder hour (0–23), or null if reminders are off. */
