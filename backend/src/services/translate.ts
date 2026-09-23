@@ -2,6 +2,7 @@ import { z } from "zod";
 import { chatJson, FAST_MODEL } from "./llm.js";
 import { translationSchema, glossSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { cedictInventory, isChinese } from "./cedict.js";
 
 // Languages written in a script where a transcription (pinyin/romaji/romanization)
 // genuinely helps a quick lookup.
@@ -43,6 +44,23 @@ export async function glossInContext(params: {
     ` If the word forms part of an idiom, phrasal verb or compound in that sentence ` +
     `(e.g. "cake" in "piece of cake", "clear" in "clear-cut"), give the meaning of the WHOLE ` +
     `expression as used there, not the literal single-word meaning.`;
+  // Chinese: the dictionary states which senses exist and the model only picks
+  // the one the sentence uses, as the add path does (agents/enrich.ts). Left to
+  // itself the tap read 了 in 他打了三个小时 as «уже», 只 in 一只猫 as «один» and
+  // 过 in 我去过北京 as «проходить» — a particle, a classifier and an aspect
+  // marker, each glossed as some other word.
+  const inventory = isChinese(params.sourceLang) ? cedictInventory(word, 10, { count: false }) : null;
+  if (inventory) {
+    return groundedGloss({
+      word,
+      sentence,
+      source,
+      target,
+      targetLang: params.targetLang ?? "zh",
+      inventory,
+      trName: wantTr ? transcriptionName(params.sourceLang ?? "zh") : "",
+    });
+  }
 
   if (!wantTr) {
     const result = await chatJson({
@@ -77,6 +95,46 @@ export async function glossInContext(params: {
     model: FAST_MODEL,
   });
   return { gloss: result.translation.trim(), transcription: (result.transcription ?? "").trim() };
+}
+
+/**
+ * The contextual gloss for a word the dictionary covers. The sentence, the word
+ * and its listed senses all go in the user message, and the model names the
+ * sense it picked before glossing it: with the sentence as an aside in the
+ * system prompt it glossed 打 in 打了三个小时篮球 as "hit" and 过 in 我去过北京
+ * as a completed action. The default model rather than the fast one — choosing
+ * among listed senses is exactly what the fast one got wrong, and a grounded tap
+ * holds nothing up any more: the dictionary's own line shows at once.
+ */
+async function groundedGloss(p: {
+  word: string;
+  sentence: string;
+  source: string;
+  target: string;
+  targetLang: string;
+  inventory: string;
+  trName: string;
+}): Promise<{ gloss: string; transcription: string }> {
+  const result = await chatJson({
+    system:
+      `You gloss one ${p.source} word as it is used in a sentence, for a learner who speaks ${p.target}. ` +
+      `The user message gives the sentence, the word, and the word's senses as listed by CC-CEDICT, a ` +
+      `${p.source}–English dictionary. First decide which listed sense the word has in this sentence — look at ` +
+      `its neighbours: the object it takes, the number before it, the verb it follows. Then write that sense's ` +
+      `meaning in ${p.target}, 1–4 words. A particle, a classifier or an aspect marker gets what it does, in ` +
+      `brackets (e.g. "(experienced action)", "(counter for animals)"), written in ${p.target}. A light verb whose ` +
+      `sense comes from its object (打 + 篮球) gets the meaning it has with that object. Never use a sense that is ` +
+      `not listed. The list is in English only because of the dictionary — answer in ${p.target}. ` +
+      scriptNote(p.targetLang) +
+      (p.trName ? `Also give "transcription": the word's ${p.trName} in the reading you picked. ` : "") +
+      `Respond as JSON: {"sense": string, "translation": string${p.trName ? ', "transcription": string' : ""}}, ` +
+      `where "sense" is the reading and number you picked, e.g. "guo5 1".`,
+    user: `Sentence: ${p.sentence}\nWord: ${p.word}\nSenses:\n${p.inventory}`,
+    schema: glossSchema,
+    timeoutMs: 30000,
+    label: "gloss(grounded)",
+  });
+  return { gloss: result.translation.trim(), transcription: p.trName ? (result.transcription ?? "").trim() : "" };
 }
 
 /**

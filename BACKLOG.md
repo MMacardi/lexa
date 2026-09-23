@@ -228,10 +228,19 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
       matches its gloss (a bare 了 showed "liǎo" over "completed action marker").
       `scripts/check-segment.ts`.
 
-22. **Ground the Reader's tap gloss in CC-CEDICT.** Found in the same run: the contextual Russian
+22. [x] **Ground the Reader's tap gloss in CC-CEDICT.** Found in the same run: the contextual Russian
     for 了 in 他打了三个小时 came back «уже». `glossInContext` (`services/translate.ts`) is the one
     AI path that still invents its own sense; `enrichWordEntry` already passes the dictionary's
     inventory into the prompt, and the tap gloss should do the same.
+    - **Shipped 2026-09-23.** `groundedGloss` in `services/translate.ts`: sentence, word and the
+      listed senses go in the user message, the model names the sense it picked, then glosses it;
+      the default model, since the fast one kept picking the wrong listed sense (a grounded tap
+      blocks nothing now — the dictionary line shows first). Baseline 3/6 wrong → 12/12 right
+      (`scripts/check-gloss.ts`, live). **Found on the way, and it reaches the add path and the
+      word page too:** `cedictInventory` spent its gloss budget in order, so 得's dé (12 glosses)
+      hid the particle de5 and děi "must" from every prompt. Now each reading gets a share.
+      Re-run `scripts/eval-senses.ts` before quoting the 99/100 again — the inventory it measured
+      has changed for multi-reading words.
 
 ## Later — only after the retention test passes
 

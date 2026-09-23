@@ -235,18 +235,21 @@ export function isChinese(lang: string | null | undefined): boolean {
  * The sense inventory as a prompt block, or null when the word isn't covered.
  * Readings stay separate — a headword with two of them (只 zhī / zhǐ) has two
  * genuinely different sense sets, and folding them together is how a card ends up
- * glossing the wrong one. Capped so a 9-sense entry can't crowd out the rest of
- * the prompt; the senses are already ordered by the dictionary.
+ * glossing the wrong one. Capped per reading so a 12-sense reading can't crowd
+ * out the others, or the rest of the prompt.
  */
-export function cedictInventory(word: string, maxGlosses = 12): string | null {
-  const entry = cedictLookup(word);
+export function cedictInventory(word: string, maxGlosses = 12, opts: { count?: boolean } = {}): string | null {
+  // A Reader tap is not an add, so it stays out of the coverage counters (see `hits`).
+  const entry = opts.count === false ? (idx().get(normalizeHanzi(word)) ?? null) : cedictLookup(word);
   if (!entry) return null;
+  // Every reading gets a share of the budget. Spent in order, 得's dé (twelve
+  // glosses on its own) used all of it, so de5 — the particle in 跑得很快 — and
+  // děi "must" never reached a prompt, and the model glossed 得 as "to allow".
+  // Within a reading the dictionary orders senses, so its share is its first ones.
+  const share = Math.max(2, Math.floor(maxGlosses / entry.readings.length));
   const lines: string[] = [];
-  let left = maxGlosses;
   for (const reading of entry.readings) {
-    if (left <= 0) break;
-    const glosses = reading.glosses.slice(0, left);
-    left -= glosses.length;
+    const glosses = reading.glosses.slice(0, share);
     const head = entry.readings.length > 1 ? `[${reading.pinyin}] ` : "";
     lines.push(head + glosses.map((g, i) => `${i + 1}. ${g}`).join(" "));
   }
