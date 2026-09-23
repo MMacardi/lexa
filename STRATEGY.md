@@ -780,11 +780,16 @@ but slow; the binding constraint is your calendar, not the code.** Details, most
   retention doesn't exist yet), the shared learner-corrected dictionary (needs users), IELTS (needs
   HSK to retain first).
 
-### What is feasible for the code in the next sessions
-Items 3 (HSK N words daily), 4 (official lists as decks), the Reader segmenter, and 9 (stop asking
-which language) are code-only and can each be built and checked locally. Item 7 (Sentry) can be
-wired so it's switched on by setting a DSN. Item 8 needs a group link that only you can create.
-Items 1, 5 and 12–16 need you; item 6 waits for item 1 by design.
+### What the code could do, and did (same day)
+Items 3 (HSK N words daily), 4 (official lists as decks), the Reader segmenter, 9 (stop asking
+which language) and the grounded tap gloss were built and checked in the local app the same day;
+7 (Sentry) and 8 (testers' chat) are wired and wait on an env var each. Running the flows found
+three faults a review didn't: a rejection reshuffled the day's words, the tap popover showed one
+reading's pinyin over another's gloss, and `cedictInventory` hid whole readings (得's particle
+sense) from every prompt. **The code side of the plan is now ahead of the evidence.** Everything
+left needs you: backups (1), the two-week self-test (5), the Sentry/uptime accounts and the group
+link (7, 8), and naming, domain, legal, interviews, recruiting (12–16). Item 6 waits for item 1
+by design. More features before item 5 would repeat the breadth-first pattern §J.11 warns about.
 
 ---
 
