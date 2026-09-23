@@ -146,6 +146,12 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
     route reports to `FEEDBACK_TELEGRAM_CHAT`/`FEEDBACK_EMAIL`. What's missing is somewhere to
     *answer* — a Telegram chat or group linked from the app and from the landing page, so a 6-week
     beta is a conversation and not a one-way form. The landing already promises you answer.
+    - **Code done 2026-09-23; needs you:** create the Telegram group, then set
+      `NEXT_PUBLIC_TESTERS_CHAT_URL=https://t.me/+…` on Vercel and redeploy (DEPLOY.md table).
+      With it set, "The testers' chat — the author answers there" shows in the bug dialog (above
+      the form and after sending) and on the landing (the honesty section and the footer); unset,
+      nothing shows. `lib/links.ts` accepts https links only. Checked with a test link in the
+      local build, logged in and out. Tick once the real link is live.
 
 9. [x] **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
     into the *interface*, so 14 surfaces still pose «что учу / что знаю» in an app whose positioning

@@ -3,6 +3,7 @@
 import { useI18n } from "@/lib/i18n";
 import { LangMenu, ThemeToggle, Reveal } from "@/components/LandingChrome";
 import { Camera, Layers, MessageSquareQuote, Eye, GraduationCap, ArrowRight, Send, Check } from "lucide-react";
+import { TESTERS_CHAT_URL } from "@/lib/links";
 
 // The landing a stranger reads (BACKLOG F10). One page, one promise: the HSK
 // readiness mark, then the loop that moves it — photo the lesson list, review,
@@ -73,6 +74,8 @@ const copy = {
     ],
     finalTitle: "Посмотри, где ты сейчас",
     finalSub: "Проверка занимает около пяти минут.",
+    chat: "Чат тестировщиков — там отвечает автор",
+    chatShort: "Чат тестировщиков",
     rights: "Все права защищены.",
     terms: "Условия",
     privacy: "Конфиденциальность",
@@ -137,6 +140,8 @@ const copy = {
     ],
     finalTitle: "See where you actually are",
     finalSub: "The check takes about five minutes.",
+    chat: "The testers' chat — the author answers there",
+    chatShort: "Testers' chat",
     rights: "All rights reserved.",
     terms: "Terms",
     privacy: "Privacy",
@@ -200,6 +205,8 @@ const copy = {
     ],
     finalTitle: "看看你现在到哪儿了",
     finalSub: "这个自测大约五分钟。",
+    chat: "测试者群聊——作者会在那里回复",
+    chatShort: "测试者群聊",
     rights: "版权所有。",
     terms: "条款",
     privacy: "隐私",
@@ -478,6 +485,17 @@ export function FocusLanding({ onStart }: { onStart: () => void }) {
                 </li>
               ))}
             </ul>
+            {/* Somewhere the author answers back, not just a form (item "A feedback channel"). */}
+            {TESTERS_CHAT_URL && (
+              <a
+                href={TESTERS_CHAT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-6 inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/50 px-4 py-2 text-[14px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+              >
+                <Send className="h-4 w-4" /> {L.chat}
+              </a>
+            )}
           </div>
         </Reveal>
       </section>
@@ -507,6 +525,11 @@ export function FocusLanding({ onStart }: { onStart: () => void }) {
           <div className="flex gap-4">
             <a href="/terms" className="font-semibold hover:text-ink">{L.terms}</a>
             <a href="/privacy" className="font-semibold hover:text-ink">{L.privacy}</a>
+            {TESTERS_CHAT_URL && (
+              <a href={TESTERS_CHAT_URL} target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-ink">
+                {L.chatShort}
+              </a>
+            )}
           </div>
         </div>
       </footer>

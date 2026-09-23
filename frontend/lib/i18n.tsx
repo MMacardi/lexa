@@ -2225,6 +2225,11 @@ const DICT: Record<string, Entry> = {
   // --- beta bug report ---
   "bug.button": { en: "Report a bug", ru: "Сообщить об ошибке", zh: "报告问题" },
   "bug.title": { en: "Report a bug", ru: "Сообщить об ошибке", zh: "报告问题" },
+  "bug.chat": {
+    en: "Questions or ideas? The testers' chat — the author answers there",
+    ru: "Вопросы или идеи? Чат тестировщиков — там отвечает автор",
+    zh: "有问题或想法？测试者群聊——作者会在那里回复",
+  },
   "bug.subtitle": {
     en: "Found something broken or odd? Tell me what happened — a screenshot and technical details are attached automatically.",
     ru: "Что-то сломалось или работает странно? Опишите, что произошло — скриншот и технические детали приложатся автоматически.",

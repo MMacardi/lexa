@@ -107,6 +107,7 @@ payments, move the frontend to Vercel Pro.
    | `BACKEND_URL` | `https://<BACKEND_URL>` | Server-side only. `/api/*` is proxied here. |
    | `NEXT_PUBLIC_BOT_USERNAME` | `onomikabot` | No `@`. Must be the bot whose token the backend uses. |
    | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | *(optional)* | Leave it out to hide Google sign-in. |
+   | `NEXT_PUBLIC_TESTERS_CHAT_URL` | *(optional)* `https://t.me/+…` | The testers' Telegram group invite link. Shown on the landing and in the bug dialog; leave it out and no link shows. |
    | `NEXT_PUBLIC_API_URL` | **do not add it** | Must stay unset in prod, see below. |
 
    Why `NEXT_PUBLIC_API_URL` must stay unset: when it is empty, the browser calls

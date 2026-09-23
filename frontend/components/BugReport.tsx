@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bug, X, Camera, Check, Loader2 } from "lucide-react";
+import { Bug, X, Camera, Check, Loader2, Send } from "lucide-react";
+import { TESTERS_CHAT_URL } from "@/lib/links";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -214,10 +215,17 @@ export function BugReport() {
                     <Check className="h-6 w-6" />
                   </span>
                   <p className="text-[15px] font-medium text-ink">{t("bug.thanks")}</p>
+                  {TESTERS_CHAT_URL && <TestersChatLink label={t("bug.chat")} />}
                 </div>
               ) : (
                 <>
                   <p className="mb-3 text-[13px] leading-snug text-ink-soft">{t("bug.subtitle")}</p>
+                  {/* The form is one-way; the chat is where the author answers. */}
+                  {TESTERS_CHAT_URL && (
+                    <div className="-mt-1 mb-3">
+                      <TestersChatLink label={t("bug.chat")} />
+                    </div>
+                  )}
 
                   {/* kind */}
                   <Segmented
@@ -285,5 +293,18 @@ export function BugReport() {
           document.body,
         )}
     </>
+  );
+}
+
+function TestersChatLink({ label }: { label: string }) {
+  return (
+    <a
+      href={TESTERS_CHAT_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sage-deep underline decoration-sage/40 underline-offset-2 hover:decoration-sage-deep"
+    >
+      <Send className="h-3.5 w-3.5" /> {label}
+    </a>
   );
 }
