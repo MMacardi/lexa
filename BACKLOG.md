@@ -12,6 +12,14 @@ learner can actually **use**. One exam first (HSK). IELTS is a possible second e
 same engine, only after HSK keeps strangers coming back. Everything else gets hidden, not
 deleted — `onomika_old` holds the full-featured build.
 
+**Re-centred 2026-09-23.** The focus pass built the framing (placement, readiness mark, gap deck)
+before the reason to switch, and the first real use showed it: capture that waits 5–10 s on the
+LLM, an HSK 1 deck for an HSK 4 learner, and scenes the author wouldn't use. The core is now the
+author's original problem: **a word you meet becomes a review card instantly, with no card-making**
+— dictionary first, AI only for what a dictionary can't do (the sense your sentence uses, a Russian
+meaning, an example at your level). HSK stays as the source of daily words, not the headline.
+Scenes, the coach and the readiness mark get no new work until the two-week test (item 5) passes.
+
 ## Open — one list, in order
 
 **Top item is the next session.** Position *is* the priority; the numbers shift when the order
@@ -19,47 +27,94 @@ does, so commits and notes name the **title**, never the number. The old prefixe
 bare numbers) are noted in brackets only so older commits and `IDEAS.md` headings still resolve —
 don't invent new ones.
 
-**Where the line is.** Items 1–6 are what make the app true; nothing goes in front of a stranger
-before they land. 7–11 are what make a beta survivable. 12–15 are what make it legal and named.
-16–19 are what make the result mean something. 20+ is after that.
+**Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+whether anything after it happens. 6–9 make a beta survivable. 10 waits on the test. 11–14 make it
+legal and named. 15–18 make the result mean something. 19+ is after that.
 
 ---
 
 1. **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an
    untested backup is not a backup. First because it is the only irreversible risk on the board:
-   prod now has a working delete button (see item 8) and F2/F3 made the DB the only copy of the
+   prod now has a working delete button (see item 6) and F2/F3 made the DB the only copy of the
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
 
-2. **Rank the gap deck by evidence, not by the alphabet.** `[F13]` One session, backend only
-   (`services/hsk.ts`), no migration — it reads `PlacementAnswer` rows that already exist.
-   - **The fault:** `hskGapWords` walks levels 1→target in file order (alphabetical by pinyin) and
-     takes anything that is neither a card nor an explicit "I know it". HSK 1 holds ~500 words and
-     the check samples 6, so ~494 stay "unproven" and fill every deck before level 2 is reached. An
-     HSK 4 learner gets 一下儿, 一些, 七, 三, 上, 上午, 上班 … and none of the words they tapped.
-   - **Priority 1 — proven gaps:** `PlacementAnswer` where `known = false` with no card yet, hardest
-     level first. After a 24-word check that is ~14 words: a whole first deck of words the learner
-     personally said they don't know.
-   - **Priority 2 — the frontier:** per-level known-rate from the check answers (6 a level is noisy
-     but usable); the frontier is the lowest level under ~70%. Draw frontier, then frontier+1, up to
-     target. **Never restart at level 1** unless everything above is exhausted.
-   - **Shuffle within a level** — file order is why a batch reads as all 一* then all 上*.
-   - Show the level badge on each proposed word; the HSK 1 tags are what made the fault visible.
-   - **Done when:** a seeded account targeting HSK 4 that fails most level-3/4 samples gets a level
-     3–4 deck containing the words it tapped. Assert it in `backend/scripts/check-gap-deck.ts`,
-     same shape as `check-account-delete.ts`.
+2. **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
+   original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
+   "Pleco lookup + star"*. Today every add waits 5–10 s on the LLM, and a card is a blank shell
+   until a background job fills it.
+   - On add, write the card **synchronously** from `cedictLookup` (`services/cedict.ts`; ~11.4k HSK
+     headwords already in `backend/data/cedict.jsonl`): headword, pinyin, glosses. It is reviewable
+     the moment the tap returns.
+   - The LLM runs **after**, only for what a dictionary can't do: the Russian meaning, the sense the
+     source sentence actually uses, one example built from words the learner already has. It
+     upgrades the card; it never gates it.
+   - CEDICT glosses are English. Until the Russian arrives the card shows the English gloss,
+     labelled. (BKRS would give Russian instantly — check its licence before shipping any of it.)
+   - Folds in *No dead cards* `[F15]`: add `POST /api/words/:id/enrich` and a "fill this in" action,
+     so a cancelled or failed enrichment never leaves an empty card. With CEDICT first, a non-empty
+     card is the default anyway.
+   - Words CEDICT doesn't have, and non-Chinese words, keep today's path.
+   - **Done when:** adding 一下 / 打 / a textbook word returns a reviewable card in < 1 s with pinyin
+     and gloss, and the Russian fills in behind it. `backend/scripts/check-capture.ts` asserts the
+     card is complete before any LLM call; then add three words in the local app as a learner would.
 
-3. **Let the learner reject a word they already know.** `[F14]` One session, small.
-   The check step renders each word as a toggle `<button>`; the deck step renders a static `<span>`,
-   so the learner stares at twenty words they know with no way to say so. Make them deselectable and
-   write a deselect as `PlacementAnswer{known: true}`. Cheapest measurement in the product: every
-   rejection fixes the mark, drops the word from all future decks, and is a free labelled data point.
-   Over a few sessions it converges on the real frontier better than any single test. "Build my deck
-   · N words" must track the selection.
+3. **Pick HSK N, get HSK N words — every day.** `[F13 + F16 + F14]` One session, `services/hsk.ts`
+   plus the deck step. The fault a real run found: an HSK 4 learner is handed 一下儿, 一些, 七, 三 …
+   because `hskGapWords` walks levels 1→target in file order (alphabetical by pinyin) and HSK 1's
+   ~500 unproven words fill every deck before level 2 is reached. The simplest version that is true:
+   - Draw from the **target level** first, then target−1, … — never restart at HSK 1 unless
+     everything above is exhausted. Words the learner tapped as unknown in the check
+     (`PlacementAnswer.known = false`, no card yet) go first. Shuffle within a level.
+   - A **daily drip, not a one-off build**: Today offers `dailyGoal` new words at the level, straight
+     into review. (The learner's words: *"I thought it would always give me some words for my
+     level."*) F11's separate refill button goes away.
+   - **Every proposed word can be rejected.** The deck step renders static `<span>`s today; make them
+     toggles and write a rejection as `PlacementAnswer{known: true}`, so the word never comes back.
+   - Show the level badge on each word.
+   - **Done when:** a seeded account targeting HSK 4 gets level-4 words, including the ones it
+     tapped, and a rejected word never reappears — asserted in `backend/scripts/check-gap-deck.ts`
+     (shape of `check-account-delete.ts`). Then pick HSK 4 in the local app and look at the deck.
 
-4. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` One session, the most
-   design in the set.
+4. **The official HSK lists as decks you can browse.** Small. Every HSK app has "HSK 1–6, add
+   them": table stakes, not a differentiator, but without it the app looks empty. The lists are
+   already data (`services/hsk.ts`), and the collections UI is only hidden by `FOCUS`
+   (`frontend/lib/focus.ts`), not deleted. Show the six levels read-only, with "put this level in
+   my daily words" and per-word add. Community collections stay hidden.
+
+5. **Be user #1 — two weeks, and this is the test.** `[V0]` Not a session — a habit. After items
+   2–4, use it daily for your own Chinese: add the words you meet, take the daily words, review.
+   **Kill rule, set now:** if after two weeks you are not adding words without forcing yourself,
+   stop and keep the project as a portfolio piece. If you skip a day, write down why; that reason
+   outranks any feature idea. **Nothing after item 9 starts before this passes.** It has already
+   paid for itself once: one hour of real use found the fault behind item 3.
+
+6. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
+   confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
+   the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
+   with a 7–30 day window plus a purge job; GDPR-compatible. **After item 1** — a grace period is not
+   a backup.
+
+7. **Error monitoring + uptime.** `[H2]` No Sentry anywhere in the repo, so a crash a tester hits is
+   invisible unless they report it. Sentry (or similar) on backend + frontend, plus an uptime check
+   on the existing `GET /health`. Keep the DSN out of git. Pairs with the Next bump that already
+   landed, so the SDK matches the major.
+
+8. **A feedback channel the tester can find.** `[H4]` The bug button and `deliverFeedback` already
+    route reports to `FEEDBACK_TELEGRAM_CHAT`/`FEEDBACK_EMAIL`. What's missing is somewhere to
+    *answer* — a Telegram chat or group linked from the app and from the landing page, so a 6-week
+    beta is a conversation and not a one-way form. The landing already promises you answer.
+
+9. **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
+    into the *interface*, so 14 surfaces still pose «что учу / что знаю» in an app whose positioning
+    is a single pair. The pair belongs on the account (F2 stored it), shown as a labelled static chip
+    — item 3g's fix, which must survive, because people really did set it backwards — with the picker
+    behind the chip and in Settings only.
+
+10. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` **On hold until
+    item 5 passes.** The readiness mark is framing, not the reason anyone switches, and the daily
+    words plus rejections (item 3) may locate the frontier well enough on their own. If still needed:
    - **The test:** 24 evenly-spread taps measure nothing. The same budget spent as a ladder locates a
      frontier — ~8 words at the target, ≥70% known go up, ≤30% go down, otherwise stop. Three rounds,
      same 24 taps, an actual answer. Store `frontierLevel` on the User beside `hskTarget`.
@@ -69,77 +124,37 @@ before they land. 7–11 are what make a beta survivable. 12–15 are what make 
      number that reads 30/1200 to someone who knows a thousand of them is wrong, not conservative,
      and it is the first thing they see.
 
-5. **No dead cards.** `[F15]` One session. Cards are created as blank shells and enriched by a
-   background job, so cancelling enrichment leaves N empty cards — and there is **no enrich or
-   regenerate endpoint anywhere in the backend** (grepped), so they can only be hand-edited or
-   deleted. Add `POST /api/words/:id/enrich` and a "fill this in" action on an empty card; on cancel,
-   offer to delete the ones that never got filled; consider enriching before creating for small
-   batches so a stop leaves nothing behind.
-
-6. **The gap deck becomes the daily drip, not a one-off build.** `[F16]` One session. The learner's
-   own words: *"I thought it would always give me some words for my level."* That is a renewable
-   source, not a deck you build once. Today offers today's new words at the frontier, sized to
-   `dailyGoal`, feeding straight into review — which also makes F11's separate refill button
-   unnecessary.
-
-7. **Be user #1.** `[V0]` Not a session — a habit. Use it daily for your own next HSK level for 2–3
-   weeks before recruiting anyone. If you skip a day, find out why; that reason outranks any feature
-   guess. **This is the gate on every recruiting item below**, and it has already earned its keep:
-   one hour of real use found the fault behind items 2–6, which no amount of reading the code had.
-
-8. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
-   confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
-   the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
-   with a 7–30 day window plus a purge job; GDPR-compatible. **After item 1** — a grace period is not
-   a backup.
-
-9. **Error monitoring + uptime.** `[H2]` No Sentry anywhere in the repo, so a crash a tester hits is
-   invisible unless they report it. Sentry (or similar) on backend + frontend, plus an uptime check
-   on the existing `GET /health`. Keep the DSN out of git. Pairs with the Next bump that already
-   landed, so the SDK matches the major.
-
-10. **A feedback channel the tester can find.** `[H4]` The bug button and `deliverFeedback` already
-    route reports to `FEEDBACK_TELEGRAM_CHAT`/`FEEDBACK_EMAIL`. What's missing is somewhere to
-    *answer* — a Telegram chat or group linked from the app and from the landing page, so a 6-week
-    beta is a conversation and not a one-way form. The landing already promises you answer.
-
-11. **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
-    into the *interface*, so 14 surfaces still pose «что учу / что знаю» in an app whose positioning
-    is a single pair. The pair belongs on the account (F2 stored it), shown as a labelled static chip
-    — item 3g's fix, which must survive, because people really did set it backwards — with the picker
-    behind the chip and in Settings only.
-
-12. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
+11. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
     the Tavily web-example path, which removed the worst untrusted-text surface. Left: OCR/photo
     capture (F9) and pasted Reader text, both of which reach prompts with no sanitising layer.
 
-13. **Naming decision.** `[6]` Blocks item 14 — decide before buying anything. Criteria and the
+12. **Naming decision.** `[6]` Blocks item 13 — decide before buying anything. Criteria and the
     rename cost are under §Reference. Own session, no code.
 
-14. **Domain + email.** `[6a]` Buy the `.com` (+ `.ru`), set `SMTP_URL` + `EMAIL_FROM`, send a test
+13. **Domain + email.** `[6a]` Buy the `.com` (+ `.ru`), set `SMTP_URL` + `EMAIL_FROM`, send a test
     login link, attach the domain to Vercel. **Until this lands, email sign-in is a dead end:** with
     `SMTP_URL` empty the login link is written to the server log and nothing else, while the UI still
     offers the option. Either finish this or hide email sign-in. IDEAS: "Site email".
 
-15. **Legal pages.** `[7]` Fill the eight `[ЗАПОЛНИТЬ: …]` placeholders across /privacy and /terms
+14. **Legal pages.** `[7]` Fill the eight `[ЗАПОЛНИТЬ: …]` placeholders across /privacy and /terms
     (operator identity, contact email, jurisdiction, min age) — they need a real address for deletion
-    requests, so item 14 comes first. Add a line about the F1 event log and one about the F3
+    requests, so item 13 comes first. Add a line about the F1 event log and one about the F3
     production ledger. The deletion clause already points at the buttons rather than promising a
     reply. Item 20 will add a ToS clause about shared corrections; don't rewrite these twice.
 
-16. **8–10 interviews** with target users. `[V1]` Classmates prepping HSK, Russian-speaking learners
+15. **8–10 interviews** with target users. `[V1]` Classmates prepping HSK, Russian-speaking learners
     at Chinese universities — about how they handle new words *now*, before the beta, not during.
     Explicitly "done first" in STRATEGY.md's Verification table.
 
-17. **Recruiting list.** `[V2]` Where the 30–50 actually come from, named: which communities, which
+16. **Recruiting list.** `[V2]` Where the 30–50 actually come from, named: which communities, which
     student groups, who introduces you. Not friends without a Chinese exam.
 
-18. **Kill-Test thresholds on `/admin`.** `[V3]` The funnel, rolling D1/D7/D30 and use-step quality
+17. **Kill-Test thresholds on `/admin`.** `[V3]` The funnel, rolling D1/D7/D30 and use-step quality
     already render (F1). Put the four thresholds next to the numbers — ≥50% activation, ≥20% week-4
     retention, ≥30% doing 3+ use-steps a week, ≥40% Sean Ellis — and write down what each miss would
     mean *before* seeing the data.
 
-19. **Refresh the defence materials.** `[U1]` `2024998004014_Anton Volkov/` holds the report, the
+18. **Refresh the defence materials.** `[U1]` `2024998004014_Anton Volkov/` holds the report, the
     plan and a source zip, all from **June 2026** — they predate the strategy pass and every one of
     F0–F11, so they describe a different product. Re-export the zip and make the report tell the
     story the repo shows: the pivot from "learn English through the news" to HSK prep, the learner
@@ -150,12 +165,12 @@ before they land. 7–11 are what make a beta survivable. 12–15 are what make 
       `npx tsx scripts/eval-senses.ts` regenerates the CSV; a number you marked by hand is the one
       that survives a question about methodology.
 
-20. **Shared dictionary that learners correct (not just a cache).** `[F6a]` The full design note is
+19. **Shared dictionary that learners correct (not just a cache).** `[F6a]` The full design note is
     under §Reference. Deliberately late: its whole argument is that it compounds *with users*, so it
     is worth least on the day you have none. With one user it is still your own verified dictionary,
     which is worth having anyway.
 
-21. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
+20. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
     Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
 
 ## Later — only after the retention test passes
@@ -372,7 +387,7 @@ still gate the invites, and nothing should be sent to a stranger before F13–F1
 
 ## Reference
 
-### Shared dictionary — full design note (open, item 20)
+### Shared dictionary — full design note (open, item 19)
 
 - [ ] **F6a. Shared dictionary that learners correct (not just a cache).** Today every
       `addWordForUser` spends an LLM call even when another learner already has a good card for
@@ -411,7 +426,7 @@ still gate the invites, and nothing should be sent to a stranger before F13–F1
         copied quickly (STRATEGY.md §H). It only compounds with users, so it stays after F1–F5.
         With one user it is still your own verified dictionary, which is worth having anyway.
 
-### Naming criteria (item 13)
+### Naming criteria (item 12)
 "Onomika" is disliked (too long). Every `onomika.*` is still free; 11 of 14 short alternatives
 are taken. Own session: 2–3 syllables, readable in RU + EN, free `.com`, no obscene reading in
 Russian (rules out pinyin *hui*), not locked to Chinese. Decide **before** buying the domain.

@@ -8,6 +8,9 @@ Graded university final project; the student is the sole author.
 mark, then the official list + this week's textbook words turned into words you can *use*.
 One exam first (HSK); IELTS only later. New work serves that loop; the rest of the app is
 hidden behind a focus flag, not deleted (`onomika_old` holds the full build).
+**Re-centred 2026-09-23:** capture comes first — a word you meet becomes a review card instantly
+(CEDICT first, the LLM only for what a dictionary can't do), plus HSK-level words as a daily drip.
+Scenes/coach/readiness mark get no new work until the two-week self-test in `BACKLOG.md` passes.
 
 ## Layout
 - `backend/` Express + Prisma (Postgres) + TypeScript, ESM. Entry `src/index.ts`.
