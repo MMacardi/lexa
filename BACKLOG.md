@@ -89,6 +89,16 @@ deleted — `onomika_old` holds the full-featured build.
 - [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
+      Also switch **off the Tavily web-example path** here (Pro-only today, so no free-tier
+      value is lost): `services/search.ts` restricts English to Reuters/BBC/Guardian/NPR/AP
+      — the old "learn English through the news" engine — and sends Chinese to the open web.
+      For HSK prep a level-controlled composed example beats a mined news sentence, it costs
+      ~4× a reader-add (`UNIT_ECONOMICS.md`), and it splices untrusted web text into prompts,
+      which is surface that item 5 would otherwise have to harden. Keep the code, keep
+      `Example.sourceName/sourceUrl`, leave `TAVILY_API_KEY` optional. Revisit for advanced
+      learners (HSK 7–9) or the IELTS stage — and then with a Chinese corpus or graded source,
+      not open-web search.
+
 - [ ] **F8. Narrow the language pickers — keep BOTH Russian and English.** `LEARNING_LANGS`
       → Chinese first (English stays available), `PICKER_LANGS` → zh/en/ru, hide "add a custom
       language". Keep `LANGS` whole so old cards still render, and leave the backend permissive.
