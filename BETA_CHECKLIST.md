@@ -36,7 +36,9 @@ What to prepare before inviting testers. Grouped by priority.
 ## 🟠 Strongly recommended
 
 - [ ] **Error monitoring** (Sentry or similar) on backend + frontend, so you see crashes testers hit.
-- [ ] Basic **uptime check** on `/health`.
+      Wired in code (off until `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are set) — see DEPLOY.md
+      "Error monitoring and uptime" for the two env vars.
+- [ ] Basic **uptime check** on `/health` — a free UptimeRobot / Better Stack monitor, DEPLOY.md.
 - [ ] A **feedback channel** (a Telegram chat / form) linked in the app for testers.
 - [ ] Watch **AI spend**: rate limits are in place (40 AI calls/min per user; email 5/10min), but set a billing alert on Bailian/Tavily. See `UNIT_ECONOMICS.md`.
 - [ ] Seed / demo content so a new account isn't empty (a sample deck).

@@ -18,6 +18,9 @@ const schema = z.object({
   // costs ~4x less and keeps untrusted web text out of the prompts. The code and
   // TAVILY_API_KEY stay — FOCUS_MODE=off restores the full build for the demo.
   FOCUS_MODE: z.string().default("on"),
+  // Error monitoring (lib/monitoring.ts): off until a Sentry DSN is set. Railway
+  // only — never commit it.
+  SENTRY_DSN: z.string().default(""),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   // "true" starts the in-process Telegram tutor bot (long polling). Keep it off
   // when another process (e.g. prod, if this is local) already polls the same token.

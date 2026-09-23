@@ -133,6 +133,14 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    invisible unless they report it. Sentry (or similar) on backend + frontend, plus an uptime check
    on the existing `GET /health`. Keep the DSN out of git. Pairs with the Next bump that already
    landed, so the SDK matches the major.
+   - **Code done 2026-09-23; switching it on needs you** (DEPLOY.md "Error monitoring and
+     uptime"): a Sentry account, `SENTRY_DSN` on Railway, `NEXT_PUBLIC_SENTRY_DSN` on Vercel +
+     redeploy, and a free UptimeRobot/Better Stack monitor on `/health`. Backend
+     `lib/monitoring.ts` (`@sentry/node` 10 — 11 needs Node ≥ 20.19 and Railway's Node isn't
+     pinned), frontend `instrumentation-client.ts` (`@sentry/browser`, loaded only when the DSN
+     is set; shared JS unchanged without it). Both capture `console.error`, since most routes
+     catch and log rather than throw. Verified against a local fake Sentry endpoint: an event
+     arrives from each side with a DSN, nothing without one. Tick this once the DSNs are live.
 
 8. **A feedback channel the tester can find.** `[H4]` The bug button and `deliverFeedback` already
     route reports to `FEEDBACK_TELEGRAM_CHAT`/`FEEDBACK_EMAIL`. What's missing is somewhere to

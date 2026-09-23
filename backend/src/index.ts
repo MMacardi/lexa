@@ -1,3 +1,5 @@
+// First: error monitoring has to be set up before anything else runs.
+import { monitorExpress } from "./lib/monitoring.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -114,6 +116,9 @@ app.use("/api", friendsRouter);
 app.use("/api", feedbackRouter);
 app.use("/api", communityRouter);
 app.use("/api", wordsRouter);
+
+// Uncaught route errors reach Sentry when it is on (lib/monitoring.ts).
+monitorExpress(app);
 
 app.listen(env.PORT, () => {
   console.log(`Backend listening on http://localhost:${env.PORT}`);

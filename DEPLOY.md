@@ -181,6 +181,23 @@ You (`PRO_ALLOWLIST`) never need a code. During the beta every invited user is P
 - **AI spend**: see `/admin` (token cost per model and feature). Also set a billing alert
   in Bailian. Rate limits: 40 AI calls/min per user.
 
+## Error monitoring and uptime (do this before the beta)
+
+Both are off until you set them up, and both are free at beta size.
+
+1. **Sentry.** Create a free account at sentry.io and two projects: *Node* (backend) and
+   *Browser JavaScript* (frontend). Each gives you a DSN (a URL). Then:
+   - Railway → backend → Variables: `SENTRY_DSN=<Node project DSN>`.
+   - Vercel → Settings → Environment Variables: `NEXT_PUBLIC_SENTRY_DSN=<Browser project DSN>`,
+     then **redeploy** (it is baked in at build time, like every `NEXT_PUBLIC_*`).
+   Never commit either DSN. Unset = no SDK loaded and nothing sent. What gets reported:
+   uncaught errors plus everything logged with `console.error` — most routes catch their own
+   errors and log them, so that is where the real crashes show up. No tracing, no IPs.
+   Check it works: Sentry shows the first event within a minute of any failing request.
+2. **Uptime.** A free monitor (UptimeRobot or Better Stack) on
+   `https://<your-backend>.up.railway.app/health`, every 5 minutes, alerting your email or
+   Telegram. `/health` answers without a session, so the gate doesn't get in the way.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |
