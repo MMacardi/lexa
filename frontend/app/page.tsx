@@ -10,7 +10,7 @@ import { FirstRun } from "@/components/FirstRun";
 import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
-import { HskReadiness } from "@/components/HskReadiness";
+import { HskTrack } from "@/components/HskTrack";
 import { ErrorState } from "@/components/ErrorState";
 import { FOCUS } from "@/lib/focus";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -194,7 +194,8 @@ export default function TodayPage() {
 
       <DailyGoalCard />
 
-      <HskReadiness />
+      {/* the mark, the way to the next gap words, or the way in (F11) */}
+      <HskTrack />
 
       {/* the charts: a browsing surface, not a step of the loop (F7) */}
       {!FOCUS && <StatsPanel />}

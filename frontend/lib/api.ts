@@ -248,6 +248,12 @@ export interface Profile {
   nativeLang?: string | null;
   dailyGoal?: number | null;
   retention?: number | null;
+  // The exam goal. /auth/me has always sent these (learnerPrefsSelect), but the
+  // type never declared them, so the one fact that says "this learner is on the
+  // HSK track" was arriving and being thrown away — which is part of why the
+  // track got inferred from card languages instead (F11).
+  hskVersion?: HskVersion | null;
+  hskTarget?: number | null;
 }
 
 /** The settings half of the learner model, as sent to PATCH /api/auth/me. */

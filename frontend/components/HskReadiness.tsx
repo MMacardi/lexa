@@ -5,7 +5,7 @@ import { api, type HskVersion } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 
 // The readiness mark: how much of the official HSK list the learner recognises,
 // and how much of it they can actually use. Deliberately two numbers — the gap
@@ -17,8 +17,8 @@ const LEVELS: Record<HskVersion, number[]> = {
   "3.0": [1, 2, 3, 4, 5, 6, 7],
 };
 
-export function HskReadiness() {
-  const { accountId } = useAccount();
+export function HskReadiness({ onRefill }: { onRefill?: () => void }) {
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const qc = useQueryClient();
 
@@ -33,9 +33,13 @@ export function HskReadiness() {
     queryFn: () => api.stats(accountId),
   });
 
-  // Chinese only — an English learner has no use for an HSK mark. Until the
-  // focus flag lands (F7) this is what keeps the card off everyone else's page.
+  // Chinese only — an English learner has no use for an HSK mark. But the track
+  // is a choice on the account, not something inferred from the cards you happen
+  // to hold (F11): gating on Chinese cards alone made this a closed loop, since
+  // the only screen that handed out Chinese cards needed an empty account to
+  // appear. A saved target is the learner saying "I am on this track".
   const studiesChinese = stats?.languages.includes("zh") ?? false;
+  const onTrack = profile?.hskTarget != null;
 
   const pick = async (version: HskVersion, level: number) => {
     const next = await api.hskReadiness(version, level);
@@ -54,7 +58,7 @@ export function HskReadiness() {
       </section>
     );
 
-  if (!data || !studiesChinese) return null;
+  if (!data || (!studiesChinese && !onTrack)) return null;
 
   const { total, recognise, canUse, learning } = data;
   const pctRecognise = total ? (recognise / total) * 100 : 0;
@@ -99,6 +103,20 @@ export function HskReadiness() {
           {t("hsk.gapWords", { n: data.gap })}
         </span>
       </div>
+
+      {/* The gap count used to be the end of the story — a number with nothing to
+          do about it, because the only caller of the gap deck lived on a screen
+          you could reach exactly once (F11). Now it is the way to the next batch. */}
+      {onRefill && data.gap > 0 && (
+        <button
+          type="button"
+          onClick={onRefill}
+          className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-sage px-4 text-[14px] font-semibold text-white transition-colors hover:bg-sage-deep"
+        >
+          <Plus className="h-4 w-4" />
+          {t("hskTrack.more")}
+        </button>
+      )}
 
       {/* which list, and how far up it */}
       <div className="mt-6 space-y-3">

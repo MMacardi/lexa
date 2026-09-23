@@ -37,7 +37,21 @@ const CEFR_FOR: Record<number, CefrLevel> = { 1: "A1", 2: "A2", 3: "B1", 4: "B2"
 
 type Step = "target" | "check" | "deck" | "done";
 
-export function HskFirstRun({ onOther }: { onOther: () => void }) {
+// "first" is the empty-account onboarding. "refill" is the same flow re-opened by
+// a learner who already has cards and wants the next batch of gap words (F11):
+// same target step, but the placement check is optional — re-tapping 24 words you
+// already answered is the reason a repeat visit wouldn't happen.
+type Variant = "first" | "refill";
+
+export function HskFirstRun({
+  onOther,
+  variant = "first",
+  onClose,
+}: {
+  onOther?: () => void;
+  variant?: Variant;
+  onClose?: () => void;
+}) {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
   const { show, trackImport } = useToast();
@@ -69,6 +83,27 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
       setCheck(r.words);
       setUnknown(new Set());
       setStep("check");
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Straight to the gap deck, no check. The gap endpoint already excludes both
+  // the words you own and the ones you ticked as known, so a repeat run returns
+  // the NEXT batch rather than the same twenty — which is what makes the loop
+  // repeat at all (F11: api.hskGap used to have exactly one caller, inside the
+  // screen you could only see on an empty account).
+  async function loadGapOnly() {
+    setBusy(true);
+    try {
+      void api.updateLearnerPrefs({ hskVersion: version, hskTarget: target, nativeLang: native }).catch(() => {});
+      const r = await api.hskGap(version, target, DECK_SIZE);
+      setCheck([]);
+      setKnownCount(0);
+      setGap(r.words);
+      setStep("deck");
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -141,7 +176,10 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
       <div className="rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface p-5 sm:p-6">
         <div className="flex items-center gap-2 text-sage-deep">
           <GraduationCap className="h-5 w-5" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide">{t("hskFirst.step", { n: STEP_NO[step], total: 3 })}</span>
+          {/* A refill can skip the check, so "step 2 of 3" would be a lie. */}
+          {variant === "first" && (
+            <span className="text-[11px] font-semibold uppercase tracking-wide">{t("hskFirst.step", { n: STEP_NO[step], total: 3 })}</span>
+          )}
         </div>
         <h2 className="mt-1.5 font-serif text-[24px] font-medium text-ink sm:text-[28px]">{t("hskFirst.title")}</h2>
         <p className="mt-1.5 max-w-[540px] text-[15px] leading-relaxed text-ink-soft">{t("hskFirst.sub")}</p>
@@ -201,13 +239,28 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
               </label>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button className="w-full sm:w-auto" disabled={busy} onClick={startCheck}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                {t("hskFirst.startCheck")}
-              </Button>
-              <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>
-            </div>
+            {/* On a repeat visit the check is the optional half: the learner has
+                already placed themselves, so lead with the words. */}
+            {variant === "refill" ? (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button className="w-full sm:w-auto" disabled={busy} onClick={loadGapOnly}>
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Layers className="mr-2 h-4 w-4" />}
+                  {t("hskFirst.refillGo")}
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={startCheck}>
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  {t("hskFirst.refillRecheck")}
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button className="w-full sm:w-auto" disabled={busy} onClick={startCheck}>
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                  {t("hskFirst.startCheck")}
+                </Button>
+                <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>
+              </div>
+            )}
           </>
         )}
 
@@ -247,10 +300,16 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
 
         {step === "deck" && (
           <div className="mt-5">
+            {/* No check in this run means no mark to report — say what the list
+                actually is instead of "you knew 0 of 0". */}
             <p className="text-[15px] font-semibold text-ink">
-              {t("hskFirst.markLine", { known: knownCount, shown: check.length, level: target === 7 ? "7–9" : String(target) })}
+              {check.length
+                ? t("hskFirst.markLine", { known: knownCount, shown: check.length, level: target === 7 ? "7–9" : String(target) })
+                : t("hskFirst.refillLine", { level: target === 7 ? "7–9" : String(target) })}
             </p>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.markSub")}</p>
+            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-soft">
+              {check.length ? t("hskFirst.markSub") : t("hskFirst.refillSub")}
+            </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {gap.map((w) => (
                 <span key={w.word} className="rounded-[14px] border border-black/[0.08] bg-surface px-3 py-1.5 text-center">
@@ -285,6 +344,13 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
               >
                 <Dumbbell className="h-4 w-4" /> {t("hskFirst.useStep")}
               </Link>
+              {/* A refill is opened from Today and has somewhere to go back to;
+                  the first run is the page, so it gets no close. */}
+              {onClose && (
+                <Button variant="outline" onClick={onClose}>
+                  {t("hskFirst.refillClose")}
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -298,13 +364,26 @@ export function HskFirstRun({ onOther }: { onOther: () => void }) {
         <ImportWordsDialog defaultSourceLang="zh" defaultTargetLang={native} triggerLabel={t("hskFirst.textbookOpen")} />
       </div>
 
-      <button
-        type="button"
-        onClick={onOther}
-        className="text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
-      >
-        {t("hskFirst.other")}
-      </button>
+      {/* Only the first run offers the way out to another language — a refill was
+          opened deliberately by someone already on the HSK track. */}
+      {onOther && (
+        <button
+          type="button"
+          onClick={onOther}
+          className="text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+        >
+          {t("hskFirst.other")}
+        </button>
+      )}
+      {!onOther && onClose && step !== "done" && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+        >
+          {t("common.cancel")}
+        </button>
+      )}
     </div>
   );
 }

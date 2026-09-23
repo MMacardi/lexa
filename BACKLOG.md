@@ -220,6 +220,28 @@ somewhere to point.
       - Backlog note, not done here: the "closed beta" bullet promises the author answers the bug
         button — that's H4, and the landing should link the channel once it exists.
 
+- [ ] **F11. The HSK track is a property of the account, not of having Chinese cards.**
+      Found by using prod on an account that predates the pivot (V0, day one — exactly what it is
+      for). F7 hid the surfaces that didn't serve the loop; it never removed the *questions* the
+      loop already answers, and it never gave an existing account a door into the loop. Today:
+      - `app/page.tsx` renders `FirstRun` — which holds the whole HSK path (target → check → gap
+        deck) — only when `collected === 0`. One card on the account and it is gone forever.
+      - `HskReadiness` returns null unless `stats.languages.includes("zh")`. So you need Chinese
+        cards to see the HSK card, and the only screen that hands out Chinese cards requires zero
+        cards. **A closed loop with no door**: an account with pre-pivot English cards sees the old
+        app minus the hidden features and nothing HSK at all.
+      - `api.hskGap` has exactly one caller in the codebase, inside that unreachable screen. So the
+        gap deck is one-shot even for a *new* tester: they get their first 20 words, and in week two
+        there is no way to ask for the next 20. The loop the whole strategy rests on runs once.
+      - Fix: the track is `User.hskVersion`/`hskTarget` (already there from F2), not an inference
+        from card languages. Readiness shows whenever a target is set; a repeatable "next gap words"
+        action lives on it; an account with cards but no target gets a dismissible way in.
+      - Second half, same root cause: the pair picker still *asks* «что учу / что знаю» on 14
+        surfaces because F8 kept English first-class. Keeping the `zh→en` path working does not
+        require posing the question every screen — the pair belongs on the account (F2 stored it),
+        shown as a labelled static chip (item 3g's fix, which must survive) with the picker behind
+        it and in Settings. Split out if this item gets too big.
+
 ## Before public launch
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
       F7 switched off the Tavily web-example path, which removed the worst untrusted-text
