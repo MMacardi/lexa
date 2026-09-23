@@ -721,6 +721,73 @@ Free insurance, and a fixed point you can demo.
 
 ---
 
+## Feasibility check (2026-09-23, after instant capture shipped)
+
+The question: can one person, on a graded project, actually get from here to "a stranger comes back
+weekly"? Short answer: **the software is feasible and mostly proven; the market test is feasible
+but slow; the binding constraint is your calendar, not the code.** Details, most certain first.
+
+### Technical: feasible, and the hard part is now measured
+- **Capture beats "Pleco lookup + star" on speed for dictionary words.** Measured in the local app:
+  0.3–0.8 s from Enter to a reviewable card with pinyin and gloss; the Russian meaning and an
+  example land 3–4 s later (the page shows them ~6 s in, on its 3 s poll). The model being down
+  no longer blocks an add (`backend/scripts/check-capture.ts`). This was §E's first kill condition.
+- **Senses are close to dictionary-grade.** CC-CEDICT grounding: 99/100 right sense vs 90/100
+  ungrounded (HSK 4–5, zh→ru) — but marked by Claude; mark it yourself before quoting it.
+- **Instant *Russian* is not available legally, so the English-first step is the ceiling.** BKRS
+  was checked: its core is the Soviet-era dictionary, digitised by volunteers without the rights
+  holders' permission, plus added dictionaries whose licensing can't be verified. Shipping any of
+  it inside a product is a risk you can't audit. So the Russian comes from the model, a few seconds
+  late. **Risk for the wedge:** a learner who doesn't read English sees an English gloss first.
+  Cheapest fix if it bites: run the meaning-only upgrade on the fast model (qwen-flash) and leave
+  the example to the slower one.
+- **Coverage.** The CEDICT subset is the 11.5k HSK headwords. Names, slang and textbook compounds
+  outside HSK take the old path (~5 s, model only). The admin miss counter says whether to widen it;
+  the full dictionary is ~4 MB, so widening is cheap if the numbers ask for it.
+- **One real defect on the main entry:** the Reader splits Chinese with the browser's segmenter
+  ("了三" as one word). The bot already has a CEDICT segmenter. Small fix; it belongs with capture,
+  not at the bottom of the list.
+- **Cost is a non-issue at beta scale.** ~$0.30–2 per active user per month (UNIT_ECONOMICS); a
+  30–50 person, 6-week beta is well under $100 of model spend. Instant capture didn't add calls
+  (one upgrade call replaces the old combined call) and removed the spell-check call for dictionary
+  words.
+
+### Infrastructure: one risk is underweighted
+- **The first recruits are in China, and so is the hosting's weak spot.** §E names Russian students
+  at Chinese universities first; §J.9 notes Vercel is unreliable in China and Telegram is blocked
+  there. For this wedge that is not a footnote: if the app doesn't load without a VPN on a campus
+  network, activation fails before onboarding matters. **Test it before recruiting:** one classmate,
+  phone, no VPN, open the site. If it fails, a mainland-reachable front (or at least a China-tested
+  CDN) moves ahead of every feature.
+
+### Market: plausible, unproven, and the gate is right
+- Zero retained users so far (§J.1). Nothing built since changes that; only use does. The two-week
+  self-test (BACKLOG item 5) is the right gate and costs no code.
+- The beta thresholds (≥20% week-4 retention, ≥40% Sean Ellis) are ambitious for a first beta of a
+  solo project. Missing them is the likely outcome; hitting half of them would still be a real signal.
+  Decide now what "half" means so the result can't be argued with afterwards.
+- **Interviews don't depend on code** and the Verification table says they come first, yet they sit
+  at BACKLOG 15. They can run in parallel with item 5, this week.
+
+### Founder time: the binding constraint
+- Calendar, not effort: 2 weeks of self-test + 8–10 interviews + recruiting + a 6-week beta is
+  **~10 weeks minimum** before a verdict, and items 12–14 (name, domain, legal) are calendar time too.
+- **The defence and the market test want different things.** The defence wants breadth, a working
+  demo (the focus flag flips back) and a report that tells the pivot story (item 18). The market test
+  wants depth on one loop. Put the defence date into BACKLOG and schedule item 18 against it; at
+  position 18 it will be done in a rush.
+- **Out of the project horizon** (cut, not delayed): payments (self-employed status or Stars, and
+  retention doesn't exist yet), the shared learner-corrected dictionary (needs users), IELTS (needs
+  HSK to retain first).
+
+### What is feasible for the code in the next sessions
+Items 3 (HSK N words daily), 4 (official lists as decks), the Reader segmenter, and 9 (stop asking
+which language) are code-only and can each be built and checked locally. Item 7 (Sentry) can be
+wired so it's switched on by setting a DSN. Item 8 needs a group link that only you can create.
+Items 1, 5 and 12–16 need you; item 6 waits for item 1 by design.
+
+---
+
 ## Verification: how we'll know if this strategy is right
 **Step 0: you.** Use it yourself daily for your next HSK level for 2–3 weeks before recruiting anyone. If you skip days, find out why first.
 
