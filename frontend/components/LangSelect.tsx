@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { PICKER_LANGS, displayCode, langLabel } from "@/lib/langs";
 import { addCustomLang, removeCustomLang, useCustomLangs } from "@/lib/customLangs";
 import { useI18n } from "@/lib/i18n";
+import { FOCUS } from "@/lib/focus";
 import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
@@ -225,6 +226,9 @@ export function LangSelect({
                   </li>
                 );
               })}
+              {/* Adding your own language is hidden while focused (F8) — the loop
+                  is HSK, and a custom language has no list, no level and no dictionary. */}
+              {!FOCUS && (
               <li className="mt-1 border-t border-black/[0.06] pt-1">
                 <button
                   type="button"
@@ -236,6 +240,7 @@ export function LangSelect({
                   {checking ? t("lang.checking") : t("col.addLanguage")}
                 </button>
               </li>
+              )}
             </ul>
           </div>,
           document.body,

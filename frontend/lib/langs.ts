@@ -1,3 +1,5 @@
+import { FOCUS } from "./focus";
+
 // Languages a user can pick for a card pair (source -> target). `name` is the
 // English label (kept for latin-keyboard search); `ru`/`zh` are the localized
 // display names shown when the app language is Russian/Chinese; `native` is the
@@ -17,10 +19,21 @@ export const LANGS = [
   { code: "ko", name: "Korean", native: "한국어", ru: "Корейский", zh: "韩语", flag: "🇰🇷" },
 ] as const;
 
-// Codes offered in pickers (language dropdowns, the onboarding flag grid).
-export const PICKER_LANGS = LANGS;
-// The language you LEARN in onboarding — the same picker set.
-export const LEARNING_LANGS = PICKER_LANGS;
+// Codes offered in pickers (language dropdowns, the onboarding flag grid). The
+// focus pass (BACKLOG F8) narrows them to the HSK loop's three: Chinese first,
+// then English and Russian — BOTH stay first-class as the "I already know" side,
+// because plenty of Russian speakers study Chinese *through* English, and
+// CC-CEDICT is Chinese→English anyway. `LANGS` itself stays whole so cards saved
+// in any of the eight still render.
+export const PICKER_LANGS = FOCUS
+  ? (["zh", "en", "ru"].map((c) => LANGS.find((l) => l.code === c)!) as (typeof LANGS)[number][])
+  : (LANGS as unknown as (typeof LANGS)[number][]);
+// The language you LEARN in onboarding — Chinese, with English still offered.
+export const LEARNING_LANGS = FOCUS
+  ? PICKER_LANGS.filter((l) => l.code !== "ru")
+  : PICKER_LANGS;
+// The learning language onboarding starts on; null = keep the old guess.
+export const DEFAULT_LEARNING_LANG: string | null = FOCUS ? "zh" : null;
 
 // Display-only code mapping: legacy `zh-Hant` records render as plain Chinese.
 export function displayCode(code: string): string {

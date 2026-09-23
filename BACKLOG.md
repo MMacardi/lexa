@@ -154,7 +154,7 @@ deleted — `onomika_old` holds the full-featured build.
         hidden. The backend ignores `exampleSource: "web"` while focused, so no stale client
         reaches Tavily.
 
-- [ ] **F8. Narrow the language pickers — keep BOTH Russian and English.** `LEARNING_LANGS`
+- [x] **F8. Narrow the language pickers — keep BOTH Russian and English.** `LEARNING_LANGS`
       → Chinese first (English stays available), `PICKER_LANGS` → zh/en/ru, hide "add a custom
       language". Keep `LANGS` whole so old cards still render, and leave the backend permissive.
       **Both ru and en stay first-class** as interface languages and as the "I know" side: many
@@ -165,6 +165,12 @@ deleted — `onomika_old` holds the full-featured build.
       - Also F5's leftover, left out of F7 on purpose: the first run's "I'm learning another
         language" link still exists while focused, because this item keeps English a
         first-class learning language. Decide here whether the focus flag hides that link.
+      - Done in `frontend/lib/langs.ts`: focused, `PICKER_LANGS` = zh/en/ru (Chinese first)
+        and `LEARNING_LANGS` = zh/en; `LANGS` stays all eight so old cards still render, and
+        `DEFAULT_LEARNING_LANG` starts the generic first run on Chinese. "Add a language" is
+        hidden in `LangSelect` while focused. **The "another language" link stays** — English
+        is a first-class learning language here, so the link leads somewhere real. Backend
+        untouched (still permissive), no migration; `NEXT_PUBLIC_FOCUS_MODE=off` restores all eight.
 - [ ] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
       Google/email users (`ensureBotUser` keys on the numeric Telegram id). Then: morning push →
       review → one use-step, and `add`/photo capture into the deck.

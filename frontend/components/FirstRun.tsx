@@ -9,7 +9,7 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { setLevel as setPrefLevel, pushRecentPair, getNativeLang, setNativeLang, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
 import { starterWords } from "@/lib/starterDecks";
-import { LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
+import { DEFAULT_LEARNING_LANG, LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
 import { useCustomLangs } from "@/lib/customLangs";
 import { LangSelect } from "@/components/LangSelect";
 import { Select } from "@/components/ui/Select";
@@ -81,7 +81,11 @@ function GenericFirstRun() {
   const custom = useCustomLangs();
 
   const native = locale === "ru" ? "ru" : locale === "zh" ? "zh" : "en";
-  const [source, setSource] = useState(native === "en" ? "es" : "en"); // language you're learning
+  // Language you're learning. Focused, that's Chinese — unless Chinese is already
+  // the side they know, in which case the other first-class learning language.
+  const [source, setSource] = useState(
+    DEFAULT_LEARNING_LANG && DEFAULT_LEARNING_LANG !== native ? DEFAULT_LEARNING_LANG : native === "en" ? "es" : "en",
+  );
   const [target, setTarget] = useState(native); // language you already know (meanings)
   const [level, setLevel] = useState<CefrLevel>("B1");
   const [busy, setBusy] = useState(false);
