@@ -50,6 +50,25 @@ deleted — `onomika_old` holds the full-featured build.
         toward polysemous ones, generate `zh→ru` and `zh→en` cards, count wrong-sense and
         wrong-register errors against BKRS + CC-CEDICT. If the two rates match, plain generation is
         fine and grounding can wait; if Russian is worse, the numbers say where to spend the work.
+- [ ] **F6a. Shared dictionary cache (generate 你好 once, not once per user).** Today every
+      `addWordForUser` spends an LLM call even when another learner already has a good card for
+      the same (word, pair). `UNIT_ECONOMICS.md` proposed this and it was never built.
+      - **Split the card in two.** A shared `DictEntry` keyed (word, srcLang, tgtLang, version)
+        holds the dictionary half: phonetic, POS, the **full sense inventory**, synonyms/antonyms
+        and one default example. Everything personal stays on `Word`: which sense the learner
+        picked, the sentence they met it in, their notes, FSRS and production state. Never copy a
+        user's own sentence into the shared table.
+      - **Keys that matter:** meaning style, CEFR level and example register change the output, so
+        either key on them or cache a neutral base and vary only the example.
+      - **Don't freeze today's error rate.** Cache only entries that F6 grounded (or that survived
+        N users without an edit), and bump `version` to re-generate everything when prompts or
+        grounding change. A user edit or report invalidates that entry.
+      - **Free quality signal:** count uses and edits per entry. A high edit rate names exactly
+        which senses the model gets wrong for this pair — this is the start of the pair-specific
+        error data in STRATEGY.md §H, and it costs nothing to collect.
+      - **Why it matters more than cost:** tokens are already ~¥0.0007/card. The win is latency:
+        F5 promises a 30-word textbook list becomes a deck in seconds, and a cache hit is instant
+        where a generation is seconds. Do it after F6 so what gets cached is worth caching.
 - [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
