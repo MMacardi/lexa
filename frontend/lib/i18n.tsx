@@ -1265,6 +1265,36 @@ const DICT: Record<string, Entry> = {
     zh: "点一下你已经认识的词——它不会再出现。",
   },
 
+  // --- The official HSK lists, browsable (collections page + /hsk/[version]/[level]) ---
+  "hskList.title": { en: "Official HSK lists", ru: "Официальные списки HSK", zh: "HSK 官方词表" },
+  "hskList.sub": {
+    en: "Every word of every level, read-only. Make a level the source of your daily words, or add words one by one.",
+    ru: "Все слова каждого уровня, только для просмотра. Сделай уровень источником слов на день или добавляй слова по одному.",
+    zh: "每个等级的全部词语，仅供浏览。把某个等级设为每日新词的来源，或逐个添加。",
+  },
+  "hskList.words": { en: "{n} words", ru: "{n} слов", zh: "{n} 个词" },
+  "hskList.yours": { en: "{n} yours", ru: "твоих: {n}", zh: "已有 {n} 个" },
+  "hskList.dailyTag": { en: "Daily words", ru: "Слова на день", zh: "每日新词" },
+  "hskList.meta": {
+    en: "HSK {v} list · {n} words · {have} yours",
+    ru: "Список HSK {v} · {n} слов · твоих: {have}",
+    zh: "HSK {v} 词表 · {n} 个词 · 你已有 {have} 个",
+  },
+  "hskList.makeDaily": { en: "Put this level in my daily words", ru: "Брать слова на день с этого уровня", zh: "把这个等级设为每日新词来源" },
+  "hskList.isDaily": { en: "Your daily words come from this level", ru: "Слова на день берутся с этого уровня", zh: "你的每日新词来自这个等级" },
+  "hskList.madeDaily": {
+    en: "Your daily words now come from HSK {level}",
+    ru: "Теперь слова на день — с HSK {level}",
+    zh: "每日新词现在来自 HSK {level}",
+  },
+  "hskList.onlyNew": { en: "Only words I don't have", ru: "Только новые для меня", zh: "只看我没有的词" },
+  "hskList.canUse": { en: "can use", ru: "умею", zh: "会用" },
+  "hskList.known": { en: "known", ru: "знаю", zh: "认识" },
+  "hskList.learning": { en: "in review", ru: "учу", zh: "学习中" },
+  "hskList.add": { en: "Add {word}", ru: "Добавить {word}", zh: "添加 {word}" },
+  "hskList.added": { en: "{word} added", ru: "Добавлено: {word}", zh: "已添加 {word}" },
+  "hskList.more": { en: "Show {n} more", ru: "Показать ещё {n}", zh: "再显示 {n} 个" },
+
   // --- Today's words: the daily drip at the learner's level ---
   "hskDaily.title": { en: "Today's words · HSK {level}", ru: "Слова на сегодня · HSK {level}", zh: "今日生词 · HSK {level}" },
   "hskDaily.sub": {

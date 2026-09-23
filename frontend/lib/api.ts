@@ -306,6 +306,10 @@ export interface HskWordList {
   words: HskWord[];
 }
 
+// A word of a browsed official list, with where the learner stands on it:
+// null = no card and never said they know it.
+export type HskListWord = HskWord & { status: "canUse" | "recognise" | "learning" | null };
+
 // Which surface graded an answer. Logged per review so the learner model can tell
 // "recognised it on a card" from "produced it in a sentence".
 export type ReviewSource = "review" | "quiz" | "drill" | "scene" | "chat";
@@ -814,6 +818,11 @@ export const api = {
     if (limit) q.set("limit", String(limit));
     return http<HskWordList>(`/api/hsk/gap?${q}`);
   },
+  // One level of an official list, read-only, with the learner's status per word.
+  hskList: (version: HskVersion, level: number) =>
+    http<{ version: HskVersion; level: number; words: HskListWord[] }>(
+      `/api/hsk/list?${new URLSearchParams({ version, level: String(level) })}`,
+    ),
   // Today's new words at the saved target — the daily drip. Stable through the
   // day; `added` marks the ones already in review, `size` is the daily goal.
   hskDaily: () =>

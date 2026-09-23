@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { FOCUS } from "@/lib/focus";
+import { HskLists } from "@/components/HskLists";
 
 export default function CollectionsPage() {
   const qc = useQueryClient();
@@ -86,6 +87,9 @@ export default function CollectionsPage() {
         <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">{t("nav.collections")}</h1>
         <p className="mt-1.5 text-ink-soft">{t("col.pageSubtitle")}</p>
       </div>
+
+      {/* the official lists: read-only decks every HSK learner expects to find */}
+      <HskLists />
 
       {/* create */}
       <form

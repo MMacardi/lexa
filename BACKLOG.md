@@ -103,11 +103,17 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
      Local run: HSK 4 → the 4 tapped words, then HSK 4 only; next day 5 new HSK 4 words, reject →
      replacement → "done".
 
-4. **The official HSK lists as decks you can browse.** Small. Every HSK app has "HSK 1–6, add
+4. [x] **The official HSK lists as decks you can browse.** Small. Every HSK app has "HSK 1–6, add
    them": table stakes, not a differentiator, but without it the app looks empty. The lists are
    already data (`services/hsk.ts`), and the collections UI is only hidden by `FOCUS`
    (`frontend/lib/focus.ts`), not deleted. Show the six levels read-only, with "put this level in
    my daily words" and per-word add. Community collections stay hidden.
+   - **Shipped 2026-09-23.** "Official HSK lists" at the top of Collections (`HskLists`, both lists,
+     per-level word count and how many are yours, a tag on the daily-words level; counts come off
+     the readiness endpoint). `/hsk/[version]/[level]`: the level read-only in list order, each word
+     marked in review / known / can use or with a "+" (instant capture, ~0.2 s), "only words I
+     don't have", and "Put this level in my daily words" (sets `hskTarget`; Today follows). New
+     `GET /api/hsk/list`. Local run: HSK 5 → "+" 一下子 → daily level → Today shows HSK 5 words.
 
 5. **Be user #1 — two weeks, and this is the test.** `[V0]` Not a session — a habit. After items
    2–4, use it daily for your own Chinese: photograph the page you are reading and tap the words you

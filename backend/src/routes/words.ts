@@ -21,7 +21,7 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, readinessForUser } from "../services/hsk.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { upgradeCard } from "../services/capture.js";
 import {
@@ -248,6 +248,15 @@ wordsRouter.get("/hsk/gap", async (req, res) => {
 wordsRouter.get("/hsk/daily", async (req, res) => {
   const telegramId = readSession(req)!;
   res.json(await hskDailyWords(telegramId));
+});
+
+// GET /api/hsk/list?version=3.0&level=4  -> one level of the official list,
+// read-only, each word with the learner's status on it (card / known / none).
+wordsRouter.get("/hsk/list", async (req, res) => {
+  const telegramId = readSession(req)!;
+  const version = asHskVersion(req.query.version) ?? "3.0";
+  const level = Number(req.query.level) || 1;
+  res.json({ version, level, words: await hskListWords(telegramId, version, level) });
 });
 
 // ---------------- Collections ----------------

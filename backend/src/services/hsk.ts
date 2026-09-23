@@ -209,6 +209,20 @@ export async function hskReadiness(telegramId: string, version: HskVersion, leve
   };
 }
 
+export type ListWord = HskWord & { status: WordStatus | null };
+
+/**
+ * One level of an official list, read-only, with where the learner stands on
+ * each word — the "HSK 1–6, add them" every HSK app has. Table stakes rather
+ * than a differentiator, but an app without it looks empty. Pinyin order, as
+ * the list itself is printed.
+ */
+export async function hskListWords(telegramId: string, version: HskVersion, level: number): Promise<ListWord[]> {
+  const n = clampLevel(version, level);
+  const status = await learnerStatus(telegramId);
+  return hskLevelWords(version, n).map((w) => ({ word: w.word, pinyin: w.pinyin, level: n, status: status.get(w.word) ?? null }));
+}
+
 // --- The onboarding check, and the gap deck it feeds ---
 //
 // Onboarding asks for a target level, then shows a sample of the list to tap
