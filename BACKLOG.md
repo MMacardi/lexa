@@ -206,10 +206,24 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
 20. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
     Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
 
-21. **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
+21. [x] **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
     篮球 renders a tappable "了三", so the learner can't tap 了 on its own. The bot already has a
     CC-CEDICT longest-match segmenter (`segmentHanzi` in `services/botTutor.ts`); the Reader should
     use the same one. Small, but it sits on the main capture entry — reorder up if it bites.
+    - **Shipped 2026-09-23** (done early: it sits on the capture path, see STRATEGY "Feasibility").
+      Not the bot's segmenter after all: greedy matching against the HSK-only subset would chop
+      every name and non-HSK compound. `services/segment.ts` keeps ICU's split and repairs it with
+      CC-CEDICT — splits a token the dictionary lacks when every piece is a dictionary word
+      (了三 → 了 三, 我想 → 我 想), joins neighbours that make one. `POST /api/segment`; the Reader
+      uses it for Chinese and falls back to the browser's split. Cost: a name of common characters
+      comes apart (蒙古 → 蒙 古). Also: the tap popover now shows the dictionary's reading, which
+      matches its gloss (a bare 了 showed "liǎo" over "completed action marker").
+      `scripts/check-segment.ts`.
+
+22. **Ground the Reader's tap gloss in CC-CEDICT.** Found in the same run: the contextual Russian
+    for 了 in 他打了三个小时 came back «уже». `glossInContext` (`services/translate.ts`) is the one
+    AI path that still invents its own sense; `enrichWordEntry` already passes the dictionary's
+    inventory into the prompt, and the tap gloss should do the same.
 
 ## Later — only after the retention test passes
 

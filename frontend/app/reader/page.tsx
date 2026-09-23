@@ -308,7 +308,17 @@ export default function ReaderPage() {
     return m;
   }, [words, sourceLang, targetLang]);
 
-  const tokens = useMemo(() => (reading ? segment(text, sourceLang) : []), [reading, text, sourceLang]);
+  // Chinese boundaries come from the server: ICU (what the browser has) repaired
+  // with CC-CEDICT, so 他打了三个 doesn't offer "了三" as one word. The browser's
+  // own split shows first and stands in if the request fails.
+  const localTokens = useMemo(() => (reading ? segment(text, sourceLang) : []), [reading, text, sourceLang]);
+  const { data: dictTokens } = useQuery({
+    queryKey: ["segment", text],
+    queryFn: () => api.segment(text),
+    enabled: reading && (sourceLang === "zh" || sourceLang === "zh-Hant") && text.trim().length > 0,
+    staleTime: Infinity,
+  });
+  const tokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
 
   // Sentences for read-aloud practice: split on terminal punctuation (incl. CJK),
   // drop empties, cap the panel so it stays scannable. Stable across renders so
@@ -1326,9 +1336,11 @@ export default function ReaderPage() {
                 <span className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</span>
                 <SpeakButton text={gloss.word} lang={sourceLang} size="sm" />
               </div>
+              {/* The dictionary's reading wins: it is the one its gloss below is
+                  for (a bare 了 is le, where the pinyin library says liǎo). */}
               {(glossTr && !glossLoading) || glossCedict ? (
                 <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">
-                  {(!glossLoading && glossTr) || glossCedict?.phonetic}
+                  {glossCedict?.phonetic || glossTr}
                 </div>
               ) : null}
               {glossCedict && (

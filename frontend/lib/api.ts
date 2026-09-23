@@ -765,6 +765,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  // Chinese text as Reader tokens: ICU boundaries repaired with CC-CEDICT, no model call.
+  segment: (text: string) =>
+    http<{ tokens: { text: string; wordLike: boolean }[] }>(`/api/segment`, { method: "POST", body: JSON.stringify({ text }) }).then(
+      (r) => r.tokens,
+    ),
   // Batch transcription of many words in one call (Reader "pinyin over characters").
   transcribe: (words: string[], sourceLang: string) =>
     http<{ items: string[] }>(`/api/transcribe`, { method: "POST", body: JSON.stringify({ words, sourceLang }) }).then((r) => r.items),
