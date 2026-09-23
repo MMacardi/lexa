@@ -10,6 +10,13 @@ same engine, only after HSK keeps strangers coming back. Everything else gets hi
 deleted — `onomika_old` holds the full-featured build.
 
 ## Now — the focus pass
+- [ ] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
+      still says "Onomika — learn English through the news" with a description about Chinese
+      translations of English words: that is the Google result, the browser tab and the Telegram
+      link preview. Fix title + description, add an `og:image` (links shared in Telegram render
+      bare today), and detect `navigator.language` → ru in `I18nProvider` (`lib/i18n.tsx`, which
+      reads localStorage only, so every first-time Russian visitor lands in English). Landing
+      *copy* is left alone until the focused UI exists — it gets rewritten with F5/F7.
 - [ ] **F1. Measure anything.** No analytics exist, so the strategy is unrunnable blind.
       Activation funnel (sign-in → first card → first review → first use-step), D1/D7/D30,
       use-step completion. Privacy-friendly (Plausible or events in our own DB).
