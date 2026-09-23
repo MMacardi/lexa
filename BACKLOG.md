@@ -55,6 +55,12 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    - Folds in *No dead cards* `[F15]`: add `POST /api/words/:id/enrich` and a "fill this in" action,
      so a cancelled or failed enrichment never leaves an empty card. With CEDICT first, a non-empty
      card is the default anyway.
+   - **The Reader is the main entry — photo or text → tap → card.** Today a tap waits on the LLM
+     (`POST /api/gloss` → `glossInContext`) and throws the context away: `reader/page.tsx` calls
+     `resolveMeaning({ word, sentence: wordText })`, so the "contextual" gloss never sees the sentence.
+     Tap shows the CEDICT pinyin + gloss at once; pass the real sentence (`sentenceAround`) so the
+     contextual Russian sense that follows is actually contextual. `addSelected` creates CEDICT-filled
+     cards, not shells.
    - Words CEDICT doesn't have, and non-Chinese words, keep today's path.
    - **Done when:** adding 一下 / 打 / a textbook word returns a reviewable card in < 1 s with pinyin
      and gloss, and the Russian fills in behind it. `backend/scripts/check-capture.ts` asserts the
@@ -84,7 +90,8 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    my daily words" and per-word add. Community collections stay hidden.
 
 5. **Be user #1 — two weeks, and this is the test.** `[V0]` Not a session — a habit. After items
-   2–4, use it daily for your own Chinese: add the words you meet, take the daily words, review.
+   2–4, use it daily for your own Chinese: photograph the page you are reading and tap the words you
+   don't know, take the daily words, review.
    **Kill rule, set now:** if after two weeks you are not adding words without forcing yourself,
    stop and keep the project as a portfolio piece. If you skip a day, write down why; that reason
    outranks any feature idea. **Nothing after item 9 starts before this passes.** It has already
