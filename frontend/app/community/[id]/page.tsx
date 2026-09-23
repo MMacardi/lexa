@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { notFound, useParams, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flag, Plus } from "lucide-react";
 import { api, type DeckWord, type ReportReason } from "@/lib/api";
@@ -14,11 +14,14 @@ import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { FOCUS } from "@/lib/focus";
 import { Segmented } from "@/components/ui/Segmented";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
 export default function DeckPage() {
+  // Hidden by the focus pass (F7) — the flag brings the page back untouched.
+  if (FOCUS) notFound();
   return (
     <Suspense fallback={<DeckSkeleton />}>
       <DeckView />

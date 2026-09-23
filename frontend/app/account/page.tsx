@@ -54,6 +54,7 @@ import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
+import { FOCUS } from "@/lib/focus";
 import { Sun, Moon, X, Pencil, Check, Eye, EyeOff, Sparkles, PenLine, type LucideIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
@@ -163,32 +164,38 @@ function ExampleSourceSection() {
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("exsrc.title")}</h2>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[15px] font-medium text-ink">{t("exsrc.label")}</span>
-        <Segmented
-          size="lg"
-          value={source}
-          onChange={setExampleSource}
-          options={options.map((o) => ({
-            value: o.value,
-            label:
-              o.value === "ai" ? (
-                <>
-                  {o.label}
-                  <span className="-ml-0.5 opacity-70">· {t("exsrc.recommended")}</span>
-                </>
-              ) : (
-                o.label
-              ),
-          }))}
-        />
-      </div>
-      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
+      {/* Focused (F7), the web miner is off in the backend too, so there is
+          nothing left to choose here — only the register below. */}
+      {!FOCUS && (
+        <>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[15px] font-medium text-ink">{t("exsrc.label")}</span>
+            <Segmented
+              size="lg"
+              value={source}
+              onChange={setExampleSource}
+              options={options.map((o) => ({
+                value: o.value,
+                label:
+                  o.value === "ai" ? (
+                    <>
+                      {o.label}
+                      <span className="-ml-0.5 opacity-70">· {t("exsrc.recommended")}</span>
+                    </>
+                  ) : (
+                    o.label
+                  ),
+              }))}
+            />
+          </div>
+          <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exsrc.hint")}</p>
+        </>
+      )}
 
       {/* register of the sentences (AI-composed examples only; the web miner
           searches news, so the picker is hidden there) */}
-      {source === "ai" && (
-        <div className="mt-5 border-t border-black/[0.06] pt-4">
+      {(FOCUS || source === "ai") && (
+        <div className={cn("mt-5 pt-4", !FOCUS && "border-t border-black/[0.06]")}>
           <span className="text-[15px] font-medium text-ink">{t("style.label")}</span>
           <Segmented
             className="mt-2 w-fit"

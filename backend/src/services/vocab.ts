@@ -11,6 +11,7 @@ import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type Wor
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
+import { FOCUS } from "../lib/env.js";
 import { cedictInventory, isChinese } from "./cedict.js";
 import { track } from "./analytics.js";
 
@@ -80,7 +81,7 @@ export async function addWordForUser(params: {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
   const targetLang = params.targetLang ?? "zh";
-  const useWeb = params.exampleSource === "web";
+  const useWeb = !FOCUS && params.exampleSource === "web"; // web mining is off while focused (F7)
   const withExample = params.exampleStyle !== "none";
   const count = Math.max(1, Math.min(2, Math.round(params.exampleCount ?? 1)));
   const notes = params.notes?.trim() || null;

@@ -134,7 +134,7 @@ deleted — `onomika_old` holds the full-featured build.
         sense inventory verified by learners** — the one asset here that compounds and cannot be
         copied quickly (STRATEGY.md §H). It only compounds with users, so it stays after F1–F5.
         With one user it is still your own verified dictionary, which is worth having anyway.
-- [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
+- [x] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
       Also switch **off the Tavily web-example path** here (Pro-only today, so no free-tier
@@ -146,6 +146,13 @@ deleted — `onomika_old` holds the full-featured build.
       `Example.sourceName/sourceUrl`, leave `TAVILY_API_KEY` optional. Revisit for advanced
       learners (HSK 7–9) or the IELTS stage — and then with a Chinese corpus or graded source,
       not open-web search.
+      - Shipped as `frontend/lib/focus.ts` (`FOCUS`, on unless `NEXT_PUBLIC_FOCUS_MODE=off`)
+        and `FOCUS` in `backend/src/lib/env.ts` (`FOCUS_MODE`). Nav is Today · Words · Reader,
+        the rest under "More" on both the sidebar and the phone bar. Community, friends,
+        public profiles and `/coach/chat` return 404; the deck-publish button, the word-family
+        graph, the Today charts, the cloze/mixed quiz modes and the AI/web example picker are
+        hidden. The backend ignores `exampleSource: "web"` while focused, so no stale client
+        reaches Tavily.
 
 - [ ] **F8. Narrow the language pickers — keep BOTH Russian and English.** `LEARNING_LANGS`
       → Chinese first (English stays available), `PICKER_LANGS` → zh/en/ru, hide "add a custom
@@ -155,6 +162,9 @@ deleted — `onomika_old` holds the full-featured build.
       CC-CEDICT (F6) is Chinese→English anyway, so the zh→en path is well supported. That is a
       setting, not a second audience — marketing copy stays single-voice per visitor (F0 detects
       the locale). Reversible, no migration.
+      - Also F5's leftover, left out of F7 on purpose: the first run's "I'm learning another
+        language" link still exists while focused, because this item keeps English a
+        first-class learning language. Decide here whether the focus flag hides that link.
 - [ ] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
       Google/email users (`ensureBotUser` keys on the numeric Telegram id). Then: morning push →
       review → one use-step, and `add`/photo capture into the deck.

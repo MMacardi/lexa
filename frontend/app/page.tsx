@@ -12,6 +12,7 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { HskReadiness } from "@/components/HskReadiness";
 import { ErrorState } from "@/components/ErrorState";
+import { FOCUS } from "@/lib/focus";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, PartyPopper, ArrowRight } from "lucide-react";
 
@@ -195,7 +196,8 @@ export default function TodayPage() {
 
       <HskReadiness />
 
-      <StatsPanel />
+      {/* the charts: a browsing surface, not a step of the loop (F7) */}
+      {!FOCUS && <StatsPanel />}
 
       {/* due today */}
       <div>

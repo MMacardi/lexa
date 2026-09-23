@@ -22,6 +22,7 @@ import { HoverPreview } from "@/components/HoverPreview";
 import { HighlightWord } from "@/components/HighlightWord";
 import { OnceHint } from "@/components/OnceHint";
 import { cn } from "@/lib/utils";
+import { FOCUS } from "@/lib/focus";
 import { Segmented } from "@/components/ui/Segmented";
 import { Disclosure } from "@/components/ui/Disclosure";
 
@@ -408,12 +409,13 @@ export default function QuizPage() {
   // ---------------- Setup ----------------
   if (!started) {
     const pairCount = (pk: string) => words.filter((w) => w.meaningZh && pairKey(w) === pk && inColl(w)).length;
-    const modes = [
+    const modes = ([
       { id: "choice", icon: ListChecks },
       { id: "type", icon: Keyboard },
+      // Focused (F7), a round is recognise or produce — the extra formats wait.
       { id: "cloze", icon: TextCursorInput },
       { id: "mixed", icon: Shuffle },
-    ] as const;
+    ] as const).filter((m) => !FOCUS || m.id === "choice" || m.id === "type");
     return (
       <div className="mx-auto max-w-[520px] space-y-5">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>

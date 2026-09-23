@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { TutorCardCtx } from "./useTutorChat";
 import { dragFollower } from "./dragFollow";
+import { FOCUS } from "./focus";
 
 // Mobile shell helpers: the customizable bottom-bar slots, the "open X" events
 // the bar/header fire at always-mounted overlays (Mika, bug report), and the
@@ -21,8 +22,10 @@ export const openMikaOnCard = (card: TutorCardCtx) =>
   window.dispatchEvent(new CustomEvent(OPEN_MIKA, { detail: { card } }));
 
 // Three user-picked tabs around the fixed centre Mika button (two left, one right).
+// Focused, the bar is the focused nav itself (Today · Words · Capture); the full
+// build keeps its old default, with the Reader one tap away under "More".
 export const SLOT_COUNT = 3;
-export const DEFAULT_SLOTS = ["/", "/review", "/words"];
+export const DEFAULT_SLOTS = FOCUS ? ["/", "/words", "/reader"] : ["/", "/review", "/words"];
 const SLOTS_KEY = "onomika.navSlots";
 
 export function useNavSlots(allowed: string[]) {

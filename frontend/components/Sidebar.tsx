@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
+import { FOCUS } from "@/lib/focus";
 import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots, useSheetDrag } from "@/lib/mobileNav";
 import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
@@ -27,7 +28,7 @@ const loadAddWordForm = () =>
 
 type NavItem = { href: string; key: string; Icon: LucideIcon };
 
-const NAV: NavItem[] = [
+const ALL_NAV: NavItem[] = [
   { href: "/", key: "nav.today", Icon: Home },
   { href: "/coach", key: "nav.coach", Icon: Compass },
   { href: "/mika", key: "nav.mika", Icon: Sparkles },
@@ -39,6 +40,17 @@ const NAV: NavItem[] = [
   { href: "/community", key: "nav.community", Icon: Globe },
   { href: "/friends", key: "nav.friends", Icon: Users },
 ];
+
+// Focused (F7), the nav is the loop itself: Today · Words · Capture (the Reader).
+// Everything still in the build — coach, flashcards, recall, sets — moves under
+// "More"; the social tabs go entirely, since their pages are off too.
+const FOCUS_HIDDEN = ["/community", "/friends"];
+const FOCUS_MAIN = ["/", "/words", "/reader"];
+
+const NAV = FOCUS ? ALL_NAV.filter((n) => !FOCUS_HIDDEN.includes(n.href)) : ALL_NAV;
+const MAIN_NAV = FOCUS ? NAV.filter((n) => FOCUS_MAIN.includes(n.href)) : NAV;
+// Desktop's second, quieter group. Mika lives in the tutor widget, not the list.
+const REST_NAV = NAV.filter((n) => !MAIN_NAV.includes(n) && n.href !== "/mika");
 
 // Mobile bottom bar: three user-picked tabs around a fixed centre Mika button,
 // then "More" (a sheet with everything else + the bar customizer). Mika itself
@@ -112,7 +124,7 @@ export function Sidebar() {
         </Link>
 
         <nav className="mt-2 flex flex-col gap-1">
-          {NAV.map((n) => {
+          {MAIN_NAV.map((n) => {
             const active = isActive(n.href, pathname);
             return (
               <Link
@@ -128,6 +140,29 @@ export function Sidebar() {
               </Link>
             );
           })}
+          {REST_NAV.length > 0 && (
+            <>
+              <div className="mt-4 px-3.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                {t("nav.more")}
+              </div>
+              {REST_NAV.map((n) => {
+                const active = isActive(n.href, pathname);
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className={cn(
+                      "flex items-center gap-[11px] rounded-xl px-3.5 py-2 text-[14px] font-medium transition-colors",
+                      active ? "bg-sage-tint text-sage-deep" : "text-ink-soft hover:bg-black/[0.03]",
+                    )}
+                  >
+                    <n.Icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-sage-deep" : "text-ink-faint")} strokeWidth={2} />
+                    {t(n.key)}
+                  </Link>
+                );
+              })}
+            </>
+          )}
           {profile?.isAdmin && (
             <Link
               href="/admin"

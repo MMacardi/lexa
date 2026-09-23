@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { FOCUS } from "@/lib/focus";
 
 export default function CollectionsPage() {
   const qc = useQueryClient();
@@ -113,14 +114,16 @@ export default function CollectionsPage() {
         {folderError && <p className="w-full text-sm font-medium text-warn-text">{folderError}</p>}
       </form>
 
-      <Link
-        href="/community"
-        className="anim-fade-up flex items-center gap-3 rounded-[18px] border border-sage/30 bg-sage-tint/40 px-4 py-3 text-sm text-sage-deep transition-colors hover:bg-sage-tint"
-      >
-        <Globe className="h-5 w-5 shrink-0" />
-        <span className="flex-1">{t("community.promo")}</span>
-        <span className="font-semibold">→</span>
-      </Link>
+      {!FOCUS && (
+        <Link
+          href="/community"
+          className="anim-fade-up flex items-center gap-3 rounded-[18px] border border-sage/30 bg-sage-tint/40 px-4 py-3 text-sm text-sage-deep transition-colors hover:bg-sage-tint"
+        >
+          <Globe className="h-5 w-5 shrink-0" />
+          <span className="flex-1">{t("community.promo")}</span>
+          <span className="font-semibold">→</span>
+        </Link>
+      )}
 
       {isLoading && (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -273,14 +276,17 @@ function CollectionCard({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => setSharing((v) => !v)}
-                aria-label={t("share.title")}
-                title={t("share.title")}
-                className={cn("rounded-lg p-1.5 hover:bg-black/[0.04]", sharing ? "text-sage-deep" : "text-ink-faint")}
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
+              {/* publishing a set is the other half of Community, so it waits with it (F7) */}
+              {!FOCUS && (
+                <button
+                  onClick={() => setSharing((v) => !v)}
+                  aria-label={t("share.title")}
+                  title={t("share.title")}
+                  className={cn("rounded-lg p-1.5 hover:bg-black/[0.04]", sharing ? "text-sage-deep" : "text-ink-faint")}
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+              )}
               <button
                 onClick={() => setEditing(true)}
                 aria-label="Rename"

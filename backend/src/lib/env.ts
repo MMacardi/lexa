@@ -13,6 +13,11 @@ const schema = z.object({
   // Qwen audio model for transcribing Telegram voice answers in bot practice.
   BAILIAN_AUDIO_MODEL: z.string().default("qwen-audio-asr"),
   TAVILY_API_KEY: z.string().default(""),
+  // The focus pass (BACKLOG F7). While it is on, web-mined examples are off:
+  // a level-controlled composed sentence beats a mined news one for HSK prep,
+  // costs ~4x less and keeps untrusted web text out of the prompts. The code and
+  // TAVILY_API_KEY stay — FOCUS_MODE=off restores the full build for the demo.
+  FOCUS_MODE: z.string().default("on"),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   // "true" starts the in-process Telegram tutor bot (long polling). Keep it off
   // when another process (e.g. prod, if this is local) already polls the same token.
@@ -67,3 +72,6 @@ const schema = z.object({
 });
 
 export const env = schema.parse(process.env);
+
+/** Is the HSK focus pass on? (See FOCUS_MODE above.) */
+export const FOCUS = !["off", "false", "0"].includes(env.FOCUS_MODE.toLowerCase());

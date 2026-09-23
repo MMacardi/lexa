@@ -3,6 +3,7 @@ import { searchNews } from "../services/search.js";
 import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { FOCUS } from "../lib/env.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -119,8 +120,10 @@ export async function runExampleSearch(params: {
     : "";
 
   // Default to AI-composed examples: cheaper, always on the learner's level, and
-  // free of any third-party copyright question. Web mining is an explicit opt-in.
-  const preferAi = (params.exampleSource ?? "ai") !== "web";
+  // free of any third-party copyright question. Web mining is an explicit opt-in,
+  // and the focus pass (F7) declines it: an old request or a stale client that
+  // still asks for "web" quietly gets a composed sentence instead.
+  const preferAi = FOCUS || (params.exampleSource ?? "ai") !== "web";
 
   let sentence = "";
   let translation = "";

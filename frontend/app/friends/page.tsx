@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Friend, type Stats } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -10,6 +10,7 @@ import { useToast } from "@/lib/toast";
 import { useDailyGoal } from "@/lib/goal";
 import { langLabel } from "@/lib/langs";
 import { computeBadges } from "@/lib/achievements";
+import { FOCUS } from "@/lib/focus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HoverTip } from "@/components/ui/HoverTip";
@@ -294,6 +295,8 @@ function FriendsInner() {
 }
 
 export default function FriendsPage() {
+  // Hidden by the focus pass (F7) — the flag brings the page back untouched.
+  if (FOCUS) notFound();
   return (
     <Suspense fallback={null}>
       <FriendsInner />

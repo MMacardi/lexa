@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { KeyRound, Search } from "lucide-react";
 import { api, type DeckSummary } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { langFlag, langLabel } from "@/lib/langs";
+import { FOCUS } from "@/lib/focus";
 import { DeckCard } from "@/components/DeckCard";
 import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import { Segmented } from "@/components/ui/Segmented";
 const POPULAR_COUNT = 6;
 
 export default function CommunityPage() {
+  // Hidden by the focus pass (F7) — the flag brings the page back untouched.
+  if (FOCUS) notFound();
   const { t } = useI18n();
   const router = useRouter();
   const [query, setQuery] = useState("");

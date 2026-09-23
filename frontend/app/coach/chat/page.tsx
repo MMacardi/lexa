@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -19,6 +20,7 @@ import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop"
 import { TappableText, type WordEntry } from "@/components/TappableText";
 import { PracticeBar } from "@/components/PracticeBar";
 import { useMicInput } from "@/lib/useMicInput";
+import { FOCUS } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import { MessageCircle, ArrowLeft, Send, Mic, Square, Sparkles, Check, User, Flame, Star, Flag, Loader2 } from "lucide-react";
 
@@ -29,6 +31,8 @@ const LIFETIME_KEY = "lexa.chatPoints";
 const levelFor = (pts: number) => Math.floor(pts / 100) + 1;
 
 export default function CoachChatPage() {
+  // Focused (F7), Mika is the one chat surface — this one is hidden, not gone.
+  if (FOCUS) notFound();
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();

@@ -23,6 +23,7 @@ import { HighlightWord } from "@/components/HighlightWord";
 import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
+import { FOCUS } from "@/lib/focus";
 import { Link as LinkIcon, BookOpen, Lightbulb, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -256,8 +257,8 @@ export default function WordDetailPage() {
           which ones the card tests. Falls back to the collocation chips. */}
       <WordSenses word={word} />
 
-      {/* synonyms + antonyms as a tappable mini word-family graph */}
-      <WordFamilyGraph word={word} />
+      {/* synonyms + antonyms as a tappable mini word-family graph (off while focused) */}
+      {!FOCUS && <WordFamilyGraph word={word} />}
 
       <div className="space-y-3">
         {word.examples.length > 0 && (
