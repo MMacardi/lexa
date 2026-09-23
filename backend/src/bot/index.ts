@@ -352,7 +352,7 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
       if (res.grade === "correct") p.correct++;
       const rating = res.grade === "correct" ? 3 : res.grade === "partial" ? 2 : 1;
       try {
-        await recordReview(card.id, rating);
+        await recordReview(card.id, rating, undefined, "drill");
       } catch (err) {
         console.error("practice grade failed:", (err as Error).message);
       }

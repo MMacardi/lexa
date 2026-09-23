@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api, type Profile } from "@/lib/api";
+import { syncLearnerPrefs } from "@/lib/learnPrefs";
 
 // Auth-backed account context. The "account" is now the logged-in Telegram user
 // (verified via the Telegram Login Widget, or the dev shortcut locally), stored
@@ -71,6 +72,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     tg?.expand?.();
     refresh();
   }, [refresh]);
+
+  // Reconcile the locally mirrored learner settings (level, native language,
+  // goal, retention) with the account, once per sign-in.
+  useEffect(() => {
+    if (profile?.telegramId) syncLearnerPrefs(profile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.telegramId]);
 
   const loginDev = async (id: string) => {
     await api.loginDev(id.trim());

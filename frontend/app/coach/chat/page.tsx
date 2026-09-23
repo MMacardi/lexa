@@ -282,7 +282,7 @@ export default function CoachChatPage() {
               .map((w) => poolWords.find((p) => p.word.trim().toLowerCase() === w))
               .filter((c): c is Word => !!c);
             if (graded.length > 0) {
-              await Promise.allSettled(graded.map((c) => api.reviewWord(c.id, 3)));
+              await Promise.allSettled(graded.map((c) => api.reviewWord(c.id, 3, "chat")));
               qc.invalidateQueries({ queryKey: ["words"] });
               qc.invalidateQueries({ queryKey: ["stats"] });
             }

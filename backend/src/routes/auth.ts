@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { env } from "../lib/env.js";
 import { prisma } from "../services/db.js";
 import {
@@ -18,6 +19,7 @@ import { resolveIdentity, listIdentities, unlinkIdentity } from "../services/aut
 import { rateLimit, take } from "../lib/rateLimit.js";
 import { isAdmin } from "../lib/entitlements.js";
 import { PRIVACY_LEVELS } from "../services/profiles.js";
+import { learnerPrefsSchema, learnerPrefsSelect } from "../services/learnerPrefs.js";
 import { readBetaCookie } from "./beta.js";
 import { track } from "../services/analytics.js";
 
@@ -56,6 +58,10 @@ async function finishLogin(req: import("express").Request, res: import("express"
       email: true,
       authVia: true,
       invited: true,
+      // The client syncs its mirrored learner settings against whichever profile
+      // it gets back; omit these and a fresh sign-in looks like "the account has
+      // no settings" and uploads the browser's stale ones over the real values.
+      ...learnerPrefsSelect,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
@@ -262,6 +268,7 @@ authRouter.get("/auth/me", async (req, res) => {
       profileVisibility: true,
       decksVisibility: true,
       invited: true,
+      ...learnerPrefsSelect,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
@@ -269,7 +276,8 @@ authRouter.get("/auth/me", async (req, res) => {
   res.json(user ? { ...user, isAdmin: admin } : { telegramId, identities: [], isAdmin: admin });
 });
 
-// PATCH /api/auth/me — update the learner's own display name / privacy flags.
+// PATCH /api/auth/me — update the learner's own display name / privacy flags /
+// learner settings (level, native language, daily goal, retention).
 authRouter.patch("/auth/me", async (req, res) => {
   const telegramId = readSession(req);
   if (!telegramId) {
@@ -283,6 +291,10 @@ authRouter.patch("/auth/me", async (req, res) => {
     hideTag?: boolean;
     profileVisibility?: string;
     decksVisibility?: string;
+    levels?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+    nativeLang?: string | null;
+    dailyGoal?: number | null;
+    retention?: number | null;
   } = {};
   const privacy = (v: unknown) => (PRIVACY_LEVELS as readonly string[]).includes(v as string);
   if (typeof b.displayName === "string") data.displayName = b.displayName.trim().slice(0, 60) || null;
@@ -290,11 +302,31 @@ authRouter.patch("/auth/me", async (req, res) => {
   if (typeof b.hideTag === "boolean") data.hideTag = b.hideTag;
   if (privacy(b.profileVisibility)) data.profileVisibility = b.profileVisibility;
   if (privacy(b.decksVisibility)) data.decksVisibility = b.decksVisibility;
+  // Learner settings. A bad value is rejected outright rather than silently
+  // ignored: these drive scheduling and generation, so a client that thinks it
+  // saved a level it didn't save is worse than an error.
+  const prefs = learnerPrefsSchema.safeParse(b);
+  if (!prefs.success) {
+    res.status(400).json({ error: prefs.error.flatten() });
+    return;
+  }
+  // `levels` is a Json column, so clearing it needs Prisma's DbNull, not null.
+  if (prefs.data.levels !== undefined) data.levels = prefs.data.levels ?? Prisma.DbNull;
+  if (prefs.data.nativeLang !== undefined) data.nativeLang = prefs.data.nativeLang;
+  if (prefs.data.dailyGoal !== undefined) data.dailyGoal = prefs.data.dailyGoal;
+  if (prefs.data.retention !== undefined) data.retention = prefs.data.retention;
   try {
     const user = await prisma.user.update({
       where: { telegramId },
       data,
-      select: { displayName: true, hideEmail: true, hideTag: true, profileVisibility: true, decksVisibility: true },
+      select: {
+        displayName: true,
+        hideEmail: true,
+        hideTag: true,
+        profileVisibility: true,
+        decksVisibility: true,
+        ...learnerPrefsSelect,
+      },
     });
     res.json(user);
   } catch (err) {

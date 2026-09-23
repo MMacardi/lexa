@@ -180,6 +180,22 @@ export function FirstRun() {
         /* ignore */
       }
       const r = await api.batchAddWords({ telegramId: accountId, sourceLang: source, targetLang: target, words: unique, level, enrich: true });
+      // Keep the verdict, not just the deck it produced: every word shown and not
+      // tapped is the learner saying "I already know this" about vocabulary that
+      // never becomes a card, which is the only evidence we get about it.
+      const shown = clusters.flatMap((c) => c.words);
+      if (shown.length) {
+        const tapped = new Set(unique);
+        void api
+          .savePlacement({
+            sourceLang: source,
+            targetLang: target,
+            level,
+            known: shown.filter((w) => !tapped.has(w.trim())),
+            unknown: unique,
+          })
+          .catch(() => {});
+      }
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: unique, total: r.job.total, processed: 0 });

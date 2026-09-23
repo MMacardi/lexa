@@ -286,7 +286,7 @@ export default function CoachScenePage() {
     gradedRef.current.add(canonicalLower);
     setReviewedCount((n) => n + 1);
     try {
-      await api.reviewWord(card.id, 3);
+      await api.reviewWord(card.id, 3, "scene");
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     } catch {

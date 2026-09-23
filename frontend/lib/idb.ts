@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReviewSource } from "./api";
+
 // Minimal promise wrapper around IndexedDB (no dependency). Two stores:
 //  - "kv": simple key/value (used to mirror the words list for offline review)
 //  - "outbox": queued mutations (review grades, word adds) awaiting sync
@@ -50,7 +52,9 @@ export async function kvSet<T>(key: string, value: T): Promise<void> {
 
 // --- outbox ---
 export type OutboxOp =
-  | { id?: number; kind: "review"; wordId: string; grade: number; at: number }
+  // `source` is the surface that graded it; absent on ops queued before it was
+  // logged, which only ever came from the review page.
+  | { id?: number; kind: "review"; wordId: string; grade: number; source?: ReviewSource; at: number }
   | { id?: number; kind: "add"; word: string; sourceLang: string; targetLang: string; notes?: string; at: number };
 
 export async function outboxAdd(op: OutboxOp): Promise<void> {

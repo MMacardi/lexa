@@ -1,6 +1,6 @@
 "use client";
 
-import { api, type Word } from "./api";
+import { api, type ReviewSource, type Word } from "./api";
 import { kvGet, kvSet, outboxAdd, outboxAll, outboxCount, outboxDelete } from "./idb";
 
 // Offline sync: mirror the words list for offline review, queue mutations made
@@ -33,16 +33,16 @@ export async function mirrorWords(accountId: string, words: Word[]): Promise<voi
 
 /** Send a review grade now, or queue it if offline/failed. Returns true if it
  *  reached the server. */
-export async function submitReview(wordId: string, grade: number): Promise<boolean> {
+export async function submitReview(wordId: string, grade: number, source: ReviewSource = "review"): Promise<boolean> {
   if (isOnline()) {
     try {
-      await api.reviewWord(wordId, grade);
+      await api.reviewWord(wordId, grade, source);
       return true;
     } catch {
       /* fall through to queue */
     }
   }
-  await outboxAdd({ kind: "review", wordId, grade, at: Date.now() });
+  await outboxAdd({ kind: "review", wordId, grade, source, at: Date.now() });
   notify();
   return false;
 }
@@ -65,7 +65,7 @@ export async function flushOutbox(accountId: string): Promise<number> {
     for (const op of ops) {
       try {
         if (op.kind === "review") {
-          await api.reviewWord(op.wordId, op.grade);
+          await api.reviewWord(op.wordId, op.grade, op.source ?? "review");
         } else {
           await api.addWord({ telegramId: accountId, word: op.word, sourceLang: op.sourceLang, targetLang: op.targetLang, notes: op.notes });
         }

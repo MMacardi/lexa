@@ -458,18 +458,35 @@ export async function updateWord(
   });
 }
 
+// Where a grade came from. The scheduler treats them alike, but the learner model
+// does not: "got it right when prompted" (review/quiz) is a weaker claim than
+// "produced it in a sentence" (drill/scene/chat), and only the log can tell them
+// apart afterwards.
+export const REVIEW_SOURCES = ["review", "quiz", "drill", "scene", "chat"] as const;
+export type ReviewSource = (typeof REVIEW_SOURCES)[number];
+
+/** Narrow untrusted input to a known venue; anything else is a plain review. */
+export function asReviewSource(v: unknown): ReviewSource {
+  return (REVIEW_SOURCES as readonly string[]).includes(v as string) ? (v as ReviewSource) : "review";
+}
+
 /**
  * Record a review: bump reviewCount and schedule the next review date using the
  * interval ladder above.
  */
 // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS Rating).
-export async function recordReview(id: string, grade: number = 3, retention?: number) {
-  const word = await prisma.word.findUnique({ where: { id } });
+export async function recordReview(id: string, grade: number = 3, retention?: number, source: ReviewSource = "review") {
+  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: { retention: true } } } });
   if (!word) return null;
+  // The setting lives on the account now, so surfaces that can't read the browser
+  // (the bot) schedule with the learner's own retention instead of the default.
+  const desired = retention ?? word.user.retention ?? undefined;
 
-  // Practicing counts toward activity/streak regardless of the grade.
-  await prisma.reviewEvent.create({ data: { userId: word.userId } });
-  track("review", { props: { grade } });
+  // Practicing counts toward activity/streak regardless of the grade. The word,
+  // the grade and the venue go in the same row: this is the learner model's only
+  // record of what actually happened and it cannot be reconstructed later.
+  await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source } });
+  track("review", { props: { grade, source } });
 
   const now = new Date();
   // Reconstruct the FSRS card from stored state (or a fresh one if never reviewed).
@@ -489,7 +506,7 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
           last_review: word.lastReview ?? undefined,
         };
 
-  const { card: next } = schedulerFor(retention).next(card, now, grade as Grade);
+  const { card: next } = schedulerFor(desired).next(card, now, grade as Grade);
 
   return prisma.word.update({
     where: { id },

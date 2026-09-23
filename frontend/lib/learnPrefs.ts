@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api, type LearnerPrefs } from "@/lib/api";
 
-// Learner preferences kept locally (like customLangs/goal): the CEFR level per
-// language and the preferred example source. These feed the AI example search so
-// sentences match the learner's level and chosen register.
+// Learner preferences. Most are local-only display settings (example style, card
+// layout, reader source). Four of them — level, native language, daily goal and
+// retention — belong to the learner model and live on the account: the bot and a
+// second device have to see the same numbers. Those are still mirrored into
+// localStorage, which stays the synchronous read path for the whole app and keeps
+// working offline; `pushPrefs` writes the change through to the server.
 
 // --- CEFR level, stored per source language ---
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
@@ -26,6 +30,95 @@ const SOURCE_KEY = "lexa.exampleSource";
 const TRANSCRIPTION_KEY = "lexa.showTranscription";
 const EVT = "lexa-prefs-changed";
 
+// --- Account sync for the four learner-model settings ---
+// Which account the local mirror belongs to. Without it, signing in as someone
+// else on the same browser would upload the previous learner's level and goal
+// into the new account (the server only defers to local when it has nothing).
+const PREFS_ACCOUNT_KEY = "lexa.prefsAccount";
+
+/** Write a changed setting through to the account; local already has it. */
+function pushPrefs(patch: LearnerPrefs) {
+  // Best-effort: the local mirror is authoritative for this tab either way, and a
+  // failed sync must never block the click that caused it.
+  void api.updateLearnerPrefs(patch).catch(() => {});
+}
+
+/**
+ * Upload each migrated setting on its own. The server rejects a whole PATCH on a
+ * single bad field, and this browser's mirror may hold anything a past version
+ * wrote, so one stale value must not take the other three down with it.
+ */
+function pushPrefsSeparately(patch: LearnerPrefs) {
+  for (const [k, v] of Object.entries(patch)) pushPrefs({ [k]: v } as LearnerPrefs);
+}
+
+/**
+ * Reconcile the local mirror with the account, once the profile is known.
+ * The server wins wherever it has a value; where it has none, the value this
+ * browser has been carrying is uploaded, so existing learners keep their settings
+ * instead of silently resetting on the first load after this change.
+ */
+export function syncLearnerPrefs(profile: {
+  telegramId?: string;
+  levels?: Record<string, string> | null;
+  nativeLang?: string | null;
+  dailyGoal?: number | null;
+  retention?: number | null;
+}) {
+  if (typeof window === "undefined") return;
+  try {
+    // A *different* account on this browser: drop the mirror rather than merge
+    // it. No marker at all means the mirror predates this sync, so it belongs to
+    // whoever is signed in — that is the one-time migration of existing learners
+    // and must not be wiped.
+    const id = profile.telegramId ?? "";
+    const owner = localStorage.getItem(PREFS_ACCOUNT_KEY);
+    if (owner !== null && owner !== id) {
+      for (const k of [LEVELS_KEY, NATIVE_KEY, GOAL_KEY, RETENTION_KEY]) localStorage.removeItem(k);
+    }
+    localStorage.setItem(PREFS_ACCOUNT_KEY, id);
+
+    const upload: LearnerPrefs = {};
+
+    // Levels are the one map. Once the account holds any, it is the whole truth:
+    // merging instead would let a device with a stale mirror re-upload a level
+    // the learner deleted on another one. Only an account that has none at all
+    // adopts this browser's set — the one-time migration.
+    const remote = (profile.levels ?? null) as Record<string, CefrLevel> | null;
+    if (remote && Object.keys(remote).length) {
+      localStorage.setItem(LEVELS_KEY, JSON.stringify(remote));
+    } else {
+      // Drop anything a past version may have written that the server would
+      // reject; a single bad entry must not cost the learner every level.
+      const clean = Object.fromEntries(
+        Object.entries(readLevels()).filter(([lang, lv]) => lang.length >= 2 && (CEFR_LEVELS as readonly string[]).includes(lv)),
+      ) as Record<string, CefrLevel>;
+      if (Object.keys(clean).length) upload.levels = clean;
+    }
+
+    // The scalars: the account wins where it has one, otherwise this browser's
+    // value migrates up. Each is range-checked the same way the server will.
+    const mine = {
+      nativeLang: localStorage.getItem(NATIVE_KEY) || null,
+      dailyGoal: Number(localStorage.getItem(GOAL_KEY)),
+      retention: Number(localStorage.getItem(RETENTION_KEY)),
+    };
+    if (profile.nativeLang) localStorage.setItem(NATIVE_KEY, profile.nativeLang);
+    else if (mine.nativeLang && mine.nativeLang.length >= 2) upload.nativeLang = mine.nativeLang;
+
+    if (profile.dailyGoal != null) localStorage.setItem(GOAL_KEY, String(profile.dailyGoal));
+    else if (Number.isFinite(mine.dailyGoal) && mine.dailyGoal >= 1) upload.dailyGoal = Math.min(100, Math.round(mine.dailyGoal));
+
+    if (profile.retention != null) localStorage.setItem(RETENTION_KEY, String(profile.retention));
+    else if (mine.retention >= 0.7 && mine.retention <= 0.98) upload.retention = mine.retention;
+
+    if (Object.keys(upload).length) pushPrefsSeparately(upload);
+    window.dispatchEvent(new Event(EVT));
+  } catch {
+    /* private mode / quota — the app still works off its defaults */
+  }
+}
+
 function readLevels(): Record<string, CefrLevel> {
   if (typeof window === "undefined") return {};
   try {
@@ -44,6 +137,7 @@ export function setLevel(lang: string, level: CefrLevel) {
   const all = readLevels();
   all[lang] = level;
   localStorage.setItem(LEVELS_KEY, JSON.stringify(all));
+  pushPrefs({ levels: all });
   window.dispatchEvent(new Event(EVT));
 }
 
@@ -51,6 +145,7 @@ export function removeLevel(lang: string) {
   const all = readLevels();
   delete all[lang];
   localStorage.setItem(LEVELS_KEY, JSON.stringify(all));
+  pushPrefs({ levels: all });
   window.dispatchEvent(new Event(EVT));
 }
 
@@ -209,6 +304,7 @@ export function getNativeLang(): string | null {
 
 export function setNativeLang(lang: string) {
   localStorage.setItem(NATIVE_KEY, lang);
+  pushPrefs({ nativeLang: lang });
   window.dispatchEvent(new Event(EVT));
 }
 
@@ -310,6 +406,25 @@ export function useCardLayout(): CardLayout {
   return layout;
 }
 
+// --- Daily review goal: how many cards the learner wants to train per day ---
+// Part of the learner model (it is what the bot's nudge and the streak measure
+// against), so it syncs with the account; `useDailyGoal` in lib/goal.ts reads it.
+export const DEFAULT_GOAL = 5;
+const GOAL_KEY = "lexa.dailyGoal";
+
+export function getDailyGoal(): number {
+  if (typeof window === "undefined") return DEFAULT_GOAL;
+  const v = Number(localStorage.getItem(GOAL_KEY));
+  return Number.isFinite(v) && v >= 1 ? Math.min(100, Math.round(v)) : DEFAULT_GOAL;
+}
+
+export function setDailyGoal(n: number) {
+  const clamped = Math.max(1, Math.min(100, Math.round(n)));
+  localStorage.setItem(GOAL_KEY, String(clamped));
+  pushPrefs({ dailyGoal: clamped });
+  window.dispatchEvent(new Event(EVT));
+}
+
 // --- FSRS desired retention (how well you want to remember at review time) ---
 // Higher = shorter intervals + more reviews; lower = longer intervals, less work.
 export const RETENTION_OPTIONS = [0.8, 0.85, 0.9, 0.95] as const;
@@ -324,6 +439,7 @@ export function getRetention(): number {
 
 export function setRetention(r: number) {
   localStorage.setItem(RETENTION_KEY, String(r));
+  pushPrefs({ retention: r });
   window.dispatchEvent(new Event(EVT));
 }
 

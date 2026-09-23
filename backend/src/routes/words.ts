@@ -20,12 +20,14 @@ import { getImportJobForUser, cancelImportJobForUser } from "../services/importW
 import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
+import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import {
   addWordForUser,
   addWordManual,
   listWordsForUser,
   getWord,
   recordReview,
+  asReviewSource,
   deleteWord,
   updateWord,
   addExampleToWord,
@@ -135,6 +137,25 @@ wordsRouter.post("/words/starter-candidates", async (req: Request, res: Response
   }
   try {
     res.json(await suggestStarterClusters(parsed.data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// POST /api/words/placement -> keep what the placement mini-test found out. The
+// tapped words become the starter deck through the normal add path; this records
+// the answer itself, both the taps and the words left untapped ("I know this"),
+// which used to be discarded the moment the deck was built.
+wordsRouter.post("/words/placement", async (req: Request, res: Response) => {
+  const parsed = placementAnswersSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const saved = await savePlacementAnswers(callerId(req), parsed.data);
+    res.json({ saved });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: (err as Error).message });
@@ -562,10 +583,13 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
   // Prefer an explicit FSRS grade (1=Again..4=Easy); fall back to the legacy
   // {known} boolean (known:false → Again, otherwise → Good).
   const raw = typeof body.grade === "number" ? body.grade : body.known === false ? 1 : 3;
-  const grade = (raw >= 1 && raw <= 4 ? raw : 3) as 1 | 2 | 3 | 4;
+  // Round as well as clamp: the grade is written to an Int column now, so a
+  // fractional one would fail the insert instead of just scheduling oddly.
+  const grade = (Number.isFinite(raw) && raw >= 1 && raw <= 4 ? Math.round(raw) : 3) as 1 | 2 | 3 | 4;
   // Optional per-user desired retention (FSRS), clamped server-side too.
   const retention = typeof body.retention === "number" ? body.retention : undefined;
-  const word = await recordReview(req.params.id, grade, retention);
+  // Which surface graded it (review / quiz / drill / scene / chat) — logged, not scheduled on.
+  const word = await recordReview(req.params.id, grade, retention, asReviewSource(body.source));
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;

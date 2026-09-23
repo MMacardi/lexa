@@ -20,7 +20,7 @@ deleted — `onomika_old` holds the full-featured build.
 - [x] **F1. Measure anything.** No analytics exist, so the strategy is unrunnable blind.
       Activation funnel (sign-in → first card → first review → first use-step), D1/D7/D30,
       use-step completion. Privacy-friendly (Plausible or events in our own DB).
-- [ ] **F2. Learner-model foundation.** `ReviewEvent` keeps only userId + time. Log every
+- [x] **F2. Learner-model foundation.** `ReviewEvent` keeps only userId + time. Log every
       review with wordId, grade and source (review / quiz / drill / scene / chat). Move
       level, native language, goal and retention out of localStorage onto the User. Keep the
       placement test's "known" answers instead of discarding them. Cannot be backfilled later.
@@ -34,6 +34,9 @@ deleted — `onomika_old` holds the full-featured build.
 - [ ] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
       first use-step, in ~5 minutes. Russian native by default; infer the pair from the input.
       Plus the textbook path: photo/paste this week's word list → cards with the sense met.
+      - Found during F2: the bot's `add` passes no `level` at all, so a card added from
+        Telegram is generated levelless while the same word added on the web is tuned to the
+        learner's CEFR. The level now lives on the User, so the bot can read it — do it here.
 - [ ] **F6. Dictionary-grounded Chinese senses (+ a RU/EN quality eval).** Senses are LLM-only
       today and produced 3 correctness bugs in 3 days, all on the Chinese→Russian path
       («включить» → 打开 only; the 指出 sense ticks). Design: **the dictionary owns the sense

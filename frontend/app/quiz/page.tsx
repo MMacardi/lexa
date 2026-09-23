@@ -324,7 +324,7 @@ export default function QuizPage() {
     setSelPairs(sel.includes(pk) ? sel.filter((x) => x !== pk) : [...sel, pk]);
 
   const review = useMutation({
-    mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade),
+    mutationFn: ({ id, grade }: { id: string; grade: number }) => api.reviewWord(id, grade, "quiz"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });

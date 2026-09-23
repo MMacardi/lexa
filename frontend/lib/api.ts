@@ -222,7 +222,26 @@ export interface Profile {
   invited?: boolean; // closed-beta gate: has the user redeemed an invite code?
   isAdmin?: boolean; // owner allowlist: may open the /admin dashboard
   identities?: AuthIdentity[];
+  // Learner settings, now kept on the account rather than in this browser (see
+  // lib/learnPrefs). Null/absent means the account has never saved one, so the
+  // local value stands and gets uploaded on the next sync.
+  levels?: Record<string, string> | null;
+  nativeLang?: string | null;
+  dailyGoal?: number | null;
+  retention?: number | null;
 }
+
+/** The settings half of the learner model, as sent to PATCH /api/auth/me. */
+export interface LearnerPrefs {
+  levels?: Record<string, string> | null;
+  nativeLang?: string | null;
+  dailyGoal?: number | null;
+  retention?: number | null;
+}
+
+// Which surface graded an answer. Logged per review so the learner model can tell
+// "recognised it on a card" from "produced it in a sentence".
+export type ReviewSource = "review" | "quiz" | "drill" | "scene" | "chat";
 
 export interface Stats {
   total: number;
@@ -294,12 +313,15 @@ export interface AdminFunnel {
   byDay: { date: string; count: number }[];
 }
 
-// Learner's FSRS desired retention, stored locally (see lib/learnPrefs). Read
-// here so every review call (from any page) carries it without prop-drilling.
-function readRetention(): number {
-  if (typeof window === "undefined") return 0.9;
+// Learner's FSRS desired retention, from the local mirror (see lib/learnPrefs).
+// Read here so every review call (from any page) carries it without prop-drilling.
+// Undefined when this browser has no value yet: the request then omits the field
+// and the server falls back to the setting stored on the account, rather than the
+// client asserting a default that would mask it.
+function readRetention(): number | undefined {
+  if (typeof window === "undefined") return undefined;
   const v = Number(localStorage.getItem("lexa.retention"));
-  return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : 0.9;
+  return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : undefined;
 }
 
 // The "test the free tier" toggle (localStorage). Read directly to avoid a React
@@ -571,11 +593,12 @@ export const api = {
     http<ImportJob>(`/api/words/import/${id}?telegramId=${encodeURIComponent(telegramId)}`),
   cancelImportJob: (id: string) => http<ImportJob>(`/api/words/import/${id}/cancel`, { method: "POST" }),
   // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Default Good. Sends the learner's
-  // desired retention (FSRS) so the server schedules with their chosen setting.
-  reviewWord: (id: string, grade = 3) =>
+  // desired retention (FSRS) so the server schedules with their chosen setting,
+  // and the surface that graded it, which is logged but never scheduled on.
+  reviewWord: (id: string, grade = 3, source: ReviewSource = "review") =>
     http<Word>(`/api/words/${id}/review`, {
       method: "POST",
-      body: JSON.stringify({ grade, retention: readRetention() }),
+      body: JSON.stringify({ grade, retention: readRetention(), source }),
     }),
   deleteWord: (id: string) =>
     http<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
@@ -733,6 +756,10 @@ export const api = {
     http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
   updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean; profileVisibility?: PrivacyLevel; decksVisibility?: PrivacyLevel }) =>
     http<{ hideEmail: boolean; hideTag: boolean; profileVisibility: PrivacyLevel; decksVisibility: PrivacyLevel }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
+  // Learner settings (level / native language / daily goal / retention) on the
+  // account, so the bot and a second device see the same numbers.
+  updateLearnerPrefs: (patch: LearnerPrefs) =>
+    http<LearnerPrefs>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify(patch) }),
   // Closed-beta gate: redeem an invite code, unlocking the app. Returns the fresh profile.
   redeemInvite: (code: string) =>
     http<Profile>(`/api/invites/redeem`, { method: "POST", body: JSON.stringify({ code }) }),
@@ -796,6 +823,11 @@ export const api = {
   // studied language; the learner taps the ones they DON'T know to seed their deck.
   starterCandidates: (payload: { sourceLang: string; targetLang: string; level?: string; clusters?: number; perCluster?: number }) =>
     http<{ clusters: { theme: string; words: string[] }[] }>(`/api/words/starter-candidates`, { method: "POST", body: JSON.stringify(payload) }),
+  // Keep the test's verdict: `unknown` are the words they tapped (the starter deck),
+  // `known` the ones they left — an explicit "I already know this" that used to be
+  // thrown away with the component's state.
+  savePlacement: (payload: { sourceLang: string; targetLang: string; level?: string; known: string[]; unknown: string[] }) =>
+    http<{ saved: number }>(`/api/words/placement`, { method: "POST", body: JSON.stringify(payload) }),
 
   // Transcribe a recorded voice answer to text (Coach practice).
   stt: (payload: { audio: string; format?: string; sourceLang?: string }) =>

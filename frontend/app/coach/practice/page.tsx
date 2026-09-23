@@ -193,7 +193,7 @@ export default function CoachPracticePage() {
         setScores((s) => ({ ...s, [key]: res.grade }));
         if (card) {
           try {
-            await api.reviewWord(card.id, GRADE_RATING[res.grade as Exclude<Grade, "none">]);
+            await api.reviewWord(card.id, GRADE_RATING[res.grade as Exclude<Grade, "none">], "drill");
             qc.invalidateQueries({ queryKey: ["words"] });
             qc.invalidateQueries({ queryKey: ["stats"] });
           } catch {

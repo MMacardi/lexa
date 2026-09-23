@@ -34,6 +34,16 @@ model User {
   // notably the Telegram tutor bot (chat + review). Null until first resolved.
   preferredSource String?
   preferredTarget String?
+  // The learner model proper. These four lived in localStorage, so the bot and
+  // every other server-side surface were blind to them and a new device started
+  // from scratch. Null means "never set": the client keeps its local value and
+  // uploads it on first sync, so nothing is lost for existing accounts.
+  // levels = { [sourceLang]: "A1".."C2" }; nativeLang = the language they already
+  // know; dailyGoal = cards per day; retention = FSRS desired retention.
+  levels      Json?
+  nativeLang  String?
+  dailyGoal   Int?
+  retention   Float?
   // Telegram chat id for proactive messages (review reminders). Set on /start.
   botChatId   String?
   // Hour of day (0–23, server time) the learner wants their review nudge, or null
@@ -63,6 +73,7 @@ model User {
   folders     Folder[]
   collectionAdds CollectionAdd[]
   deckReports    DeckReport[]
+  placementAnswers PlacementAnswer[]
 }
 
 // Coach memory — what the personal mentor remembers about the learner across
@@ -250,6 +261,7 @@ model Word {
   sharedDeck   String?
   sharedDeckId String?
   examples     Example[]
+  reviewEvents ReviewEvent[]
   collections  Collection[] @relation("CollectionWords")
 
   // Duplicates are allowed on purpose: a user may keep several cards for the
@@ -305,11 +317,48 @@ model SceneSession {
   @@index([userId, updatedAt])
 }
 
+// One row per graded answer — the learner model's raw ledger. It used to hold
+// only userId + time (an activity tick for streaks); the word, the grade and the
+// venue it came from cannot be reconstructed afterwards, so they are logged from
+// now on. Rows written before that stay valid activity ticks with a null wordId.
 model ReviewEvent {
   id        String   @id @default(cuid())
   userId    String
+  // The card that was graded. SetNull, not Cascade: deleting a word must not
+  // rewrite the learner's past activity (streaks are counted off this table).
+  wordId    String?
+  word      Word?    @relation(fields: [wordId], references: [id], onDelete: SetNull)
+  // FSRS Rating: 1=Again 2=Hard 3=Good 4=Easy. Null on pre-F2 rows.
+  grade     Int?
+  // Where the answer was given: review | quiz | drill | scene | chat.
+  source    String   @default("review")
   createdAt DateTime @default(now())
 
+  @@index([userId, createdAt])
+  @@index([wordId, createdAt])
+  @@index([userId, source, createdAt])
+}
+
+// The onboarding placement mini-test showed a themed word list and the learner
+// tapped the ones they did NOT know. The taps became the starter deck and the
+// rest — an explicit "I already know this" for every untapped word — was thrown
+// away. It is the only free signal we get about words outside the deck (it feeds
+// the readiness mark), so both sides of the answer are kept.
+model PlacementAnswer {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word       String
+  sourceLang String
+  targetLang String
+  // The CEFR level the test was generated at, which is what makes "known" mean
+  // something: knowing a B2 word is not the same claim as knowing an A1 one.
+  level      String?
+  known      Boolean
+  createdAt  DateTime @default(now())
+
+  // Re-taking the test overwrites the previous answer for the same word.
+  @@unique([userId, word, sourceLang])
   @@index([userId, createdAt])
 }
 
