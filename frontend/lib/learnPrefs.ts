@@ -297,6 +297,18 @@ export function useHanLang(): "zh" | "ja" | "ko" | null {
 // form's pair nudge, editable in Settings.
 const NATIVE_KEY = "lexa.nativeLang";
 
+// The pair every surface shares (Add form, Reader, Coach, Mika), as last set —
+// onboarding writes it, so on the HSK track it is Chinese → your language.
+export function getStudyPair(): { sourceLang: string; targetLang: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string; targetLang?: string } | null;
+    return p?.sourceLang && p.targetLang && p.sourceLang !== "auto" ? { sourceLang: p.sourceLang, targetLang: p.targetLang } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getNativeLang(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(NATIVE_KEY) || null;

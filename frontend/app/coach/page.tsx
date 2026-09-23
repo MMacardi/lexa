@@ -11,10 +11,10 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLevel, getExampleStyle } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
-import { LangSelect } from "@/components/LangSelect";
+import { PairChip } from "@/components/PairChip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRightLeft, ArrowRight } from "lucide-react";
+import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string };
 
@@ -92,7 +92,6 @@ export default function CoachPage() {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [theme, setTheme] = useState("");
   const [adding, setAdding] = useState(false);
-  const [swapSpin, setSwapSpin] = useState(false);
 
   // Coach memory: the learner's goal powers a "get to know you" prompt + tailored picks.
   // Scoped to the selected source language so an English goal never leaks into Chinese.
@@ -181,7 +180,6 @@ export default function CoachPage() {
   function swapLangs() {
     const next = { source: pair.target, target: pair.source };
     setPair(next);
-    setSwapSpin((v) => !v);
     try {
       localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
     } catch {
@@ -462,19 +460,8 @@ export default function CoachPage() {
           </button>
         </div>
 
-        {/* language pair */}
-        <div className="flex flex-wrap items-center gap-2">
-          <LangSelect value={pair.source} onChange={setSource} />
-          <button
-            type="button"
-            onClick={swapLangs}
-            aria-label={t("add.swap")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
-          >
-            <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
-          </button>
-          <LangSelect value={pair.target} onChange={setTarget} />
-        </div>
+        {/* language pair: stated as a chip, changed from it */}
+        <PairChip source={pair.source} target={pair.target} onSource={setSource} onTarget={setTarget} onSwap={swapLangs} />
 
         {/* Your goal, in-context: type why you're learning → picks follow it and it's
             quietly remembered. No separate onboarding, no nagging. */}

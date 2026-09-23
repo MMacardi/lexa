@@ -139,11 +139,19 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
     *answer* — a Telegram chat or group linked from the app and from the landing page, so a 6-week
     beta is a conversation and not a one-way form. The landing already promises you answer.
 
-9. **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
+9. [x] **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
     into the *interface*, so 14 surfaces still pose «что учу / что знаю» in an app whose positioning
     is a single pair. The pair belongs on the account (F2 stored it), shown as a labelled static chip
     — item 3g's fix, which must survive, because people really did set it backwards — with the picker
     behind the chip and in Settings only.
+    - **Shipped 2026-09-23.** `PairChip`: "Learning Chinese · I know Russian" as one chip, the
+      labelled pickers (and swap) in a popover behind it — on the add form (the backwards-pair
+      nudge stays), the Reader and the Coach, where the Reader's and Coach's were bare "A ⇄ B"
+      dropdowns. The import dialog lost its "English → Russian / Russian → English / custom"
+      switch and opens on the shared pair (`getStudyPair()`, what onboarding saved). The Reader's
+      recent-pair shortcuts are hidden behind `FOCUS`. Chats already had `ChatPairPicker`.
+      Pickers remain where they are the question: onboarding, Settings, the add form's "which
+      language did you type" prompt. Checked on words / reader / coach / import in the local app.
 
 10. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` **On hold until
     item 5 passes.** The readiness mark is framing, not the reason anyone switches, and the daily

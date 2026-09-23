@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { ArrowRightLeft, X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages } from "lucide-react";
+import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -48,6 +48,7 @@ import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Segmented";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { LangSelect } from "@/components/LangSelect";
+import { PairChip } from "@/components/PairChip";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
@@ -130,7 +131,6 @@ export function AddWordForm({
   const [pairReady, setPairReady] = useState(false);
   const [modeReady, setModeReady] = useState(false);
   const [resolvedSourceLang, setResolvedSourceLang] = useState<string | null>(null);
-  const [swapSpin, setSwapSpin] = useState(false);
 
   // Prefill the word from a ?word= deep link (e.g. "Create ‹word›" on a set page).
   // (?mode= is handled by the mode-init effect below, so it wins over last-used.)
@@ -148,7 +148,6 @@ export function AddWordForm({
     // side travels with it: what's in the field stays the input language, and the
     // card flips to the other one (which is the whole point of hitting swap).
     setReverseInput((v) => !v);
-    setSwapSpin((v) => !v);
   };
   // manual fields
   const [meaning, setMeaning] = useState("");
@@ -574,31 +573,18 @@ export function AddWordForm({
   );
   const pairBlock = (
     <>
-      {/* Language pair, both sides labelled. A bare "A → B" between two dropdowns
-          reads as a translation direction, so people set it backwards and get a card
-          in the language they already speak — the card is always in the first one.
-          (Same trap the Mika pair chip had.) */}
-      <div className="flex items-end gap-2 text-sm text-ink-soft">
-        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[200px]">
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("first.learn")}</span>
-          <LangSelect value={sourceLang} onChange={setSourceLang} allowAuto autoLabel={t("add.autoDetect")} />
-        </div>
-        <HoverTip title={t("add.swap")} className="inline-flex">
-          <button
-            type="button"
-            onClick={swapLangs}
-            disabled={sourceLang === "auto"}
-            aria-label={t("add.swap")}
-            className="mb-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep disabled:opacity-40"
-          >
-            <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
-          </button>
-        </HoverTip>
-        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[200px]">
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
-          <LangSelect value={targetLang} onChange={setTargetLang} />
-        </div>
-      </div>
+      {/* The pair as one labelled chip; the pickers open from it (PairChip). The
+          account already answered "which language", so the form states it instead
+          of asking. The backwards-pair nudge below still catches a wrong setup. */}
+      <PairChip
+        source={sourceLang}
+        target={targetLang}
+        onSource={setSourceLang}
+        onTarget={setTargetLang}
+        onSwap={swapLangs}
+        allowAuto
+        autoLabel={t("add.autoDetect")}
+      />
 
       {pairBackwards && !pairHintOff && (
         <div className="anim-fade-up flex items-center gap-2 rounded-[14px] border border-sage/30 bg-sage-tint/40 px-2.5 py-2 text-[13px] leading-snug">

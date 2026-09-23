@@ -10,7 +10,6 @@ import { useClosing } from "@/lib/motion";
 import { Check } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { langLabel } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
@@ -20,20 +19,20 @@ import {
   setLevel,
   useExampleStyle,
   useLevel,
+  getNativeLang,
+  getStudyPair,
   type CefrLevel,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
-import { LangSelect } from "@/components/LangSelect";
-import { Segmented } from "@/components/ui/Segmented";
+import { PairChip } from "@/components/PairChip";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 import { HoverPreview } from "@/components/HoverPreview";
 
 type PreviewCard = ImportedCard & { selected: boolean };
-type ImportDirection = "en-ru" | "ru-en" | "custom";
 
 // A little flip-card preview of what the FIRST typed line will become, so the
 // learner sees the shape of a card while composing the list. Client-only, no AI.
@@ -80,8 +79,8 @@ function ImportCardPreview({ text }: { text: string }) {
 
 export function ImportWordsDialog({
   defaultCollectionId,
-  defaultSourceLang = "en",
-  defaultTargetLang = "ru",
+  defaultSourceLang,
+  defaultTargetLang,
   triggerLabel,
 }: {
   defaultCollectionId?: string;
@@ -100,9 +99,10 @@ export function ImportWordsDialog({
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
   const [extracting, setExtracting] = useState(false); // reading a PDF
-  const [sourceLang, setSourceLang] = useState(defaultSourceLang);
-  const [targetLang, setTargetLang] = useState(defaultTargetLang);
-  const [direction, setDirection] = useState<ImportDirection>("en-ru");
+  // An explicit pair (the HSK first run's textbook list) wins; otherwise the pair
+  // every other surface shares, else Chinese explained in the native language.
+  const [sourceLang, setSourceLang] = useState(() => defaultSourceLang ?? getStudyPair()?.sourceLang ?? "zh");
+  const [targetLang, setTargetLang] = useState(() => defaultTargetLang ?? getStudyPair()?.targetLang ?? getNativeLang() ?? "ru");
   const [cards, setCards] = useState<PreviewCard[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [newCollectionName, setNewCollectionName] = useState("");
@@ -130,31 +130,6 @@ export function ImportWordsDialog({
       setNewCollectionName("");
     }
   }, [open, defaultCollectionId]);
-
-  useEffect(() => {
-    if (sourceLang === "en" && targetLang === "ru") {
-      setDirection("en-ru");
-      return;
-    }
-    if (sourceLang === "ru" && targetLang === "en") {
-      setDirection("ru-en");
-      return;
-    }
-    setDirection("custom");
-  }, [sourceLang, targetLang]);
-
-  const applyDirection = (next: ImportDirection) => {
-    setDirection(next);
-    if (next === "en-ru") {
-      setSourceLang("en");
-      setTargetLang("ru");
-      return;
-    }
-    if (next === "ru-en") {
-      setSourceLang("ru");
-      setTargetLang("en");
-    }
-  };
 
   const preview = useMutation({
     mutationFn: () => api.previewImport({ text, sourceLang, targetLang }),
@@ -369,33 +344,19 @@ export function ImportWordsDialog({
                   if (text.trim()) preview.mutate();
                 }}
               >
-                <div className="space-y-2 rounded-[16px] border border-black/[0.07] bg-surface p-3.5 sm:p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.11em] text-ink-faint">{t("import.direction")}</p>
-                  <Segmented
-                    className="w-fit"
-                    scroll
-                    size="lg"
-                    value={direction}
-                    onChange={applyDirection}
-                    options={[
-                      { value: "en-ru", label: t("import.dir.enRu") },
-                      { value: "ru-en", label: t("import.dir.ruEn") },
-                      { value: "custom", label: t("import.dir.custom") },
-                    ]}
-                  />
-
-                  {direction === "custom" && (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-                      <LangSelect value={sourceLang} onChange={setSourceLang} className="min-w-[150px]" menuClassName="z-[140]" />
-                      <span>→</span>
-                      <LangSelect value={targetLang} onChange={setTargetLang} className="min-w-[150px]" menuClassName="z-[140]" />
-                    </div>
-                  )}
-
-                  <p className="text-sm text-ink-soft">
-                    {t("import.pair")} {langLabel(sourceLang)} → {langLabel(targetLang)}
-                  </p>
-                </div>
+                {/* The account's pair, stated; an "English → Russian / Russian → English"
+                    switch used to open this dialog in an app about Chinese. */}
+                <PairChip
+                  source={sourceLang}
+                  target={targetLang}
+                  onSource={setSourceLang}
+                  onTarget={setTargetLang}
+                  onSwap={() => {
+                    setSourceLang(targetLang);
+                    setTargetLang(sourceLang);
+                  }}
+                  menuClassName="z-[140]"
+                />
                 <textarea
                   value={text}
                   onChange={(event) => setText(event.target.value)}

@@ -25,7 +25,8 @@ import { segment, wordKey } from "@/lib/segment";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
 import { Button } from "@/components/ui/button";
-import { LangSelect } from "@/components/LangSelect";
+import { PairChip } from "@/components/PairChip";
+import { FOCUS } from "@/lib/focus";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
@@ -89,11 +90,9 @@ export default function ReaderPage() {
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
-  const [swapSpin, setSwapSpin] = useState(false);
   const swapLangs = () => {
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
-    setSwapSpin((v) => !v);
   };
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
@@ -904,22 +903,12 @@ export default function ReaderPage() {
         </div>
 
         <div className="space-y-3 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:p-5">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-            <LangSelect value={sourceLang} onChange={setSourceLang} />
-            <HoverTip title={t("add.swap")} className="inline-flex">
-              <button
-                type="button"
-                onClick={swapLangs}
-                aria-label={t("add.swap")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-surface text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
-              >
-                <ArrowRightLeft className={cn("h-[15px] w-[15px] transition-transform duration-300", swapSpin && "rotate-180")} />
-              </button>
-            </HoverTip>
-            <LangSelect value={targetLang} onChange={setTargetLang} />
-          </div>
+          {/* The pair stated, not asked; the pickers open from the chip. */}
+          <PairChip source={sourceLang} target={targetLang} onSource={setSourceLang} onTarget={setTargetLang} onSwap={swapLangs} />
 
-          {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
+          {/* Quick switches to other recent pairs: another "which language?" in a
+              one-pair app, so hidden while focused (F17); the chip still changes it. */}
+          {!FOCUS && recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               {recentPairs
                 .filter((p) => !(p.s === sourceLang && p.t === targetLang) && p.s !== "auto")

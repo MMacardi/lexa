@@ -1499,11 +1499,6 @@ const DICT: Record<string, Entry> = {
   "import.export": { en: "Export", ru: "Экспорт", zh: "导出" },
   "import.title": { en: "Import a word list", ru: "Импорт списка слов", zh: "导入单词表" },
   "import.subtitle": { en: "Paste a list or drop a .txt file. Onomika will turn it into cards you can review first.", ru: "Вставьте список или выберите .txt — Onomika превратит его в карточки, которые можно проверить перед сохранением.", zh: "粘贴词表或选择 .txt 文件。Onomika 会先将其整理为可确认的卡片。" },
-  "import.direction": { en: "Translation direction", ru: "Направление перевода", zh: "翻译方向" },
-  "import.dir.enRu": { en: "English → Russian", ru: "English → Russian", zh: "英语 → 俄语" },
-  "import.dir.ruEn": { en: "Russian → English", ru: "Russian → English", zh: "俄语 → 英语" },
-  "import.dir.custom": { en: "Custom", ru: "Другое", zh: "自定义" },
-  "import.pair": { en: "Selected pair:", ru: "Выбранная пара:", zh: "当前语言对：" },
   "import.fmtTitle": { en: "How to write", ru: "Как писать", zh: "书写格式" },
   "import.fmtRich": {
     en: "One card per line. Indent Example:, Translation: and Synonyms: under a word to keep them — the same shape as an Onomika export:",
@@ -1604,6 +1599,7 @@ const DICT: Record<string, Entry> = {
   "add.manual": { en: "Manual", ru: "Вручную", zh: "手动" },
   "add.autoDetect": { en: "Auto-detect", ru: "Автоопределение", zh: "自动识别" },
   "add.swap": { en: "Swap languages", ru: "Поменять языки местами", zh: "交换语言" },
+  "pair.change": { en: "Change language pair", ru: "Сменить языковую пару", zh: "更改语言对" },
   "add.recent": { en: "Recent", ru: "Недавние", zh: "最近" },
   // Nudge when the studied language is the learner's own — the pair was almost
   // certainly read as "translate from → to" and set backwards. While their native
