@@ -242,11 +242,94 @@ export function hskCheckWords(version: HskVersion, level: number, size = 24): Hs
   return out.slice(0, size);
 }
 
+// Seeded, so the shuffle within a level is fixed for one learner on one day: the
+// day's offer doesn't reshuffle on every reload, and tomorrow's is a new draw.
+function seededRandom(seed: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  return () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffled<T>(items: T[], rand: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// The server's calendar day, the same boundary getStats counts "today" by.
+function dayStart(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * The list in the order a learner aiming at `target` should meet it: words they
+ * tapped as unknown in the check first (they told us), then the target level,
+ * then one level down at a time — HSK 1 only once everything above is used up.
+ * Shuffled within a level. The old walk went 1→target in file order, which is
+ * alphabetical by pinyin, so an HSK 4 learner was handed 一下儿, 一些, 七, 三 …:
+ * HSK 1's unproven words filled every deck before level 2 was ever reached.
+ */
+function frontierOrder(
+  version: HskVersion,
+  target: number,
+  skip: (word: string) => boolean,
+  tapped: Set<string>,
+  seed: string,
+): HskWord[] {
+  const rand = seededRandom(seed);
+  const first: HskWord[] = [];
+  const rest: HskWord[] = [];
+  for (let n = target; n >= 1; n--) {
+    // Shuffle the whole level, then skip: filtering first would reshuffle every
+    // word each time one is rejected or added, and today's offer would jump.
+    for (const w of shuffled(hskLevelWords(version, n), rand)) {
+      if (skip(w.word)) continue;
+      (tapped.has(w.word) ? first : rest).push({ word: w.word, pinyin: w.pinyin, level: n });
+    }
+  }
+  return [...first, ...rest];
+}
+
+/** What the ordering needs beyond the status map: who, what they tapped, what they added today. */
+async function frontierInputs(telegramId: string) {
+  const user = await prisma.user.findUnique({
+    where: { telegramId },
+    select: { id: true, hskVersion: true, hskTarget: true, dailyGoal: true },
+  });
+  if (!user) return null;
+  const [status, tapped, today] = await Promise.all([
+    learnerStatus(telegramId),
+    prisma.placementAnswer.findMany({
+      where: { userId: user.id, sourceLang: "zh", known: false },
+      select: { word: true },
+    }),
+    prisma.word.findMany({
+      where: { userId: user.id, sourceLang: "zh", createdAt: { gte: dayStart() } },
+      select: { word: true },
+    }),
+  ]);
+  return {
+    user,
+    status,
+    tapped: new Set(tapped.map((p) => normalizeHanzi(p.word))),
+    addedToday: new Set(today.map((w) => normalizeHanzi(w.word))),
+    seed: `${user.id}:${dayStart().toISOString().slice(0, 10)}`,
+  };
+}
+
 /**
  * The words standing between the learner and their target: no card, no "I know
- * it" in the check. Easiest level first, because a gap at HSK 2 hurts more than
- * one at HSK 5 — and a deck that starts with words you can almost read is the
- * one that gets reviewed.
+ * it" in the check. The onboarding deck; `frontierOrder` decides which come first.
  */
 export async function hskGapWords(
   telegramId: string,
@@ -254,17 +337,37 @@ export async function hskGapWords(
   level: number,
   limit = 30,
 ): Promise<HskWord[]> {
+  const input = await frontierInputs(telegramId);
+  if (!input) return [];
   const target = clampLevel(version, level);
-  const status = await learnerStatus(telegramId);
-  const out: HskWord[] = [];
-  for (let n = 1; n <= target && out.length < limit; n++) {
-    for (const w of hskLevelWords(version, n)) {
-      if (status.has(w.word)) continue;
-      out.push({ word: w.word, pinyin: w.pinyin, level: n });
-      if (out.length >= limit) break;
-    }
-  }
-  return out;
+  return frontierOrder(version, target, (w) => input.status.has(w), input.tapped, input.seed).slice(0, limit);
+}
+
+// The daily goal the web app starts from (lib/learnPrefs DEFAULT_GOAL) when the
+// account has never saved one.
+const DEFAULT_DAILY = 5;
+
+export type DailyWord = HskWord & { added: boolean };
+
+/**
+ * Today's new words at the learner's level — a daily drip, not a one-off build:
+ * "I thought it would always give me some words for my level." The first
+ * `dailyGoal` words of the frontier, counting the cards made today as still in
+ * it, so once today's words are in review the offer reads "done" until tomorrow
+ * instead of refilling forever. A word rejected as known drops out and the next
+ * one takes its place; it never comes back, because "known" is a status.
+ */
+export async function hskDailyWords(
+  telegramId: string,
+): Promise<{ version: HskVersion; level: number; size: number; words: DailyWord[] }> {
+  const input = await frontierInputs(telegramId);
+  const version = asHskVersion(input?.user.hskVersion) ?? "3.0";
+  const level = clampLevel(version, input?.user.hskTarget ?? 4);
+  const size = Math.min(Math.max(input?.user.dailyGoal ?? DEFAULT_DAILY, 1), 50);
+  if (!input) return { version, level, size, words: [] };
+  const { status, addedToday } = input;
+  const order = frontierOrder(version, level, (w) => status.has(w) && !addedToday.has(w), input.tapped, input.seed);
+  return { version, level, size, words: order.slice(0, size).map((w) => ({ ...w, added: addedToday.has(w.word) })) };
 }
 
 function clampLevel(version: HskVersion, level: number): number {

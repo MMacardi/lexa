@@ -7,6 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { HskReadiness } from "@/components/HskReadiness";
 import { HskFirstRun } from "@/components/HskFirstRun";
+import { HskDaily } from "@/components/HskDaily";
 import { Button } from "@/components/ui/button";
 import { GraduationCap } from "lucide-react";
 
@@ -22,9 +23,10 @@ import { GraduationCap } from "lucide-react";
 // for the next batch in week two.
 //
 // The track is now the saved target on the account (User.hskTarget, there since
-// F2), so this renders one of three things: the mark (with a way to the next
-// gap words), the flow itself while it's open, or — for someone with no target
-// yet — an offer they can decline for good.
+// F2), so this renders one of three things: today's words and the mark, the flow
+// itself while it's open, or — for someone with no target yet — an offer they
+// can decline for good. The next words used to be a button ("add more gap
+// words"); they are now a daily drip (HskDaily) that doesn't wait to be asked.
 
 const DISMISS_KEY = "lexa.hskOfferDismissed";
 
@@ -53,7 +55,6 @@ export function HskTrack() {
   if (open)
     return (
       <HskFirstRun
-        variant="refill"
         onClose={() => {
           setOpen(false);
           // The flow saves the target on the account; the profile in context is
@@ -63,7 +64,13 @@ export function HskTrack() {
       />
     );
 
-  if (onTrack || studiesChinese) return <HskReadiness onRefill={() => setOpen(true)} />;
+  if (onTrack || studiesChinese)
+    return (
+      <>
+        <HskDaily />
+        <HskReadiness />
+      </>
+    );
 
   if (dismissed) return null;
 

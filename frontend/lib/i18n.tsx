@@ -1258,21 +1258,39 @@ const DICT: Record<string, Entry> = {
   },
   "hskFirst.textbookOpen": { en: "Photo or paste a list", ru: "Фото или вставить список", zh: "拍照或粘贴词表" },
   "hskFirst.other": { en: "I'm learning another language", ru: "Я учу другой язык", zh: "我在学别的语言" },
-  // Re-opening the flow for the next batch of gap words (F11), where the
-  // placement check is the optional half rather than the way in.
-  "hskFirst.refillGo": { en: "Pick my next words", ru: "Подобрать следующие слова", zh: "挑选接下来的词" },
-  "hskFirst.refillRecheck": { en: "Re-run the check", ru: "Пройти проверку заново", zh: "重新自测" },
-  "hskFirst.refillLine": {
-    en: "The next words from the list up to HSK {level} that you don't have yet.",
-    ru: "Следующие слова из списка до HSK {level}, которых у тебя ещё нет.",
-    zh: "HSK {level} 以内、你还没有的下一批词。",
+  "hskFirst.close": { en: "Done for now", ru: "Пока достаточно", zh: "先到这里" },
+  "hskFirst.rejectHint": {
+    en: "Tap a word you already know — it won't come back.",
+    ru: "Нажми на слово, которое уже знаешь, — оно больше не появится.",
+    zh: "点一下你已经认识的词——它不会再出现。",
   },
-  "hskFirst.refillSub": {
-    en: "Words you already have, and the ones you ticked as known, are left out — so this is a new batch each time.",
-    ru: "Слова, которые уже есть, и те, что ты отметил как знакомые, не попадут сюда — каждый раз это новая порция.",
-    zh: "已有的词和你标记为“认识”的词不会出现——所以每次都是新的一批。",
+
+  // --- Today's words: the daily drip at the learner's level ---
+  "hskDaily.title": { en: "Today's words · HSK {level}", ru: "Слова на сегодня · HSK {level}", zh: "今日生词 · HSK {level}" },
+  "hskDaily.sub": {
+    en: "{n} new words a day from your level, straight into review. Tap one you already know and it's swapped out for good.",
+    ru: "{n} новых слов в день с твоего уровня — сразу в повторение. Нажми на слово, которое уже знаешь, — оно заменится и больше не вернётся.",
+    zh: "每天 {n} 个你这个等级的新词，直接进入复习。点一下已经认识的词，它会被换掉，不再出现。",
   },
-  "hskFirst.refillClose": { en: "Done for now", ru: "Пока достаточно", zh: "先到这里" },
+  "hskDaily.known": { en: "I know it", ru: "Знаю", zh: "认识" },
+  "hskDaily.add": { en: "Add {n} to review", ru: "В повторение: {n}", zh: "加入复习 · {n} 个" },
+  "hskDaily.swap": { en: "Swap out the ones I know", ru: "Заменить знакомые", zh: "换掉认识的词" },
+  "hskDaily.added": {
+    en: "{n} words added — they're ready to review",
+    ru: "Добавлено слов: {n} — их уже можно повторять",
+    zh: "已添加 {n} 个词——现在就可以复习",
+  },
+  "hskDaily.done": {
+    en: "Today's {n} words are in your review. More tomorrow.",
+    ru: "Все {n} слов на сегодня уже в повторении. Завтра будут новые.",
+    zh: "今天的 {n} 个词已加入复习。明天还有新的。",
+  },
+  "hskDaily.review": { en: "Review now", ru: "Повторить сейчас", zh: "现在复习" },
+  "hskDaily.empty": {
+    en: "You have every word up to HSK {level}. Pick a higher target below.",
+    ru: "У тебя уже все слова до HSK {level}. Выбери уровень повыше ниже.",
+    zh: "HSK {level} 以内的词你都有了。在下方选一个更高的目标吧。",
+  },
 
   // --- HSK track entry (F11): the way in for an account that already has cards ---
   "hskTrack.offerTitle": { en: "Preparing for HSK?", ru: "Готовишься к HSK?", zh: "在备考 HSK 吗？" },
@@ -1283,7 +1301,6 @@ const DICT: Record<string, Entry> = {
   },
   "hskTrack.offerGo": { en: "Set my target", ru: "Выбрать уровень", zh: "选择目标等级" },
   "hskTrack.offerDismiss": { en: "Not now", ru: "Не сейчас", zh: "以后再说" },
-  "hskTrack.more": { en: "Add more gap words", ru: "Добавить ещё слов", zh: "再添加一批词" },
 
   // --- HSK readiness ---
   "hsk.title": { en: "HSK readiness", ru: "Готовность к HSK", zh: "HSK 准备度" },

@@ -76,7 +76,7 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
      (一下儿 → 一下). Measured in the local app: 0.3–0.8 s to a reviewable card, Russian at ~6 s;
      `scripts/check-capture.ts` passes with the model down, and with `--live`.
 
-3. **Pick HSK N, get HSK N words — every day.** `[F13 + F16 + F14]` One session, `services/hsk.ts`
+3. [x] **Pick HSK N, get HSK N words — every day.** `[F13 + F16 + F14]` One session, `services/hsk.ts`
    plus the deck step. The fault a real run found: an HSK 4 learner is handed 一下儿, 一些, 七, 三 …
    because `hskGapWords` walks levels 1→target in file order (alphabetical by pinyin) and HSK 1's
    ~500 unproven words fill every deck before level 2 is reached. The simplest version that is true:
@@ -92,6 +92,16 @@ legal and named. 15–18 make the result mean something. 19+ is after that.
    - **Done when:** a seeded account targeting HSK 4 gets level-4 words, including the ones it
      tapped, and a rejected word never reappears — asserted in `backend/scripts/check-gap-deck.ts`
      (shape of `check-account-delete.ts`). Then pick HSK 4 in the local app and look at the deck.
+   - **Shipped 2026-09-23.** `frontierOrder` in `services/hsk.ts`: tapped-unknown words, then the
+     target level, then downwards; shuffled per learner per day (seeded, so a reload doesn't
+     reshuffle; the level is shuffled *before* filtering, or every rejection reshuffled it — found
+     in the browser run, now asserted). `GET /api/hsk/daily` + `HskDaily` on Today: `dailyGoal`
+     words, counting today's cards as still in the offer, so it reads "done" until tomorrow
+     instead of refilling; a rejection frees the slot for the next word. Deck and daily chips are
+     toggles with a level badge (`HskWordChip`), rejections saved as `PlacementAnswer{known:true}`.
+     F11's refill button and the refill variant of `HskFirstRun` are gone. No schema change.
+     Local run: HSK 4 → the 4 tapped words, then HSK 4 only; next day 5 new HSK 4 words, reject →
+     replacement → "done".
 
 4. **The official HSK lists as decks you can browse.** Small. Every HSK app has "HSK 1–6, add
    them": table stakes, not a differentiator, but without it the app looks empty. The lists are

@@ -5,7 +5,7 @@ import { api, type HskVersion } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GraduationCap, Plus } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 
 // The readiness mark: how much of the official HSK list the learner recognises,
 // and how much of it they can actually use. Deliberately two numbers — the gap
@@ -17,7 +17,7 @@ const LEVELS: Record<HskVersion, number[]> = {
   "3.0": [1, 2, 3, 4, 5, 6, 7],
 };
 
-export function HskReadiness({ onRefill }: { onRefill?: () => void }) {
+export function HskReadiness() {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -45,8 +45,9 @@ export function HskReadiness({ onRefill }: { onRefill?: () => void }) {
     const next = await api.hskReadiness(version, level);
     qc.setQueryData(["hskReadiness", accountId], next);
     // Remember the goal on the account, not in this tab: the bot and the next
-    // device have to open on the same target.
-    void api.updateLearnerPrefs({ hskVersion: version, hskTarget: level }).catch(() => {});
+    // device have to open on the same target. Today's words follow it.
+    await api.updateLearnerPrefs({ hskVersion: version, hskTarget: level }).catch(() => {});
+    qc.invalidateQueries({ queryKey: ["hskDaily"] });
   };
 
   if (isLoading)
@@ -103,20 +104,6 @@ export function HskReadiness({ onRefill }: { onRefill?: () => void }) {
           {t("hsk.gapWords", { n: data.gap })}
         </span>
       </div>
-
-      {/* The gap count used to be the end of the story — a number with nothing to
-          do about it, because the only caller of the gap deck lived on a screen
-          you could reach exactly once (F11). Now it is the way to the next batch. */}
-      {onRefill && data.gap > 0 && (
-        <button
-          type="button"
-          onClick={onRefill}
-          className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-sage px-4 text-[14px] font-semibold text-white transition-colors hover:bg-sage-deep"
-        >
-          <Plus className="h-4 w-4" />
-          {t("hskTrack.more")}
-        </button>
-      )}
 
       {/* which list, and how far up it */}
       <div className="mt-6 space-y-3">

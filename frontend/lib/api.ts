@@ -814,6 +814,10 @@ export const api = {
     if (limit) q.set("limit", String(limit));
     return http<HskWordList>(`/api/hsk/gap?${q}`);
   },
+  // Today's new words at the saved target — the daily drip. Stable through the
+  // day; `added` marks the ones already in review, `size` is the daily goal.
+  hskDaily: () =>
+    http<{ version: HskVersion; level: number; size: number; words: (HskWord & { added: boolean })[] }>(`/api/hsk/daily`),
 
   // --- collections ---
   collections: (telegramId: string) =>

@@ -21,7 +21,7 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskCheckWords, hskGapWords, readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, readinessForUser } from "../services/hsk.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { upgradeCard } from "../services/capture.js";
 import {
@@ -232,14 +232,22 @@ wordsRouter.get("/hsk/check", async (req, res) => {
 });
 
 // GET /api/hsk/gap?version=3.0&level=4&limit=30  -> the gap deck: words up to
-// the target the learner has neither a card for nor claimed to know, easiest
-// level first. The client turns them into cards with the usual batch add.
+// the target the learner has neither a card for nor claimed to know — the ones
+// they tapped first, then the target level, then downwards. The client turns
+// them into cards with the usual batch add.
 wordsRouter.get("/hsk/gap", async (req, res) => {
   const telegramId = readSession(req)!;
   const version = asHskVersion(req.query.version) ?? "3.0";
   const level = Number(req.query.level) || 4;
   const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
   res.json({ version, level, words: await hskGapWords(telegramId, version, level, limit) });
+});
+
+// GET /api/hsk/daily -> today's new words at the saved target: the daily drip on
+// Today. Stable through the day; `added` marks the ones already in review.
+wordsRouter.get("/hsk/daily", async (req, res) => {
+  const telegramId = readSession(req)!;
+  res.json(await hskDailyWords(telegramId));
 });
 
 // ---------------- Collections ----------------
