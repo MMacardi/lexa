@@ -3,6 +3,12 @@
 Living backlog of cool ideas. Add here whenever something interesting comes up.
 Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 later
 
+> **2026-09-22 — strategy pass.** Positioning is settled: HSK prep for Russian speakers
+> (readiness mark → gap + textbook words → review → use it). See `STRATEGY.md`; `BACKLOG.md`
+> is reordered around it. Ideas below still stand as history, but several are now dropped
+> (realtime WS read-aloud, admin charts, meaning backfill, collection graph, custom scenes,
+> English phoneme scoring, Pro Plus) — see BACKLOG "Dropped".
+
 ---
 
 ## Done (UX + coach session)

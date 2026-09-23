@@ -1,9 +1,81 @@
 # Backlog — one item per session
 
 Take the top unchecked item, do it, tick it, `/clear`. Details for each item: grep
-`IDEAS.md` for the quoted heading. New ideas go in IDEAS.md plus one line here.
+`IDEAS.md` for the quoted heading. The reasoning behind this ordering is `STRATEGY.md`.
 
-## Now
+**Positioning (decided 2026-09-22).** HSK prep for Russian speakers: an honest readiness
+mark, then the official word list and this week's textbook words turned into words the
+learner can actually **use**. One exam first (HSK). IELTS is a possible second exam on the
+same engine, only after HSK keeps strangers coming back. Everything else gets hidden, not
+deleted — `onomika_old` holds the full-featured build.
+
+## Now — the focus pass
+- [ ] **F1. Measure anything.** No analytics exist, so the strategy is unrunnable blind.
+      Activation funnel (sign-in → first card → first review → first use-step), D1/D7/D30,
+      use-step completion. Privacy-friendly (Plausible or events in our own DB).
+- [ ] **F2. Learner-model foundation.** `ReviewEvent` keeps only userId + time. Log every
+      review with wordId, grade and source (review / quiz / drill / scene / chat). Move
+      level, native language, goal and retention out of localStorage onto the User. Keep the
+      placement test's "known" answers instead of discarding them. Cannot be backfilled later.
+- [ ] **F3. Production state + "can use".** Stop collapsing "used it in a drill/scene" into an
+      FSRS Good. Per-word production evidence (correct / partial / wrong, when, which error),
+      separate from the recognition schedule, plus a "can use" status and a weekly
+      "know → can use" count.
+- [ ] **F4. HSK lists + readiness mark.** Official HSK 2.0 (2026 exams) and 3.0 lists as data,
+      a level tag per card, and a readiness mark per target level split into recognise vs can
+      use. Label it *vocabulary* readiness — never a predicted exam score.
+- [ ] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
+      first use-step, in ~5 minutes. Russian native by default; infer the pair from the input.
+      Plus the textbook path: photo/paste this week's word list → cards with the sense met.
+- [ ] **F6. Dictionary-grounded Chinese senses.** Senses are LLM-only today (3 correctness bugs
+      in 3 days). Ground them in CC-CEDICT (CC BY-SA); the LLM writes the Russian gloss and the
+      explanation. Trust is the price of entry against Pleco.
+- [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
+      friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
+      Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
+- [ ] **F8. Narrow the language pickers.** `LEARNING_LANGS` → Chinese first, `PICKER_LANGS` →
+      zh/en/ru, hide "add a custom language". Keep `LANGS` whole so old cards still render, and
+      leave the backend permissive. Reversible, no migration.
+- [ ] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
+      Google/email users (`ensureBotUser` keys on the numeric Telegram id). Then: morning push →
+      review → one use-step, and `add`/photo capture into the deck.
+
+## Before public launch
+- [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
+- [ ] **6. Domain + email.** After the naming decision (see below): buy the `.com` (+ `.ru`),
+      set `SMTP_URL`, attach to Vercel. IDEAS: "Site email".
+- [ ] **7. Legal pages.** Fill the `[ЗАПОЛНИТЬ: …]` placeholders in /privacy and /terms.
+- [ ] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
+- [ ] **9. Payments.** DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
+      Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
+
+## Later (Stage 2 — only after the retention test passes)
+- [ ] **10. Weekly recap**, reshaped as the "know → can use" report + next week's gap words.
+- [ ] **13. Fresh example per review / difficulty adaptation**, as part of resurfacing.
+- [ ] **S2. Resurfacing.** Reader texts and scenes built from words you recognise but can't use.
+- [ ] **S2. Anki .apkg import with review history** → FSRS (reverses Anki's switching cost).
+- [ ] **S2. HSK speaking** (HSK 3.0 speaking section / HSKK): tones + pronunciation via Alibaba
+      口语评测 (~¥0.004/call, researched in IDEAS "B5+"), prompts forcing your gap words.
+- [ ] **S2. Tutor mode.** A tutor sees a student's ledger and assigns words — the distribution engine.
+- [ ] **S3. IELTS as the second exam**, same ledger + speaking engine. Only with volume, because
+      the only edge over SmallTalk2Me and co. is calibration against users' real band scores.
+
+## Dropped 2026-09-22 (strategy pass — STRATEGY.md §G)
+11 realtime WS read-aloud · 12 admin charts + CSV (a SQL query does it) · 14 meaning backfill ·
+15 collection graph · custom free-text scenes · phoneme scoring for English accents (ELSA/Speak
+territory; returns only as HSK tones in S2) · Pro Plus tier · further community/social work.
+
+## Naming (open)
+"Onomika" is disliked (too long). Every `onomika.*` is still free; 11 of 14 short alternatives
+are taken. Own session: 2–3 syllables, readable in RU + EN, free `.com`, no obscene reading in
+Russian (rules out pinyin *hui*), not locked to Chinese. Decide **before** buying the domain.
+Renaming costs: bot handle, Vercel/Railway project names, docs, landing copy, the stale `lexa.*`
+localStorage prefix and the repo name.
+
+## Parked (🧊, only if asked)
+Traditional Chinese toggle · Anki export (import matters more) · custom scenes.
+
+## Done (pre-focus, 2026-06 → 2026-09)
 - [x] **1. Deploy.** Merge `social` → `main` and push, then follow `DEPLOY.md` (Railway
       backend + Postgres, Vercel frontend). Needs you in the dashboards. Write the new
       URLs into DEPLOY.md.
@@ -92,28 +164,6 @@ Take the top unchecked item, do it, tick it, `/clear`. Details for each item: gr
       examples to it, and "Проверь меня" is still there), it streams into the history like any
       other chat, and the widget's History moved next to the language chip with a search box.
       Done 2026-09-20.
-
-## Before public launch
 - [x] **4. Per-user token cost + real ASR/OCR pricing.** IDEAS: "Per-user token attribution",
-      "Accurate ASR/OCR cost".
-- [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
-- [ ] **6. Domain + email.** Buy a domain, set `SMTP_URL` (Resend/Postmark), attach it to
-      Vercel (also fixes China access). IDEAS: "Site email".
-- [ ] **7. Legal pages.** Fill the `[ЗАПОЛНИТЬ: …]` placeholders in /privacy and /terms.
-- [ ] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
-- [ ] **9. Payments.** YooKassa / Telegram Payments → `User.plan`; a Pro Plus tier for the
-      Coach; flip `BETA_ALL_PRO=false`. IDEAS: "Payment", "Launch cluster C".
-
-## Later
-- [ ] 10. Weekly recap / coaching message.
-- [ ] 11. Realtime WebSocket read-aloud. IDEAS: "True realtime WS read-aloud".
-- [ ] 12. Admin charts + CSV export; owner alert emails.
-- [ ] 13. Fresh example per review / difficulty adaptation (token toggle). IDEAS: "B6".
-- [ ] 14. Meaning backfill (shorten old meanings). IDEAS: "B7".
-- [ ] 15. Collection graph. The word page's family graph as a view of a whole set: its
-      words as nodes, linked where one lists another as a synonym/antonym, unlinked words
-      floating free. Reuse the WordFamilyGraph simulation (springs, drag-to-place, Reset);
-      a set of 100+ needs zoom/pan and a cap on what's drawn at once.
-
-## Parked (🧊, only if asked)
-Phoneme-level pronunciation scoring · Traditional Chinese toggle · Custom free-text scenes · Anki export.
+      "Accurate ASR/OCR cost". (Note: `pricing.ts` still prices ASR at ¥0 — audio-seconds
+      are not captured.)

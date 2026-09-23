@@ -4,6 +4,11 @@ Anki-style FSRS flashcards + Quizlet-style collections/quizzes + an AI tutor ("C
 chat, scenes, practice drill) + a Reader. Web app + Telegram bot (@onomikabot).
 Graded university final project; the student is the sole author.
 
+**Focus (decided 2026-09-22, see `STRATEGY.md`):** HSK prep for Russian speakers — a readiness
+mark, then the official list + this week's textbook words turned into words you can *use*.
+One exam first (HSK); IELTS only later. New work serves that loop; the rest of the app is
+hidden behind a focus flag, not deleted (`onomika_old` holds the full build).
+
 ## Layout
 - `backend/` Express + Prisma (Postgres) + TypeScript, ESM. Entry `src/index.ts`.
   - `src/routes/` HTTP (`words.ts` is the big one), `src/services/` logic,
@@ -39,4 +44,5 @@ Graded university final project; the student is the sole author.
 
 ## Docs
 `BACKLOG.md` open work · `DEPLOY.md` Railway+Vercel · `BETA_CHECKLIST.md` launch prep ·
-`IDEAS.md` full idea history · `UNIT_ECONOMICS.md` costs.
+`IDEAS.md` full idea history · `UNIT_ECONOMICS.md` costs · `STRATEGY.md` positioning, market and
+feature triage (why the backlog is ordered the way it is).
