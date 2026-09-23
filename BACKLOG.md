@@ -10,6 +10,10 @@ same engine, only after HSK keeps strangers coming back. Everything else gets hi
 deleted — `onomika_old` holds the full-featured build.
 
 ## Now — the focus pass
+F0–F9 shipped 2026-09-22→23. The two left are numbered in build order, not priority: take
+**F10 first** (nobody can be recruited past a bare beta-code box), then F6a — F6a's whole
+argument is that it compounds *with users*, so it is worth least on the day you have none.
+
 - [x] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
       still says "Onomika — learn English through the news" with a description about Chinese
       translations of English words: that is the Google result, the browser tab and the Telegram
