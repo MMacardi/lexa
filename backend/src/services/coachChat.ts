@@ -2,6 +2,7 @@ import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } fr
 import { coachChatSchema, type CoachChatResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
+import { track } from "./analytics.js";
 
 /**
  * The casual "learn by chatting" coach. Unlike the drill, this is NOT a quiz: it's
@@ -120,9 +121,11 @@ export async function coachChat(params: {
     })
     .slice(0, 2);
 
+  const used = clean(result.used ?? []);
+  track("use_step", { props: { kind: "chat", used: used.length } });
   return {
     say: result.say.trim(),
-    used: clean(result.used ?? []),
+    used,
     seeded: clean(result.seeded ?? []),
     newWords,
   };

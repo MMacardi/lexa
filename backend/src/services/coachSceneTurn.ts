@@ -2,6 +2,7 @@ import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } fr
 import { coachSceneTurnSchema, type CoachSceneTurn } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
+import { track } from "./analytics.js";
 
 // The scene "bible", echoed by the client every turn so the engine is stateless and
 // never drifts out of character (chatJsonConversation only sees the clipped history).
@@ -163,6 +164,7 @@ export async function coachSceneTurn(params: {
     .filter((c) => c.corrected && (!c.original || lastNorm.includes(norm(c.original))))
     .slice(0, 4);
 
+  track("use_step", { props: { kind: "scene", used: used.length, corrected: corrections.length } });
   return {
     say: result.say.trim(),
     used,

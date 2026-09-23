@@ -386,7 +386,7 @@ async function handlePracticeAnswer(ctx: Context, st: ChatState, text: string): 
 export function createBot(): Telegraf {
   const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN);
   // Attribute any LLM spend in this update to the Telegram user who sent it.
-  bot.use((ctx, next) => (ctx.from ? runAsUser(String(ctx.from.id), next) : next()));
+  bot.use((ctx, next) => (ctx.from ? runAsUser(String(ctx.from.id), next, "bot") : next()));
 
   bot.start(async (ctx) => {
     const telegramId = String(ctx.from.id);

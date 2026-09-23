@@ -2,6 +2,7 @@ import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachDrillSchema, type CoachDrillResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
+import { track } from "./analytics.js";
 
 /**
  * The adaptive Coach "practice" drill. Unlike the free-form tutor chat, this runs
@@ -82,10 +83,13 @@ export async function coachDrill(params: {
     timeoutMs: 60000,
     label: "coachDrill",
   });
+  const grade = result.grade ?? "none";
+  // A graded answer is a use-step: the learner produced the word, not recognised it.
+  if (grade !== "none") track("use_step", { props: { kind: "drill", grade } });
   return {
     say: result.say.trim(),
     drillWord: (result.drillWord ?? "").trim(),
-    grade: result.grade ?? "none",
+    grade,
     gradedWord: (result.gradedWord ?? "").trim(),
     done: result.done ?? false,
   };

@@ -391,3 +391,25 @@ model TokenUsage {
   @@index([feature])
   @@index([telegramId])
 }
+
+// Product analytics — one append-only row per meaningful learner action, so the
+// activation funnel (sign-in → first card → first review → first use-step),
+// D1/D7/D30 retention and use-step completion are measurable. Kept in our own
+// Postgres rather than a third-party tracker: no cookies, no IPs, no page views,
+// only the handful of named events below, written server-side from the route that
+// actually did the thing (a client can't forge them). Like TokenUsage: append-only,
+// never read by id, written fire-and-forget so a DB hiccup can't break a request.
+model AnalyticsEvent {
+  id         BigInt   @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  name       String // signin | word_add | review | use_step
+  // Caller's telegramId (the session identity), from lib/usageContext.
+  telegramId String?
+  surface    String   @default("web") // web | bot
+  // Small, non-identifying detail: {via}, {mode}, {grade}, {kind, ok}.
+  props      Json?
+
+  @@index([createdAt])
+  @@index([name, createdAt])
+  @@index([telegramId, createdAt])
+}

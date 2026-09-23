@@ -140,6 +140,55 @@ function Reports() {
   );
 }
 
+/** Activation funnel, rolling retention and use-step quality (BACKLOG F1). */
+function Funnel() {
+  const { t, locale } = useI18n();
+  const { data } = useQuery({ queryKey: ["admin-funnel"], queryFn: () => api.adminFunnel() });
+  if (!data) return null;
+
+  return (
+    <Section title={t("admin.funnel")}>
+      {data.events === 0 ? (
+        <p className="text-sm text-ink-faint">{t("admin.funnelEmpty")}</p>
+      ) : (
+        <div className="space-y-5">
+          <p className="text-[12px] text-ink-faint">
+            {t("admin.funnelSince", {
+              date: data.since ? new Date(data.since).toLocaleDateString(locale) : "—",
+              n: fmtInt(data.events),
+            })}
+          </p>
+          <Table
+            head={[t("admin.step"), t("admin.learners"), t("admin.share")]}
+            rows={data.funnel.map((f) => [t(`admin.step.${f.step}`), fmtInt(f.users), `${f.pct}%`])}
+          />
+          <div>
+            <Table
+              head={[t("admin.retention"), t("admin.returned"), t("admin.eligible"), t("admin.share")]}
+              rows={data.retention.map((r) => [`D${r.day}`, fmtInt(r.returned), fmtInt(r.eligible), `${r.pct}%`])}
+            />
+            <p className="mt-2 text-[12px] text-ink-faint">{t("admin.retentionNote")}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Table
+              head={[t("admin.byKind"), t("admin.useSteps")]}
+              rows={data.useSteps.byKind.map((k) => [k.kind, fmtInt(k.count)])}
+            />
+            <Table
+              head={[t("admin.byGrade"), t("admin.useSteps")]}
+              rows={data.useSteps.byGrade.map((g) => [g.grade, fmtInt(g.count)])}
+            />
+          </div>
+          <Table
+            head={[t("admin.eventsByDay"), t("admin.total")]}
+            rows={[...data.byDay].reverse().slice(0, 30).map((d) => [d.date, fmtInt(d.count)])}
+          />
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export default function AdminPage() {
   const { ready, profile } = useAccount();
   const { t } = useI18n();
@@ -176,6 +225,8 @@ export default function AdminPage() {
       </div>
 
       <Reports />
+
+      <Funnel />
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -9,6 +9,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
+import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -158,6 +159,8 @@ export async function addWordForUser(params: {
     }
   }
 
+  track("word_add", { telegramId: params.telegramId, props: { mode: "ai" } });
+
   return prisma.word.findUniqueOrThrow({
     where: { id: wordId },
     include: {
@@ -223,6 +226,8 @@ export async function addWordManual(params: {
       },
     });
   }
+
+  track("word_add", { telegramId: params.telegramId, props: { mode: "manual" } });
 
   return prisma.word.findUniqueOrThrow({
     where: { id: wordRecord.id },
@@ -464,6 +469,7 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
 
   // Practicing counts toward activity/streak regardless of the grade.
   await prisma.reviewEvent.create({ data: { userId: word.userId } });
+  track("review", { props: { grade } });
 
   const now = new Date();
   // Reconstruct the FSRS card from stored state (or a fresh one if never reviewed).

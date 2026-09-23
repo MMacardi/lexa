@@ -17,7 +17,7 @@ deleted — `onomika_old` holds the full-featured build.
       bare today), and detect `navigator.language` → ru in `I18nProvider` (`lib/i18n.tsx`, which
       reads localStorage only, so every first-time Russian visitor lands in English). Landing
       *copy* is left alone until the focused UI exists — it gets rewritten with F5/F7.
-- [ ] **F1. Measure anything.** No analytics exist, so the strategy is unrunnable blind.
+- [x] **F1. Measure anything.** No analytics exist, so the strategy is unrunnable blind.
       Activation funnel (sign-in → first card → first review → first use-step), D1/D7/D30,
       use-step completion. Privacy-friendly (Plausible or events in our own DB).
 - [ ] **F2. Learner-model foundation.** `ReviewEvent` keeps only userId + time. Log every
@@ -115,7 +115,9 @@ deleted — `onomika_old` holds the full-featured build.
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
 - [ ] **6. Domain + email.** After the naming decision (see below): buy the `.com` (+ `.ru`),
       set `SMTP_URL`, attach to Vercel. IDEAS: "Site email".
-- [ ] **7. Legal pages.** Fill the `[ЗАПОЛНИТЬ: …]` placeholders in /privacy and /terms.
+- [ ] **7. Legal pages.** Add a line to /privacy about the F1 event log (signin / card
+      added / review / use-step, kept in our own DB, no third-party tracker, no page views).
+      Fill the `[ЗАПОЛНИТЬ: …]` placeholders in /privacy and /terms.
 - [ ] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
 - [ ] **9. Payments.** DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
       Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".

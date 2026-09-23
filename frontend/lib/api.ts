@@ -278,6 +278,22 @@ export interface AdminStats {
   };
 }
 
+// Activation funnel, rolling retention and use-step quality (admin only). Every
+// number is "since instrumentation shipped", not since launch — `since` says when.
+export interface AdminFunnel {
+  since: string | null;
+  events: number;
+  cohort: number;
+  funnel: { step: "signin" | "firstCard" | "firstReview" | "firstUseStep"; users: number; pct: number }[];
+  retention: { day: number; eligible: number; returned: number; pct: number }[];
+  useSteps: {
+    total: number;
+    byKind: { kind: string; count: number }[];
+    byGrade: { grade: string; count: number }[];
+  };
+  byDay: { date: string; count: number }[];
+}
+
 // Learner's FSRS desired retention, stored locally (see lib/learnPrefs). Read
 // here so every review call (from any page) carries it without prop-drilling.
 function readRetention(): number {
@@ -947,6 +963,7 @@ export const api = {
     http<{ ok: true }>(`/api/scene/sessions/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   // Owner-only admin dashboard snapshot.
   adminStats: () => http<AdminStats>(`/api/admin/stats`),
+  adminFunnel: () => http<AdminFunnel>(`/api/admin/funnel`),
   adminReports: () => http<ModerationQueue>(`/api/admin/reports`),
   moderateDeck: (id: string, action: "dismiss" | "delist" | "restore") =>
     http<{ ok: true }>(`/api/admin/decks/${id}/moderate`, { method: "POST", body: JSON.stringify({ action }) }),

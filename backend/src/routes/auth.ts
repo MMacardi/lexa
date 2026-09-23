@@ -19,6 +19,7 @@ import { rateLimit, take } from "../lib/rateLimit.js";
 import { isAdmin } from "../lib/entitlements.js";
 import { PRIVACY_LEVELS } from "../services/profiles.js";
 import { readBetaCookie } from "./beta.js";
+import { track } from "../services/analytics.js";
 
 export const authRouter = Router();
 
@@ -59,6 +60,8 @@ async function finishLogin(req: import("express").Request, res: import("express"
     },
   });
   setSessionCookie(res, telegramId);
+  // Funnel step 1. No session cookie exists yet, so pass the identity explicitly.
+  track("signin", { telegramId, props: { via: user?.authVia ?? "unknown" } });
   const admin = isAdmin(telegramId);
   res.json(user ? { ...user, isAdmin: admin } : { telegramId, identities: [], isAdmin: admin });
 }
