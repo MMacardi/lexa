@@ -46,7 +46,8 @@ What to prepare before inviting testers. Grouped by priority.
 - [ ] Merge duplicate accounts (if someone made separate Telegram + email before linking).
 - [ ] Cookie/consent banner (only the session cookie is used, so a short notice suffices in most regions).
 - [ ] Analytics (privacy-friendly, e.g. Plausible) to see what testers use.
-- [ ] A simple landing/marketing page for the invite.
+- [x] A simple landing/marketing page for the invite. (BACKLOG F10 — `components/FocusLanding.tsx`,
+      shown whenever the focus flag is on; the full-build landing stays behind `NEXT_PUBLIC_FOCUS_MODE=off`.)
 
 ## Already done (no action needed)
 - IDOR protection on all per-item routes; rate limiting on auth + AI endpoints.

@@ -10,9 +10,10 @@ same engine, only after HSK keeps strangers coming back. Everything else gets hi
 deleted — `onomika_old` holds the full-featured build.
 
 ## Now — the focus pass
-F0–F9 shipped 2026-09-22→23. The two left are numbered in build order, not priority: take
-**F10 first** (nobody can be recruited past a bare beta-code box), then F6a — F6a's whole
+F0–F10 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole
 argument is that it compounds *with users*, so it is worth least on the day you have none.
+The next thing that matters is not code — it's V0–V3 below, and the invites F10 now has
+somewhere to point.
 
 - [x] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
       still says "Onomika — learn English through the news" with a description about Chinese
@@ -194,7 +195,7 @@ argument is that it compounds *with users*, so it is worth least on the day you 
         the coverage counters); single characters are dropped, and non-Chinese pairs get the text
         plus `add слово`. `/add <word>` now works alongside `add <word>`.
 
-- [ ] **F10. A landing a stranger can read.** F0 fixed the tab title and the Telegram preview
+- [x] **F10. A landing a stranger can read.** F0 fixed the tab title and the Telegram preview
       but left the *copy* on purpose, "until the focused UI exists" — F5 and F7 have shipped, so
       that's now. Today an unrecruited visitor gets `BetaGate` and nothing else: "Onomika в
       закрытой бете, введите код". No promise, no screenshot, no reason to want a code. The
@@ -207,6 +208,17 @@ argument is that it compounds *with users*, so it is worth least on the day you 
       - Never claim a predicted exam score — §F4's rule holds in marketing copy too.
       - This is the "simple landing/marketing page for the invite" in `BETA_CHECKLIST.md` 🟡. It is
         not optional any more: the 30–50 testers come from communities where the link is all they see.
+      - Shipped as `components/FocusLanding.tsx`, picked by the focus flag in `GuestExperience`;
+        the full-build landing is untouched behind `NEXT_PUBLIC_FOCUS_MODE=off`. The header chrome
+        both share (`LangMenu`, `ThemeToggle`, `Reveal`) moved to `components/LandingChrome.tsx`.
+      - The picture is a still of the real readiness card, with sample numbers whose level rows add
+        up to the headline (HSK 2.0 cumulative to level 4 = 1200), the two-number track, and
+        `hsk.subtitle`'s "not a predicted exam score" line kept under the title. A second paragraph
+        says outright that we don't predict the score and why — the F4 rule, in marketing voice.
+      - Copy lives in the file's own `copy` object (ru/en/zh), same pattern as `LandingScreen`;
+        the review still borrows `review.again…easy` from i18n so the grade labels can't drift.
+      - Backlog note, not done here: the "closed beta" bullet promises the author answers the bug
+        button — that's H4, and the landing should link the channel once it exists.
 
 ## Before public launch
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
