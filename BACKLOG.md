@@ -78,7 +78,20 @@ deleted — `onomika_old` holds the full-featured build.
         Meanings list, not just in a file header — BY-SA asks for it where the data is seen.
       - Grounding shipped ahead of the eval on purpose: the eval sizes the RU-vs-EN gap, it was
         never what decides whether the model invents senses — 打开 and 指出 already settled that.
-      - **Left for you (one sitting, offline):** run the eval. `npx tsx scripts/eval-senses.ts`
+      - **Eval run 2026-09-23** (`backend/eval-senses.csv`, 100 HSK 4–5 words, zh→ru, marked by
+        Claude — spot-check before quoting it): ungrounded 90/100 right sense, grounded 99/100,
+        9 fixed, 0 broken. But read the fixes: **6 of the 9 were the ungrounded arm answering in
+        English** (打击 → "to strike, to hit"), not a wrong sense. On wrong sense alone it is
+        96 → 99. So grounding's biggest measured win is that quoting a dictionary keeps the model
+        in the right language, which was never the bug we set out to fix. The one error grounding
+        did not touch: 护士 → "медсестра, сестра-хозяйка" (a matron, not a nurse) in both arms.
+      - **Found by the eval — CC-CEDICT's gloss order is not frequency order**, and both grounded
+        prompts say "pick the first listed sense". That is why 洞 now leads with пещера rather
+        than "hole", 琴 narrows to the guqin rather than instruments generally, and 牌 chose
+        signboard over playing card. Harmless at this sample size, wrong in principle. Fix when
+        F6a lands (usage counts give a real frequency signal); until then a word whose first
+        gloss is a surname, a classifier or a rare literary sense is the case to watch.
+      - **Left for you (one sitting, offline):** re-run the eval. `npx tsx scripts/eval-senses.ts`
         generates the same 100 HSK 4–5 words through both the old prompt and the grounded one and
         writes a CSV; mark `ungrounded_ok` / `grounded_ok` 1 or 0 — one binary question, "is the
         sense right" — then `--score` it. zh→ru only, because 400 judgments is how an eval dies
