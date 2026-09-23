@@ -32,15 +32,28 @@ hidden behind a focus flag, not deleted (`onomika_old` holds the full build).
   from the session cookie only, never from a body/query `telegramId`.
 
 ## Keep sessions cheap
-- One task per session: pick it from `BACKLOG.md`. Don't read `IDEAS.md` whole (34 KB);
-  grep it for the item's heading when you need details.
+- One task per session: take the **top unchecked item** of `BACKLOG.md` §Open — it is one ordered
+  list and position is the priority, so don't shop around in it. Numbers move; name the item by
+  **title** in the commit. Don't read `IDEAS.md` whole (34 KB); grep it for the item's heading.
 - Grep first, then read only the needed line ranges. Skip `node_modules`, `.next`, `dist`,
   `package-lock.json`.
 - Use an Explore subagent for broad "where is X" searches instead of reading many files.
 - Don't WebFetch large doc pages; ask a narrow question or use WebSearch.
-- Browser only when the user asks: `npx -y @playwright/cli@latest <cmd>` via Bash, run outside
-  the repo. Use `find` or grep the saved snapshot instead of printing full snapshots. No Playwright MCP.
+- Browser allowed without asking (granted 2026-09-23): `npx -y @playwright/cli@latest <cmd>` via
+  Bash, run outside the repo. Use `find` or grep the saved snapshot instead of printing full
+  snapshots. No Playwright MCP — it returns a ~3 KB snapshot per action.
 - When a task is done: tick it in `BACKLOG.md` (and IDEAS.md status), then end the session.
+
+## Finish by running it, not by type-checking it
+`tsc` and `next build` passing is not evidence a feature works. For anything a learner touches,
+complete the flow as a learner would — local Docker only, never prod (it holds real data, backups
+are still item 1, and account delete is irreversible). For backend logic a throwaway
+`backend/scripts/check-*.ts` that seeds a user and asserts the output is cheaper than a browser run
+and survives as a regression guard; `check-account-delete.ts` is the pattern.
+
+Why this is a rule: on 2026-09-23 two tasks shipped clean builds on top of a step that was broken
+underneath — the gap deck hands an HSK 4 learner the alphabetical head of HSK 1 and ignores the
+words they tapped. One real run would have caught what no amount of reading did.
 
 ## Docs
 `BACKLOG.md` open work · `DEPLOY.md` Railway+Vercel · `BETA_CHECKLIST.md` launch prep ·
