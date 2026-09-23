@@ -34,9 +34,22 @@ deleted — `onomika_old` holds the full-featured build.
 - [ ] **F5. One onboarding path.** Target level → readiness check → gap deck → first review →
       first use-step, in ~5 minutes. Russian native by default; infer the pair from the input.
       Plus the textbook path: photo/paste this week's word list → cards with the sense met.
-- [ ] **F6. Dictionary-grounded Chinese senses.** Senses are LLM-only today (3 correctness bugs
-      in 3 days). Ground them in CC-CEDICT (CC BY-SA); the LLM writes the Russian gloss and the
-      explanation. Trust is the price of entry against Pleco.
+- [ ] **F6. Dictionary-grounded Chinese senses (+ a RU/EN quality eval).** Senses are LLM-only
+      today and produced 3 correctness bugs in 3 days, all on the Chinese→Russian path
+      («включить» → 打开 only; the 指出 sense ticks). Design: **the dictionary owns the sense
+      inventory, the model only picks and shortens.** Never let the LLM invent the list of senses,
+      never show a raw dictionary entry.
+      - `zh→en`: ground in **CC-CEDICT** (CC BY-SA — attribute it, and keep the derived data
+        separable from the rest of the app).
+      - `zh→ru`: the extra hop is where errors enter. **BKRS** has a downloadable dump (DSL,
+        `dabkrs_vNN`) but states no licence, and Pleco's own forum says it reportedly contains
+        entries copied from other dictionaries — so treat it as an **internal reference for QA
+        first**, and ask bkrs.info before shipping its data inside anything paid. Fallback that is
+        always safe: CC-CEDICT sense inventory → model writes the Russian gloss.
+      - **Eval before deciding (do this first, it is one sitting):** 100 HSK 4–5 words weighted
+        toward polysemous ones, generate `zh→ru` and `zh→en` cards, count wrong-sense and
+        wrong-register errors against BKRS + CC-CEDICT. If the two rates match, plain generation is
+        fine and grounding can wait; if Russian is worse, the numbers say where to spend the work.
 - [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
