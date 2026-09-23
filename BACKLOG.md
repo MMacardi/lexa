@@ -234,7 +234,19 @@ somewhere to point.
       each of /privacy and /terms (operator identity, contact email, jurisdiction, min age) —
       they need a real contact address for deletion requests, so item 6a comes first.
       F6a will add a ToS clause about shared corrections; don't rewrite these pages twice.
-- [ ] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
+- [x] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
+      - Was 14 advisories (1 critical): Next 15.5.19 carried a critical bundle — unauthenticated
+        RCE on Windows-hosted servers and in the AVIF image-optimization path, SSRF in rewrites,
+        cache confusion, Server Action DoS. **Took the 15.5.26 backport, not Next 16.** A major
+        bump right before the beta, on the build the defence demo depends on, buys nothing the
+        patch line doesn't; `npm audit fix --force` is the thing that would have dragged in 16.
+      - Also fixed, in the same non-force pass: nodemailer 9.0.5 → 9.1.1 (recipient-domain
+        validation bypass — it delivers to an attacker-controlled domain, and item 6a is about to
+        turn SMTP on for the magic-link login, so this one was aimed straight at us), express
+        4.22.2 → 4.22.3, qs → 6.16.0, plus sharp/nanoid/js-yaml/brace-expansion transitively.
+      - **Knowingly left**, both build-time only and both needing a major bump to clear:
+        `postcss` under Next (needs Next 16) and `deepmerge-ts` under the `prisma` CLI devDependency
+        (needs Prisma 8). Neither is reachable by a tester — re-check when Next 16 is worth taking.
 - [ ] **9. Payments.** DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
       Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
 
