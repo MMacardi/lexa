@@ -190,16 +190,83 @@ deleted — `onomika_old` holds the full-featured build.
         the coverage counters); single characters are dropped, and non-Chinese pairs get the text
         plus `add слово`. `/add <word>` now works alongside `add <word>`.
 
+- [ ] **F10. A landing a stranger can read.** F0 fixed the tab title and the Telegram preview
+      but left the *copy* on purpose, "until the focused UI exists" — F5 and F7 have shipped, so
+      that's now. Today an unrecruited visitor gets `BetaGate` and nothing else: "Onomika в
+      закрытой бете, введите код". No promise, no screenshot, no reason to want a code. The
+      positioning line from `STRATEGY.md` §Brand has nowhere to live yet, and `STRATEGY.md`
+      §"If you accept this" (1) asks for it on the landing page.
+      - One page above the code box: what it is (HSK readiness for Russian speakers), the loop in
+        three steps (photo of the lesson list → review → use-step), the readiness mark as the
+        picture, and one honest line that it is a closed beta. Russian first (F0 detects locale),
+        en/ru/zh like every other string.
+      - Never claim a predicted exam score — §F4's rule holds in marketing copy too.
+      - This is the "simple landing/marketing page for the invite" in `BETA_CHECKLIST.md` 🟡. It is
+        not optional any more: the 30–50 testers come from communities where the link is all they see.
+
 ## Before public launch
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
-- [ ] **6. Domain + email.** After the naming decision (see below): buy the `.com` (+ `.ru`),
-      set `SMTP_URL`, attach to Vercel. IDEAS: "Site email".
+      F7 switched off the Tavily web-example path, which removed the worst untrusted-text
+      surface; OCR/photo capture (F9) and pasted Reader text are the ones left.
+- [ ] **6. Naming decision.** Blocks item 6a — decide before buying anything. Criteria and the
+      rename cost are in "Naming (open)" below. Own session, no code.
+- [ ] **6a. Domain + email.** After the naming decision: buy the `.com` (+ `.ru`), set `SMTP_URL`
+      + `EMAIL_FROM` and send a test login link, attach the domain to Vercel. IDEAS: "Site email".
 - [ ] **7. Legal pages.** Add a line to /privacy about the F1 event log (signin / card
-      added / review / use-step, kept in our own DB, no third-party tracker, no page views).
-      Fill the `[ЗАПОЛНИТЬ: …]` placeholders in /privacy and /terms.
+      added / review / use-step, kept in our own DB, no third-party tracker, no page views),
+      and one about the F3 production ledger. Fill the four `[ЗАПОЛНИТЬ: …]` placeholders in
+      each of /privacy and /terms (operator identity, contact email, jurisdiction, min age) —
+      they need a real contact address for deletion requests, so item 6a comes first.
+      F6a will add a ToS clause about shared corrections; don't rewrite these pages twice.
 - [ ] **8. Bump Next.js** + `npm audit`. IDEAS: "Bump Next.js".
 - [ ] **9. Payments.** DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
       Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
+
+## Launch hygiene — in BETA_CHECKLIST.md but never in this backlog
+`STRATEGY.md` §"If you accept this" (7) names backups and Sentry next to items 5–8; they were
+in the checklist and so never got a session. None of them is a feature, all of them are things
+you only notice the absence of after a stranger has hit them.
+- [ ] **H1. Backups + one rehearsed restore.** Enable Railway Postgres backups, take one by hand
+      via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** —
+      an untested backup is not a backup. F2/F3 made the DB the only copy of the learner model:
+      the review log and the production ledger exist nowhere else and cannot be regenerated.
+- [ ] **H2. Error monitoring + uptime.** No Sentry anywhere in the repo today, so a crash a
+      tester hits is invisible unless they report it. Sentry (or similar) on backend + frontend,
+      plus an uptime check on the existing `GET /health`. Keep the DSN out of git.
+- [ ] **H3. Account data export + delete, in the UI.** `BETA_CHECKLIST.md` 🟡, but /privacy is
+      about to promise deletion rights (item 7) and today deletion is "by request" — the promise
+      and the product have to match. The cascade already exists; this is a button and a JSON dump.
+- [ ] **H4. Feedback channel the tester can find.** The bug button and `deliverFeedback` exist;
+      what's missing is a place to *answer* — a Telegram chat or group linked from the app and
+      from the F10 landing, so a 6-week beta is a conversation rather than a one-way form.
+
+## Before inviting strangers (no code — the strategy runs on these)
+`STRATEGY.md` §Verification. Nothing here is a feature, and skipping it is how the focus pass
+ends up measured against nobody.
+- [ ] **V0. Step 0: be user #1.** Use it daily for your own next HSK level for 2–3 weeks before
+      recruiting anyone. If you skip a day, find out why — that reason is the next backlog item,
+      and it is worth more than any feature guess. This is the gate on everything below.
+- [ ] **V1. 8–10 interviews** with target users (classmates prepping HSK, Russian-speaking
+      learners at Chinese universities) about how they handle new words *now* — before the beta,
+      not during. Explicitly "done first" in the Verification table.
+- [ ] **V2. Recruiting list.** Where the 30–50 actually come from, named: which communities,
+      which student groups, who introduces you. Not friends without a Chinese exam.
+- [ ] **V3. Read the funnel weekly.** `/admin` already renders the activation funnel, rolling
+      D1/D7/D30 and use-step quality (F1). Put the four Kill-Test thresholds next to the numbers
+      so a miss is visible, and write down what each miss would mean *before* seeing the data.
+
+## University deliverable (graded project)
+- [ ] **U1. Refresh the defence materials.** `2024998004014_Anton Volkov/` holds
+      `Volkov_Anton_2024998004014.docx`, `Project_Plan.docx` and `source_code_final_project.zip`,
+      all from **June 2026** — they predate the strategy pass and every one of F0–F9, so they
+      describe a different product. Re-export the source zip, and make the report tell the story
+      the repo actually shows: the pivot from "learn English through the news" to HSK prep, the
+      learner model (F2/F3), dictionary grounding with a measured result (F6), and the focus flag.
+      - Demo path: `NEXT_PUBLIC_FOCUS_MODE=off` restores the full build (Community, scenes,
+        graphs) for the defence — check the flag still flips cleanly before the date.
+      - Before quoting F6's eval in the report, **mark it yourself**: the 99/100 vs 90/100 in the
+        F6 notes was marked by Claude. `npx tsx scripts/eval-senses.ts` regenerates the CSV;
+        a number you marked by hand is the one that survives a question about methodology.
 
 ## Later (Stage 2 — only after the retention test passes)
 - [ ] **10. Weekly recap**, reshaped as the "know → can use" report + next week's gap words.
