@@ -2005,12 +2005,32 @@ const I18nCtx = createContext<{
 
 const KEY = "lexa.locale";
 
+// First-visit language: the first browser language we actually have strings for.
+// "zh-Hant" and the other Chinese variants all map to our single zh.
+function detectLocale(): Locale | null {
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const raw of langs) {
+    const tag = (raw || "").toLowerCase();
+    if (tag.startsWith("ru")) return "ru";
+    if (tag.startsWith("zh")) return "zh";
+    if (tag.startsWith("en")) return "en";
+  }
+  return null;
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
     const stored = localStorage.getItem(KEY) as Locale | null;
-    if (stored && ["en", "ru", "zh"].includes(stored)) setLocaleState(stored);
+    if (stored && ["en", "ru", "zh"].includes(stored)) {
+      setLocaleState(stored);
+      return;
+    }
+    // No stored choice yet (first visit): follow the browser. Most of our learners
+    // are Russian speakers, and they used to land in English.
+    const detected = detectLocale();
+    if (detected) setLocaleState(detected);
   }, []);
 
   const setLocale = (l: Locale) => {

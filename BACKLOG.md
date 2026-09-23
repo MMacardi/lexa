@@ -10,7 +10,7 @@ same engine, only after HSK keeps strangers coming back. Everything else gets hi
 deleted — `onomika_old` holds the full-featured build.
 
 ## Now — the focus pass
-- [ ] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
+- [x] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
       still says "Onomika — learn English through the news" with a description about Chinese
       translations of English words: that is the Google result, the browser tab and the Telegram
       link preview. Fix title + description, add an `og:image` (links shared in Telegram render

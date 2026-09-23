@@ -6,16 +6,32 @@ import { PwaRegister } from "@/components/PwaRegister";
 import { FlagEmojiPolyfill } from "@/components/FlagEmojiPolyfill";
 import { themeBootScript } from "@/lib/theme";
 
+// metadataBase makes the og:image absolute — Telegram and Google need a full URL.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://onomika-lac.vercel.app";
+
+const TITLE = "Onomika — подготовка к HSK";
+const DESCRIPTION =
+  "Официальные списки HSK и слова из твоего учебника — карточки с интервальным повторением и оценка готовности по уровню.";
+
 export const metadata: Metadata = {
-  title: "Onomika — learn English through the news",
-  description:
-    "Collect English words from real news, with Chinese translations, flashcards and recall checks.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon-32.png",
     apple: "/apple-touch-icon.png",
   },
   appleWebApp: { capable: true, title: "Onomika", statusBarStyle: "default" },
+  // app/opengraph-image.tsx renders the picture; these give it a title/alt.
+  openGraph: {
+    type: "website",
+    siteName: "Onomika",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 // Mobile-first viewport: cover the notch/safe-areas and match the browser chrome
