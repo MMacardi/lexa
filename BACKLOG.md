@@ -40,9 +40,14 @@ deleted — `onomika_old` holds the full-featured build.
 - [ ] **F7. Focus the surface.** One flag (`NEXT_PUBLIC_FOCUS_MODE`) hides Community/social,
       friend profiles, the graphs, the extra quiz modes and the second chat surface; nav becomes
       Today · Words · Capture. Delete nothing — the defence demo flips the flag back.
-- [ ] **F8. Narrow the language pickers.** `LEARNING_LANGS` → Chinese first, `PICKER_LANGS` →
-      zh/en/ru, hide "add a custom language". Keep `LANGS` whole so old cards still render, and
-      leave the backend permissive. Reversible, no migration.
+- [ ] **F8. Narrow the language pickers — keep BOTH Russian and English.** `LEARNING_LANGS`
+      → Chinese first (English stays available), `PICKER_LANGS` → zh/en/ru, hide "add a custom
+      language". Keep `LANGS` whole so old cards still render, and leave the backend permissive.
+      **Both ru and en stay first-class** as interface languages and as the "I know" side: many
+      Russian speakers deliberately study Chinese *through* English to practise both at once, and
+      CC-CEDICT (F6) is Chinese→English anyway, so the zh→en path is well supported. That is a
+      setting, not a second audience — marketing copy stays single-voice per visitor (F0 detects
+      the locale). Reversible, no migration.
 - [ ] **F9. Bot as the daily trigger + capture inbox.** Fix the probable account split for
       Google/email users (`ensureBotUser` keys on the numeric Telegram id). Then: morning push →
       review → one use-step, and `add`/photo capture into the deck.

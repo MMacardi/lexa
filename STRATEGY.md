@@ -613,8 +613,11 @@ Classes: **A** core to the wedge · **B** supporting · **C** commodity · **D**
 **Question:** should Spanish, Korean and the rest be deleted so the platform is only for English and Russian speakers?
 
 **Answer: no — narrow what's *offered*, keep what's *supported*.** These are two different axes, and the app already blurs them (the "which language is which" confusion was fixed three times):
-- **Interface language:** Russian first, English second. Chinese exists and stays.
-- **Learning pair:** Chinese → Russian for the wedge; English → Russian second.
+- **Interface language:** Russian and English both first-class; Chinese exists and stays.
+- **Learning pair:** Chinese for the wedge. The "I know" side can be Russian *or* English: many
+  Russian speakers deliberately study Chinese through English to practise both at once, and
+  CC-CEDICT is Chinese→English anyway, so zh→en is well supported. It is a setting, not a
+  second audience — recruiting, copy and the readiness framing stay aimed at Russian speakers.
 
 **Why not delete:**
 1. **It costs nothing to keep.** The whole multi-language support is two small data files: `LANG_NAMES` in [backend/src/lib/langs.ts](backend/src/lib/langs.ts) (~25 lines) and the `LANGS` array in [frontend/lib/langs.ts](frontend/lib/langs.ts). There's no per-language code to maintain.
