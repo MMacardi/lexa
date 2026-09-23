@@ -249,9 +249,32 @@ you only notice the absence of after a stranger has hit them.
 - [ ] **H2. Error monitoring + uptime.** No Sentry anywhere in the repo today, so a crash a
       tester hits is invisible unless they report it. Sentry (or similar) on backend + frontend,
       plus an uptime check on the existing `GET /health`. Keep the DSN out of git.
-- [ ] **H3. Account data export + delete, in the UI.** `BETA_CHECKLIST.md` 🟡, but /privacy is
+- [x] **H3. Account data export + delete, in the UI.** `BETA_CHECKLIST.md` 🟡, but /privacy is
       about to promise deletion rights (item 7) and today deletion is "by request" — the promise
       and the product have to match. The cascade already exists; this is a button and a JSON dump.
+      - It was **not** just a button: `Word.user` is the one relation in the schema with no
+        `onDelete: Cascade`, so `prisma.user.delete()` fails on `Word_userId_fkey` for anyone who
+        ever added a card (verified against the local DB, not assumed). And four tables carry the
+        owner as a plain string with no foreign key at all — `ReviewEvent.userId`,
+        `ProductionEvent.userId`, `AnalyticsEvent.telegramId`, `UsageCounter.key` — so Postgres
+        would have left the F1 activity log and the F2/F3 learner model behind and nothing in the
+        app would ever have noticed. `services/accountData.ts` holds export and delete together so
+        a new table can't be added to one and forgotten in the other.
+      - `TokenUsage` is kept but **anonymised** (telegramId → null) rather than deleted: those rows
+        are what the month actually cost (`UNIT_ECONOMICS.md`), and with the id gone they name
+        nobody. Everything else that points at the learner is deleted outright.
+      - `GET /api/account/export` (a JSON download) and `POST /api/account/delete` (body
+        `{confirm:"DELETE"}`). Both skip the **invite** gate but not the identity one — someone who
+        signed in and never redeemed a code still owns their data. The typed confirmation also does
+        real work: prod cookies are `SameSite=None`, and a cross-site HTML form post has no CORS
+        preflight to stop it, but `express.json()` won't parse a form body, so `confirm` arrives
+        undefined and the request dies. Verified end to end with curl.
+      - Found and fixed next door: `GET /auth/me` answered a session whose account no longer exists
+        with a hollow 200 profile, which the client renders as "signed in" — a deleted account on a
+        second device got an app shell where every route 403s. It now clears the cookie and 401s.
+      - `scripts/check-account-delete.ts` builds a user with a row in every affected table, exports
+        it, deletes it and fails loudly if anything survives. Run it after adding a table that
+        stores a userId or telegramId.
 - [ ] **H4. Feedback channel the tester can find.** The bug button and `deliverFeedback` exist;
       what's missing is a place to *answer* — a Telegram chat or group linked from the app and
       from the F10 landing, so a 6-week beta is a conversation rather than a one-way form.

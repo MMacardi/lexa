@@ -29,7 +29,9 @@ What to prepare before inviting testers. Grouped by priority.
 
 ### Data safety
 - [ ] Enable **database backups** on Railway (Postgres), or `pg_dump` via `DATABASE_PUBLIC_URL`. Take one before the beta.
-- [ ] Know how to delete a user on request (account delete cascades words/texts/identities).
+- [ ] Know how to delete a user on request — they can now do it themselves (Settings → Your data),
+      and `deleteAccount()` in `backend/src/services/accountData.ts` is the same path if you have to
+      do it for them. Note it does **not** fall out of a plain `user.delete()`: see BACKLOG H3.
 
 ## 🟠 Strongly recommended
 
@@ -42,7 +44,9 @@ What to prepare before inviting testers. Grouped by priority.
 
 ## 🟡 Nice to have
 
-- [ ] Account **data export** (JSON) and one-click **delete account** in the UI (currently by request).
+- [x] Account **data export** (JSON) and one-click **delete account** in the UI. (BACKLOG H3 —
+      Settings → "Your data". /privacy now points at the buttons instead of promising a reply to
+      an email; the `[ЗАПОЛНИТЬ: email]` placeholders there are still item 7's job.)
 - [ ] Merge duplicate accounts (if someone made separate Telegram + email before linking).
 - [ ] Cookie/consent banner (only the session cookie is used, so a short notice suffices in most regions).
 - [ ] Analytics (privacy-friendly, e.g. Plausible) to see what testers use.

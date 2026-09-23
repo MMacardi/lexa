@@ -1110,7 +1110,31 @@ export const api = {
   moderateDeck: (id: string, action: "dismiss" | "delist" | "restore") =>
     http<{ ok: true }>(`/api/admin/decks/${id}/moderate`, { method: "POST", body: JSON.stringify({ action }) }),
   logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
+  // Everything we hold about you, as a file. Not http<T>: the response is a
+  // download, not a payload the app parses.
+  exportAccount: downloadExport,
+  // Irreversible. The literal "DELETE" is the wire contract — the UI asks the
+  // learner to type the word in their own language and sends this on a match.
+  deleteAccount: () =>
+    http<{ ok: boolean }>(`/api/account/delete`, { method: "POST", body: JSON.stringify({ confirm: "DELETE" }) }),
 };
+
+async function downloadExport(): Promise<void> {
+  const res = await fetch(`${BASE}/api/account/export`, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Request failed: ${res.status}`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `onomika-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 // A word is "due" if it has never been reviewed, or its scheduled review time
 // has passed. Used for the due badges and the header counter.

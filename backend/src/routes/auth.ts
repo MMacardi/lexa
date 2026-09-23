@@ -272,8 +272,17 @@ authRouter.get("/auth/me", async (req, res) => {
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },
   });
-  const admin = isAdmin(telegramId);
-  res.json(user ? { ...user, isAdmin: admin } : { telegramId, identities: [], isAdmin: admin });
+  // A signed cookie whose account no longer exists: deleted from another device
+  // (routes/account.ts). Every login mints the cookie only after the account
+  // resolves, so this is the one way it happens. Say "signed out" rather than
+  // hand back a hollow profile — the client renders any telegramId as signed in,
+  // and the learner would get an app shell where every data route 403s.
+  if (!user) {
+    clearSessionCookie(res);
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  res.json({ ...user, isAdmin: isAdmin(telegramId) });
 });
 
 // PATCH /api/auth/me — update the learner's own display name / privacy flags /

@@ -60,6 +60,7 @@ import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
 import { CoachMemorySection } from "@/components/CoachMemorySection";
+import { AccountDataSection } from "@/components/AccountDataSection";
 import { HoverTip } from "@/components/ui/HoverTip";
 
 function LevelsSection() {
@@ -681,6 +682,9 @@ export default function AccountPage() {
       {/* transcription (pinyin/romaji) in quick tap lookups */}
       <TranscriptionSection />
       <TextLevelSection />
+
+      {/* take a copy of everything, or delete the account — last on the page on purpose */}
+      <AccountDataSection />
     </div>
   );
 }

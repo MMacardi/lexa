@@ -10,6 +10,7 @@ import { invitesRouter } from "./routes/invites.js";
 import { adminRouter } from "./routes/admin.js";
 import { betaRouter } from "./routes/beta.js";
 import { communityRouter } from "./routes/community.js";
+import { accountRouter } from "./routes/account.js";
 import { seedLibrary } from "./services/librarySeed.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { readSession } from "./lib/auth.js";
@@ -86,7 +87,11 @@ app.use("/api", (_req, res, next) => {
 });
 
 const EXEMPT_IDENTITY = /^\/(auth|beta)\//;
-const EXEMPT_INVITED = /^\/(auth\/|beta\/|invites\/redeem$|feedback$)/;
+// account/export + account/delete skip the invite gate but NOT the identity one:
+// someone who signed in and never redeemed a code still owns their data and must
+// be able to take it and leave. Refusing that would make "delete my account" a
+// feature you unlock with an invite.
+const EXEMPT_INVITED = /^\/(auth\/|beta\/|invites\/redeem$|feedback$|account\/(export|delete)$)/;
 app.use("/api", (req, res, next) =>
   EXEMPT_IDENTITY.test(req.path) ? next() : requireIdentity(req, res, next),
 );
@@ -101,6 +106,7 @@ app.use("/api", (req, _res, next) => {
 
 // REST API consumed by the frontend and the bot.
 app.use("/api", authRouter);
+app.use("/api", accountRouter);
 app.use("/api", betaRouter);
 app.use("/api", invitesRouter);
 app.use("/api", adminRouter);
