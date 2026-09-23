@@ -19,8 +19,6 @@ type Grade = "none" | "correct" | "partial" | "wrong";
 type Turn = { role: "user" | "assistant"; content: string; grade?: Grade };
 type PairKey = { source: string; target: string };
 
-const GRADE_RATING: Record<Exclude<Grade, "none">, number> = { correct: 3, partial: 2, wrong: 1 };
-
 // Render the coach's light markdown (*word* / **word**) as clean highlights so the
 // target word reads as a chip instead of literal asterisks.
 function Rich({ text }: { text: string }) {
@@ -150,6 +148,7 @@ export default function CoachPracticePage() {
   const [scores, setScores] = useState<Record<string, Grade>>({});
   const [idleHint, setIdleHint] = useState(false);
   const [currentWord, setCurrentWord] = useState(""); // the word being drilled now
+  const loggedRef = useRef<Set<string>>(new Set()); // words already logged as produced this session
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -191,13 +190,23 @@ export default function CoachPracticePage() {
         const key = res.gradedWord.trim().toLowerCase();
         const card = drill.find((w) => w.word.trim().toLowerCase() === key);
         setScores((s) => ({ ...s, [key]: res.grade }));
-        if (card) {
+        // Once per word per session, like the bot: a coach that re-grades a word it
+        // already covered would otherwise climb the "can use" ladder twice on one answer.
+        if (card && !loggedRef.current.has(key)) {
+          loggedRef.current.add(key);
           try {
-            await api.reviewWord(card.id, GRADE_RATING[res.grade as Exclude<Grade, "none">], "drill");
+            // Production evidence, not a review: the drill says whether the learner
+            // can USE the word, which is a different fact from when to show it again.
+            await api.recordProduction(
+              card.id,
+              res.grade as Exclude<Grade, "none">,
+              "drill",
+              res.errorKind === "none" ? null : res.errorKind,
+            );
             qc.invalidateQueries({ queryKey: ["words"] });
             qc.invalidateQueries({ queryKey: ["stats"] });
           } catch {
-            /* SRS grading is best-effort */
+            /* logging the use-step is best-effort */
           }
         }
       }
@@ -213,6 +222,7 @@ export default function CoachPracticePage() {
     setStarted(true);
     setTurns([]);
     setScores({});
+    loggedRef.current = new Set();
     setDone(false);
     setCurrentWord("");
     await sendTurn([]);

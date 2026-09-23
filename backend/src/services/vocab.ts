@@ -9,6 +9,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
+import { productionDays, productionSummary } from "./production.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -854,6 +855,9 @@ export async function getStats(telegramId: string) {
     trainedToday: 0,
     streak: 0,
     reviews: 0,
+    canUse: 0,
+    canUseWeek: 0,
+    tried: 0,
     languages: [] as string[],
     days: [] as { date: string; added: number; reviews: number }[],
     heat: [] as { date: string; count: number }[],
@@ -877,6 +881,10 @@ export async function getStats(telegramId: string) {
     where: { userId: user.id, createdAt: { gte: since } },
     select: { createdAt: true },
   });
+  // Use-steps are practice too. They no longer write a ReviewEvent (F3 split the
+  // ledgers), so a learner who only drills would otherwise lose their streak.
+  const producedDays = await productionDays(user.id, since);
+  const produced = await productionSummary(user.id);
 
   const total = words.length;
   const mastered = words.filter((w) => w.reviewCount >= 5).length;
@@ -891,6 +899,7 @@ export async function getStats(telegramId: string) {
   for (const w of words) addedMap.set(key(w.createdAt), (addedMap.get(key(w.createdAt)) ?? 0) + 1);
   const reviewMap = new Map<string, number>();
   for (const e of events) reviewMap.set(key(e.createdAt), (reviewMap.get(key(e.createdAt)) ?? 0) + 1);
+  for (const d of producedDays) reviewMap.set(d, (reviewMap.get(d) ?? 0) + 1);
 
   const days: { date: string; added: number; reviews: number }[] = [];
   for (let i = 13; i >= 0; i--) {
@@ -921,7 +930,21 @@ export async function getStats(telegramId: string) {
     else break;
   }
 
-  return { total, mastered, learning: total - mastered, due, trainedToday, streak, reviews, languages, days, heat };
+  return {
+    total,
+    mastered,
+    learning: total - mastered,
+    due,
+    trainedToday,
+    streak,
+    reviews,
+    canUse: produced.canUse,
+    canUseWeek: produced.canUseWeek,
+    tried: produced.tried,
+    languages,
+    days,
+    heat,
+  };
 }
 
 // ---------------- Collections (word sets like "IELTS", "adjectives") ----------------

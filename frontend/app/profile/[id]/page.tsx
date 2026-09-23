@@ -27,6 +27,10 @@ function asStats(s: NonNullable<LearnerProfile["stats"]>): Stats {
     trainedToday: 0,
     streak: s.streak,
     reviews: s.reviews,
+    // Production is private: a friend card shows activity, never what they can use.
+    canUse: 0,
+    canUseWeek: 0,
+    tried: 0,
     languages: s.languages,
     days: [],
     heat: s.heat,

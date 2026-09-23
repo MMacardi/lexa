@@ -1,6 +1,7 @@
 import { Telegraf, Markup, type Context } from "telegraf";
 import { env } from "../lib/env.js";
 import { addWordForUser, listWordsForUser, recordReview } from "../services/vocab.js";
+import { recordProduction, asProductionError } from "../services/production.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { coachDrill } from "../services/coachDrill.js";
 import { getProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
@@ -343,16 +344,16 @@ async function runPracticeTurn(ctx: Context, st: ChatState): Promise<void> {
   }
   p.messages.push({ role: "assistant", content: res.say });
   p.messages = p.messages.slice(-16);
-  // Feed the grade of the previous answer back into the scheduler (once per word).
+  // Log the previous answer as production evidence (once per word). NOT a review:
+  // using a word in a drill says nothing about when to show the card again.
   if (res.grade !== "none" && res.gradedWord) {
     const key = res.gradedWord.trim().toLowerCase();
     const card = p.words.find((w) => w.word.trim().toLowerCase() === key);
     if (card && !p.graded.has(key)) {
       p.graded.add(key);
       if (res.grade === "correct") p.correct++;
-      const rating = res.grade === "correct" ? 3 : res.grade === "partial" ? 2 : 1;
       try {
-        await recordReview(card.id, rating, undefined, "drill");
+        await recordProduction(card.id, res.grade, "drill", asProductionError(res.errorKind));
       } catch (err) {
         console.error("practice grade failed:", (err as Error).message);
       }

@@ -276,13 +276,13 @@ export default function CoachChatPage() {
                 state: "used" as const,
               })),
             );
-            // Retention: a word the learner actually deployed in conversation is a
-            // successful recall — grade it Good so chat moves the SRS, not just points.
+            // A word the learner actually deployed in conversation is production
+            // evidence — it moves the "can use" count, not the review interval.
             const graded = fresh
               .map((w) => poolWords.find((p) => p.word.trim().toLowerCase() === w))
               .filter((c): c is Word => !!c);
             if (graded.length > 0) {
-              await Promise.allSettled(graded.map((c) => api.reviewWord(c.id, 3, "chat")));
+              await Promise.allSettled(graded.map((c) => api.recordProduction(c.id, "correct", "chat")));
               qc.invalidateQueries({ queryKey: ["words"] });
               qc.invalidateQueries({ queryKey: ["stats"] });
             }

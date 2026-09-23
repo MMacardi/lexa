@@ -45,6 +45,8 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       reviewsToday,
       dauRows,
       wauRows,
+      produceDauRows,
+      produceWauRows,
       invitesMinted,
       invitesRedeemed,
       tokTotals,
@@ -70,6 +72,10 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       // Distinct reviewers today / last 7d, via groupBy (one row per user).
       prisma.reviewEvent.groupBy({ by: ["userId"], where: { createdAt: { gte: startOfToday } } }),
       prisma.reviewEvent.groupBy({ by: ["userId"], where: { createdAt: { gte: since7d } } }),
+      // Use-steps live in their own ledger, so an active-today Coach learner is only
+      // visible if DAU/WAU counts both (see F3: production no longer writes reviews).
+      prisma.productionEvent.groupBy({ by: ["userId"], where: { createdAt: { gte: startOfToday } } }),
+      prisma.productionEvent.groupBy({ by: ["userId"], where: { createdAt: { gte: since7d } } }),
       prisma.inviteCode.count(),
       prisma.inviteCode.count({ where: { redeemedAt: { not: null } } }),
       prisma.tokenUsage.aggregate({
@@ -195,8 +201,8 @@ adminRouter.get("/admin/stats", async (_req: Request, res: Response) => {
       engagement: {
         reviewsTotal,
         reviewsToday,
-        dau: dauRows.length,
-        wau: wauRows.length,
+        dau: new Set([...dauRows, ...produceDauRows].map((r) => r.userId)).size,
+        wau: new Set([...wauRows, ...produceWauRows].map((r) => r.userId)).size,
       },
       invites: { minted: invitesMinted, redeemed: invitesRedeemed },
       tokens: {

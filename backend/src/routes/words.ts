@@ -51,6 +51,7 @@ import {
   userOwnsWord,
   userOwnsCollection,
 } from "../services/vocab.js";
+import { recordProduction, asVerdict, asProductionSource, asProductionError } from "../services/production.js";
 import type { Request, Response, NextFunction } from "express";
 import { rateLimit } from "../lib/rateLimit.js";
 import { VISIBILITIES } from "../services/community.js";
@@ -590,6 +591,30 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
   const retention = typeof body.retention === "number" ? body.retention : undefined;
   // Which surface graded it (review / quiz / drill / scene / chat) — logged, not scheduled on.
   const word = await recordReview(req.params.id, grade, retention, asReviewSource(body.source));
+  if (!word) {
+    res.status(404).json({ error: "Word not found" });
+    return;
+  }
+  res.json(word);
+});
+
+// POST /api/words/:id/production -> log an attempt to USE the word (drill, scene
+// or chat) and move its "can use" state. Deliberately NOT /review: this never
+// touches the FSRS schedule, which is what made production invisible before.
+wordsRouter.post("/words/:id/production", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  const body = req.body ?? {};
+  const verdict = asVerdict(body.verdict);
+  if (!verdict) {
+    res.status(400).json({ error: "verdict must be correct, partial or wrong" });
+    return;
+  }
+  const word = await recordProduction(
+    req.params.id,
+    verdict,
+    asProductionSource(body.source),
+    asProductionError(body.errorKind),
+  );
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;

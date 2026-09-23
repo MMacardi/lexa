@@ -26,6 +26,10 @@ function friendStats(f: Friend): Stats {
     trainedToday: 0,
     streak: f.streak,
     reviews: f.reviews,
+    // Production is private: a friend card shows activity, never what they can use.
+    canUse: 0,
+    canUseWeek: 0,
+    tried: 0,
     languages: f.languages,
     days: [],
     heat: [],

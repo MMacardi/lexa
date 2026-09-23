@@ -48,6 +48,12 @@ export interface Word {
   state?: number;
   learningSteps?: number;
   lastReview?: string | null;
+  // Production ledger — "can use it", tracked apart from the review schedule.
+  produceAttempts?: number;
+  produceCorrect?: number;
+  produceStreak?: number;
+  lastProducedAt?: string | null;
+  canUseAt?: string | null; // non-null = the learner can use this word
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -243,6 +249,12 @@ export interface LearnerPrefs {
 // "recognised it on a card" from "produced it in a sentence".
 export type ReviewSource = "review" | "quiz" | "drill" | "scene" | "chat";
 
+// A use-step answer: the learner produced the word instead of recognising it.
+// Recorded on its own endpoint — it must never move the review schedule.
+export type ProductionVerdict = "correct" | "partial" | "wrong";
+export type ProductionSource = "drill" | "scene" | "chat";
+export type ProductionError = "meaning" | "form" | "collocation" | "register";
+
 export interface Stats {
   total: number;
   mastered: number;
@@ -251,6 +263,9 @@ export interface Stats {
   trainedToday: number;
   streak: number;
   reviews: number; // lifetime graded reviews
+  canUse: number; // words the learner can use, not just recognise
+  canUseWeek: number; // of those, how many crossed over in the last 7 days
+  tried: number; // words attempted in a use-step at least once
   languages: string[]; // distinct source languages studied
   days: { date: string; added: number; reviews: number }[];
   heat: { date: string; count: number }[];
@@ -600,6 +615,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ grade, retention: readRetention(), source }),
     }),
+  // A use-step answer: the learner said or wrote the word. Separate from review
+  // on purpose — it moves the "can use" state and leaves the interval alone.
+  recordProduction: (
+    id: string,
+    verdict: ProductionVerdict,
+    source: ProductionSource,
+    errorKind?: ProductionError | null,
+  ) =>
+    http<Word>(`/api/words/${id}/production`, {
+      method: "POST",
+      body: JSON.stringify({ verdict, source, errorKind: errorKind ?? null }),
+    }),
   deleteWord: (id: string) =>
     http<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
   updateWord: (
@@ -855,7 +882,14 @@ export const api = {
     level?: string;
     telegramId?: string;
   }) =>
-    http<{ say: string; drillWord: string; grade: "none" | "correct" | "partial" | "wrong"; gradedWord: string; done: boolean }>(
+    http<{
+      say: string;
+      drillWord: string;
+      grade: "none" | "correct" | "partial" | "wrong";
+      gradedWord: string;
+      errorKind: "none" | ProductionError;
+      done: boolean;
+    }>(
       `/api/coach/drill`,
       { method: "POST", body: JSON.stringify(payload) },
     ),

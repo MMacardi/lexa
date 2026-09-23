@@ -62,6 +62,13 @@ export const coachDrillSchema = z.object({
   drillWord: z.string().default(""), // the word being practised now ("" = intro/wrap-up)
   grade: z.enum(["none", "correct", "partial", "wrong"]).default("none"), // grade of the PREVIOUS answer
   gradedWord: z.string().default(""), // which word that grade applies to ("" = none)
+  // What was wrong with a partial/wrong answer — logged per word so "can't use it
+  // yet" can eventually say *why*. "none" for a correct answer.
+  // .catch, not just .default: a label off this list ("grammar", "tone") would
+  // otherwise fail the parse and lose the whole drill turn over a side field.
+  // A plain string, narrowed in coachDrill: a label off the list ("grammar",
+  // "tone") must not fail the parse and lose the whole turn over a side field.
+  errorKind: z.string().default("none"),
   done: z.boolean().default(false), // the session is complete
 });
 export type CoachDrillResult = z.infer<typeof coachDrillSchema>;

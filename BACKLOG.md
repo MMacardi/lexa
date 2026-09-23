@@ -24,7 +24,7 @@ deleted — `onomika_old` holds the full-featured build.
       review with wordId, grade and source (review / quiz / drill / scene / chat). Move
       level, native language, goal and retention out of localStorage onto the User. Keep the
       placement test's "known" answers instead of discarding them. Cannot be backfilled later.
-- [ ] **F3. Production state + "can use".** Stop collapsing "used it in a drill/scene" into an
+- [x] **F3. Production state + "can use".** Stop collapsing "used it in a drill/scene" into an
       FSRS Good. Per-word production evidence (correct / partial / wrong, when, which error),
       separate from the recognition schedule, plus a "can use" status and a weekly
       "know → can use" count.

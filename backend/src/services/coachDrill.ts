@@ -2,6 +2,7 @@ import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachDrillSchema, type CoachDrillResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { levelGuide } from "./levelGuide.js";
+import { asProductionError } from "./production.js";
 import { track } from "./analytics.js";
 
 /**
@@ -58,6 +59,10 @@ export async function coachDrill(params: {
         `"wrong", and "gradedWord" to THAT word (the one they just attempted). Give brief, specific ` +
         `feedback in "say" — praise what was right, fix mistakes, show the corrected ${source} form when ` +
         `needed. Then move to the NEXT word in the list (set "drillWord" to it).\n` +
+        `5b) With "partial" or "wrong", also name the kind of mistake in "errorKind": "meaning" ` +
+        `(wrong sense of the word), "form" (grammar/inflection/tone or character error), ` +
+        `"collocation" (unnatural pairing with other words) or "register" (too formal/informal for ` +
+        `the situation). Use "none" only when the answer was correct.\n` +
         `6) ADAPT: if they answer easily, make the next task a bit harder (richer sentence, nuance) — but never ` +
         `harder than the LEVEL block above allows. If ` +
         `they struggle, simplify and give a small hint — but stay on the SAME word until it's attempted.\n` +
@@ -72,7 +77,7 @@ export async function coachDrill(params: {
         `(use "" only for the intro line before the first word, or the final wrap-up).` +
         scriptNote(params.sourceLang ?? "en") +
         ` Respond as JSON: {"say": string, "drillWord": string, "grade": "none"|"correct"|"partial"|"wrong", ` +
-        `"gradedWord": string, "done": boolean}.`,
+        `"gradedWord": string, "errorKind": "none"|"meaning"|"form"|"collocation"|"register", "done": boolean}.`,
     },
     ...clipped,
   ];
@@ -91,6 +96,7 @@ export async function coachDrill(params: {
     drillWord: (result.drillWord ?? "").trim(),
     grade,
     gradedWord: (result.gradedWord ?? "").trim(),
+    errorKind: asProductionError(result.errorKind) ?? "none",
     done: result.done ?? false,
   };
 }

@@ -209,7 +209,7 @@ export default function CoachScenePage() {
   const [used, setUsed] = useState<Set<string>>(new Set());
   const [corrections, setCorrections] = useState<SceneCorrection[]>([]);
   const [reviewedCount, setReviewedCount] = useState(0);
-  const gradedRef = useRef<Set<string>>(new Set()); // mission words already graded Good this session
+  const gradedRef = useRef<Set<string>>(new Set()); // mission words already logged as produced this session
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -275,22 +275,27 @@ export default function CoachScenePage() {
     return hits;
   }
 
-  // Grade a canonical mission word Good (3) into FSRS — once per session, best-effort.
+  // Log a canonical mission word as produced — once per session, best-effort. It is
+  // production evidence, not a review: deploying the word in a scene says the learner
+  // can use it, and the review schedule is left to the review screen.
   // Looked up in the whole pair, not the candidate pool: the pool is re-derived from the
   // deck (a card just graded is no longer due and drops out), and a resumed scene's
   // mission words may never have been in today's pool at all.
-  async function gradeUsed(canonicalLower: string) {
+  // `clean` = the partner returned no corrections for that message. A sentence that
+  // needed fixing still counts as an attempt, but only as "partial": the corrections
+  // are for the whole message, so they don't prove THIS word was the problem.
+  async function gradeUsed(canonicalLower: string, clean: boolean) {
     if (gradedRef.current.has(canonicalLower)) return;
     const card = deckByKey.get(canonicalLower);
     if (!card) return;
     gradedRef.current.add(canonicalLower);
     setReviewedCount((n) => n + 1);
     try {
-      await api.reviewWord(card.id, 3, "scene");
+      await api.recordProduction(card.id, clean ? "correct" : "partial", "scene");
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     } catch {
-      /* SRS grading is best-effort */
+      /* logging the use-step is best-effort */
     }
   }
 
@@ -487,7 +492,7 @@ export default function CoachScenePage() {
           .map(({ streaming: _s, ...x }) => x);
         setTurns(saved.length ? saved : b.opening ? [{ role: "assistant", content: b.opening }] : []);
         setUsed(new Set(s.used ?? []));
-        gradedRef.current = new Set(s.used ?? []); // already-graded words must not double-count in FSRS
+        gradedRef.current = new Set(s.used ?? []); // already-logged words must not count twice
         setCorrections((s.corrections ?? []) as SceneCorrection[]);
         setReviewedCount(s.reviewedCount ?? 0);
         setAddedWords(new Set(s.addedWords ?? []));
@@ -608,7 +613,8 @@ export default function CoachScenePage() {
         const fresh = [...hits].filter((w) => !used.has(w));
         if (fresh.length > 0) {
           setUsed((s) => new Set([...s, ...fresh]));
-          for (const w of fresh) void gradeUsed(w);
+          const clean = (res.corrections ?? []).length === 0;
+          for (const w of fresh) void gradeUsed(w, clean);
         }
       }
       if (res.corrections?.length) {

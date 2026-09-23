@@ -1,5 +1,6 @@
 import { prisma } from "./db.js";
 import { env } from "../lib/env.js";
+import { productionDays } from "./production.js";
 
 // Friends + referral. Public profiles expose only aggregate progress (languages,
 // counts, streak) — never a friend's actual words. Visible only between accepted
@@ -45,7 +46,8 @@ export async function publicStats(userId: string) {
     x.setHours(0, 0, 0, 0);
     return x.toISOString().slice(0, 10);
   };
-  const reviewedDays = new Set(events.map((e) => dayKey(e.createdAt)));
+  // Use-steps count as practice here too — they live in their own ledger now.
+  const reviewedDays = new Set([...events.map((e) => dayKey(e.createdAt)), ...(await productionDays(userId, since))]);
   let streak = 0;
   for (let i = 0; i < 14; i++) {
     const k = dayKey(new Date(now - i * 86400_000));

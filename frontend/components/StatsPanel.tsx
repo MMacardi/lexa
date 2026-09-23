@@ -348,6 +348,26 @@ export function StatsPanel() {
         <Tile value={<span className="inline-flex items-center gap-1"><Flame className="h-5 w-5" /> {data.streak}</span>} label={t("stats.tile.streak")} accent="text-orange-500" />
       </div>
 
+      {/* know → can use: the one number that says the words are usable, not just seen.
+          Defaults to 0 — an older backend (deploy skew) simply sends nothing here. */}
+      <div className="rounded-[16px] border border-black/[0.06] bg-paper p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
+            {t("stats.canUse.title")}
+          </p>
+          <span className="text-[12px] font-semibold text-sage-deep">
+            {(data.canUseWeek ?? 0) > 0
+              ? t("stats.canUse.week", { n: data.canUseWeek ?? 0 })
+              : t("stats.canUse.weekNone")}
+          </span>
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="font-serif text-[26px] font-bold leading-none text-sage">{data.canUse ?? 0}</span>
+          <span className="text-[13px] text-ink-soft">{t("stats.canUse.ofTried", { n: data.tried ?? 0 })}</span>
+        </div>
+        <p className="mt-1.5 text-[12px] text-ink-faint">{t("stats.canUse.hint")}</p>
+      </div>
+
       {/* learning curve: metric toggle + date-range selector */}
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

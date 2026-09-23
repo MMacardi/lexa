@@ -200,6 +200,20 @@ export default function WordDetailPage() {
             {t("word.reviewedTimes", { n: word.reviewCount })}
           </span>
         </div>
+        {/* The other half of knowing a word: whether the learner can produce it. */}
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          {word.canUseAt ? (
+            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] text-sage-deep">
+              {t("word.canUse")}
+            </span>
+          ) : (
+            <span className="text-ink-faint">
+              {(word.produceAttempts ?? 0) > 0
+                ? t("word.canUseSoon", { n: word.produceCorrect ?? 0, total: word.produceAttempts ?? 0 })
+                : t("word.canUseUntried")}
+            </span>
+          )}
+        </div>
         {word.sharedFrom && (
           <p className="text-[13px] text-ink-soft">
             {t("community.creditFrom")}{" "}

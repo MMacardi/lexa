@@ -254,6 +254,17 @@ model Word {
   state         Int       @default(0) // 0=New 1=Learning 2=Review 3=Relearning
   learningSteps Int       @default(0)
   lastReview    DateTime?
+  // Production ledger, denormalised from ProductionEvent so the "can use" count
+  // and the per-card badge are one query. Recognition state (above) is untouched
+  // by it: a word can be due for review and still be one you can use, or vice versa.
+  produceAttempts Int       @default(0)
+  produceCorrect  Int       @default(0)
+  produceStreak   Int       @default(0) // consecutive correct uses; a wrong one resets it
+  lastProducedAt  DateTime?
+  // When the word crossed into "can use" (two correct uses on different days).
+  // Null = not there yet, or a wrong attempt took it back — the honest number the
+  // readiness mark shows, so it is allowed to go down.
+  canUseAt        DateTime?
   createdAt    DateTime  @default(now())
   // Credit for a card copied from someone's shared deck ("from @anya's HSK4").
   // Snapshotted as text so it survives the source deck being renamed or deleted.
@@ -262,6 +273,7 @@ model Word {
   sharedDeckId String?
   examples     Example[]
   reviewEvents ReviewEvent[]
+  productionEvents ProductionEvent[]
   collections  Collection[] @relation("CollectionWords")
 
   // Duplicates are allowed on purpose: a user may keep several cards for the
@@ -337,6 +349,30 @@ model ReviewEvent {
   @@index([userId, createdAt])
   @@index([wordId, createdAt])
   @@index([userId, source, createdAt])
+}
+
+// One row per attempt to USE a word (say/write it), as opposed to recognising it
+// on a card. Kept apart from ReviewEvent on purpose: a drill or scene answer used
+// to be folded into an FSRS "Good", which made "recognises it" and "can use it"
+// the same fact and threw the more valuable one away. Production never touches
+// the recognition schedule — it only builds the ledger the "can use" count reads.
+model ProductionEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  // SetNull like ReviewEvent: deleting a card must not rewrite past activity.
+  wordId    String?
+  word      Word?    @relation(fields: [wordId], references: [id], onDelete: SetNull)
+  // How the attempt went: correct | partial | wrong.
+  verdict   String
+  // Where it was produced: drill | scene | chat.
+  source    String   @default("drill")
+  // What went wrong, when the coach could name it: meaning | form | collocation
+  // | register. Null when the attempt was correct or the venue doesn't grade.
+  errorKind String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([wordId, createdAt])
 }
 
 // The onboarding placement mini-test showed a themed word list and the learner
