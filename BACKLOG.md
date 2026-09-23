@@ -9,11 +9,95 @@ learner can actually **use**. One exam first (HSK). IELTS is a possible second e
 same engine, only after HSK keeps strangers coming back. Everything else gets hidden, not
 deleted — `onomika_old` holds the full-featured build.
 
-## Now — the focus pass
-F0–F10 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole
+## Now — make the loop true (2026-09-23)
+
+**Why this section exists.** V0 started, and the first hour of real use found that the
+loop does not work the way the strategy describes. Not a bug list — a design fault, in
+the step everything else rests on. An HSK 4 learner takes the placement check, taps 14
+words they don't know, and receives twenty HSK **1** words (一下儿, 一些, 七, 三, 上,
+上午, 上班 …) — none of them the ones they tapped. Until this is fixed the app is not
+worth putting in front of anyone, because the first ninety seconds disprove the promise.
+
+**Root cause, one paragraph.** `hskCheckWords` samples ~6 words per level (stride +
+random offset — the sampling is fine). `hskGapWords` then walks levels 1→target in file
+order (alphabetical by pinyin) and takes the first N words that are neither a card nor an
+explicit "I know it". With ~500 words at HSK 1 and 6 of them sampled, ~494 are "unproven"
+and fill every deck before level 2 is ever reached. The check's answers are used **only
+to subtract** 10 words from a 5,000-word pool; the 14 words the learner explicitly flagged
+as unknown get no priority at all. The doc-comment states the intent — *"easiest level
+first … a deck that starts with words you can almost read is the one that gets reviewed"* —
+which is a reasonable theory that the arithmetic destroys.
+
+**Second-order damage: the readiness mark is wrong, not just conservative.** `recognise`
+counts cards plus the handful of ticked words, so a real HSK 4 learner sees ~30 of 1200
+and concludes the app can't see them. The headline number of the product under-reports by
+an order of magnitude. F12 has to fix the mark, not only the test.
+
+Order below is deliberate: F13 and F14 are what make the first deck defensible, and they
+need no new measurement. F12 is the honest test and the honest mark. F15 stops mistakes
+being permanent. F16 turns a one-off build into the daily loop the learner expects.
+
+- [ ] **F13. Rank the gap deck by evidence, not by the alphabet.** One session, backend-only
+      (`services/hsk.ts`), no migration — it reads `PlacementAnswer` rows that already exist.
+      - **Priority 1: proven gaps.** `PlacementAnswer` where `known = false` and no card yet,
+        hardest level first. After a 24-word check that is usually ~14 words — a whole first
+        deck of words the learner personally said they don't know. This alone fixes the worst
+        of it.
+      - **Priority 2: the frontier.** Compute a per-level known-rate from the check answers
+        (6 samples a level is noisy but usable). The frontier is the lowest level scoring
+        under ~70%. Draw from the frontier, then frontier+1, up to the target. **Never restart
+        at level 1** unless everything above is exhausted.
+      - **Shuffle within a level.** File order is alphabetical, which is why a batch reads as
+        all 一* then all 上*. Random sample, not `slice`.
+      - Show the level badge on the proposed word (the HSK 1 tags in the deck are what made
+        the fault obvious) — if a word below the frontier does get offered, say why.
+      - Done when: a fresh account targeting HSK 4 that fails most level-3/4 samples gets a
+        deck of level 3–4 words, and the words it tapped as unknown are in it. Write a script
+        like `check-account-delete.ts` that asserts exactly this against a seeded user.
+- [ ] **F14. Let the learner reject a word they already know.** One session, small.
+      The check step renders each word as a toggle `<button>`; the deck step renders `<span>` —
+      static. So the learner stares at twenty words they know with no way to say so. Make the
+      deck words deselectable, and write a deselect as `PlacementAnswer{known: true}`.
+      - This is the cheapest measurement in the whole product: every rejection improves the
+        readiness mark, removes the word from all future decks, and adds a labelled data point
+        at no cost. Over a few sessions it converges on the real frontier far better than any
+        single test can. Same principle as F6a, applied to the learner model instead of the
+        dictionary.
+      - "Build my deck · N words" must track the selection.
+- [ ] **F12. A placement that finds your level, and a mark that isn't a lie.** One session,
+      the most design in the set.
+      - **The test.** 24 evenly-spread taps measure nothing; the same budget spent as a ladder
+        locates a frontier. ~8 words at the target level → ≥70% known, go up; ≤30%, go down;
+        otherwise stop. Three rounds, same 24 taps, an actual answer. Store `frontierLevel` on
+        the User next to `hskTarget`.
+      - **The mark.** Extrapolate per level from the sample rate instead of counting only
+        cards and ticks, and label what is measured versus estimated. Keep F4's rule — this is
+        vocabulary coverage, never a predicted exam score — but a number that says 30/1200 to
+        someone who knows a thousand of them is not conservative, it is wrong, and it is the
+        first thing they see.
+- [ ] **F15. No dead cards.** One session.
+      Cards are created as blank shells first and enriched by a background job, so cancelling
+      enrichment leaves N empty cards — and there is **no enrich/regenerate endpoint anywhere
+      in the backend** (grepped), so they cannot be filled, only hand-edited or deleted.
+      - Add `POST /api/words/:id/enrich` plus a "fill this in" action on an empty card.
+      - On cancel, offer to delete the cards that never got filled.
+      - Consider enriching before creating for small batches, so a stop leaves nothing behind.
+- [ ] **F16. The gap deck becomes the daily drip, not a one-off build.** One session.
+      The learner's own words: *"I thought it would always give me some words for my level."*
+      That is a renewable source, not a 20-word deck you build once. Today should offer
+      today's new words at the frontier, sized to `dailyGoal`, feeding straight into review —
+      which is also what makes F11's refill button unnecessary as a separate gesture.
+- [ ] **F17. Stop asking which language.** Split out of F11. F8 kept English first-class as a
+      *capability*; that leaked into the *interface*, so 14 surfaces still pose «что учу / что
+      знаю» in an app whose positioning is a single pair. The pair belongs on the account (F2
+      stored it), shown as a labelled static chip — item 3g's fix, which must survive, since
+      people did set it backwards — with the picker behind the chip and in Settings only.
+
+## Done — the focus pass
+F0–F11 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole
 argument is that it compounds *with users*, so it is worth least on the day you have none.
-The next thing that matters is not code — it's V0–V3 below, and the invites F10 now has
-somewhere to point.
+The focus pass made the app narrow and reachable; §Now above is what makes it *true*. V0–V3
+still gate the invites, and nothing should be sent to a stranger before F13–F15 land.
 
 - [x] **F0. Landing metadata (1 session, do it first — it's wrong right now).** `app/layout.tsx`
       still says "Onomika — learn English through the news" with a description about Chinese
@@ -220,7 +304,7 @@ somewhere to point.
       - Backlog note, not done here: the "closed beta" bullet promises the author answers the bug
         button — that's H4, and the landing should link the channel once it exists.
 
-- [ ] **F11. The HSK track is a property of the account, not of having Chinese cards.**
+- [x] **F11. The HSK track is a property of the account, not of having Chinese cards.**
       Found by using prod on an account that predates the pivot (V0, day one — exactly what it is
       for). F7 hid the surfaces that didn't serve the loop; it never removed the *questions* the
       loop already answers, and it never gave an existing account a door into the loop. Today:
@@ -236,11 +320,11 @@ somewhere to point.
       - Fix: the track is `User.hskVersion`/`hskTarget` (already there from F2), not an inference
         from card languages. Readiness shows whenever a target is set; a repeatable "next gap words"
         action lives on it; an account with cards but no target gets a dismissible way in.
-      - Second half, same root cause: the pair picker still *asks* «что учу / что знаю» on 14
-        surfaces because F8 kept English first-class. Keeping the `zh→en` path working does not
-        require posing the question every screen — the pair belongs on the account (F2 stored it),
-        shown as a labelled static chip (item 3g's fix, which must survive) with the picker behind
-        it and in Settings. Split out if this item gets too big.
+      - Shipped as `components/HskTrack.tsx` (mark / flow / dismissible offer), a `refill`
+        variant of `HskFirstRun` whose placement check is optional, and a `Profile` type fix —
+        `/auth/me` has always sent `hskTarget`, the client type just dropped it.
+      - **The pair question was split out as F17.** **This made the loop reachable, not correct:**
+        the deck it opens is the fault F13–F16 fix.
 
 ## Before public launch
 - [ ] **5. AI prompt-injection hardening.** IDEAS: "AI prompt-injection hardening".
@@ -309,6 +393,12 @@ you only notice the absence of after a stranger has hit them.
       - `scripts/check-account-delete.ts` builds a user with a row in every affected table, exports
         it, deletes it and fails loudly if anything survives. Run it after adding a table that
         stores a userId or telegramId.
+- [ ] **H5. A grace period on account deletion.** H3 shipped a hard delete — one confirmation
+      and the rows are gone, with no backup behind them because H1 is still open. That trade
+      optimised for the privacy promise and gave no weight to the misclick, which is the wrong
+      balance for a beta where the author is also user #1. Soft-delete with a 7–30 day window
+      and a purge job; GDPR-compatible, and it turns an irreversible click into a recoverable
+      mistake. **Do H1 first** — a grace period is not a backup.
 - [ ] **H4. Feedback channel the tester can find.** The bug button and `deliverFeedback` exist;
       what's missing is a place to *answer* — a Telegram chat or group linked from the app and
       from the F10 landing, so a 6-week beta is a conversation rather than a one-way form.
