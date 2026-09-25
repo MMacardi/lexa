@@ -16,6 +16,10 @@ html {
   right: 0;
   top: var(--vv-top, 0px);
   height: var(--vv-h, 100dvh);
+  /* Insurance for a stale --vv-h (see useViewportVars): the rest of the screen
+     stays dimmed instead of showing the page bright below a half-height scrim.
+     Off-screen whenever the vars are right. */
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.4);
 }
 
 /* Phones: a chip/toolbar row that would wrap into several lines becomes one
@@ -34,6 +38,16 @@ html {
   .scroll-row > * {
     flex-shrink: 0;
     white-space: nowrap;
+  }
+}
+
+/* A grid column otherwise grows to its widest child's min-content width: a
+   single-line truncated title, or pinyin a browser finds no break in, made the
+   column (and the page) wider than a phone. In the base layer, so an explicit
+   min-w-* utility still wins. */
+@layer base {
+  .grid > * {
+    min-width: 0;
   }
 }
 

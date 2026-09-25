@@ -20,8 +20,9 @@ const copy = {
     heroTitle: "Слова HSK, которые ты действительно можешь использовать.",
     heroSub:
       "Сначала честная отметка: сколько слов из официального списка ты узнаёшь и сколько реально умеешь употребить. Потом — этот список и слова из учебника на эту неделю, превращённые в то, что ты можешь сказать сам.",
-    ctaMain: "Войти по коду",
-    ctaHint: "Это закрытая бета — нужен код приглашения. Вход через Telegram, Google или email.",
+    ctaMain: "Составить мой план HSK",
+    ctaHint: "Минута вопросов, потом вход через Telegram, Google или email. Это закрытая бета — понадобится код приглашения.",
+    signIn: "Войти",
     mark: {
       title: "Готовность к HSK",
       sub: "Охват официального списка слов — это не прогноз балла на экзамене.",
@@ -86,8 +87,9 @@ const copy = {
     heroTitle: "HSK words you can actually use.",
     heroSub:
       "First an honest mark: how much of the official list you recognise, and how much of it you can really put in a sentence. Then that list — and this week's textbook words — turned into something you can say yourself.",
-    ctaMain: "Enter your code",
-    ctaHint: "This is a closed beta — you need an invite code. Sign in with Telegram, Google or email.",
+    ctaMain: "Build my HSK plan",
+    ctaHint: "A minute of questions, then sign in with Telegram, Google or email. Closed beta: you'll need an invite code.",
+    signIn: "Sign in",
     mark: {
       title: "HSK readiness",
       sub: "Vocabulary coverage of the official list — not a predicted exam score.",
@@ -152,8 +154,9 @@ const copy = {
     heroTitle: "真正用得出来的 HSK 词。",
     heroSub:
       "先给你一个诚实的结果：官方词表里你认识多少，又有多少真能放进句子里。然后把这份词表和本周课本上的生词，变成你自己说得出来的话。",
-    ctaMain: "输入邀请码",
-    ctaHint: "这是封闭内测——需要邀请码。可用 Telegram、Google 或邮箱登录。",
+    ctaMain: "制定我的 HSK 计划",
+    ctaHint: "先回答一分钟的问题，再用 Telegram、Google 或邮箱登录。封闭内测需要邀请码。",
+    signIn: "登录",
     mark: {
       title: "HSK 准备度",
       sub: "这是对官方词表的覆盖率，不是考试分数预测。",
@@ -342,7 +345,7 @@ function ReviewStill() {
   );
 }
 
-export function FocusLanding({ onStart }: { onStart: () => void }) {
+export function FocusLanding({ onStart, onSignIn }: { onStart: () => void; onSignIn: () => void }) {
   const { locale } = useI18n();
   const L = locale === "en" ? copy.en : locale === "zh" ? copy.zh : copy.ru;
   const stills = [<CaptureStill key="c" />, <ReviewStill key="r" />, <UseStepStill key="u" L={L} />];
@@ -358,8 +361,12 @@ export function FocusLanding({ onStart }: { onStart: () => void }) {
           <div className="flex items-center gap-2">
             <LangMenu />
             <ThemeToggle />
-            <button type="button" onClick={onStart} className="rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep">
-              {L.ctaMain}
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-full border border-black/[0.1] bg-surface px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-sage hover:text-sage-deep"
+            >
+              {L.signIn}
             </button>
           </div>
         </div>

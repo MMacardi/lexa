@@ -15,7 +15,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/button";
 import { AddWordForm } from "@/components/AddWordForm";
-import { HskFirstRun } from "@/components/HskFirstRun";
+import { HskFirstRun, OTHER_LANGUAGE_KEY } from "@/components/HskFirstRun";
 import { Sparkles, Plus, Loader2, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +65,14 @@ function dropCache(id: string) {
 // rather than deleted. It is a separate component, not a branch, so its
 // placement-test call is never spent on a learner who never sees it.
 export function FirstRun() {
-  const [other, setOther] = useState(false);
+  // "I'm learning another language", tapped in the questions before sign-in.
+  const [other, setOther] = useState(() => {
+    try {
+      return localStorage.getItem(OTHER_LANGUAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   return other ? <GenericFirstRun /> : <HskFirstRun onOther={() => setOther(true)} />;
 }
 

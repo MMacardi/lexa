@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -12,16 +12,28 @@ import { Input } from "@/components/ui/input";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "";
+// A login token lives 5 minutes on the server; one older than this is replaced.
+const TOKEN_FRESH_MS = 4 * 60_000;
+// Phones have the Telegram app: open it directly (tg://) and keep this tab.
+const onPhone = () => typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export function LoginScreen() {
   const { loginDev, refresh } = useAccount();
   const { t } = useI18n();
   const router = useRouter();
 
-  // After any successful sign-in, refresh the session and land on the home page.
+  // After any successful sign-in, refresh the session and stay where the learner
+  // was going (a shared link to a page opens that page, not Today) — unless the
+  // questions were answered before sign-in: Today resumes them on the plan.
   const finishLogin = async () => {
     await refresh();
-    router.replace("/");
+    let resume = false;
+    try {
+      resume = !!localStorage.getItem("onomika.onboarding");
+    } catch {
+      /* ignore */
+    }
+    router.replace(resume ? "/" : window.location.pathname + window.location.search);
   };
   const [id, setId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,7 +43,26 @@ export function LoginScreen() {
   const [waiting, setWaiting] = useState(false);
   const [tgUrl, setTgUrl] = useState<string | null>(null);
   const [tgToken, setTgToken] = useState<string | null>(null);
+  const [tgWeb, setTgWeb] = useState<string | null>(null); // t.me fallback: no app on this phone
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // The token is fetched before the tap, so the tap can open Telegram at once.
+  // The old flow awaited it after the tap, which cost the tap its right to open
+  // anything — so it opened a blank tab first and pointed it at t.me afterwards.
+  // On a phone Telegram took over, that tab stayed about:blank, and coming back
+  // to the browser landed on the blank tab instead of this one.
+  const tokenRef = useRef<{ token: string; at: number } | null>(null);
+  const fetchToken = useCallback(async () => {
+    const { token } = await api.startTelegramLogin();
+    tokenRef.current = { token, at: Date.now() };
+    return token;
+  }, []);
+  useEffect(() => {
+    if (!BOT_USERNAME) return;
+    fetchToken().catch(() => {});
+    const id = setInterval(() => fetchToken().catch(() => {}), TOKEN_FRESH_MS);
+    return () => clearInterval(id);
+  }, [fetchToken]);
 
   // Email magic-link state.
   const [email, setEmail] = useState("");
@@ -95,37 +126,60 @@ export function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [waiting, tgToken]);
 
-  async function telegramLogin() {
+  // Poll until the bot confirms (the poll sets the session cookie on success).
+  function waitFor(token: string) {
+    setTgToken(token);
+    setWaiting(true);
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const profile = await api.pollTelegramLogin(token);
+        if (profile) {
+          stopPolling();
+          await finishLogin();
+        }
+      } catch {
+        /* keep polling; token may still be pending */
+      }
+    }, 2000);
+  }
+
+  function telegramLogin() {
     if (!BOT_USERNAME || busy) return;
     setErr(null);
-    setBusy(true);
-    // Open the tab synchronously so the browser doesn't block the popup; we set
-    // its URL once we have the token.
-    const win = window.open("", "_blank");
-    try {
-      const { token } = await api.startTelegramLogin();
-      const url = `https://t.me/${BOT_USERNAME}?start=login_${token}`;
-      setTgUrl(url);
-      setTgToken(token);
-      if (win) win.location.href = url;
-      setWaiting(true);
-      // Poll until the bot confirms (poll sets the session cookie on success).
-      pollRef.current = setInterval(async () => {
-        try {
-          const profile = await api.pollTelegramLogin(token);
-          if (profile) {
-            stopPolling();
-            await finishLogin();
-          }
-        } catch {
-          /* keep polling; token may still be pending */
-        }
-      }, 2000);
-    } catch {
-      win?.close();
-      setErr(t("login.telegramError"));
-    } finally {
-      setBusy(false);
+    const fresh = tokenRef.current && Date.now() - tokenRef.current.at < TOKEN_FRESH_MS ? tokenRef.current.token : null;
+    if (!fresh) {
+      // No token yet (slow network): get one, then offer the link to tap.
+      setBusy(true);
+      fetchToken()
+        .then((token) => {
+          const phone = onPhone();
+          setTgUrl(phone ? `tg://resolve?domain=${BOT_USERNAME}&start=login_${token}` : `https://t.me/${BOT_USERNAME}?start=login_${token}`);
+          setTgWeb(phone ? `https://t.me/${BOT_USERNAME}?start=login_${token}` : null);
+          waitFor(token);
+        })
+        .catch(() => setErr(t("login.telegramError")))
+        .finally(() => setBusy(false));
+      return;
+    }
+    tokenRef.current = null; // single use; the interval fetches the next one
+    const web = `https://t.me/${BOT_USERNAME}?start=login_${fresh}`;
+    if (onPhone()) {
+      // Straight into the app; this tab stays as it is, so iOS's "◀ Safari" (or
+      // Android's back) returns here and the check below signs in at once. The
+      // web link stays on screen for a phone without the app.
+      const app = `tg://resolve?domain=${BOT_USERNAME}&start=login_${fresh}`;
+      setTgUrl(app);
+      setTgWeb(web);
+      waitFor(fresh);
+      window.location.href = app;
+    } else {
+      // Desktop: t.me in a new tab, opened inside the tap (so never a blank one);
+      // it offers Telegram Desktop or the web client.
+      setTgUrl(web);
+      setTgWeb(null);
+      waitFor(fresh);
+      window.open(web, "_blank", "noopener");
     }
   }
 
@@ -133,6 +187,7 @@ export function LoginScreen() {
     stopPolling();
     setWaiting(false);
     setTgUrl(null);
+    setTgWeb(null);
     setTgToken(null);
   }
 
@@ -181,14 +236,19 @@ export function LoginScreen() {
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-sage border-t-transparent" />
                   {t("login.waiting")}
                 </div>
+                <p className="mt-2 text-xs leading-relaxed text-ink-soft">{t("login.waitingHint")}</p>
                 {tgUrl && (
                   <a
                     href={tgUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    {...(tgUrl.startsWith("https:") ? { target: "_blank", rel: "noreferrer" } : {})}
                     className="mt-3 inline-block text-sm font-semibold text-[#229ED9] hover:underline"
                   >
                     {t("login.openTelegram")} ↗
+                  </a>
+                )}
+                {tgWeb && (
+                  <a href={tgWeb} target="_blank" rel="noreferrer" className="mt-1.5 block text-xs font-medium text-ink-faint hover:text-ink">
+                    {t("login.noTelegramApp")}
                   </a>
                 )}
                 <button

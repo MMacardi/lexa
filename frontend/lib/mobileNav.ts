@@ -83,12 +83,34 @@ export function useViewportVars() {
       if (nextTop !== top) root.setProperty("--vv-top", (top = nextTop));
       if (nextH !== h) root.setProperty("--vv-h", (h = nextH));
     };
+    // iOS can send its last viewport event before the keyboard has finished
+    // moving, and none at all when it is dismissed with "Done": the vars kept the
+    // keyboard-open height and a dialog's scrim stopped halfway down the screen.
+    // So after any sign of change, keep reading for a moment and let the final
+    // value land (writes still happen only when a value differs).
+    let raf = 0;
+    let until = 0;
+    const tick = () => {
+      sync();
+      raf = performance.now() < until ? requestAnimationFrame(tick) : 0;
+    };
+    const settle = () => {
+      until = performance.now() + 700;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
     sync();
-    vv.addEventListener("resize", sync);
-    vv.addEventListener("scroll", sync);
+    vv.addEventListener("resize", settle);
+    vv.addEventListener("scroll", settle);
+    window.addEventListener("resize", settle);
+    window.addEventListener("focusin", settle);
+    window.addEventListener("focusout", settle);
     return () => {
-      vv.removeEventListener("resize", sync);
-      vv.removeEventListener("scroll", sync);
+      cancelAnimationFrame(raf);
+      vv.removeEventListener("resize", settle);
+      vv.removeEventListener("scroll", settle);
+      window.removeEventListener("resize", settle);
+      window.removeEventListener("focusin", settle);
+      window.removeEventListener("focusout", settle);
     };
   }, []);
 }

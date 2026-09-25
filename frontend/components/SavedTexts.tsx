@@ -161,9 +161,12 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
       {shown.length === 0 && <p className="py-6 text-center text-[13px] text-ink-faint">{t("reader.noTextMatches")}</p>}
 
       {view === "cards" ? (
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        // minmax(0) columns + min-w-0 titles: a single-line title otherwise sizes the
+        // column to its full length (an autosaved lesson is a long one) and pushes the
+        // page sideways on a phone.
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {shown.map((it) => (
-            <div key={it.id} className="group relative rounded-[16px] border border-black/[0.07] bg-surface p-3.5 transition-colors hover:border-sage/40">
+            <div key={it.id} className="group relative min-w-0 rounded-[16px] border border-black/[0.07] bg-surface p-3.5 transition-colors hover:border-sage/40">
               <button
                 type="button"
                 onClick={() => it.status === "ready" && open(it.id)}
@@ -172,7 +175,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
               >
                 <div className="flex items-center gap-1.5 pr-12">
                   {statusIcon(it.status)}
-                  <span className="truncate text-[15px] font-semibold text-ink">{it.title}</span>
+                  <span className="min-w-0 truncate text-[15px] font-semibold text-ink">{it.title}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-soft">
                   {it.status === "generating" ? t("reader.generating") : it.snippet}
@@ -219,7 +222,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
               >
                 {statusIcon(it.status)}
-                <span className="truncate text-[14px] font-semibold text-ink">{it.title}</span>
+                <span className="min-w-0 truncate text-[14px] font-semibold text-ink">{it.title}</span>
               </button>
               {/* Fixed right-hand columns so level + language pair line up across rows. */}
               <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">

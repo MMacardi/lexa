@@ -124,6 +124,32 @@ const DAILY: { n: number; Icon: Icon }[] = [
 // asks for more. Only a suggestion — it is tagged, not chosen for them.
 const DAILY_FOR_EXAM: Record<Exam, number> = { none: 10, "3": 20, "6": 15, "12": 10, later: 10 };
 
+// The answers, kept on the device between the questions (asked before sign-in,
+// the way phone apps do it) and the account they end up on. Cleared once the
+// plan is committed.
+const ANSWERS_KEY = "onomika.onboarding";
+export const OTHER_LANGUAGE_KEY = "onomika.onboarding.other";
+type Answers = {
+  native: string;
+  goals: string[];
+  known: number | null;
+  version: HskVersion;
+  target: number;
+  exam: Exam;
+  interests: string[];
+  daily: number;
+};
+
+function readAnswers(): Answers | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const a = JSON.parse(localStorage.getItem(ANSWERS_KEY) ?? "null") as Answers | null;
+    return a && typeof a.target === "number" && Array.isArray(a.goals) ? a : null;
+  } catch {
+    return null;
+  }
+}
+
 // A tappable answer: a full-width card with an icon, for one-per-screen questions.
 function Choice({
   on,
@@ -185,24 +211,40 @@ function Choice({
 
 // The flow runs once per account. After it the next words come by themselves, a
 // day's worth at a time, on Today (HskDaily).
-export function HskFirstRun({ onOther, onClose }: { onOther?: () => void; onClose?: () => void }) {
+//
+// `guest`: the questions before sign-in. The plan's button saves the answers and
+// hands over to sign-in (`onGuestDone`); signed in, the flow picks them up and
+// opens on the plan, one tap from the check.
+export function HskFirstRun({
+  onOther,
+  onClose,
+  guest,
+  onGuestDone,
+}: {
+  onOther?: () => void;
+  onClose?: () => void;
+  guest?: boolean;
+  onGuestDone?: () => void;
+}) {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
 
+  // Answers given before sign-in, if any: the flow resumes on the plan.
+  const [saved] = useState(() => (guest ? null : readAnswers()));
   // "I already know" — Russian by default, and only overridden by the browser's
   // own language. The learning side is never a picker here: it is Chinese.
-  const [native, setNative] = useState(locale === "zh" ? "en" : locale === "en" ? "en" : "ru");
-  const [goals, setGoals] = useState<Set<string>>(new Set(["exam"]));
-  const [known, setKnown] = useState<number | null>(null); // self-rated level, 0–5
-  const [version, setVersion] = useState<HskVersion>("3.0");
-  const [target, setTarget] = useState(4);
-  const [exam, setExam] = useState<Exam>("none");
-  const [interests, setInterests] = useState<Set<string>>(new Set());
-  const [daily, setDaily] = useState(10);
+  const [native, setNative] = useState(saved?.native ?? (locale === "zh" ? "en" : locale === "en" ? "en" : "ru"));
+  const [goals, setGoals] = useState<Set<string>>(new Set(saved?.goals ?? ["exam"]));
+  const [known, setKnown] = useState<number | null>(saved?.known ?? null); // self-rated level, 0–5
+  const [version, setVersion] = useState<HskVersion>(saved?.version ?? "3.0");
+  const [target, setTarget] = useState(saved?.target ?? 4);
+  const [exam, setExam] = useState<Exam>(saved?.exam ?? "none");
+  const [interests, setInterests] = useState<Set<string>>(new Set(saved?.interests ?? []));
+  const [daily, setDaily] = useState(saved?.daily ?? 10);
 
-  const [step, setStep] = useState<Step>("lang");
+  const [step, setStep] = useState<Step>(saved ? "plan" : "lang");
   const [busy, setBusy] = useState(false);
   const [check, setCheck] = useState<HskWord[]>([]);
   const [unknown, setUnknown] = useState<Set<string>>(new Set());
@@ -256,12 +298,28 @@ export function HskFirstRun({ onOther, onClose }: { onOther?: () => void; onClos
     return { goal, likes };
   }
 
+  // Before sign-in: keep the answers on the device and go and sign in.
+  function saveForSignIn() {
+    const answers: Answers = { native, goals: [...goals], known, version, target, exam, interests: [...interests], daily };
+    try {
+      localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers));
+    } catch {
+      /* private mode: they answer again after signing in */
+    }
+    onGuestDone?.();
+  }
+
   // The plan, kept before anything else runs: a learner who drops out at the
   // check still has their target, daily goal, language and reasons remembered.
   async function commitPlan() {
     if (busy) return;
     setBusy(true);
     try {
+      try {
+        localStorage.removeItem(ANSWERS_KEY);
+      } catch {
+        /* ignore */
+      }
       setNativeLang(native);
       setPrefLevel("zh", level);
       pushRecentPair("zh", native);
@@ -576,7 +634,7 @@ export function HskFirstRun({ onOther, onClose }: { onOther?: () => void; onClos
 
         {step === "plan" && (
           <>
-            {heading(t("onb.planTitle"), fromZero ? t("onb.planSubZero") : t("onb.planSub"))}
+            {heading(t("onb.planTitle"), guest ? t("onb.planSubGuest") : fromZero ? t("onb.planSubZero") : t("onb.planSub"))}
             <ul className="space-y-2.5 rounded-[16px] border border-black/[0.06] bg-surface p-4">
               <li className="flex items-start gap-3 text-[14px] text-ink">
                 <Target className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
@@ -600,13 +658,23 @@ export function HskFirstRun({ onOther, onClose }: { onOther?: () => void; onClos
                 </li>
               )}
             </ul>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button className="w-full sm:w-auto" disabled={busy} onClick={commitPlan}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                {fromZero ? t("onb.startZero") : t("hskFirst.startCheck")}
-              </Button>
-              {!fromZero && <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>}
-            </div>
+            {guest ? (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button className="w-full sm:w-auto" onClick={saveForSignIn}>
+                  <Check className="mr-2 h-4 w-4" />
+                  {t("onb.saveSignIn")}
+                </Button>
+                <span className="text-[13px] text-ink-soft">{t("onb.saveSignInHint")}</span>
+              </div>
+            ) : (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button className="w-full sm:w-auto" disabled={busy} onClick={commitPlan}>
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                  {fromZero ? t("onb.startZero") : t("hskFirst.startCheck")}
+                </Button>
+                {!fromZero && <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>}
+              </div>
+            )}
           </>
         )}
 
@@ -703,7 +771,7 @@ export function HskFirstRun({ onOther, onClose }: { onOther?: () => void; onClos
 
       {/* The textbook path: this week's list, photographed or pasted, becomes
           cards in the same pair — a way in that skips the questions. */}
-      {step === "lang" && (
+      {step === "lang" && !guest && (
         <div className="rounded-[22px] border border-black/[0.06] bg-surface p-5">
           <p className="text-[15px] font-semibold text-ink">{t("hskFirst.textbookTitle")}</p>
           <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.textbookSub")}</p>
