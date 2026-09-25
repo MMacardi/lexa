@@ -129,7 +129,9 @@ export function useLockScroll(active: boolean) {
 
 // Swipe a bottom sheet down to close it, the way iOS sheets go. The grip (grab
 // bar + title row) drags it any time; the body only when it's scrolled to the top
-// and the swipe starts downward, so scrolling the form still scrolls it.
+// and the swipe starts downward, so scrolling the form still scrolls it. Nothing
+// marked data-own-touch starts a drag: the draw pad's strokes go down too, and
+// each one used to pull the sheet away mid-character.
 //
 // Every frame of the drag only moves compositor layers: the panel through
 // `translate` (the open/close animations own `transform`, and an animation beats
@@ -198,6 +200,7 @@ export function useSheetDrag(
       mode = null;
       if (e.touches.length !== 1) return;
       const target = e.target as Node;
+      if (target instanceof Element && target.closest("[data-own-touch]")) return;
       fromGrip = !!grip.current?.contains(target);
       const b = body.current;
       if (!fromGrip && !(b?.contains(target) && b.scrollTop <= 0)) return;

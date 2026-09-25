@@ -381,6 +381,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 - `frontend/scripts/check-handwriting.ts` (needs graphics.txt + dictionary.txt): HSK 1–4, sloppy
   99% top-1 · strokes swapped 99% · a stroke missing 76% top-1 / 99% shown · left half only 62%
   shown. ~15–20 ms per stroke on a desktop.
+- Tester fixes, same evening: (1) every downward stroke on the pad pulled the add sheet down, and
+  a quick one threw it shut mid-character — the pad now owns its touches (`data-own-touch`,
+  `useSheetDrag`); checked with finger events on a phone-sized page, and the check fails with the
+  line taken out. (2) A 我 without its 提 wasn't in the list at all (Pleco: first). A stroke left
+  out cost the same 0.9 as one too many, so six-stroke characters that paid nothing beat it; it
+  now costs 0.3–0.9 by length (a forgotten dot or 提 is cheap). The check gained messier strokes
+  and two drawings traced from the phone: a stroke missing 76 → 85% top-1, messy + missing
+  62 → 76%, both traced 我 in the top 3, nothing else moved. Tried and dropped: re-fitting each
+  template's scale/offset to the drawing — it helped wrong candidates more than the right one.
+- Not solved: cursive (strokes joined, like a native speaker's 你). One template per character
+  can't read it; that takes a model trained on real handwriting (Pleco, Google, the iOS
+  handwriting keyboard). HanziLookup(JS) is the same template method and GPL.
 
 ### Tester fixes and the first-run pass (2026-09-24→25, outside the list)
 Asked for directly after the first tester's report, so none of it is a numbered item.

@@ -22,7 +22,14 @@
 export type Point = [number, number];
 
 const N = 8; // points per resampled stroke
-const SKIP = 0.9; // cost of a stroke with no partner (missing or extra)
+const EXTRA = 0.9; // a drawn stroke the character doesn't have
+// A stroke of the character that wasn't drawn costs less the shorter it is: a
+// forgotten dot or 提 is the commonest slip there is (a 我 without its 提 used to
+// fall out of the list behind six-stroke characters that paid nothing), while a
+// long stroke left out more often means another character.
+const MISSING = [0.3, 0.9] as const; // cheapest, dearest
+const MISSING_BASE = 0.25;
+const MISSING_PER_LENGTH = 0.2; // per unit of stroke length on the ink scale
 const REVERSED = 0.35; // extra cost of a stroke drawn from the wrong end
 const ORDER = 0.03; // per pair of strokes written in the wrong order
 const RARITY = 0.025; // per rank step (HSK 1 … GB2312 level 2)
@@ -39,6 +46,7 @@ export type Templates = {
   pts: Float32Array; // x, y pairs, N per stroke, ink-normalized
   frames: Float32Array; // per character: ink centre x, y and scale on the 256 grid
   mids: Float32Array; // x, y per stroke: the mean of its N points
+  missing: Float32Array; // per stroke: its cost when it isn't drawn
   byCount: number[][]; // character indexes by stroke count
   unit: number; // a typical ink scale, to put box distances on the ink scale
 };
@@ -143,6 +151,12 @@ export function parseTemplates(buf: ArrayBuffer): Templates {
     (byCount[counts[c]] ??= []).push(c);
   });
   const mids = centroids(pts);
+  const missing = new Float32Array(pts.length / N / 2);
+  for (let s = 0; s < missing.length; s++) {
+    let len = 0;
+    for (let k = 1; k < N; k++) len += Math.hypot(pts[s * N * 2 + k * 2] - pts[s * N * 2 + k * 2 - 2], pts[s * N * 2 + k * 2 + 1] - pts[s * N * 2 + k * 2 - 1]);
+    missing[s] = Math.min(MISSING[1], Math.max(MISSING[0], MISSING_BASE + MISSING_PER_LENGTH * len));
+  }
   const scales = Array.from({ length: all.length }, (_, c) => frames[c * 3 + 2]).sort((x, y) => x - y);
   return {
     chars,
@@ -152,6 +166,7 @@ export function parseTemplates(buf: ArrayBuffer): Templates {
     pts,
     frames,
     mids,
+    missing,
     byCount,
     unit: scales[scales.length >> 1],
   };
@@ -171,14 +186,14 @@ function centroids(pts: Float32Array): Float32Array {
 }
 
 // Lower bound on a pairing's cost from centroids: each drawn stroke pays at least
-// the distance to its nearest template stroke (or SKIP, when `pad` allows it a
+// the distance to its nearest template stroke (or EXTRA, when `both` allows it a
 // dummy partner); with `both`, each template stroke also pays toward the drawn
-// ones, and the larger of the two sums holds.
-function bound(a: Float32Array, n: number, b: Float32Array, s0: number, m: number, sc: number, dx: number, dy: number, div: number, both: boolean): number {
+// ones (or its `missing` cost), and the larger of the two sums holds.
+function bound(a: Float32Array, n: number, b: Float32Array, s0: number, m: number, sc: number, dx: number, dy: number, div: number, both: boolean, missing?: Float32Array): number {
   const k = Math.max(n, m);
-  let rows = both ? (k - n) * SKIP : 0;
+  let rows = both ? (k - n) * MISSING[0] : 0;
   for (let i = 0; i < n; i++) {
-    let low = both && m < k ? SKIP : Infinity;
+    let low = both && m < k ? EXTRA : Infinity;
     for (let j = 0; j < m; j++) {
       const ex = a[i * 2] - (b[(s0 + j) * 2] * sc + dx);
       const ey = a[i * 2 + 1] - (b[(s0 + j) * 2 + 1] * sc + dy);
@@ -188,9 +203,9 @@ function bound(a: Float32Array, n: number, b: Float32Array, s0: number, m: numbe
     rows += low;
   }
   if (!both) return rows;
-  let cols = (k - m) * SKIP;
+  let cols = (k - m) * EXTRA;
   for (let j = 0; j < m; j++) {
-    let low = n < k ? SKIP : Infinity;
+    let low = n < k ? missing![s0 + j] : Infinity;
     for (let i = 0; i < n; i++) {
       const ex = a[i * 2] - (b[(s0 + j) * 2] * sc + dx);
       const ey = a[i * 2 + 1] - (b[(s0 + j) * 2 + 1] * sc + dy);
@@ -344,12 +359,14 @@ export function rank(t: Templates, strokes: Point[][], opts: { box?: number; lim
         if (cost.length < k * k) cost = new Float64Array(k * k);
         const off = t.offsets[c];
         const extra = RARITY * t.ranks[c];
-        if (bound(inkMid, n, t.mids, off / N / 2, m, 1, 0, 0, 1, true) + extra >= bar()) continue;
+        if (bound(inkMid, n, t.mids, off / N / 2, m, 1, 0, 0, 1, true, t.missing) + extra >= bar()) continue;
         let rowMin = 0;
         for (let i = 0; i < k; i++) {
           let low = Infinity;
           for (let j = 0; j < k; j++) {
-            const x = i < n && j < m ? strokeCost(ink, i * N * 2, t.pts, off + j * N * 2, 1, 0, 0, 1) : SKIP;
+            // Past the drawn strokes: a template stroke left undrawn; past the
+            // template's: a drawn stroke too many.
+            const x = i < n && j < m ? strokeCost(ink, i * N * 2, t.pts, off + j * N * 2, 1, 0, 0, 1) : j < m ? t.missing[off / N / 2 + j] : EXTRA;
             cost[i * k + j] = x;
             if (x < low) low = x;
           }

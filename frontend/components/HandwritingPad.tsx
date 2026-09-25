@@ -156,8 +156,10 @@ export function HandwritingPad({
               <line x1="100" y1="0" x2="0" y2="100" />
             </g>
           </svg>
+          {/* data-own-touch: a downward stroke isn't a swipe to close the sheet. */}
           <canvas
             ref={canvasRef}
+            data-own-touch
             aria-label={t("draw.pad")}
             className="relative block aspect-square w-full touch-none rounded-[10px] border border-black/[0.08] text-ink"
             onPointerDown={(e) => {
