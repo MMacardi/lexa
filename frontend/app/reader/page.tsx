@@ -39,6 +39,24 @@ import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, Locate
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
+// Where a word popup sits: centred under its word, kept 140px off either edge so
+// the 240px card stays on screen, in *document* coordinates. The popup is
+// `absolute`, so the page's own scroll carries it with its word (lib/anchor.ts
+// has the story: a `fixed` popup re-measured per scroll event slid off its word
+// on a fast swipe, and every event re-rendered the whole text).
+function popAt(rect: DOMRect) {
+  return {
+    x: window.scrollX + Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2)),
+    y: window.scrollY + rect.bottom,
+  };
+}
+
+// Pinyin mode: an explicit break opportunity before each word, except right after
+// an opening bracket or quote (a line mustn't end on one). A browser that finds no
+// break between ruby elements sized the text to its longest line and pushed the
+// page sideways on an iPhone.
+const OPENS_BEFORE = /[“‘「『《〈【（(\[]$/;
+
 // Downscale + re-encode a photo before upload, so OCR payloads stay small/fast.
 function downscaleImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -543,9 +561,7 @@ export default function ReaderPage() {
   function openGloss(key: string, wordText: string, el: HTMLElement, sentence: string) {
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     setGlossClosing(false);
-    const rect = el.getBoundingClientRect();
-    const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
-    setGloss({ key, word: wordText, x, y: rect.bottom });
+    setGloss({ key, word: wordText, ...popAt(el.getBoundingClientRect()) });
     glossKeyRef.current = key;
     glossElRef.current = el;
     // The dictionary answers at once, with no model call; the gloss in the
@@ -603,34 +619,28 @@ export default function ReaderPage() {
     }, 150);
   }, []);
 
-  // Keep the gloss anchored to its word while scrolling/resizing (instead of
-  // vanishing); dismiss on Escape or a tap *outside* the popup. Taps inside stay
-  // put so the meaning can be selected/copied. Off-screen → close.
+  // The page's scroll carries the gloss with its word (see popAt); only a resize
+  // (rotation, reflow) moves the word from under it. Dismiss on Escape or a tap
+  // *outside* the popup. Taps inside stay put so the meaning can be
+  // selected/copied, and a swipe that starts on it scrolls the page, card and all.
   const glossOpen = gloss !== null;
   useEffect(() => {
     if (!glossOpen) return;
     const reposition = () => {
       const el = glossElRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
-        closeGloss();
-        return;
-      }
-      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
-      setGloss((g) => (g ? { ...g, x, y: rect.bottom } : g));
+      if (!el?.isConnected) return;
+      const at = popAt(el.getBoundingClientRect());
+      setGloss((g) => (g ? { ...g, ...at } : g));
     };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && closeGloss();
     const onDown = (e: PointerEvent) => {
       if (glossPopRef.current?.contains(e.target as Node)) return;
       closeGloss();
     };
-    window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
     document.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
       document.removeEventListener("pointerdown", onDown);
@@ -660,30 +670,23 @@ export default function ReaderPage() {
     return () => window.removeEventListener("keydown", onEsc);
   }, [knownPop, cardPanel, closeKnown]);
 
-  // Known-word popup: follow its word while scrolling (don't vanish), and close
-  // on a tap anywhere outside the popup itself (its buttons stay clickable).
+  // Known-word popup: scrolls with its word like the gloss, and closes on a tap
+  // anywhere outside the popup itself (its buttons stay clickable).
   const knownOpen = knownPop !== null;
   useEffect(() => {
     if (!knownOpen) return;
     const reposition = () => {
       const el = knownElRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
-        closeKnown();
-        return;
-      }
-      const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
-      setKnownPop((p) => (p ? { ...p, x, y: rect.bottom } : p));
+      if (!el?.isConnected) return;
+      const at = popAt(el.getBoundingClientRect());
+      setKnownPop((p) => (p ? { ...p, ...at } : p));
     };
     const onDown = (e: PointerEvent) => {
       if (!knownPopRef.current?.contains(e.target as Node)) closeKnown();
     };
-    window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     document.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
       document.removeEventListener("pointerdown", onDown);
     };
@@ -715,16 +718,13 @@ export default function ReaderPage() {
     setKnownClosing(false);
     const w = (words ?? []).find((x) => x.id === wordId);
     knownElRef.current = el;
-    const rect = el.getBoundingClientRect();
-    const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setKnownPop({
       wordId,
       word: wordText,
       meaning: w?.meaningZh ?? null,
       dictMeaning: w?.dictMeaning,
       sentence: sentenceAround(index),
-      x,
-      y: rect.bottom,
+      ...popAt(el.getBoundingClientRect()),
     });
   }
 
@@ -876,6 +876,7 @@ export default function ReaderPage() {
       </ruby>
     );
   };
+  const breakBefore = (i: number) => (rubyOn && i > 0 && !OPENS_BEFORE.test(tokens[i - 1].text) ? <wbr /> : null);
 
   async function scanPhoto(file: File) {
     if (scanning) return;
@@ -1187,11 +1188,14 @@ export default function ReaderPage() {
         {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
       </p>
 
-      {/* tokenized text (+ optional translation side-by-side) */}
-      <div className={cn("grid gap-4", showTr && trReady && "md:grid-cols-2")}>
+      {/* tokenized text (+ optional translation side-by-side). Explicit minmax(0)
+          columns + min-w-0: a grid column otherwise grows to the text's
+          min-content width, which is the longest line when a browser finds no
+          break inside the pinyin. */}
+      <div className={cn("grid grid-cols-1 gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
           className={cn(
-            "select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
+            "min-w-0 select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
             rubyOn ? "leading-[2.7]" : "leading-[1.9]",
             sourceFont(sourceLang),
           )}
@@ -1219,6 +1223,7 @@ export default function ReaderPage() {
                   }}
                   className="cursor-pointer"
                 >
+                  {breakBefore(i)}
                   {wordNode(
                     tk.text,
                     cn(
@@ -1233,7 +1238,12 @@ export default function ReaderPage() {
             }
             // Added but its card id hasn't resolved yet (enrichment lag) → green.
             if (isAdded) {
-              return <span key={i}>{wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}</span>;
+              return (
+                <span key={i}>
+                  {breakBefore(i)}
+                  {wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}
+                </span>
+              );
             }
             const onPick = (el: HTMLElement) => {
               const wasSelected = selected.has(key);
@@ -1260,6 +1270,7 @@ export default function ReaderPage() {
                 }}
                 className="cursor-pointer"
               >
+                {breakBefore(i)}
                 {wordNode(
                   tk.text,
                   cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60"),
@@ -1270,7 +1281,7 @@ export default function ReaderPage() {
         </div>
 
         {showTr && trReady && (
-          <div className="rounded-[20px] border border-black/[0.06] bg-paper p-5 sm:p-7">
+          <div className="min-w-0 rounded-[20px] border border-black/[0.06] bg-paper p-5 sm:p-7">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
               {t("reader.translationTitle")}
             </div>
@@ -1313,7 +1324,7 @@ export default function ReaderPage() {
       {/* per-word quick gloss popover */}
       {gloss &&
         createPortal(
-          <div className="fixed z-[90] -translate-x-1/2" style={{ left: gloss.x, top: gloss.y + 8 }}>
+          <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: gloss.x, top: gloss.y + 8 }}>
             <div
               ref={glossPopRef}
               className={cn(
@@ -1349,7 +1360,7 @@ export default function ReaderPage() {
       {/* known word — short tap popup: meaning + add example from this sentence */}
       {knownPop &&
         createPortal(
-          <div className="fixed z-[90] -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
+          <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
             <div
               ref={knownPopRef}
               className={cn(

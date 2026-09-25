@@ -67,14 +67,21 @@ export function useIsMobile() {
 // iOS Safari doesn't shrink the layout viewport when the keyboard opens, so a
 // `fixed inset-0` modal ends up under the keyboard. Mirror the *visual* viewport
 // into --vv-top / --vv-h; the `.vv-overlay` class (globals.css) sizes overlays by it.
+// Written only when a value changes: this runs on every viewport scroll event, and
+// an inherited custom property set on <html> restyles the whole page — on a long
+// Reader text that is enough to leave blank tiles behind a fast swipe.
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const root = document.documentElement.style;
+    let top = "";
+    let h = "";
     const sync = () => {
-      root.setProperty("--vv-top", `${vv.offsetTop}px`);
-      root.setProperty("--vv-h", `${vv.height}px`);
+      const nextTop = `${vv.offsetTop}px`;
+      const nextH = `${vv.height}px`;
+      if (nextTop !== top) root.setProperty("--vv-top", (top = nextTop));
+      if (nextH !== h) root.setProperty("--vv-h", (h = nextH));
     };
     sync();
     vv.addEventListener("resize", sync);
