@@ -4,6 +4,7 @@ import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
 import { langName } from "../lib/langs.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
+import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
 
 /**
  * Instant capture: the dictionary makes the card, the model comes second.
@@ -20,11 +21,19 @@ import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 
 const AI_SOURCE = "Onomika AI";
 
-/** The fields the dictionary fills with no model call, or null (not Chinese, not in the subset). */
-export async function dictCardFields(word: string, sourceLang: string): Promise<{ phonetic: string; meaningZh: string } | null> {
+/**
+ * The fields the dictionary fills with no model call, or null (not Chinese, not
+ * in the subset). The meaning is the shared default in the learner's language
+ * when there is one (services/lookup.ts), else the dictionary's English.
+ */
+export async function dictCardFields(
+  word: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<{ phonetic: string; meaningZh: string } | null> {
   if (!isChinese(sourceLang)) return null;
   const card = await cedictCard(word);
-  return card ? { phonetic: card.phonetic, meaningZh: card.gloss } : null;
+  return card ? { phonetic: card.phonetic, meaningZh: defaultMeaning(word, targetLang) ?? card.gloss } : null;
 }
 
 /**
@@ -139,8 +148,11 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   });
 
   // Compare-and-set on the meaning we read: a learner who edited it while the
-  // model was thinking keeps their edit.
-  if (entry.meaningZh.trim() && (!card.meaningZh?.trim() || hasDictMeaning(card))) {
+  // model was thinking keeps their edit. The shared default gives way only to a
+  // sense the learner pointed at — the sentence they met the word in, or the
+  // meaning they typed to find it; otherwise the model would just reword it.
+  const replaceable = hasDictMeaning(card) || (isDefaultMeaning(card) && Boolean(met || opts.sense));
+  if (entry.meaningZh.trim() && (!card.meaningZh?.trim() || replaceable)) {
     await prisma.word.updateMany({
       where: { id: card.id, meaningZh: card.meaningZh },
       data: { meaningZh: entry.meaningZh.trim() },

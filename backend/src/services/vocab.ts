@@ -14,6 +14,7 @@ import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
 import { cedictInventory, isChinese } from "./cedict.js";
 import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
+import { isDefaultMeaning } from "./lookup.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -90,7 +91,7 @@ export async function addWordForUser(params: {
   // Instant capture: a Chinese word the dictionary knows is a card the moment
   // this returns, and the model's part lands behind it (services/capture.ts).
   // Web-mined examples keep the slow path — the search is the point of them.
-  const dict = useWeb ? null : await dictCardFields(params.word, sourceLang);
+  const dict = useWeb ? null : await dictCardFields(params.word, sourceLang, targetLang);
   if (dict) {
     const created = await prisma.word.create({
       data: {
@@ -292,10 +293,17 @@ export async function addWordManual(params: {
  * headword, so a card never goes stale when the lists are regenerated, and
  * nothing needs backfilling. Only Chinese cards can carry it. `dictMeaning` is
  * derived the same way: the meaning is still CC-CEDICT's English, waiting for
- * the model's (services/capture.ts) — the client labels it.
+ * the model's (services/capture.ts) — the client labels it. `dictDefault`: the
+ * meaning is the shared default (services/lookup.ts); the client polls until the
+ * rest of a fresh card lands.
  */
-function withDerived<T extends { word: string; sourceLang: string; meaningZh: string | null }>(w: T) {
-  return { ...w, hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null, dictMeaning: hasDictMeaning(w) };
+function withDerived<T extends { word: string; sourceLang: string; targetLang: string; meaningZh: string | null }>(w: T) {
+  return {
+    ...w,
+    hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null,
+    dictMeaning: hasDictMeaning(w),
+    dictDefault: isDefaultMeaning(w),
+  };
 }
 
 export async function listWordsForUser(telegramId: string) {

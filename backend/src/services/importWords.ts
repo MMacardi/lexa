@@ -135,7 +135,7 @@ export async function importWordsForUser(params: {
     // Instant capture: a Chinese word with no meaning of its own (a Reader tap) is
     // written with the dictionary's pinyin and gloss, so it is reviewable now and
     // the queued enrichment upgrades it rather than filling a blank.
-    const dict = item.meaning ? null : await dictCardFields(item.word, params.sourceLang);
+    const dict = item.meaning ? null : await dictCardFields(item.word, params.sourceLang, params.targetLang);
     try {
       const record = await prisma.word.create({
         data: {

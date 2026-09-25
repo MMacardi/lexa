@@ -94,6 +94,11 @@ export function cedictHas(word: string): boolean {
   return idx().has(normalizeHanzi(word));
 }
 
+/** Every entry in the subset, for the add form's reverse lookup (services/lookup.ts). */
+export function cedictEntries(): Iterable<CedictEntry> {
+  return idx().values();
+}
+
 /** Attribution — a licence condition, so the app shows it rather than just this file. */
 export function cedictCredit() {
   if (!meta) build();

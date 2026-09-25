@@ -23,6 +23,7 @@ import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, hskTagFor, readinessForUser } from "../services/hsk.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
+import { lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
 import {
@@ -927,6 +928,16 @@ wordsRouter.get("/dict", async (req, res) => {
   const word = String(req.query.word ?? "").trim().slice(0, 40);
   const card = word ? await cedictCard(word, { count: false }) : null;
   res.json({ entry: card, ...(card ? { credit: cedictCredit() } : {}) });
+});
+
+// GET /api/dict/lookup?q=&lang= -> the add form's dictionary, both directions and
+// no model call: hanzi gives the word and the longer words it starts; Russian,
+// English or pinyin gives the Chinese words that mean it (services/lookup.ts).
+wordsRouter.get("/dict/lookup", async (req, res) => {
+  const q = String(req.query.q ?? "");
+  const lang = String(req.query.lang ?? "ru");
+  const result = await lookup(q, lang);
+  res.json({ ...result, ...(result.hits.length ? { credit: cedictCredit() } : {}) });
 });
 
 // POST /api/segment -> Chinese text as Reader tokens: ICU's word boundaries

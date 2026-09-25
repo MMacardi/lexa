@@ -23,6 +23,8 @@ import {
   setNativeLang,
   setRetention,
   setShowTranscription,
+  setExamplePinyin,
+  useExamplePinyin,
   setShowTextLevel,
   setMeaningMode,
   setMeaningCustom,
@@ -218,6 +220,7 @@ function ExampleSourceSection() {
 function TranscriptionSection() {
   const { t } = useI18n();
   const on = useShowTranscription();
+  const exPinyin = useExamplePinyin();
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("tr.title")}</h2>
@@ -235,6 +238,20 @@ function TranscriptionSection() {
         />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("tr.hint")}</p>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-ink">{t("exPinyin.label")}</span>
+        <Segmented
+          size="lg"
+          itemClassName="px-4"
+          value={exPinyin ? "on" : "off"}
+          onChange={(v) => setExamplePinyin(v === "on")}
+          options={[
+            { value: "on", label: t("common.on") },
+            { value: "off", label: t("common.off") },
+          ]}
+        />
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("exPinyin.hint")}</p>
     </section>
   );
 }

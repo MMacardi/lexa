@@ -771,6 +771,34 @@ export function useRubyAll(): boolean {
   return on;
 }
 
+// Pinyin over the characters of a card's example sentences (word page, review).
+// Off by default for the Reader's reason; one tap on the word page turns it on.
+const EXAMPLE_PINYIN_KEY = "lexa.examplePinyin";
+export function setExamplePinyin(on: boolean) {
+  try {
+    localStorage.setItem(EXAMPLE_PINYIN_KEY, on ? "1" : "0");
+  } catch {}
+  window.dispatchEvent(new Event(EVT));
+}
+export function useExamplePinyin(): boolean {
+  const [on, setState] = useState(false);
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setState(localStorage.getItem(EXAMPLE_PINYIN_KEY) === "1");
+      } catch {}
+    };
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Coach: make EVERY word in a chat/scene bubble tappable for an instant gloss (and
 // one-tap add to the deck), not just the words already in play. Off = only the
 // highlighted words respond, so no lookup request can fire.

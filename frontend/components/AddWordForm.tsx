@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type LookupHit } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush } from "lucide-react";
+import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush, Check } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -51,6 +51,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { PairChip } from "@/components/PairChip";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { HandwritingPad } from "@/components/HandwritingPad";
+import { HskBadge } from "@/components/HskBadge";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
 import { Collapse } from "@/components/ui/Collapse";
@@ -177,8 +178,14 @@ export function AddWordForm({
   // (studied, normal); true = target (their known language → translate first).
   const [reverseInput, setReverseInput] = useState(false);
   const inputLang = reverseInput && sourceLang !== "auto" ? targetLang : sourceLang;
+  // Learning Chinese from a language in another script needs no "I type in": the
+  // script says which side was typed. Hanzi is the word, and the card gets its
+  // meaning; anything else is a meaning (or pinyin) to find the Chinese word for,
+  // the way a dictionary is used. The lookup under the field shows both, live.
+  const studyingZh = sourceLang === "zh" || sourceLang === "zh-Hant";
+  const zhMode = mode === "auto" && studyingZh && scriptFamily(targetLang) !== "han";
   // The reverse selector only makes sense for a concrete two-language pair.
-  const showInputPicker = mode === "auto" && sourceLang !== "auto" && sourceLang !== targetLang;
+  const showInputPicker = mode === "auto" && !zhMode && sourceLang !== "auto" && sourceLang !== targetLang;
   // Typing the known side: meaning in, word out — the way a dictionary is used.
   const typingKnown = showInputPicker && reverseInput;
   // The pair set backwards: the studied side is the learner's own language, which
@@ -237,9 +244,10 @@ export function AddWordForm({
   const showHanPicker = sourceLang === "auto" && isAmbiguousHan(word);
 
   // The draw pad (Pleco's handwriting input) for a character you can see but
-  // can't type — the sign, the textbook margin. Only when you're typing Chinese;
-  // whether it's open is remembered, since people who draw keep drawing.
-  const canDraw = inputLang === "zh";
+  // can't type — the sign, the textbook margin. Whenever the word is Chinese
+  // (only the old "I type in: my language" hides it); whether it's open is
+  // remembered, since people who draw keep drawing.
+  const canDraw = studyingZh && !typingKnown;
   const [drawOpen, setDrawOpen] = useState(false);
   useEffect(() => {
     try {
@@ -467,9 +475,43 @@ export function AddWordForm({
   const looksNative =
     mode === "auto" && sourceLang !== targetLang && !!typedFamNow && typedFamNow === tgtFamNow && typedFamNow !== srcFamNow;
   const looksStudied = !!typedFamNow && typedFamNow === srcFamNow && distinctScripts;
-  const flipCandidate = looksNative || (mode === "auto" && reverseInput && showInputPicker && !looksStudied && !!typedNow);
-  const willTranslate = flipCandidate && !keepAsTyped;
+  // Learning Chinese: whatever isn't hanzi is a meaning to look up — Russian, English or pinyin.
+  const meaningTyped = zhMode && !!typedNow && typedFamNow !== "han";
+  const flipCandidate =
+    !zhMode && (looksNative || (mode === "auto" && reverseInput && showInputPicker && !looksStudied && !!typedNow));
+  const willTranslate = meaningTyped || (flipCandidate && !keepAsTyped);
   const flipLearn = sourceLang !== "auto" ? sourceLang : guessLearnLang(targetLang, recentPairs);
+  // What the typed meaning is in, for the translator: the known language when the
+  // script matches it, otherwise English (Latin under a Russian pair).
+  const meaningLang = typedFamNow === tgtFamNow ? targetLang : "en";
+
+  // The dictionary under the field (zhMode): hanzi → the word and the longer words
+  // it starts (a character drawn on the pad already offers 访问 for 访); a meaning
+  // or pinyin → the Chinese words for it. Local data, no model call — the tap on a
+  // row is the add. Debounced; the last answer stays up while the next one loads.
+  const [lookupQ, setLookupQ] = useState("");
+  useEffect(() => {
+    const next = zhMode ? typedNow : "";
+    const id = setTimeout(() => setLookupQ(next), next ? 200 : 0);
+    return () => clearTimeout(id);
+  }, [typedNow, zhMode]);
+  const lookupQuery = useQuery({
+    queryKey: ["lookup", lookupQ, targetLang],
+    queryFn: () => api.lookup(lookupQ, targetLang),
+    enabled: Boolean(lookupQ),
+    staleTime: Infinity,
+    placeholderData: (prev) => prev,
+  });
+  const looked = typedNow && lookupQ ? lookupQuery.data : undefined;
+  const lookupHits = looked?.hits ?? [];
+  // Settled on what's in the field and still empty: say what the button will do instead.
+  const lookupMissed =
+    meaningTyped && lookupQ === typedNow && !lookupQuery.isFetching && lookupQuery.isSuccess && lookupHits.length === 0;
+  const ownedZh = new Set((words ?? []).filter((w) => w.sourceLang === "zh" || w.sourceLang === "zh-Hant").map((w) => w.word));
+  // The row showed its meaning and the learner picked it, so the card keeps that
+  // meaning: no typed sense for the upgrade to reword it by (that stays for the
+  // AI path, where nobody has seen a meaning yet).
+  const addHit = (h: LookupHit) => addWithChecks({ chosen: h.word, manual: false, sourceLangOverride: sourceLang });
 
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
@@ -538,7 +580,7 @@ export function AddWordForm({
     // translate into the studied language and add that card. Under Auto the pair is
     // re-pointed so the studied language becomes the source.
     if (!skipReverse && willTranslate) {
-      void translateAndAdd(typed, targetLang, flipLearn, sourceLang === "auto");
+      void translateAndAdd(typed, zhMode ? meaningLang : targetLang, flipLearn, sourceLang === "auto");
       return;
     }
     setChecking(true);
@@ -721,36 +763,21 @@ export function AddWordForm({
           value={word}
           onChange={(e) => typeWord(e.target.value)}
           placeholder={
-            typingKnown
+            zhMode
+              ? t("add.zhPlaceholder")
+              : typingKnown
               ? t("add.wordPlaceholderReverse", { known: langLabel(targetLang), studied: langLabel(sourceLang) })
               : t("add.wordPlaceholder", { lang: sourceLang === "auto" ? t("add.autoDetect") : langLabel(inputLang) })
           }
           disabled={busy}
         />
-        {canDraw && (
-          <button
-            type="button"
-            onClick={toggleDraw}
-            aria-pressed={drawOpen}
-            title={t("draw.toggle")}
-            aria-label={t("draw.toggle")}
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors",
-              drawOpen
-                ? "border-sage bg-sage-tint text-sage-deep"
-                : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
-            )}
-          >
-            <Brush className="h-[18px] w-[18px]" />
-          </button>
-        )}
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
           {reversing
             ? t("add.reversing")
             : checking
             ? t("add.checking")
             : willTranslate
-              ? `${t("add.reverseGo")} →`
+              ? `${zhMode ? t("add.translateShort") : t("add.reverseGo")} →`
               : mutation.isPending
               ? mode === "auto"
                 ? t("add.searching")
@@ -758,6 +785,31 @@ export function AddWordForm({
               : t("add.submit")}
         </Button>
       </div>
+
+      {/* Drawing is a way in as common as typing for a character off a sign or a
+          page, so it is a labelled button of its own under the field — as an icon
+          squeezed between the field and "Add" nobody found it. */}
+      {(canDraw || (zhMode && !typedNow)) && (
+        <div className="-mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {canDraw && (
+            <button
+              type="button"
+              onClick={toggleDraw}
+              aria-pressed={drawOpen}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
+                drawOpen
+                  ? "border-sage bg-sage-tint text-sage-deep"
+                  : "border-sage/40 bg-surface text-sage-deep hover:border-sage hover:bg-sage-tint/60",
+              )}
+            >
+              <Brush className="h-3.5 w-3.5" />
+              {drawOpen ? t("draw.hide") : t("draw.toggle")}
+            </button>
+          )}
+          {zhMode && !typedNow && <span className="min-w-0 text-[12px] leading-snug text-ink-faint">{t("add.zhHint")}</span>}
+        </div>
+      )}
 
       {canDraw && drawOpen && (
         <HandwritingPad
@@ -767,6 +819,61 @@ export function AddWordForm({
           disabled={busy}
         />
       )}
+
+      {zhMode && lookupHits.length > 0 && (
+        <div className="anim-fade-up space-y-1.5">
+          {looked?.kind === "meaning" && (
+            <p className="px-1 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("lookup.pick")}</p>
+          )}
+          <ul className="divide-y divide-black/[0.05] overflow-hidden rounded-[14px] border border-black/[0.06] bg-surface">
+            {lookupHits.map((h) => {
+              const owned = ownedZh.has(h.word);
+              return (
+                <li key={h.word}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => addHit(h)}
+                    title={owned ? t("lookup.owned") : t("lookup.add", { word: h.word })}
+                    className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-sage-tint/40 disabled:opacity-60"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="font-zh text-[19px] leading-tight text-ink">{h.word}</span>
+                        <span className="truncate text-[13px] text-ink-faint">{h.pinyin}</span>
+                        <HskBadge hsk={h.hsk} className="self-center" />
+                      </span>
+                      <span className={cn("block truncate text-[13px] leading-snug", h.english ? "italic text-ink-faint" : "text-ink-soft")}>
+                        {h.meaning}
+                      </span>
+                    </span>
+                    {owned ? (
+                      <Check className="h-4 w-4 shrink-0 text-sage" aria-label={t("lookup.owned")} />
+                    ) : (
+                      <Plus className="h-4 w-4 shrink-0 text-sage-deep" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {/* BY-SA: the source and its licence wherever its data shows. */}
+          {looked?.credit && (
+            <p className="px-1 text-[11px] text-ink-faint">
+              <a href={looked.credit.url} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink-soft">
+                {looked.credit.source}
+              </a>
+              {" · "}
+              <a href={looked.credit.licenseUrl} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink-soft">
+                {looked.credit.license}
+              </a>
+              {" — "}
+              {t("word.meaningsSource")}
+            </p>
+          )}
+        </div>
+      )}
+      {lookupMissed && <p className="-mt-1 px-1 text-[12px] leading-snug text-ink-faint">{t("lookup.none")}</p>}
 
       {flipCandidate && (
         <div className="anim-fade-up -mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13px] leading-snug">

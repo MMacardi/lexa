@@ -1184,6 +1184,21 @@ const DICT: Record<string, Entry> = {
   "han.inlinePrompt": { en: "Which language?", ru: "Какой язык?", zh: "哪种语言？" },
   // --- draw pad (handwriting input) ---
   "draw.toggle": { en: "Draw a character", ru: "Нарисовать иероглиф", zh: "手写输入" },
+  "draw.hide": { en: "Hide the pad", ru: "Скрыть поле для рисования", zh: "收起手写板" },
+  "add.zhPlaceholder": { en: "Word or meaning", ru: "Слово или значение", zh: "汉字或释义" },
+  "add.zhHint": {
+    en: "Hanzi → a card with its meaning. A meaning or pinyin → the Chinese word for it.",
+    ru: "Иероглифы → карточка с переводом. Значение или пиньинь → найду слово на китайском.",
+    zh: "输入汉字 → 生成带释义的卡片；输入释义或拼音 → 找到对应的中文词。",
+  },
+  "lookup.pick": { en: "Tap a word to add it", ru: "Нажмите на слово, чтобы добавить", zh: "点按词语即可添加" },
+  "lookup.add": { en: "Add {word}", ru: "Добавить {word}", zh: "添加 {word}" },
+  "lookup.owned": { en: "Already in your words", ru: "Уже есть в ваших словах", zh: "已在你的词库中" },
+  "lookup.none": {
+    en: "Not in the HSK dictionary — “Translate” will ask the AI.",
+    ru: "В словаре HSK не нашлось — «Перевести» спросит ИИ.",
+    zh: "HSK 词典中没有 ——「翻译」会询问 AI。",
+  },
   "draw.pad": { en: "Handwriting pad", ru: "Поле для рисования иероглифа", zh: "手写板" },
   "draw.hint": {
     en: "Draw a character — part of it is enough",
@@ -1832,6 +1847,8 @@ const DICT: Record<string, Entry> = {
   },
   "add.reverseInto": { en: "Translate into", ru: "Перевести на", zh: "翻译成" },
   "add.reverseGo": { en: "Translate & add", ru: "Перевести и добавить", zh: "翻译并添加" },
+  // Beside the lookup rows, where the field needs the width: the AI fallback.
+  "add.translateShort": { en: "Translate", ru: "Перевести", zh: "翻译" },
   "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
   "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
   // Live line under the add field when the typed word is in the known language.
@@ -2161,6 +2178,13 @@ const DICT: Record<string, Entry> = {
   "word.relatedPlaceholder": { en: "type a word…", ru: "введите слово…", zh: "输入一个词…" },
   "word.fromNews": { en: "From the news", ru: "Из новостей", zh: "来自新闻" },
   "word.inContext": { en: "In context", ru: "В контексте", zh: "在语境中" },
+  "exPinyin.toggle": { en: "Pinyin", ru: "Пиньинь", zh: "拼音" },
+  "exPinyin.label": { en: "Pinyin over example sentences", ru: "Пиньинь над примерами", zh: "例句上方显示拼音" },
+  "exPinyin.hint": {
+    en: "On the word page and in review. In review the card's own word stays bare — its sound is the answer.",
+    ru: "На странице слова и в повторении. В повторении над самим словом пиньиня нет — его звучание и есть ответ.",
+    zh: "在词语页面和复习中显示。复习时卡片本身的词不标拼音——它的读音就是答案。",
+  },
   "word.explain": { en: "Explain with Onomika", ru: "Объяснить с Onomika", zh: "用 Onomika 讲解" },
   "word.explainSeed": { en: "Explain “{word}”", ru: "Объясни «{word}»", zh: "讲解“{word}”" },
   "word.explaining": { en: "Thinking…", ru: "Думаю…", zh: "思考中…" },

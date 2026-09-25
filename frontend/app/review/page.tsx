@@ -25,7 +25,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { FitText } from "@/components/FitText";
 import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
-import { HighlightWord } from "@/components/HighlightWord";
+import { ExampleText } from "@/components/ExampleText";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { CardLayoutPreview } from "@/components/CardLayoutPreview";
@@ -639,7 +639,7 @@ export default function FlashcardsPage() {
             {word.examples.map((ex) => (
               <div key={ex.id}>
                 <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
-                  <HighlightWord text={ex.sentenceEn} word={word.word} />
+                  <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} hideWordReading />
                 </p>
                 {withTr && ex.sentenceZh?.trim() && (
                   <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>

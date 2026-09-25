@@ -19,7 +19,8 @@ import { CollectionChips } from "@/components/CollectionChips";
 import { SpeakButton } from "@/components/SpeakButton";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { HighlightWord } from "@/components/HighlightWord";
+import { ExampleText } from "@/components/ExampleText";
+import { setExamplePinyin, useExamplePinyin } from "@/lib/learnPrefs";
 import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
@@ -82,6 +83,7 @@ export default function WordDetailPage() {
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [filling, setFilling] = useState(false);
+  const examplePinyin = useExamplePinyin();
   const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
@@ -152,8 +154,13 @@ export default function WordDetailPage() {
     );
 
   const filled = word.reviewCount >= 5 ? 3 : word.reviewCount >= 3 ? 2 : word.reviewCount >= 1 ? 1 : 0;
+  // A card on the shared default whose upgrade never came has a meaning but no
+  // example or details: that is a card to fill in too.
+  const neverUpgraded = Boolean(word.dictDefault) && !word.partOfSpeech && word.examples.length === 0;
   const needsFill =
-    isAiSupported(word.sourceLang) && !upgradePending(word) && (!word.meaningZh?.trim() || Boolean(word.dictMeaning));
+    isAiSupported(word.sourceLang) &&
+    !upgradePending(word) &&
+    (!word.meaningZh?.trim() || Boolean(word.dictMeaning) || neverUpgraded);
 
   return (
     <div className="anim-fade-up space-y-7">
@@ -299,9 +306,25 @@ export default function WordDetailPage() {
 
       <div className="space-y-3">
         {word.examples.length > 0 && (
-          <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">
-            {t("word.inContext")}
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">{t("word.inContext")}</h2>
+            {/* Pinyin over the sentences: one tap here, remembered (also in Settings). */}
+            {(word.sourceLang === "zh" || word.sourceLang === "zh-Hant") && (
+              <button
+                type="button"
+                onClick={() => setExamplePinyin(!examplePinyin)}
+                aria-pressed={examplePinyin}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors",
+                  examplePinyin
+                    ? "border-sage bg-sage-tint text-sage-deep"
+                    : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60 hover:text-sage-deep",
+                )}
+              >
+                {t("exPinyin.toggle")}
+              </button>
+            )}
+          </div>
         )}
         {word.examples.map((ex) => (
           <div
@@ -309,7 +332,7 @@ export default function WordDetailPage() {
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
             <p className="whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
-              <HighlightWord text={ex.sentenceEn} word={word.word} />
+              <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} />
             </p>
             {ex.sentenceZh && (
               <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>

@@ -345,6 +345,26 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Russian for every HSK word, a two-way add form, pinyin over examples (2026-09-25, asked for directly)
+- **Default meanings, written once.** `data/hsk-ru.jsonl`: a Russian meaning for all 11,482
+  CC-CEDICT subset headwords (`scripts/build-hsk-ru.ts`, qwen-plus picking and translating the
+  dictionary's senses, 40 per call; ~¥1.1 total). An HSK card for a Russian speaker is now in Russian
+  the moment it is added (`dictCardFields`); the per-card call is left with the example and details.
+  The default gives way only to a sense the learner pointed at (the sentence it was met in, or the
+  meaning typed on the AI path). Derived `dictDefault` keeps the pages polling until the example lands.
+  A first slice of the shared dictionary (item 27, F6a) — no corrections or provenance yet.
+- **The add form is a dictionary when you learn Chinese.** No "I type in": hanzi → the word (and
+  longer words it starts, so a character drawn on the pad already offers 访问 for 访); Russian,
+  English or pinyin → Chinese words with pinyin, level and Russian; a tap adds exactly what the row
+  showed. `GET /api/dict/lookup` (`services/lookup.ts`), local data, 20–60 ms. The AI translate stays
+  as the fallback. The draw pad is a labelled button under the field — it was hidden whenever
+  "I type in: Russian" was on.
+- **Pinyin over example sentences**: a toggle on the word page ("В контексте") and in Settings; in
+  review the card's own word stays bare.
+- `scripts/check-lookup.ts` (coverage, both directions, speed); `check-capture.ts` updated for
+  Russian-first cards (offline and `--live` pass). Local run: «посещать» → 参观/访问/拜访…, tap →
+  card in Russian, example in 5 s; 认 on the pad → 认真/认识…; word page and review with pinyin.
+
 ### Draw a character (2026-09-25, asked for directly — Pleco's handwriting input)
 - Brush button on the add form when you type Chinese → a pad (米字格): the characters that look
   like your drawing line up above it, and part of one is enough (女 on the left → 好 妈 她 姐).

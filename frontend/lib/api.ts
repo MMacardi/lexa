@@ -62,6 +62,18 @@ export interface Word {
   // from the dictionary and the model's meaning hasn't replaced it yet. Derived
   // on the server; the UI labels it (BY-SA wants the source named where shown).
   dictMeaning?: boolean;
+  // The meaning is the shared default for this HSK word (written once for every
+  // learner, not per card); the example and details may still be on their way.
+  dictDefault?: boolean;
+}
+
+// One row of the add form's dictionary: a Chinese word for what was typed.
+export interface LookupHit {
+  word: string;
+  pinyin: string;
+  meaning: string;
+  english: boolean; // CC-CEDICT's English: no default in the learner's language
+  hsk: HskTag | null;
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -736,6 +748,12 @@ export const api = {
   // so the Reader shows it the moment a word is tapped. null outside CC-CEDICT.
   dictLookup: (word: string) =>
     http<{ entry: { phonetic: string; gloss: string } | null; credit?: DictCredit }>(`/api/dict?word=${encodeURIComponent(word)}`),
+  // The add form's dictionary, both ways and with no model call: hanzi → the word
+  // and the longer words it starts; Russian / English / pinyin → Chinese words.
+  lookup: (q: string, lang: string) =>
+    http<{ kind: "zh" | "meaning" | "none"; hits: LookupHit[]; credit?: DictCredit }>(
+      `/api/dict/lookup?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(lang)}`,
+    ),
   wordFamily: (id: string) =>
     http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
   explainWord: (id: string) =>

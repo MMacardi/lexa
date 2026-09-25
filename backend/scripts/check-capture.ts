@@ -38,11 +38,16 @@ async function main() {
     ids.push(card.id);
     check(ms < 1000, `${w}: card back in ${ms} ms`);
     check(Boolean(card.phonetic && card.meaningZh), `${w}: ${card.phonetic} — ${card.meaningZh}`);
-    check(card.dictMeaning === true, `${w}: labelled as the dictionary's English`);
+    // A Russian speaker's HSK card starts in Russian: the shared default (data/hsk-ru.jsonl).
+    check(card.dictDefault === true && !card.dictMeaning, `${w}: starts on the shared Russian default`);
   }
   // CC-CEDICT lists 打 [da2] "(loanword) dozen" first; the card is the verb.
   const da = await getWord(ids[1]);
-  check(da?.phonetic === "dǎ" && /to hit/.test(da.meaningZh ?? ""), `打 is dǎ "to hit", not dá "dozen"`);
+  check(da?.phonetic === "dǎ" && /бить/.test(da.meaningZh ?? ""), `打 is dǎ "бить", not dá "dozen" (${da?.meaningZh})`);
+
+  // A language with no shared defaults still gets the dictionary's English, labelled.
+  const de = await addWordForUser({ telegramId: TG, word: "认真", sourceLang: "zh", targetLang: "de" });
+  check(de.dictMeaning === true && /[a-z]/i.test(de.meaningZh ?? ""), `认真 for a German speaker: the English, labelled (${de.meaningZh})`);
 
   // 2. The Reader's add: a tapped word with its sentence, made from the
   // dictionary rather than as an empty shell waiting on the worker.
@@ -69,7 +74,7 @@ async function main() {
       () => true,
     );
     const after = await getWord(ids[2]);
-    check(failed && Boolean(after?.meaningZh) && after?.dictMeaning === true, "a failed upgrade leaves the dictionary card standing");
+    check(failed && Boolean(after?.meaningZh) && after?.dictDefault === true, "a failed upgrade leaves the dictionary card standing");
 
     // 4. Outside the dictionary the old path runs (and needs the model): no card is invented.
     const outside = await addWordForUser({ telegramId: TG, word: "扫码支付宝", sourceLang: "zh", targetLang: "ru" }).then(
@@ -78,17 +83,21 @@ async function main() {
     );
     check(outside === "went to the model", `a word CC-CEDICT lacks keeps today's path (${outside})`);
   } else {
-    // 5. Live: the Russian replaces the English behind the card.
+    // 5. Live: the upgrade lands behind the card (details + an example) and,
+    // with no sentence or typed sense to point at, leaves the default meaning alone.
     const deadline = Date.now() + 45_000;
     let pending = ids;
     while (pending.length && Date.now() < deadline) {
       await new Promise((res) => setTimeout(res, 2000));
       const rows = await Promise.all(pending.map((id) => getWord(id)));
-      pending = rows.filter((w) => w?.dictMeaning).map((w) => w!.id);
+      pending = rows.filter((w) => !w?.partOfSpeech).map((w) => w!.id);
     }
     for (const id of ids) {
       const w = await getWord(id);
-      check(!w?.dictMeaning && /[а-яё]/i.test(w?.meaningZh ?? ""), `${w?.word}: upgraded to "${w?.meaningZh}", example: ${w?.examples[0]?.sentenceEn ?? "none"}`);
+      check(
+        Boolean(w?.partOfSpeech) && w?.dictDefault === true && Boolean(w?.examples.length),
+        `${w?.word}: "${w?.meaningZh}" kept, example: ${w?.examples[0]?.sentenceEn ?? "none"}`,
+      );
     }
   }
 }
