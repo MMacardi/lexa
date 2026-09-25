@@ -7,7 +7,7 @@
 //   cd backend && npx tsx scripts/check-lookup.ts
 process.env.BAILIAN_API_KEY = "";
 
-const { lookup, defaultMeaning, isDefaultMeaning } = await import("../src/services/lookup.js");
+const { lookup, defaultMeaning, defaultIsSettled, isDefaultMeaning } = await import("../src/services/lookup.js");
 const { cedictEntries } = await import("../src/services/cedict.js");
 
 let failures = 0;
@@ -31,6 +31,15 @@ check(
     !isDefaultMeaning({ word: "访问", sourceLang: "zh", targetLang: "ru", meaningZh: "навещать учителя" }),
   "a learner's own meaning is never taken for the default",
 );
+
+// A Reader tap skips the model only when no sentence can change the answer.
+check(defaultIsSettled("认识", "ru"), `认识 (${defaultMeaning("认识", "ru")}) is settled: no model call on tap`);
+check(!defaultIsSettled("打", "ru"), `打 (${defaultMeaning("打", "ru")}) is not: two senses, the sentence picks`);
+check(!defaultIsSettled("地", "ru"), "地 is not: two readings (dì / de)");
+check(!defaultIsSettled("认识", "de"), "no default, nothing settled");
+let settled = 0;
+for (const e of cedictEntries()) if (defaultIsSettled(e.word, "ru")) settled++;
+console.log(`     ${settled}/${total} taps need no model call`);
 
 // 2. Both directions. `top` = the hit must be first; otherwise within the six shown.
 async function expect(q: string, word: string, top = false) {

@@ -23,7 +23,7 @@ import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, hskTagFor, readinessForUser } from "../services/hsk.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
-import { lookup } from "../services/lookup.js";
+import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
 import {
@@ -920,14 +920,18 @@ wordsRouter.post("/gloss", async (req, res) => {
   }
 });
 
-// GET /api/dict?word= -> the dictionary's pinyin + English gloss for a Chinese word,
-// with no model call: what a Reader tap shows at once while the contextual gloss
-// is on its way. `entry` is null outside the CC-CEDICT subset; `credit` rides
-// along whenever the data is shown (BY-SA).
+// GET /api/dict?word=&lang= -> what a Reader tap shows at once, with no model
+// call: the dictionary's pinyin + English gloss, and the shared default meaning in
+// the learner's language (services/lookup.ts). `settled`: the default is one sense
+// of one reading, so the sentence can't change it and no contextual gloss is asked
+// for. `entry` is null outside the CC-CEDICT subset; `credit` rides along
+// whenever the data is shown (BY-SA).
 wordsRouter.get("/dict", async (req, res) => {
   const word = String(req.query.word ?? "").trim().slice(0, 40);
+  const lang = String(req.query.lang ?? "");
   const card = word ? await cedictCard(word, { count: false }) : null;
-  res.json({ entry: card, ...(card ? { credit: cedictCredit() } : {}) });
+  const entry = card ? { ...card, meaning: defaultMeaning(word, lang), settled: defaultIsSettled(word, lang) } : null;
+  res.json({ entry, ...(entry ? { credit: cedictCredit() } : {}) });
 });
 
 // GET /api/dict/lookup?q=&lang= -> the add form's dictionary, both directions and

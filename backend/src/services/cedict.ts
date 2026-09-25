@@ -77,9 +77,13 @@ function idx() {
   return index!;
 }
 
-/** The dictionary entry for a Chinese headword, or null when it is not in the subset. */
-export function cedictLookup(word: string): CedictEntry | null {
+/**
+ * The dictionary entry for a Chinese headword, or null when it is not in the
+ * subset. `count: false` for lookups that aren't an add (see `hits`).
+ */
+export function cedictLookup(word: string, opts: { count?: boolean } = {}): CedictEntry | null {
   const hit = idx().get(normalizeHanzi(word)) ?? null;
+  if (opts.count === false) return hit;
   if (hit) hits++;
   else misses++;
   return hit;

@@ -1,12 +1,15 @@
 // Resolve the meaning of an arbitrary word on tap — the lookup chain the Reader uses,
 // extracted so the Coach bubbles can reuse it. Cache first (a repeat tap costs no model
-// call, even in a later session), then one gloss request; the pinyin/romanization for
+// call, even in a later session); then, for Chinese, the shared default meaning when
+// it is settled (one sense, one reading — no sentence can change it, so no model is
+// asked: about half the HSK list); then one gloss request. The pinyin/romanization for
 // Chinese and Korean is computed on-device instead of asked from the model.
 
 import { api } from "./api";
 import { getGloss, setGloss } from "./glossCache";
 import { getShowTranscription, hasTranscription } from "./learnPrefs";
 import { isLocalTr, localTranscribe } from "./transcribe";
+import { dictEntry, isChineseLang } from "./dictEntry";
 
 export interface ResolvedMeaning {
   meaning: string;
@@ -35,6 +38,11 @@ export async function resolveMeaning(opts: {
 
   const task = (async (): Promise<ResolvedMeaning> => {
     const showTr = getShowTranscription() && hasTranscription(opts.sourceLang);
+    if (isChineseLang(opts.sourceLang)) {
+      const d = await dictEntry(word, opts.targetLang);
+      // The dictionary's reading, like the Reader: a bare 了 is le, not liǎo.
+      if (d?.settled && d.meaning) return { meaning: d.meaning, transcription: showTr ? d.phonetic : "" };
+    }
     const local = isLocalTr(opts.sourceLang); // zh / zh-Hant / ko → no model call
     const [localTr, res] = await Promise.all([
       showTr && local ? localTranscribe(word, opts.sourceLang) : Promise.resolve(""),

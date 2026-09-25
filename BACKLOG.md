@@ -361,6 +361,10 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   "I type in: Russian" was on.
 - **Pinyin over example sentences**: a toggle on the word page ("В контексте") and in Settings; in
   review the card's own word stays bare.
+- **Reader tap in Russian at once.** `/api/dict` also returns the default and `settled` (one sense,
+  one reading — 6,410 of 11,482 words): then `resolveMeaning` answers from the dictionary and asks
+  no model. Otherwise the default shows at once ("уточняю значение…") and the grounded contextual
+  gloss replaces it (打 in 打篮球 → «играть», 0.8 s). `lib/dictEntry.ts` shares the one request.
 - `scripts/check-lookup.ts` (coverage, both directions, speed); `check-capture.ts` updated for
   Russian-first cards (offline and `--live` pass). Local run: «посещать» → 参观/访问/拜访…, tap →
   card in Russian, example in 5 s; 认 on the pad → 认真/认识…; word page and review with pinyin.

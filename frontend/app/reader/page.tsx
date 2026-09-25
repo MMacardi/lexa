@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type HskVersion, type ReaderTextFull } from "@/lib/api";
+import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { SavedTexts } from "@/components/SavedTexts";
@@ -27,6 +27,7 @@ import { segment, wordKey, type Token } from "@/lib/segment";
 import { useIsMobile } from "@/lib/mobileNav";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
+import { dictEntry, isChineseLang, peekDictEntry } from "@/lib/dictEntry";
 import { Button } from "@/components/ui/button";
 import { PairChip } from "@/components/PairChip";
 import { FOCUS } from "@/lib/focus";
@@ -168,8 +169,7 @@ export default function ReaderPage() {
   const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   // Instant capture: CC-CEDICT's pinyin + English, shown the moment a Chinese word
   // is tapped while the contextual gloss (a model call) is still on its way.
-  const [glossCedict, setGlossCedict] = useState<{ phonetic: string; gloss: string } | null>(null);
-  const cedictCache = useRef<Map<string, { phonetic: string; gloss: string } | null>>(new Map());
+  const [glossCedict, setGlossCedict] = useState<DictEntry | null>(null);
   const glossKeyRef = useRef<string>("");
   const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
   const glossPopRef = useRef<HTMLDivElement | null>(null); // popup box, to ignore taps inside it
@@ -670,19 +670,16 @@ export default function ReaderPage() {
     setGloss({ key, word: wordText, ...popAt(el.getBoundingClientRect()) });
     glossKeyRef.current = key;
     glossElRef.current = el;
-    // The dictionary answers at once, with no model call; the gloss in the
-    // learner's language follows below it.
-    setGlossCedict(cedictCache.current.get(wordText) ?? null);
-    if ((sourceLang === "zh" || sourceLang === "zh-Hant") && !cedictCache.current.has(wordText)) {
-      api
-        .dictLookup(wordText)
-        .then((r) => {
-          cedictCache.current.set(wordText, r.entry);
-          if (glossKeyRef.current === key) setGlossCedict(r.entry);
-        })
-        .catch(() => {
-          /* the contextual gloss still comes */
-        });
+    // The dictionary answers at once, with no model call: the reading, and the
+    // shared default meaning in the learner's language. When the default is
+    // settled (one sense, one reading) resolveMeaning stops there; otherwise the
+    // model picks the sense this sentence uses and replaces it.
+    const zh = isChineseLang(sourceLang);
+    setGlossCedict(zh ? (peekDictEntry(wordText, targetLang) ?? null) : null);
+    if (zh) {
+      void dictEntry(wordText, targetLang).then((e) => {
+        if (glossKeyRef.current === key) setGlossCedict(e);
+      });
     }
     // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
     // the cross-session cache, inflight dedupe, local zh/ko transcription and the
@@ -709,7 +706,8 @@ export default function ReaderPage() {
       })
       .catch(() => {
         if (glossKeyRef.current === key) {
-          setGlossText(t("reader.translateFailed"));
+          // No contextual sense, but the default is still a meaning.
+          setGlossText(peekDictEntry(wordText, targetLang)?.meaning ?? t("reader.translateFailed"));
           setGlossLoading(false);
         }
       });
@@ -1035,15 +1033,18 @@ export default function ReaderPage() {
             {glossCedict?.phonetic || glossTr}
           </div>
         ) : null}
-        {glossCedict && (targetLang === "en" || (!glossLoading && (!glossText || glossText === t("reader.translateFailed")))) && (
+        {glossCedict && !glossCedict.meaning && (targetLang === "en" || (!glossLoading && (!glossText || glossText === t("reader.translateFailed")))) && (
           <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
             {glossCedict.gloss}
             <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
           </div>
         )}
         <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
-          {glossLoading ? t("reader.translating") : glossText}
+          {glossLoading ? (glossCedict?.meaning ?? t("reader.translating")) : glossText}
         </div>
+        {glossLoading && glossCedict?.meaning && (
+          <div className={cn("mt-0.5 text-ink-faint", docked ? "text-[12px]" : "text-[11px]")}>{t("reader.contextPending")}</div>
+        )}
       </>
     );
   const knownBody = (docked: boolean) =>

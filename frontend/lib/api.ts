@@ -67,6 +67,16 @@ export interface Word {
   dictDefault?: boolean;
 }
 
+// A tapped Chinese word as the dictionary has it: the reading, CC-CEDICT's English,
+// and the shared default meaning in the learner's language. `settled`: one sense of
+// one reading, so no sentence can change it and no model is asked.
+export interface DictEntry {
+  phonetic: string;
+  gloss: string;
+  meaning: string | null;
+  settled: boolean;
+}
+
 // One row of the add form's dictionary: a Chinese word for what was typed.
 export interface LookupHit {
   word: string;
@@ -744,10 +754,12 @@ export const api = {
   // "Fill this in": whatever the card is missing (meaning, details, an example),
   // for a card whose background enrichment failed or was stopped.
   enrichWord: (id: string) => http<Word>(`/api/words/${id}/enrich`, { method: "POST" }),
-  // The dictionary's pinyin + English gloss for a Chinese word — no model call,
-  // so the Reader shows it the moment a word is tapped. null outside CC-CEDICT.
-  dictLookup: (word: string) =>
-    http<{ entry: { phonetic: string; gloss: string } | null; credit?: DictCredit }>(`/api/dict?word=${encodeURIComponent(word)}`),
+  // What the dictionary knows about a Chinese word — no model call, so the Reader
+  // shows it the moment a word is tapped (lib/dictEntry.ts). null outside CC-CEDICT.
+  dictLookup: (word: string, lang = "") =>
+    http<{ entry: DictEntry | null; credit?: DictCredit }>(
+      `/api/dict?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(lang)}`,
+    ),
   // The add form's dictionary, both ways and with no model call: hanzi → the word
   // and the longer words it starts; Russian / English / pinyin → Chinese words.
   lookup: (q: string, lang: string) =>

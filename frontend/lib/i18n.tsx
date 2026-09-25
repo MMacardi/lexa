@@ -322,6 +322,8 @@ const DICT: Record<string, Entry> = {
   "reader.deselectAll": { en: "Deselect all", ru: "Снять выделение", zh: "取消全选" },
   "reader.translate": { en: "Translate all", ru: "Перевести всё", zh: "全文翻译" },
   "reader.translating": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
+  // Under the default meaning while the model picks the sense this sentence uses.
+  "reader.contextPending": { en: "checking the sense in this sentence…", ru: "уточняю значение в этом предложении…", zh: "正在根据句子确认词义…" },
   "reader.hideTranslation": { en: "Hide translation", ru: "Скрыть перевод", zh: "隐藏翻译" },
   "reader.showTranslation": { en: "Show translation", ru: "Показать перевод", zh: "显示翻译" },
   "reader.translationTitle": { en: "Translation", ru: "Перевод", zh: "翻译" },

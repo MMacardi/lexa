@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { cedictCard, cedictEntries, cedictHas, isChinese } from "./cedict.js";
+import { cedictCard, cedictEntries, cedictHas, cedictLookup, isChinese } from "./cedict.js";
 import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
 
 /**
@@ -62,6 +62,20 @@ export function defaultMeaning(word: string, lang: string | null | undefined): s
 export function isDefaultMeaning(w: { word: string; sourceLang: string; targetLang: string; meaningZh: string | null }): boolean {
   const m = w.meaningZh?.trim();
   return Boolean(m) && isChinese(w.sourceLang) && defaultMeaning(w.word, w.targetLang) === m;
+}
+
+/**
+ * Does the default settle what this word means, whatever the sentence? One sense
+ * and one reading (not 打's "бить; драться", not 地 dì / de): then a Reader tap
+ * has its answer and no model call is spent picking the sense in context — about
+ * half the HSK list.
+ */
+export function defaultIsSettled(word: string, lang: string | null | undefined): boolean {
+  const m = defaultMeaning(word, lang);
+  if (!m || m.includes(";")) return false;
+  const entry = cedictLookup(word, { count: false });
+  const readings = entry?.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase()) ?? [];
+  return readings.length <= 1;
 }
 
 // --- Lookup: type hanzi, pinyin or a meaning, get Chinese words ---
