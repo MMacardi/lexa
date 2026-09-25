@@ -24,7 +24,7 @@ import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
 import { FOCUS } from "@/lib/focus";
-import { DictMeaningLabel, pollWhileUpgrading, upgradePending } from "@/components/DictMeaningLabel";
+import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
 import { Link as LinkIcon, BookOpen, Lightbulb, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -210,7 +210,7 @@ export default function WordDetailPage() {
           </span>
           <HskBadge hsk={word.hsk} />
         </div>
-        {word.meaningZh && (
+        {shownMeaning(word) && (
           <p className={cn("text-[22px] font-medium text-sage-deep", targetFont(word.dictMeaning ? "en" : word.targetLang))}>
             {word.meaningZh}
           </p>

@@ -6,10 +6,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import {
   TriangleAlert, Sprout, Folders, BookOpen, Target, Languages, WifiOff,
   PenLine, Library, FileText, Save, Home, Layers, Sparkles, Bell, PartyPopper,
-  Trophy, UserPlus, Trash2, type LucideIcon,
+  Trophy, UserPlus, Trash2, Loader2, Check, Square, X, ChevronDown, type LucideIcon,
 } from "lucide-react";
 
 // Map the emoji that call sites pass to a clean line icon, so toasts match the
@@ -45,6 +46,7 @@ type ImportTracker = {
   status: ImportJob["status"];
   errors: string[];
   errorMessage: string | null;
+  removed?: number; // cards Stop took back (undo the add)
 };
 
 const ToastCtx = createContext<{ show: (t: ShowInput) => void; trackImport: (t: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => void }>({
@@ -68,19 +70,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // list in the toast is clickable (opens the freshly-made word page).
   const [wordIds, setWordIds] = useState<Record<string, string>>({});
   const mappedRef = useRef<Set<string>>(new Set()); // jobIds whose words we've resolved
-  const [trackerMin, setTrackerMin] = useState(false); // collapsed to a small pill
+  const [trackerOpen, setTrackerOpen] = useState(false); // the word list under the bar
   const closeTracker = useCallback(() => setJobs([]), []);
-  // Stop every running job (saves tokens); finished cards keep their enrichment.
+  // Stop = undo the add: every running job stops and takes back its cards, bar
+  // any the learner has already reviewed (the server keeps those).
   const stopTracker = useCallback(async () => {
     const active = jobs.filter((j) => !isTerminal(j.status));
     const results = await Promise.all(active.map((j) => api.cancelImportJob(j.jobId).catch(() => null)));
     setJobs((cur) =>
       cur.map((x) => {
         const r = results.find((n) => n?.id === x.jobId);
-        return r ? { ...x, status: r.status, processed: r.processed } : x;
+        return r ? { ...x, status: r.status, processed: r.processed, removed: r.removed ?? 0 } : x;
       }),
     );
-  }, [jobs]);
+    for (const key of ["words", "stats", "hskDaily", "hskReadiness", "hskLists"]) qc.invalidateQueries({ queryKey: [key] });
+  }, [jobs, qc]);
 
   const remove = useCallback((id: number) => {
     // play the exit animation, then unmount
@@ -100,7 +104,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const isTerminal = (s: ImportJob["status"]) => s === "completed" || s === "failed" || s === "cancelled";
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
-    setTrackerMin(false);
+    setTrackerOpen(false);
     setJobs((cur) => {
       // Keep only still-running jobs, then append the new one (a fresh batch after
       // everything finished starts clean; a job added mid-flight joins the total).
@@ -196,6 +200,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       total: jobs.reduce((s, j) => s + j.total, 0),
       processed: jobs.reduce((s, j) => s + j.processed, 0),
       words: jobs.flatMap((j) => j.words),
+      removed: jobs.reduce((s, j) => s + (j.removed ?? 0), 0),
       errors: jobs.flatMap((j) => j.errors),
       errorMessage: jobs.find((j) => j.errorMessage)?.errorMessage ?? null,
       status,
@@ -216,96 +221,89 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <ToastCard key={t.id} toast={t} onClose={() => remove(t.id)} />
         ))}
       </div>
-      {/* AI-enrichment tracker — top on mobile, bottom-LEFT on desktop, so it never
-          overlaps the bottom-right tutor. Collapsible to a pill and dismissible. */}
-      {tracker && trackerMin && (
-        <div className="fixed left-4 top-4 z-[75] sm:bottom-4 sm:left-4 sm:top-auto">
-          <button
-            type="button"
-            onClick={() => setTrackerMin(false)}
-            className="flex items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_10px_28px_rgba(46,42,38,0.2)]"
-          >
-            <span className="text-[15px]">{tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : tracker.status === "cancelled" ? "■" : "…"}</span>
-            <span className="text-[13px] font-semibold text-ink">
-              {tracker.processed} / {tracker.total}
-            </span>
-          </button>
-        </div>
-      )}
-      {tracker && !trackerMin && (
-        <div className="pointer-events-none fixed inset-x-4 top-4 z-[75] max-w-[calc(100vw-2rem)] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[360px]">
-          <div className="group pointer-events-auto overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.22)]">
-            <div className="flex items-center justify-between gap-2 px-3 pt-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">Onomika</span>
-              <div className="flex items-center gap-0.5">
+      {/* Card-filling tracker: one slim bar, top on a phone and bottom-left on a
+          desktop (clear of the tutor). It used to be a card that took a third of a
+          phone screen to say "1 / 20". The word list opens from the bar. */}
+      {tracker && (() => {
+        const running = !isTerminal(tracker.status);
+        const title =
+          tracker.status === "completed"
+            ? t("import.trackDone")
+            : tracker.status === "failed"
+              ? t("import.trackFailed")
+              : tracker.status === "cancelled"
+                ? t("import.stoppedTitle")
+                : t("import.trackRunning");
+        const sub =
+          tracker.status === "cancelled"
+            ? [t("import.removedN", { n: tracker.removed }), tracker.removed < tracker.total ? t("import.keptReviewed", { n: tracker.total - tracker.removed }) : ""]
+                .filter(Boolean)
+                .join(" · ")
+            : running && tracker.processed === 0
+              ? t("import.trackPreparing")
+              : [t("import.trackCards", { done: tracker.processed, total: tracker.total }), running && currentWord ? currentWord : ""]
+                  .filter(Boolean)
+                  .join(" · ");
+        return (
+          <div className="pointer-events-none fixed inset-x-3 top-3 z-[75] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[340px]">
+            <div className="pointer-events-auto overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface/95 shadow-[0_10px_28px_rgba(46,42,38,0.18)] backdrop-blur">
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-deep">
+                  {running ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : tracker.status === "completed" ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : tracker.status === "failed" ? (
+                    <TriangleAlert className="h-3.5 w-3.5 text-warn-text" />
+                  ) : (
+                    <Square className="h-3 w-3" />
+                  )}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setTrackerMin(true)}
-                  aria-label="Minimize"
-                  className="rounded-md px-1.5 py-0.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
+                  onClick={() => setTrackerOpen((v) => !v)}
+                  aria-expanded={trackerOpen}
+                  className="flex min-w-0 flex-1 items-center gap-1 text-left"
                 >
-                  –
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-ink">{title}</span>
+                    <span className="block truncate text-[12px] text-ink-soft">{sub}</span>
+                  </span>
+                  {tracker.status !== "cancelled" && (
+                    <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform", trackerOpen && "rotate-180")} />
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={closeTracker}
-                  aria-label="Close"
-                  className="rounded-md px-1.5 py-0.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            <div className="h-1 w-full bg-sage-tint">
-              <div
-                className="h-full bg-sage transition-all duration-300"
-                style={{ width: `${tracker.total ? Math.min(100, (tracker.processed / tracker.total) * 100) : 0}%` }}
-              />
-            </div>
-            <div className="flex items-start gap-3.5 p-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sage-tint text-[22px] text-sage-deep">
-                {tracker.status === "completed" ? "✓" : tracker.status === "failed" ? "!" : tracker.status === "cancelled" ? "■" : "…"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
-                  {tracker.status === "completed"
-                    ? "AI enrichment complete"
-                    : tracker.status === "failed"
-                      ? "AI enrichment failed"
-                      : tracker.status === "cancelled"
-                        ? t("import.stoppedTitle")
-                      : "AI enrichment in progress"}
-                </div>
-                <div className="truncate font-serif text-[18px] font-semibold leading-tight text-ink">
-                  {tracker.processed} / {tracker.total} cards
-                </div>
-                <div className="text-[13px] text-ink-soft">
-                  {tracker.status === "cancelled"
-                    ? t("import.backgroundStopped", { done: tracker.processed, total: tracker.total })
-                    : currentWord ? `Current: ${currentWord}` : "Preparing cards…"}
-                </div>
-                {!isTerminal(tracker.status) && (
+                {running && (
                   <button
                     type="button"
                     onClick={() => void stopTracker()}
                     title={t("import.stopHint")}
-                    className="mt-2 rounded-full border border-black/[0.1] px-3 py-1 text-[12px] font-semibold text-ink-soft hover:bg-black/[0.04] hover:text-ink"
+                    className="shrink-0 rounded-full border border-black/[0.1] px-2.5 py-1 text-[12px] font-semibold text-ink-soft hover:bg-black/[0.04] hover:text-ink"
                   >
-                    ■ {t("import.stop")}
+                    {t("import.stop")}
                   </button>
                 )}
-
-                <div
-                  className={
-                    tracker.status === "completed"
-                      ? "mt-3 overflow-hidden"
-                      : "mt-3 max-h-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-56 group-hover:opacity-100"
-                  }
+                <button
+                  type="button"
+                  onClick={closeTracker}
+                  aria-label={t("common.close")}
+                  className="shrink-0 rounded-md p-1 text-ink-faint hover:bg-black/[0.05] hover:text-ink"
                 >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="h-0.5 w-full bg-sage-tint">
+                <div
+                  className="h-full bg-sage transition-all duration-300"
+                  style={{ width: `${tracker.total ? Math.min(100, (tracker.processed / tracker.total) * 100) : 0}%` }}
+                />
+              </div>
+              {trackerOpen && tracker.status !== "cancelled" && (
+                <div className="p-2">
                   <div className="rounded-[14px] border border-black/[0.06] bg-paper/80 p-2">
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
-                      {tracker.status === "completed" ? "Tap a word to open it" : "Hover details"}
-                    </div>
+                    {tracker.status === "completed" && (
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">{t("import.trackOpenWord")}</div>
+                    )}
                     <div className="max-h-40 space-y-1.5 overflow-auto pr-1">
                       {tracker.words.map((word, index) => {
                         const done = index < tracker.processed;
@@ -342,21 +340,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     )}
                   </div>
                 </div>
-
-                {tracker.status === "completed" && (
-                  <button
-                    type="button"
-                    onClick={closeTracker}
-                    className="mt-3 text-sm font-semibold text-sage hover:text-sage-deep"
-                  >
-                    Done
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </ToastCtx.Provider>
   );
 }

@@ -115,6 +115,8 @@ export function ImportWordsDialog({
   const { t } = useI18n();
   const { trackImport, show } = useToast();
   const qc = useQueryClient();
+  // Cancel takes the batch's cards back (the server keeps any already reviewed).
+  const [removed, setRemoved] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -150,6 +152,7 @@ export function ImportWordsDialog({
     if (open) {
       setCollectionIds(defaultCollectionId && defaultCollectionId !== "all" ? [defaultCollectionId] : []);
       setNewCollectionName("");
+      setRemoved(null);
     }
   }, [open, defaultCollectionId]);
 
@@ -307,10 +310,12 @@ export function ImportWordsDialog({
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 text-center">
                 <div className="anim-pop flex h-16 w-16 items-center justify-center rounded-full bg-sage-tint text-sage-deep"><Check className="h-8 w-8" /></div>
                 <h3 className="mt-5 font-serif text-2xl font-semibold text-ink">
-                  {t("import.done", {
-                    created: commit.data.created,
-                    skipped: commit.data.skipped ? t("import.skipped", { n: commit.data.skipped }) : "",
-                  })}
+                  {removed != null
+                    ? t("import.stoppedTitle")
+                    : t("import.done", {
+                        created: commit.data.created,
+                        skipped: commit.data.skipped ? t("import.skipped", { n: commit.data.skipped }) : "",
+                      })}
                 </h3>
                 {commit.data.job && (
                   <p className={cn("mt-3 text-sm font-semibold", job?.status === "failed" ? "text-warn-text" : "text-sage-deep")}>
@@ -319,7 +324,7 @@ export function ImportWordsDialog({
                       : job?.status === "failed"
                         ? t("import.backgroundFailed")
                         : job?.status === "cancelled"
-                          ? t("import.backgroundStopped", { done: job.processed, total: job.total })
+                          ? t("import.removedN", { n: removed ?? 0 })
                           : job?.status === "processing"
                             ? t("import.backgroundProgress", { done: job.processed, total: job.total })
                             : t("import.backgroundQueued")}
@@ -328,7 +333,15 @@ export function ImportWordsDialog({
                 {commit.data.job && job?.status !== "completed" && job?.status !== "failed" && job?.status !== "cancelled" && (
                   <button
                     type="button"
-                    onClick={() => void api.cancelImportJob(commit.data.job!.id).then(() => qc.invalidateQueries({ queryKey: ["import-job", jobId] })).catch(() => {})}
+                    onClick={() =>
+                      void api
+                        .cancelImportJob(commit.data.job!.id)
+                        .then((r) => {
+                          setRemoved(r.removed ?? 0);
+                          for (const key of ["import-job", "words", "stats"]) qc.invalidateQueries({ queryKey: [key] });
+                        })
+                        .catch(() => {})
+                    }
                     title={t("import.stopHint")}
                     className="mt-3 rounded-full border border-black/[0.1] px-3.5 py-1.5 text-[13px] font-semibold text-ink-soft hover:bg-black/[0.04] hover:text-ink"
                   >

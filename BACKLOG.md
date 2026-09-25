@@ -373,6 +373,15 @@ Asked for directly after the first tester's report, so none of it is a numbered 
   and "Words for you" shows a saved goal as one line with "Change", not an open text box.
 - Import dialog: the language menu opened behind the dialog (z-140 under z-200); the format
   sample and placeholder are Chinese for a Chinese learner.
+- Stop on a batch of new cards is an undo (the learner's call, 2026-09-25): it removes the
+  batch's cards except any already reviewed ("I stopped but it still created" — the cards exist
+  from the moment of adding, Stop used to halt only the model). `scripts/check-import-stop.ts`.
+- A Russian speaker doesn't read English: a batch's meanings are written in one model call before
+  the per-card upgrades (`translateDictMeanings`; the 20 plan words in 5.8 s, was ~2 min of
+  English), and while a meaning is on its way the list, word page and Reader show a placeholder,
+  not the CC-CEDICT English — that stays only as a labelled fallback when the model never came.
+- The import tracker is one slim bar (it took a third of a phone screen), in all 3 languages.
+- Onboarding: "I'm learning another language" hidden while focused.
 
 ### The focus pass
 F0–F11 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole

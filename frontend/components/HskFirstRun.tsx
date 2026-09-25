@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, type HskVersion, type HskWord } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { FOCUS } from "@/lib/focus";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { setLevel as setPrefLevel, pushRecentPair, setNativeLang, setDailyGoal, setNewPerDay, type CefrLevel } from "@/lib/learnPrefs";
@@ -967,8 +968,10 @@ export function HskFirstRun({
       )}
 
       {/* Only the empty-account run offers the way out to another language — the
-          offer on Today was opened deliberately by someone choosing the HSK track. */}
-      {onOther && step === "lang" && (
+          offer on Today was opened deliberately by someone choosing the HSK track.
+          Hidden while focused: the app is HSK prep, and the link read as a second
+          product on the first screen. */}
+      {!FOCUS && onOther && step === "lang" && (
         <button
           type="button"
           onClick={onOther}

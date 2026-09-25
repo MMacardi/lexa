@@ -645,6 +645,7 @@ export interface ImportJob {
   errorMessage: string | null;
   createdAt: string;
   completedAt: string | null;
+  removed?: number; // on cancel: the batch's cards taken back (undo the add)
 }
 
 export const api = {

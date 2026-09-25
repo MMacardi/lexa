@@ -5,7 +5,7 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
 import { runAsUser } from "../lib/usageContext.js";
-import { upgradeCard } from "./capture.js";
+import { translateDictMeanings, upgradeCard } from "./capture.js";
 import { isChinese } from "./cedict.js";
 
 const queuedCardsSchema = z.array(z.object({ id: z.string(), word: z.string() }));
@@ -85,6 +85,14 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
   }
 
   const errors = [...job.errors];
+  // The whole batch in the learner's language first, in one call, so no card
+  // waits two minutes in the dictionary's English for its turn below. Best
+  // effort: if it fails, each card's upgrade still writes its own meaning.
+  if (job.processed === 0 && job.generateDetails && job.exampleSource !== "web") {
+    await translateDictMeanings(cards.map((c) => c.id)).catch((error) => {
+      console.error("Batch meanings failed", (error as Error).message);
+    });
+  }
   try {
     for (let index = job.processed; index < cards.length; index++) {
       // The learner can stop enrichment mid-way to save tokens: re-check before
@@ -244,14 +252,29 @@ async function translateProvidedExample(word: { id: string; sourceLang: string; 
 }
 
 /** Stop a queued/running job; cards already enriched keep their data. */
+/**
+ * Stop = undo the add. Learners pressed Stop on a batch in progress and found
+ * every card still there ("I stopped but it still created"): the cards exist
+ * from the moment the batch is added (instant capture), and Stop only halted
+ * the model. Now it also takes back the batch's cards, except any the learner
+ * has already reviewed — those have a schedule and are theirs.
+ */
 export async function cancelImportJobForUser(jobId: string, telegramId: string) {
   const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
   if (!user) return null;
+  const job = await prisma.importJob.findFirst({ where: { id: jobId, userId: user.id }, select: { cards: true } });
+  if (!job) return null;
   await prisma.importJob.updateMany({
     where: { id: jobId, userId: user.id, status: { in: ["queued", "processing"] } },
     data: { status: "cancelled", completedAt: new Date(), leaseUntil: null },
   });
-  return getImportJobForUser(jobId, telegramId);
+  const parsed = queuedCardsSchema.safeParse(job.cards);
+  const ids = parsed.success ? parsed.data.map((c) => c.id) : [];
+  const removed = ids.length
+    ? (await prisma.word.deleteMany({ where: { id: { in: ids }, userId: user.id, reps: 0, reviewCount: 0 } })).count
+    : 0;
+  const state = await getImportJobForUser(jobId, telegramId);
+  return state ? { ...state, removed } : null;
 }
 
 export async function getImportJobForUser(jobId: string, telegramId: string) {

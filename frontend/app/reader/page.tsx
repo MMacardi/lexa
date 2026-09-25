@@ -30,6 +30,7 @@ import { resolveMeaning } from "@/lib/resolveMeaning";
 import { Button } from "@/components/ui/button";
 import { PairChip } from "@/components/PairChip";
 import { FOCUS } from "@/lib/focus";
+import { holdsEnglish } from "@/components/DictMeaningLabel";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
@@ -183,7 +184,7 @@ export default function ReaderPage() {
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
-  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; dictMeaning?: boolean; sentence: string; x: number; y: number } | null>(null);
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [knownClosing, setKnownClosing] = useState(false);
@@ -842,8 +843,9 @@ export default function ReaderPage() {
     setKnownPop({
       wordId,
       word: wordText,
-      meaning: w?.meaningZh ?? null,
+      meaning: w && holdsEnglish(w) ? null : (w?.meaningZh ?? null),
       dictMeaning: w?.dictMeaning,
+      filling: Boolean(w && holdsEnglish(w)),
       sentence: sentenceAround(index),
       ...popAt(el.getBoundingClientRect()),
     });
@@ -1033,7 +1035,7 @@ export default function ReaderPage() {
             {glossCedict?.phonetic || glossTr}
           </div>
         ) : null}
-        {glossCedict && (
+        {glossCedict && (targetLang === "en" || (!glossLoading && (!glossText || glossText === t("reader.translateFailed")))) && (
           <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
             {glossCedict.gloss}
             <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
@@ -1054,6 +1056,7 @@ export default function ReaderPage() {
           <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
           {docked && dockClose(closeKnown)}
         </div>
+        {knownPop.filling && <div className="mt-0.5 text-[12px] text-ink-faint">{t("capture.filling")}</div>}
         {knownPop.meaning && (
           <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
             {knownPop.meaning}

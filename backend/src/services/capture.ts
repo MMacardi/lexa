@@ -1,5 +1,8 @@
+import { z } from "zod";
 import { prisma } from "./db.js";
+import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
+import { langName } from "../lib/langs.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 
 /**
@@ -31,6 +34,57 @@ export async function dictCardFields(word: string, sourceLang: string): Promise<
  */
 export function hasDictMeaning(w: { word: string; sourceLang: string; meaningZh: string | null }): boolean {
   return isChinese(w.sourceLang) && isCedictGloss(w.word, w.meaningZh);
+}
+
+const batchMeaningSchema = z.object({
+  items: z.array(z.object({ word: z.string(), meaning: z.string().default("") })).default([]),
+});
+
+/**
+ * The meaning in the learner's language for a batch of fresh dictionary cards,
+ * in ONE model call ahead of the per-card upgrades. Those run one after another
+ * at ~6 s each, so the 20 words of an onboarding plan sat in English for two
+ * minutes — and English is a third language to a Russian speaker. Grounded like
+ * the upgrade: the model gets the dictionary's senses and the sentence the word
+ * came from, and only picks and translates. The upgrade then leaves the meaning
+ * alone (it replaces only an empty one or the dictionary's English) and adds the
+ * rest. An English speaker's card is already in their language.
+ */
+export async function translateDictMeanings(cardIds: string[]): Promise<void> {
+  const cards = await prisma.word.findMany({
+    where: { id: { in: cardIds } },
+    include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true } } },
+  });
+  const todo = cards.filter((c) => c.targetLang !== "en" && hasDictMeaning(c));
+  const byTarget = new Map<string, typeof todo>();
+  for (const c of todo) byTarget.set(c.targetLang, [...(byTarget.get(c.targetLang) ?? []), c]);
+
+  for (const [target, group] of byTarget) {
+    for (let i = 0; i < group.length; i += 25) {
+      const chunk = group.slice(i, i + 25);
+      const lines = chunk.map((c) => {
+        const met = c.examples.find((e) => e.sourceName !== AI_SOURCE)?.sentenceEn;
+        return { word: c.word, pinyin: c.phonetic ?? "", senses: c.meaningZh ?? "", ...(met ? { sentence: met } : {}) };
+      });
+      const r = await chatJson({
+        system:
+          `You write flashcard meanings for a ${langName(target)} speaker learning Chinese. For each item, give the ` +
+          `word's meaning in ${langName(target)}: 1–4 words, the sense its sentence uses when a sentence is given, ` +
+          `otherwise its most common sense. Base it on the English dictionary senses given — pick and translate, ` +
+          `don't invent. Keep the words exactly as given. ` +
+          'Respond as JSON: {"items":[{"word": string, "meaning": string}]}.',
+        user: JSON.stringify(lines),
+        schema: batchMeaningSchema,
+        label: "capture.batchMeaning",
+      });
+      const meaningOf = new Map((r.items ?? []).map((it) => [it.word.trim(), (it.meaning ?? "").trim()]));
+      for (const c of chunk) {
+        const meaning = meaningOf.get(c.word);
+        // Compare-and-set, like the upgrade: an edit made meanwhile wins.
+        if (meaning) await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: meaning } });
+      }
+    }
+  }
 }
 
 export type UpgradeOptions = {
