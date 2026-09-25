@@ -935,7 +935,8 @@ function startReminderLoop(bot: Telegraf): void {
 
 /**
  * Launch the bot via long polling, if enabled. Guarded behind ENABLE_TELEGRAM_BOT
- * so it never fights another poller (e.g. a local backend) over the same token.
+ * so it never fights another poller (e.g. a local backend) over the same token,
+ * and outside production it refuses the production bot outright (see below).
  */
 export function launchBot(): void {
   if (env.ENABLE_TELEGRAM_BOT !== "true") {
@@ -947,6 +948,31 @@ export function launchBot(): void {
     return;
   }
   const bot = createBot();
+  if (process.env.NODE_ENV === "production" || !env.TELEGRAM_PROD_BOT) {
+    runBot(bot);
+    return;
+  }
+  // Not production: never run the production bot. Its polling would make Telegram
+  // cut off prod's (409s — late replies and failed logins for real learners), its
+  // reminder loop would message them a second time, and setMyCommands would
+  // overwrite prod's menu. Local development uses its own test bot
+  // (backend/.env.example). If Telegram can't say which bot this is, don't start.
+  void bot.telegram
+    .getMe()
+    .then((me) => {
+      if (me.username?.toLowerCase() === env.TELEGRAM_PROD_BOT.toLowerCase()) {
+        console.warn(
+          `TELEGRAM_BOT_TOKEN is @${me.username}, the production bot — not running it outside production. ` +
+            "Use a test bot locally (see backend/.env.example).",
+        );
+        return;
+      }
+      runBot(bot);
+    })
+    .catch((err) => console.error(`Telegram getMe failed — bot not started: ${(err as Error).message}`));
+}
+
+function runBot(bot: Telegraf): void {
   void bot.telegram
     .setMyCommands([
       { command: "review", description: "Повторить карточки" },

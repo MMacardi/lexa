@@ -26,6 +26,10 @@ const schema = z.object({
   // when another process (e.g. prod, if this is local) already polls the same token.
   // Reminders are per-user opt-in (via /remind), so no extra flag is needed.
   ENABLE_TELEGRAM_BOT: z.string().default("false"),
+  // The production bot's username. A backend that isn't NODE_ENV=production
+  // refuses to run it (bot/index.ts launchBot) — local development has its own
+  // test bot. Empty turns the guard off.
+  TELEGRAM_PROD_BOT: z.string().default("onomikabot"),
   // Auth / sessions
   JWT_SECRET: z.string().default("dev-insecure-secret-change-me"),
   // Secure by default: dev sign-in (and the email dev-link leak) are OFF unless a

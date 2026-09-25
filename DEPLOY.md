@@ -43,10 +43,12 @@ payments, move the frontend to Vercel Pro.
      node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
      ```
    - a `BETA_KEY` you will give to testers, e.g. `ONOMIKA-AUTUMN`
-3. **Only one process may poll a bot token.** When the Railway bot is live, stop any
-   local backend that has `ENABLE_TELEGRAM_BOT=true` with the same token, or create a
-   second bot in BotFather for local development. If two processes poll one token,
-   Telegram returns `409 Conflict` to one of them and bot login stops working.
+3. **Only one process may poll a bot token.** Local development uses a second bot
+   from BotFather (steps in `backend/.env.example` → Telegram). A backend that isn't
+   `NODE_ENV=production` refuses to run @onomikabot (`TELEGRAM_PROD_BOT`), so a local
+   `.env` holding the prod token can no longer take polling away from Railway. If two
+   processes poll one token, Telegram returns `409 Conflict` to one of them and bot
+   login stops working.
 
 ## 1. Railway — Postgres + backend
 
