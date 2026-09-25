@@ -191,6 +191,10 @@ export default function CoachPage() {
         </div>
       </div>
 
+      {/* Words for you — first: it is what this page is for, and at the bottom it sat
+          under the recap and both practice cards, a phone-length scroll away */}
+      <CoachPicks />
+
       {/* This week — a token-free recap: activity bars + the words slipping right now */}
       {stats && ((weekAdded + weekReviewed > 0) || weakTop.length > 0) && (
         <section className="rounded-[20px] border border-black/[0.07] bg-surface p-4 sm:p-5">
@@ -274,9 +278,6 @@ export default function CoachPage() {
           </span>
         </Link>
       </div>
-
-      {/* Words for you — level-appropriate picks */}
-      <CoachPicks />
 
     </div>
   );

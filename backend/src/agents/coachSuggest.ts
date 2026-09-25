@@ -38,15 +38,19 @@ function shuffle<T>(pool: T[]): T[] {
 //     missed a third or more. With no check, the level just below, as before.
 //   - One level up, a handful, for a word the goal really needs (a student going
 //     to China needs 签证 whatever its level). Capped in the prompt and after it.
+// A topic ("IT") needs the whole level, not a slice: a random 100 of HSK 4's ~970
+// words held one or two IT words, so the model padded the set with unrelated ones.
+// The lists are grouped by level in the prompt, so ~2k words stay ~5k tokens.
 function hskCandidates(
   version: HskVersion,
   target: number,
   known: Set<string>,
   checked: { word: string; known: boolean }[],
+  wide: boolean,
 ): Candidate[] {
   const fresh = (n: number) => shuffle(hskLevelWords(version, n).map((w) => w.word).filter((w) => !known.has(w)));
   const out: Candidate[] = fresh(target)
-    .slice(0, 100)
+    .slice(0, wide ? Infinity : 100)
     .map((word) => ({ word, level: target, missed: false }));
   const answered = new Map<number, { asked: number; missed: string[] }>();
   for (const a of checked) {
@@ -63,13 +67,26 @@ function hskCandidates(
     for (const word of missed) out.push({ word, level: n, missed: true });
     const weak = row ? row.missed.length / row.asked >= 1 / 3 : n === target - 1 && answered.size === 0;
     if (weak) {
-      for (const word of fresh(n).filter((w) => !missed.includes(w)).slice(0, 25)) out.push({ word, level: n, missed: false });
+      for (const word of fresh(n).filter((w) => !missed.includes(w)).slice(0, wide ? 300 : 25)) out.push({ word, level: n, missed: false });
     }
   }
   if (target < HSK_MAX_LEVEL[version]) {
-    for (const word of fresh(target + 1).slice(0, 20)) out.push({ word, level: target + 1, missed: false });
+    for (const word of fresh(target + 1).slice(0, wide ? 1200 : 20)) out.push({ word, level: target + 1, missed: false });
   }
   return out;
+}
+
+// "HSK 4: 网络, 程序*, …" — one label per level instead of one per word.
+function candidateLines(candidates: Candidate[]): string {
+  const byLevel = new Map<number, string[]>();
+  for (const c of candidates) {
+    const row = byLevel.get(c.level) ?? [];
+    row.push(c.missed ? `${c.word}*` : c.word);
+    byLevel.set(c.level, row);
+  }
+  return [...byLevel]
+    .map(([level, words]) => `HSK ${level === 7 ? "7–9" : level}: ${words.join(", ")}`)
+    .join("\n");
 }
 
 export async function suggestDailyPicks(params: {
@@ -78,7 +95,9 @@ export async function suggestDailyPicks(params: {
   targetLang: string;
   level?: string;
   count?: number;
-  theme?: string;
+  // One set's topic ("IT"). It narrows the saved goal, never replaces it: the goal
+  // reaches every call through the coach memory below, the topic only this one.
+  topic?: string;
 }): Promise<{ picks: { word: string; meaning: string; reason: string; hsk?: number }[] }> {
   const source = langName(params.sourceLang);
   const target = langName(params.targetLang);
@@ -111,7 +130,7 @@ export async function suggestDailyPicks(params: {
   const knownForPrompt = known.slice(0, 400);
   // The most recent additions signal what the learner is into right now — use them
   // so the picks feel like a continuation, not a random word list (a real mentor
-  // notices your current topic). An explicit theme, when given, takes priority.
+  // notices your current topic). An explicit topic, when given, takes priority.
   const recent = owned.slice(0, 15).map((w) => w.word);
 
   // A Chinese learner with an HSK target is measured against that list, not a
@@ -123,18 +142,24 @@ export async function suggestDailyPicks(params: {
   // what fits the goal. Asked merely to "aim at HSK 4", it handed a learner who
   // said "work" HSK 7–9 business words (部署, 拟定, 兼顾); a list can't drift.
   const hskLevel = user?.hskTarget ?? 0;
-  const candidates = hskVersion ? hskCandidates(hskVersion, hskLevel, knownSet, checked) : null;
+  const topic = params.topic?.trim();
+  const candidates = hskVersion ? hskCandidates(hskVersion, hskLevel, knownSet, checked, !!topic) : null;
   const candidateLevel = new Map((candidates ?? []).map((c) => [c.word, c.level]));
-  // Above the target is the exception: one or two of a set, never the bulk.
-  const maxAbove = count >= 6 ? 2 : 1;
+  // Above the target is the exception: one or two of a set, never the bulk. A topic
+  // gets one more — half of HSK 4's IT words (软件, 硬件, 用户) sit at HSK 5.
+  const maxAbove = count >= 6 ? (topic ? 3 : 2) : 1;
+  // A topic set loses more to the filters below (above the cap, off the list), so
+  // ask for a little extra and keep `count`.
+  const ask = topic ? count + 2 : count;
   const levelLine = hskVersion
     ? `The learner is preparing for the HSK ${hskName} exam (HSK ${hskVersion} word list). `
     : params.level
       ? `The learner's level is ${params.level}. Match it — not too easy, not too advanced. `
       : "";
-  const theme = params.theme?.trim();
-  const focusLine = theme
-    ? `Focus the picks on this topic the learner asked for: "${theme}". `
+  const focusLine = topic
+    ? `This time the learner asked for words on a topic: "${topic}". Every pick should belong to it. The topic ` +
+      `narrows their goal, it doesn't replace it — their level and goal still hold. If too few words fit the topic, ` +
+      `fill the rest with words that naturally come up around it, never with unrelated ones. `
     : recent.length
       ? `The learner has recently been studying: ${recent.join(", ")}. Prefer words that connect to those ` +
         `topics/domains (natural next words, common collocations, same themes), while staying varied. `
@@ -147,22 +172,23 @@ export async function suggestDailyPicks(params: {
       memory +
       `You are a ${source} tutor for a ${target} speaker. ${levelLine}${focusLine}` +
       (candidates
-        ? `Choose the ${count} words from the candidate list in the user message that best fit the learner's goal and ` +
+        ? `Choose the ${ask} words from the candidate list in the user message that best fit the learner's goal and ` +
           `interests — useful, a natural mix of parts of speech. Use ONLY words from that list, written exactly as there ` +
-          `(without the level tag). Each candidate is tagged with its HSK level; * marks a word the learner said they ` +
+          `(without the level or the *). The candidates are grouped by HSK level; * marks a word the learner said they ` +
           `don't know in their level check. Most picks should be HSK ${hskName} words. Take a lower-level word when it ` +
           `is marked * or the goal needs it — a missing basic matters more than one more hard word. Take at most ` +
           `${maxAbove} word${maxAbove > 1 ? "s" : ""} above HSK ${hskName}, and only when the goal or interests clearly call for it. `
-        : `Suggest ${count} genuinely useful ${source} words or short phrases the learner should know at their level — ` +
+        : `Suggest ${ask} genuinely useful ${source} words or short phrases the learner should know at their level ` +
+          `and for their goal — ` +
           `high-frequency and practical, a natural mix of parts of speech (not obscure or repetitive). ` +
           `Do NOT suggest anything already in the learner's list. `) +
       `For EACH word give: "meaning" — its short ` +
-      `${target} translation/definition (a few words); and "reason" — a very short note on why it's worth ` +
-      `learning, also in ${target}. ` +
+      `${target} translation/definition (a few words); and "reason" — why it's worth learning, in ${target}, at ` +
+      `most 10 words (it is one line under the word on a phone). ` +
       scriptNote(params.sourceLang) +
       'Respond as JSON: {"picks":[{"word": string, "meaning": string, "reason": string}]}.',
     user: candidates
-      ? `Candidates: ${candidates.map((c) => `${c.word}(HSK ${c.level === 7 ? "7–9" : c.level})${c.missed ? "*" : ""}`).join(", ")}`
+      ? `Candidates:\n${candidateLines(candidates)}`
       : `Already known (do not suggest any of these): ${knownForPrompt.join(", ") || "(none yet)"}`,
     schema: picksSchema,
     label: "coach.picks",
@@ -170,8 +196,8 @@ export async function suggestDailyPicks(params: {
 
   let above = 0;
   const picks = (result.picks ?? [])
-    // A model that echoes the tag ("签证(HSK 5)") still means the word.
-    .map((p) => ({ word: p.word.replace(/\s*\(HSK[^)]*\)\*?$/, "").trim(), meaning: (p.meaning ?? "").trim(), reason: (p.reason ?? "").trim() }))
+    // A model that echoes the tag ("签证(HSK 5)", "签证*") still means the word.
+    .map((p) => ({ word: p.word.replace(/\s*\(HSK[^)]*\)/, "").replace(/\*+$/, "").trim(), meaning: (p.meaning ?? "").trim(), reason: (p.reason ?? "").trim() }))
     .filter((p) => p.word && !knownSet.has(p.word.toLowerCase()))
     .filter((p) => !candidates || candidateLevel.has(p.word))
     .filter((p) => !candidates || candidateLevel.get(p.word)! <= hskLevel || ++above <= maxAbove)

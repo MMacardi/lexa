@@ -966,7 +966,7 @@ export const api = {
   removeFriend: (friendshipId: string) => http<{ ok: true }>(`/api/friends/${friendshipId}`, { method: "DELETE" }),
 
   // Coach "Daily picks": level-appropriate words the learner doesn't have yet.
-  coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number; theme?: string }) =>
+  coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number; topic?: string }) =>
     // `hsk`: the pick's level on the learner's HSK list (Chinese with a target only).
     http<{ picks: { word: string; meaning: string; reason: string; hsk?: number }[] }>(`/api/coach/picks`, {
       method: "POST",

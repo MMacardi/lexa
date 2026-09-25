@@ -106,7 +106,7 @@ const coachPicksBody = z.object({
   targetLang: z.string().min(2),
   level: z.string().max(4).optional(),
   count: z.number().int().min(3).max(20).optional(),
-  theme: z.string().max(300).optional(), // the saved goal, which onboarding can make long
+  topic: z.string().max(80).optional(), // this set only; the saved goal comes from coach memory
 });
 wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
   const parsed = coachPicksBody.safeParse(req.body);

@@ -14,27 +14,30 @@ import { PairChip } from "@/components/PairChip";
 import { HskBadge } from "@/components/HskBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Check, Compass, Loader2, Plus, RefreshCw, Sprout } from "lucide-react";
+import { ArrowRight, Check, Compass, Loader2, Plus, RefreshCw, Sprout, Tag, X } from "lucide-react";
 
 type Pick = { word: string; meaning: string; reason: string; hsk?: number };
+// `topic`: what this set was narrowed to ("IT"), kept with the picks so "New
+// picks" stays on it and Today can say so — until the learner clears it.
+type PicksData = { picks: Pick[]; topic?: string };
 
 // Persist the picks so they survive a full reload (F5) — the React Query cache is
 // memory-only, and re-fetching would silently spend tokens each time.
 function picksLSKey(account: string, source: string, target: string) {
   return `lexa.coachPicks.${account}.${source}-${target}`;
 }
-function readPicksLS(account: string, source: string, target: string): { picks: Pick[] } | undefined {
+function readPicksLS(account: string, source: string, target: string): PicksData | undefined {
   if (typeof window === "undefined" || !account) return undefined;
   try {
     const raw = localStorage.getItem(picksLSKey(account, source, target));
     const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed && Array.isArray(parsed.picks)) return parsed as { picks: Pick[] };
+    if (parsed && Array.isArray(parsed.picks)) return parsed as PicksData;
   } catch {
     /* ignore */
   }
   return undefined;
 }
-function writePicksLS(account: string, source: string, target: string, data: { picks: Pick[] }) {
+function writePicksLS(account: string, source: string, target: string, data: PicksData) {
   if (typeof window === "undefined" || !account) return;
   try {
     localStorage.setItem(picksLSKey(account, source, target), JSON.stringify(data));
@@ -94,6 +97,11 @@ const COMPACT_COUNT = 4;
 // compact version, so the words are waiting before the Coach is ever opened, and
 // the Coach reads the same cache. After that only "New picks" spends a call, so
 // flipping languages never burns tokens.
+//
+// Two dials, kept apart on purpose. The goal ("HSK 4 by May, studying in China")
+// is saved in coach memory and reaches every set and every chat. A topic ("IT")
+// narrows one set on top of it. They used to share one box, so asking for IT
+// words meant deleting the goal to type over it.
 export function CoachPicks({ compact = false }: { compact?: boolean }) {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
@@ -102,8 +110,12 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
 
   const [pair, setPair] = useState(() => readPair());
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [theme, setTheme] = useState("");
+  const [goalDraft, setGoalDraft] = useState("");
   const [editingGoal, setEditingGoal] = useState(false);
+  const [topicDraft, setTopicDraft] = useState("");
+  const [customTopic, setCustomTopic] = useState(false);
+  // The topic a set is being made for, shown on the chip while it loads ("" = clearing).
+  const [pendingTopic, setPendingTopic] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -119,7 +131,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
   const levelLabel = hskTarget ? `HSK ${hskTarget === 7 ? "7–9" : hskTarget}` : getLevel(pair.source) ?? "—";
 
   const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
-  const picksQuery = useQuery({
+  const picksQuery = useQuery<PicksData>({
     queryKey: picksKey,
     queryFn: () => api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLevel(pair.source) ?? undefined, count: 8 }),
     enabled: false, // fetched on purpose only (first sight, or "New picks")
@@ -129,42 +141,52 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
   });
   const allPicks = picksQuery.data?.picks ?? [];
   const picks = compact ? allPicks.slice(0, COMPACT_COUNT) : allPicks;
+  const topic = picksQuery.data?.topic?.trim() ?? "";
+  const goal = memory?.goal?.trim() ?? "";
   const loading = picksQuery.isFetching || fetching;
+  const shownTopic = pendingTopic ?? topic;
 
   function changePair(next: { source: string; target: string }) {
     setPair(next);
     writePair(next);
   }
 
-  // Prefill the goal box with the saved goal, so it's remembered but not nagged.
-  useEffect(() => {
-    const g = memory?.goal?.trim();
-    if (g) setTheme((cur) => cur || g);
-  }, [memory?.goal]);
-
-  // Whatever is typed in the goal box IS the goal: remembered, and it steers the picks.
-  async function loadPicks(goal = theme.trim()) {
+  // A set for the saved goal, narrowed to `nextTopic` when there is one ("" = none).
+  async function loadPicks(nextTopic = topic) {
     if (fetching || !accountId) return;
     setFetching(true);
-    setEditingGoal(false);
+    setPendingTopic(nextTopic);
     try {
-      if (goal && goal !== memory?.goal?.trim()) {
-        await api.updateCoachProfile({ telegramId: accountId, lang: pair.source, goal });
-        qc.invalidateQueries({ queryKey: ["coach-profile", accountId, pair.source] });
-      }
       const r = await api.coachPicks({
         sourceLang: pair.source,
         targetLang: pair.target,
         level: getLevel(pair.source) ?? undefined,
         count: 8,
-        theme: goal || undefined,
+        topic: nextTopic || undefined,
       });
-      qc.setQueryData(picksKey, r);
+      qc.setQueryData<PicksData>(picksKey, nextTopic ? { ...r, topic: nextTopic } : r);
+      setTopicDraft("");
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setFetching(false);
+      setPendingTopic(null);
     }
+  }
+
+  // Saving the goal re-aims the set at it, keeping the topic.
+  async function saveGoal() {
+    const next = goalDraft.trim();
+    setEditingGoal(false);
+    if (next === goal || !accountId) return;
+    try {
+      await api.updateCoachProfile({ telegramId: accountId, lang: pair.source, goal: next });
+      await qc.invalidateQueries({ queryKey: ["coach-profile", accountId, pair.source] });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+      return;
+    }
+    void loadPicks();
   }
 
   // First sight with nothing cached: fill it without being asked. Once per mount,
@@ -220,7 +242,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
       // Drop the added ones from the cached picks.
       const added = new Set(words);
-      qc.setQueryData<{ picks: Pick[] }>(picksKey, (old) => (old ? { picks: old.picks.filter((x) => !added.has(x.word)) } : old));
+      qc.setQueryData<PicksData>(picksKey, (old) => (old ? { ...old, picks: old.picks.filter((x) => !added.has(x.word)) } : old));
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -230,24 +252,28 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
 
   return (
     <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
-          <p className="mt-0.5 text-[13px] text-ink-soft">
-            {memory?.goal?.trim()
+      {/* "New picks" on the title's line: under the hint, a phone wrapped it onto a
+          row of its own */}
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="min-w-0 font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
+          <button
+            type="button"
+            onClick={() => loadPicks()}
+            disabled={loading}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {t("coach.refresh")}
+          </button>
+        </div>
+        <p className="mt-0.5 text-[13px] text-ink-soft">
+          {topic
+            ? t("coach.picksHintTopic", { level: levelLabel, topic })
+            : goal
               ? t("coach.picksHintGoal", { level: levelLabel })
               : t("coach.picksHint", { level: levelLabel, lang: langLabel(pair.source) })}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => loadPicks()}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          {t("coach.refresh")}
-        </button>
+        </p>
       </div>
 
       {!compact && (
@@ -261,46 +287,145 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
             onSwap={() => changePair({ source: pair.target, target: pair.source })}
           />
 
-          {/* The goal steers the picks and is remembered. A saved one is stated in
-              a line with "Change", not left sitting in an open text box — a filled
-              input on every visit read as a form still waiting to be done. Only a
-              learner with no goal yet gets the box straight away. */}
-          {memory?.goal?.trim() && !editingGoal ? (
-            <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted">
-              <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
-              <span className="shrink-0 font-semibold text-ink-soft">{t("coach.goalLabel")}:</span>
-              <span className="min-w-0 truncate">{memory.goal.trim()}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setTheme(memory.goal!.trim());
-                  setEditingGoal(true);
-                }}
-                className="shrink-0 font-semibold text-sage-deep hover:underline"
-              >
-                {t("coach.goalChange")}
-              </button>
-            </p>
-          ) : (
-            <div>
-              <input
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") loadPicks();
-                  if (e.key === "Escape") setEditingGoal(false);
-                }}
-                autoFocus={editingGoal}
-                placeholder={t(zh ? "coach.themePlaceholderZh" : "coach.themePlaceholder")}
-                maxLength={80}
-                className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-              />
-              <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+          <div className="space-y-3 rounded-[14px] bg-black/[0.025] p-3.5">
+            {/* The goal: saved, and behind every set. A saved one is stated in a line
+                with "Change", not left sitting in an open text box — a filled input
+                on every visit read as a form still waiting to be done. Only a
+                learner with no goal yet gets the box straight away. */}
+            {goal && !editingGoal ? (
+              <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted">
                 <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
-                {theme.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
+                <span className="shrink-0 font-semibold text-ink-soft">{t("coach.goalLabel")}:</span>
+                <span className="min-w-0 truncate">{goal}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGoalDraft(goal);
+                    setEditingGoal(true);
+                  }}
+                  className="shrink-0 font-semibold text-sage-deep hover:underline"
+                >
+                  {t("coach.goalChange")}
+                </button>
               </p>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void saveGoal();
+                }}
+              >
+                <div className="flex gap-2">
+                  <input
+                    value={goalDraft}
+                    onChange={(e) => setGoalDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setEditingGoal(false);
+                    }}
+                    autoFocus={editingGoal}
+                    placeholder={t(zh ? "coach.themePlaceholderZh" : "coach.themePlaceholder")}
+                    maxLength={80}
+                    className="h-10 min-w-0 flex-1 rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[16px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none sm:text-[14px]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={goalDraft.trim() === goal}
+                    className="shrink-0 rounded-[12px] bg-sage px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
+                  >
+                    {t("common.save")}
+                  </button>
+                </div>
+                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+                  <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
+                  {goalDraft.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
+                </p>
+              </form>
+            )}
+
+            {/* The topic: this set only, on top of the goal. Kept with the picks,
+                so "New picks" stays on it until it's cleared. */}
+            <div>
+              <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
+                <Tag className="h-3.5 w-3.5 shrink-0 text-sage" />
+                <span className="mr-0.5 font-semibold text-ink-soft">{t("coach.topicLabel")}:</span>
+                {shownTopic ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint/60 py-1 pl-3 pr-1.5 font-semibold text-sage-deep">
+                    {shownTopic}
+                    {pendingTopic != null ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => loadPicks("")}
+                        disabled={loading}
+                        aria-label={t("coach.topicClear")}
+                        title={t("coach.topicClear")}
+                        className="rounded-full p-0.5 hover:bg-sage/20"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </span>
+                ) : customTopic ? (
+                  <form
+                    className="flex min-w-0 basis-full gap-2 sm:basis-auto sm:flex-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const next = topicDraft.trim();
+                      if (next) {
+                        setCustomTopic(false);
+                        void loadPicks(next);
+                      }
+                    }}
+                  >
+                    <input
+                      value={topicDraft}
+                      onChange={(e) => setTopicDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setCustomTopic(false);
+                      }}
+                      autoFocus
+                      placeholder={t("coach.topicPlaceholder")}
+                      maxLength={60}
+                      className="h-9 min-w-0 flex-1 rounded-[10px] border border-black/[0.08] bg-surface px-3 text-[16px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none sm:text-[14px]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!topicDraft.trim() || loading}
+                      className="shrink-0 rounded-[10px] bg-sage px-3 text-[13px] font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
+                    >
+                      {t("coach.topicGo")}
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    {t("coach.topicSuggest")
+                      .split(",")
+                      .map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => loadPicks(s.trim())}
+                          disabled={loading}
+                          className="rounded-full border border-black/[0.1] bg-surface px-3 py-1 font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
+                        >
+                          {s.trim()}
+                        </button>
+                      ))}
+                    <button
+                      type="button"
+                      onClick={() => setCustomTopic(true)}
+                      disabled={loading}
+                      className="inline-flex items-center gap-1 rounded-full border border-dashed border-black/[0.18] px-3 py-1 font-semibold text-ink-soft transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> {t("coach.topicOwn")}
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="mt-1.5 text-[12px] text-ink-faint">{t("coach.topicHint")}</p>
             </div>
-          )}
+          </div>
         </>
       )}
 
@@ -324,7 +449,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
           </button>
         </div>
       ) : (
-        <div className={cn("space-y-2", !compact && "max-h-[336px] overflow-y-auto pr-1")}>
+        <div className={cn("space-y-2 transition-opacity", loading && "opacity-50")}>
           {picks.map((p) => {
             const on = sel.has(p.word);
             return (
