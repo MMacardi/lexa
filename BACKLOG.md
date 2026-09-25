@@ -382,6 +382,18 @@ Asked for directly after the first tester's report, so none of it is a numbered 
   not the CC-CEDICT English — that stays only as a labelled fallback when the model never came.
 - The import tracker is one slim bar (it took a third of a phone screen), in all 3 languages.
 - Onboarding: "I'm learning another language" hidden while focused.
+- The loading is real, and nothing gets around onboarding (`OnboardingGate`, 2026-09-25). After
+  sign-in, the plan from the guest onboarding is made on a screen of its own: "Saving your plan ·
+  Making your 20 cards · Writing their meanings in Russian", then "Welcome to Onomika — your 20
+  words are ready" with each word and its meaning, and Continue (~5 s; `/words/batch` takes
+  `meaningsFirst`). An account with no target and no cards — "I already have an account" tapped
+  by someone who hadn't one — gets the onboarding full-screen on every route, no nav, ending the
+  same way. Examples keep arriving in the background, without the tracker.
+  Follow-up, not done: precompute the Russian for the ~11.4k HSK headwords once (one offline
+  model pass over `data/cedict.jsonl`), so the plan screen could show meanings **before**
+  sign-in and a Reader tap would never wait on the model for an HSK word — the thing the learner
+  actually asked for ("while it loads you sign up"). Needs a way to keep the Reader's
+  sentence-sense upgrade, which today only replaces the dictionary's English.
 
 ### The focus pass
 F0–F11 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole

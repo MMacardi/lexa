@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { Sidebar } from "@/components/Sidebar";
 import { GuestExperience } from "@/components/GuestExperience";
 import { InviteGate } from "@/components/InviteGate";
+import { OnboardingGate } from "@/components/OnboardingGate";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 import { useViewportVars } from "@/lib/mobileNav";
 
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!profile?.invited) return <InviteGate />;
 
   return (
+    <OnboardingGate>
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
       <main className="min-w-0 flex-1 bg-paper">
@@ -60,5 +62,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SyncStatus />
       <BugReport />
     </div>
+    </OnboardingGate>
   );
 }

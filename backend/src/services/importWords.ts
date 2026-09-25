@@ -3,7 +3,7 @@ import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
-import { dictCardFields } from "./capture.js";
+import { dictCardFields, translateDictMeanings } from "./capture.js";
 
 const MAX_CARDS = 100;
 
@@ -98,6 +98,11 @@ export async function importWordsForUser(params: {
   exampleSource?: string; // ai | web
   // Attribution for a provided example (e.g. the Reader's text source).
   exampleSourceName?: string;
+  // Write the batch's meanings in the learner's language before returning (one
+  // model call, a few seconds). Onboarding's own loading screen waits on it so
+  // the words are ready when it says so; every other add stays instant and the
+  // worker does the same step in the background.
+  meaningsFirst?: boolean;
 }) {
   if (params.items.length === 0) throw new Error("Select at least one card to import.");
   if (params.items.length > MAX_CARDS) throw new Error(`You can import up to ${MAX_CARDS} cards at once.`);
@@ -162,6 +167,12 @@ export async function importWordsForUser(params: {
       if (error && typeof error === "object" && (error as { code?: string }).code === "P2002") continue;
       throw error;
     }
+  }
+
+  if (params.meaningsFirst && created.length) {
+    await translateDictMeanings(created.map((c) => c.id)).catch((error) => {
+      console.error("Batch meanings failed", (error as Error).message);
+    });
   }
 
   const job =

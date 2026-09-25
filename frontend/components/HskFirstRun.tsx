@@ -260,11 +260,15 @@ export function HskFirstRun({
   onClose,
   guest,
   onGuestDone,
+  onFinish,
 }: {
   onOther?: () => void;
   onClose?: () => void;
   guest?: boolean;
   onGuestDone?: () => void;
+  // Run full-screen by OnboardingGate: the words are made with their meanings
+  // before "done", which then welcomes the learner in and hands over the app.
+  onFinish?: () => void;
 }) {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
@@ -512,11 +516,11 @@ export function HskFirstRun({
       if (rejected.size) {
         await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: [...rejected], unknown: [] });
       }
-      const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, words, level, enrich: true });
+      const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, words, level, enrich: true, meaningsFirst: Boolean(onFinish) });
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["hskReadiness"] });
-      if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
+      if (r.job && !onFinish) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
       setAdded(r.created);
       go("done");
     } catch (e) {
@@ -929,7 +933,16 @@ export function HskFirstRun({
           </div>
         )}
 
-        {step === "done" && (
+        {step === "done" && onFinish && (
+          <div>
+            {heading(t("onb.welcomeTitle"), t("onb.welcomeSub", { n: added }))}
+            <Button className="w-full sm:w-auto" onClick={onFinish}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              {t("onb.welcomeContinue")}
+            </Button>
+          </div>
+        )}
+        {step === "done" && !onFinish && (
           <div>
             {heading(t("hskFirst.doneTitle", { n: added }), t("hskFirst.doneSub"))}
             <div className="flex flex-wrap gap-3">
@@ -959,7 +972,7 @@ export function HskFirstRun({
 
       {/* The textbook path: this week's list, photographed or pasted, becomes
           cards in the same pair — a way in that skips the questions. */}
-      {step === "lang" && !guest && (
+      {step === "lang" && !guest && !onFinish && (
         <div className="rounded-[22px] border border-black/[0.06] bg-surface p-5">
           <p className="text-[15px] font-semibold text-ink">{t("hskFirst.textbookTitle")}</p>
           <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.textbookSub")}</p>

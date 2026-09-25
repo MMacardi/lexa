@@ -842,6 +842,8 @@ const batchBody = z
     exampleSource: z.enum(["ai", "web"]).optional(),
     collectionIds: z.array(z.string()).optional(),
     enrich: z.boolean().default(true),
+    // Onboarding: return only once the meanings are in the learner's language.
+    meaningsFirst: z.boolean().optional(),
   })
   .refine((b) => (b.words?.length ?? 0) > 0 || (b.items?.length ?? 0) > 0, {
     message: "Provide words or items",
@@ -886,6 +888,7 @@ wordsRouter.post("/words/batch", async (req, res) => {
       level: b.level,
       exampleStyle: b.exampleStyle,
       exampleSource: b.exampleSource,
+      meaningsFirst: b.meaningsFirst,
     });
     res.status(201).json(result);
   } catch (err) {

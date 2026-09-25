@@ -802,6 +802,7 @@ export const api = {
     exampleSource?: "ai" | "web";
     collectionIds?: string[];
     enrich?: boolean;
+    meaningsFirst?: boolean; // onboarding: return once the meanings are in the learner's language
   }) =>
     http<{ created: number; skipped: number; job: Pick<ImportJob, "id" | "status" | "total" | "processed"> | null }>(
       `/api/words/batch`,
