@@ -3,64 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { useToast } from "@/lib/toast";
-import { errText } from "@/lib/errText";
-import { getLevel, getExampleStyle } from "@/lib/learnPrefs";
-import { isAiSupported, langLabel } from "@/lib/langs";
-import { PairChip } from "@/components/PairChip";
-import { Button } from "@/components/ui/button";
+import { langLabel } from "@/lib/langs";
+import { CoachPicks, readPair } from "@/components/CoachPicks";
 import { cn } from "@/lib/utils";
-import { Compass, RefreshCw, Check, Loader2, Plus, Sprout, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
-
-type Pick = { word: string; meaning: string; reason: string };
-
-// Persist the coach's picks so they survive a full reload (F5) — the React Query
-// cache is memory-only, and re-fetching would silently spend tokens each time.
-function picksLSKey(account: string, source: string, target: string) {
-  return `lexa.coachPicks.${account}.${source}-${target}`;
-}
-function readPicksLS(account: string, source: string, target: string): { picks: Pick[] } | undefined {
-  if (typeof window === "undefined" || !account) return undefined;
-  try {
-    const raw = localStorage.getItem(picksLSKey(account, source, target));
-    const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed && Array.isArray(parsed.picks)) return parsed as { picks: Pick[] };
-  } catch {
-    /* ignore */
-  }
-  return undefined;
-}
-function writePicksLS(account: string, source: string, target: string, data: { picks: Pick[] }) {
-  if (typeof window === "undefined" || !account) return;
-  try {
-    localStorage.setItem(picksLSKey(account, source, target), JSON.stringify(data));
-  } catch {
-    /* ignore */
-  }
-}
-
-function readPair(): { source: string; target: string } {
-  if (typeof window === "undefined") return { source: "en", target: "zh" };
-  try {
-    const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string; targetLang?: string };
-    const source = p?.sourceLang && p.sourceLang !== "auto" ? p.sourceLang : "en";
-    return { source, target: p?.targetLang || "zh" };
-  } catch {
-    return { source: "en", target: "zh" };
-  }
-}
+import { Compass, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
 
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
 
 export default function CoachPage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
-  const { show, trackImport } = useToast();
-  const qc = useQueryClient();
   const router = useRouter();
 
   const { data: words } = useQuery({
@@ -88,10 +44,9 @@ export default function CoachPage() {
     router.push("/coach/practice");
   };
 
-  const [pair, setPair] = useState(() => readPair());
-  const [sel, setSel] = useState<Set<string>>(new Set());
-  const [theme, setTheme] = useState("");
-  const [adding, setAdding] = useState(false);
+  // The pair "Words for you" works in (it owns the picker); the goal below is read
+  // for the same language.
+  const [pair] = useState(() => readPair());
 
   // Coach memory: the learner's goal powers a "get to know you" prompt + tailored picks.
   // Scoped to the selected source language so an English goal never leaks into Chinese.
@@ -100,7 +55,6 @@ export default function CoachPage() {
     queryFn: () => api.coachProfile(accountId, pair.source),
     enabled: !!accountId,
   });
-  const [savingGoal, setSavingGoal] = useState(false);
 
   // Stats power the "living" greeting: streak, whether you trained today, yesterday's activity.
   const { data: stats } = useQuery({
@@ -134,141 +88,6 @@ export default function CoachPage() {
     }
   }, [stats?.streak, bestStreak]);
 
-  // Cache the picks in the query client so they SURVIVE navigating away and back
-  // (they used to be local state re-fetched — and re-charged — on every mount).
-  const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
-  const picksQuery = useQuery({
-    queryKey: picksKey,
-    queryFn: () =>
-      api.coachPicks({
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        count: 8,
-        theme: theme.trim() || undefined,
-      }),
-    enabled: false, // only fetch via the "New picks" button — switching languages must not burn tokens
-    staleTime: Infinity, // keep until the user asks for new picks
-    gcTime: 30 * 60_000,
-    // Hydrate from localStorage on mount so a reload keeps the picks (no re-fetch,
-    // no token spend). Only the very first ever load hits the API.
-    initialData: () => readPicksLS(accountId, pair.source, pair.target),
-  });
-  const picks = picksQuery.data?.picks ?? [];
-  // Manual "New picks" goes through saveThemeAndPicks (not a refetch), so fold its
-  // savingGoal flag in — otherwise the refresh spinner never showed.
-  const loading = picksQuery.isFetching || savingGoal;
-
-  function setSource(source: string) {
-    const next = { ...pair, source };
-    setPair(next);
-    try {
-      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
-    } catch {
-      /* ignore */
-    }
-  }
-  function setTarget(target: string) {
-    const next = { ...pair, target };
-    setPair(next);
-    try {
-      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
-    } catch {
-      /* ignore */
-    }
-  }
-  function swapLangs() {
-    const next = { source: pair.target, target: pair.source };
-    setPair(next);
-    try {
-      localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: next.source, targetLang: next.target }));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // Prefill the "what to learn" box with the saved goal, so it's remembered but not nagged.
-  useEffect(() => {
-    const g = profile?.goal?.trim();
-    if (g) setTheme((cur) => cur || g);
-  }, [profile?.goal]);
-
-  // Gentle personalization: whatever you type in "what to learn" IS your goal — it's
-  // quietly remembered and tailors the picks. No forced onboarding.
-  async function saveThemeAndPicks() {
-    if (savingGoal) return;
-    const g = theme.trim();
-    setSavingGoal(true);
-    try {
-      if (g) {
-        await api.updateCoachProfile({ telegramId: accountId, lang: pair.source, goal: g });
-        qc.invalidateQueries({ queryKey: ["coach-profile", accountId, pair.source] });
-      }
-      const r = await api.coachPicks({
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
-        count: 8,
-        theme: g || undefined,
-      });
-      qc.setQueryData(picksKey, r);
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setSavingGoal(false);
-    }
-  }
-  const loadPicks = () => void saveThemeAndPicks();
-
-  // Select all freshly-loaded picks by default, and persist them for next reload.
-  useEffect(() => {
-    setSel(new Set(picks.map((p) => p.word)));
-    if (picksQuery.data && accountId) writePicksLS(accountId, pair.source, pair.target, picksQuery.data);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picksQuery.data]);
-  useEffect(() => {
-    if (picksQuery.isError) show({ icon: "⚠️", title: errText(picksQuery.error, t) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picksQuery.isError]);
-
-  const toggle = (w: string) =>
-    setSel((prev) => {
-      const n = new Set(prev);
-      if (n.has(w)) n.delete(w);
-      else n.add(w);
-      return n;
-    });
-
-  async function addSelected() {
-    const words = picks.filter((p) => sel.has(p.word)).map((p) => p.word);
-    if (!words.length || adding) return;
-    setAdding(true);
-    try {
-      const r = await api.batchAddWords({
-        telegramId: accountId,
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        words,
-        level: getLevel(pair.source) ?? undefined,
-        exampleStyle: getExampleStyle(),
-        enrich: isAiSupported(pair.source),
-      });
-      qc.invalidateQueries({ queryKey: ["words"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
-      if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
-      show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
-      // Drop the added ones from the cached picks.
-      const added = new Set(words);
-      qc.setQueryData<{ picks: Pick[] }>(picksKey, (old) => (old ? { picks: old.picks.filter((x) => !added.has(x.word)) } : old));
-      setSel(new Set());
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  const selectedCount = picks.filter((p) => sel.has(p.word)).length;
 
   // A living one-liner from the coach: a time-of-day greeting plus a remark drawn
   // from your streak, today's/yesterday's activity, due & weak words, and goal.
@@ -441,120 +260,7 @@ export default function CoachPage() {
       </div>
 
       {/* Words for you — level-appropriate picks */}
-      <section id="coach-picks" className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
-            <p className="mt-0.5 text-[13px] text-ink-soft">
-              {t("coach.picksHint", { level: getLevel(pair.source) ?? "—", lang: langLabel(pair.source) })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={loadPicks}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            {t("coach.refresh")}
-          </button>
-        </div>
-
-        {/* language pair: stated as a chip, changed from it */}
-        <PairChip source={pair.source} target={pair.target} onSource={setSource} onTarget={setTarget} onSwap={swapLangs} />
-
-        {/* Your goal, in-context: type why you're learning → picks follow it and it's
-            quietly remembered. No separate onboarding, no nagging. */}
-        <div>
-          <input
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") loadPicks();
-            }}
-            placeholder={t("coach.themePlaceholder")}
-            maxLength={80}
-            className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-          />
-          <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
-            <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
-            {theme.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
-          </p>
-        </div>
-
-        {/* picks */}
-        {loading && picks.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-soft">{t("coach.loading")}</p>
-        ) : picks.length === 0 ? (
-          <div className="rounded-[18px] border border-dashed border-black/[0.12] bg-black/[0.02] p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sage-tint/60 text-sage-deep">
-              <Sprout className="h-7 w-7" />
-            </div>
-            <p className="mt-4 text-[16px] font-semibold text-ink">{t("coach.emptyPicksTitle")}</p>
-            <p className="mt-1 text-[13px] text-ink-soft">{t("coach.emptyPicksHint")}</p>
-            <button
-              type="button"
-              onClick={loadPicks}
-              disabled={loading}
-              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {t("coach.refresh")}
-            </button>
-          </div>
-        ) : (
-          <div className="max-h-[336px] space-y-2 overflow-y-auto pr-1">
-            {picks.map((p) => {
-              const on = sel.has(p.word);
-              return (
-                <button
-                  key={p.word}
-                  type="button"
-                  onClick={() => toggle(p.word)}
-                  className={cn(
-                    "flex w-full items-start gap-3 rounded-[14px] border p-3.5 text-left transition-colors",
-                    on ? "border-sage/40 bg-sage-tint/45" : "border-black/[0.08] bg-surface opacity-80 hover:opacity-100",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
-                      on ? "border-sage bg-sage text-white" : "border-black/20 bg-surface",
-                    )}
-                  >
-                    {on && <Check className="h-3.5 w-3.5" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-baseline gap-x-2">
-                      <span className={cn("text-[19px] font-semibold leading-tight text-ink", srcFont(pair.source))}>{p.word}</span>
-                      {p.meaning && (
-                        <span className={cn("text-[15px] font-medium text-sage", (pair.target === "zh" || pair.target === "zh-Hant") && "font-zh")}>
-                          {p.meaning}
-                        </span>
-                      )}
-                    </span>
-                    {p.reason && <span className="mt-1 block text-[13px] leading-snug text-ink-soft">{p.reason}</span>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {picks.length > 0 && (
-          <Button onClick={addSelected} disabled={adding || selectedCount === 0} className="w-full">
-            {adding ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("reader.queueing")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Plus className="h-4 w-4" /> {t("coach.addN", { n: selectedCount })}
-              </span>
-            )}
-          </Button>
-        )}
-      </section>
+      <CoachPicks />
 
     </div>
   );

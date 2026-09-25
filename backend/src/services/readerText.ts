@@ -116,12 +116,30 @@ export async function createText(
     level?: string;
     sourceLang?: string;
     targetLang?: string;
+    autosave?: boolean;
   },
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
+  // Autosave (every text the Reader opens is kept): the same text opened again is
+  // the same row, moved back to the top of the list with its cached translation,
+  // and its title never costs a model call.
+  if (data.autosave) {
+    const same = await prisma.readerText.findFirst({ where: { userId: uid, content: data.content }, select: { id: true } });
+    if (same) {
+      return prisma.readerText.update({
+        where: { id: same.id },
+        data: { updatedAt: new Date() },
+        select: { id: true, title: true, level: true, translation: true },
+      });
+    }
+  }
   const typed = data.title.trim();
-  const title = typed || (data.autoName ? await titleFor(data.content, data.sourceLang) : data.content.trim().slice(0, 40) || "Untitled");
+  const title =
+    typed ||
+    (data.autoName && !data.autosave
+      ? await titleFor(data.content, data.sourceLang)
+      : data.content.trim().replace(/\s+/g, " ").slice(0, 40) || "Untitled");
   const collection = data.collection?.trim() || null;
   // A level the user picked wins (no tokens); only estimate via the model when
   // asked to and none was provided.
@@ -142,7 +160,7 @@ export async function createText(
       sourceLang: data.sourceLang ?? null,
       targetLang: data.targetLang ?? null,
     },
-    select: { id: true, title: true, level: true },
+    select: { id: true, title: true, level: true, translation: true },
   });
 }
 

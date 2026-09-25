@@ -106,7 +106,7 @@ const coachPicksBody = z.object({
   targetLang: z.string().min(2),
   level: z.string().max(4).optional(),
   count: z.number().int().min(3).max(20).optional(),
-  theme: z.string().max(60).optional(),
+  theme: z.string().max(300).optional(), // the saved goal, which onboarding can make long
 });
 wordsRouter.post("/coach/picks", async (req: Request, res: Response) => {
   const parsed = coachPicksBody.safeParse(req.body);
@@ -1401,6 +1401,7 @@ const readerCreateBody = z.object({
   level: z.string().max(4).optional(),
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
+  autosave: z.boolean().optional(),
 });
 wordsRouter.post("/reader/texts", async (req, res) => {
   const parsed = readerCreateBody.safeParse(req.body);

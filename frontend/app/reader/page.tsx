@@ -32,10 +32,10 @@ import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
 import { recorderSupported } from "@/lib/record";
-import { micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
+import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
+import { ArrowRightLeft, Camera, Check, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -56,6 +56,16 @@ function popAt(rect: DOMRect) {
 // break between ruby elements sized the text to its longest line and pushed the
 // page sideways on an iPhone.
 const OPENS_BEFORE = /[“‘「『《〈【（(\[]$/;
+
+// Is `b` an edit of `a` (an OCR slip fixed) rather than a different text? Edits
+// keep most of the start and the end; a new paste shares almost none of either.
+function sameText(a: string, b: string) {
+  let p = 0;
+  while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  let s = 0;
+  while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  return p + s >= Math.min(a.length, b.length) * 0.5;
+}
 
 // Downscale + re-encode a photo before upload, so OCR payloads stay small/fast.
 function downscaleImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
@@ -162,6 +172,9 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // The saved row the text on screen lives in. Every text is kept the moment it
+  // is read (autosave); Save then only renames it or files it in a collection.
+  const [savedRow, setSavedRow] = useState<{ id: string; content: string; title: string } | null>(null);
   // Read-aloud practice (server STT — works on mobile and in China, unlike the
   // browser recogniser): toggle + per-sentence scoring panel under the text.
   const [readAloud, setReadAloud] = useState(false);
@@ -494,6 +507,39 @@ export default function ReaderPage() {
     setTextLevel(null); // a freshly pasted text has no level until it's saved
     setOpenText(null); // fresh paste → Save creates a new text, not an update
     setReading(true);
+    autosave(text.trim());
+  }
+
+  // Keep the text: an edit of the one already saved updates that row, anything
+  // else becomes a new one (the server hands back the old row for a text read
+  // before, translation and all). A failure costs nothing — Save still works.
+  async function autosave(content: string) {
+    const prev = savedRow;
+    try {
+      if (prev && sameText(prev.content, content)) {
+        if (prev.content !== content) await api.updateReaderText(prev.id, { telegramId: accountId, content });
+        setSavedRow({ ...prev, content });
+      } else {
+        const saved = await api.saveReaderText({
+          telegramId: accountId,
+          title: "",
+          content,
+          autosave: true,
+          estimateLevel: getShowTextLevel(),
+          sourceLang,
+          targetLang,
+        });
+        setSavedRow({ id: saved.id, content, title: saved.title });
+        if (saved.level) setTextLevel(saved.level);
+        if (saved.translation && translatedFor.current !== text) {
+          setTranslation(saved.translation);
+          translatedFor.current = text;
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["reader-texts"] });
+    } catch {
+      /* not kept this time; the Save button still is */
+    }
   }
 
   // Leave the reading view. A saved text is edited via its own edit modal now, so
@@ -519,6 +565,7 @@ export default function ReaderPage() {
     setText(full.content);
     setTextLevel(full.level ?? null);
     setOpenText(full); // editing this one → Save updates it instead of duplicating
+    setSavedRow({ id: full.id, content: full.content, title: full.title });
     // Attribute words added from this text to its title (falls back to "Reader").
     if (full.title?.trim()) setReaderSource(full.title.trim());
     if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
@@ -834,6 +881,10 @@ export default function ReaderPage() {
       setTranslation(r.translation);
       translatedFor.current = text;
       setShowTr(true);
+      // Kept with the saved text, so opening it again doesn't pay for it twice.
+      if (savedRow && savedRow.content === text.trim()) {
+        api.updateReaderText(savedRow.id, { telegramId: accountId, translation: r.translation }).catch(() => {});
+      }
     } catch (e) {
       show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: errText(e, t) });
     } finally {
@@ -878,14 +929,18 @@ export default function ReaderPage() {
   };
   const breakBefore = (i: number) => (rubyOn && i > 0 && !OPENS_BEFORE.test(tokens[i - 1].text) ? <wbr /> : null);
 
-  async function scanPhoto(file: File) {
-    if (scanning) return;
+  // One photo or several (a two-page spread picked from the gallery), read in
+  // order, each page appended to the box.
+  async function scanPhotos(files: File[]) {
+    if (scanning || !files.length) return;
     setScanning(true);
     try {
-      const dataUrl = await downscaleImage(file);
-      const r = await api.ocr({ image: dataUrl, sourceLang });
-      const found = r.text.trim();
-      if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
+      for (const file of files) {
+        const dataUrl = await downscaleImage(file);
+        const r = await api.ocr({ image: dataUrl, sourceLang });
+        const found = r.text.trim();
+        if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
+      }
     } catch (e) {
       show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: errText(e, t) });
     } finally {
@@ -960,16 +1015,16 @@ export default function ReaderPage() {
             </div>
           )}
 
+          {/* No `capture`: it sent a phone straight to the camera. Without it iOS
+              offers Take Photo / Photo Library / Choose File, and Android its
+              camera-or-gallery chooser. */}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            multiple
             className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) scanPhoto(f);
-            }}
+            onChange={(e) => scanPhotos(Array.from(e.target.files ?? []))}
           />
           {/* primary action */}
           <Button onClick={startReading} disabled={!text.trim()} className="w-full">
@@ -1063,7 +1118,16 @@ export default function ReaderPage() {
           onClick={() => setShowSave(true)}
           className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
         >
-          <Save className="h-3.5 w-3.5" /> {t("reader.save")}
+          {/* Already kept (autosave): the button renames it or files it away. */}
+          {savedRow && savedRow.content === text.trim() ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-sage-deep" /> {t("reader.savedShort")}
+            </>
+          ) : (
+            <>
+              <Save className="h-3.5 w-3.5" /> {t("reader.save")}
+            </>
+          )}
         </button>
 
         {/* edit the text on screen: back to the input view with THIS text loaded
@@ -1547,13 +1611,14 @@ export default function ReaderPage() {
           clickedWords={Array.from(new Set([...added, ...selected]))}
           sourceLang={sourceLang}
           targetLang={targetLang}
-          editId={openText?.id}
-          initialTitle={openText?.title}
+          editId={openText?.id ?? (savedRow?.content === text.trim() ? savedRow.id : undefined)}
+          initialTitle={openText?.title ?? (savedRow?.content === text.trim() ? savedRow.title : undefined)}
           initialCollection={openText?.collection ?? ""}
           initialLevel={openText?.level ?? ""}
           onClose={() => setShowSave(false)}
           onSaved={(saved) => {
             if (openText && saved) setOpenText({ ...openText, ...saved });
+            if (saved) setSavedRow((r) => (r && r.id === saved.id ? { ...r, title: saved.title } : r));
             setTextLevel(saved?.level ?? textLevel);
             setShowSave(false);
           }}

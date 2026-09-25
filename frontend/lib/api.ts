@@ -308,7 +308,7 @@ export interface HskWordList {
 
 // A word of a browsed official list, with where the learner stands on it:
 // null = no card and never said they know it.
-export type HskListWord = HskWord & { status: "canUse" | "recognise" | "learning" | null };
+export type HskListWord = HskWord & { status: "canUse" | "recognise" | "learning" | null; card: boolean };
 
 // Which surface graded an answer. Logged per review so the learner model can tell
 // "recognised it on a card" from "produced it in a sentence".
@@ -955,7 +955,11 @@ export const api = {
 
   // Coach "Daily picks": level-appropriate words the learner doesn't have yet.
   coachPicks: (payload: { sourceLang: string; targetLang: string; level?: string; count?: number; theme?: string }) =>
-    http<{ picks: { word: string; meaning: string; reason: string }[] }>(`/api/coach/picks`, { method: "POST", body: JSON.stringify(payload) }),
+    // `hsk`: the pick's level on the learner's HSK list (Chinese with a target only).
+    http<{ picks: { word: string; meaning: string; reason: string; hsk?: number }[] }>(`/api/coach/picks`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   // Onboarding placement mini-test: themed clusters of level-appropriate words in the
   // studied language; the learner taps the ones they DON'T know to seed their deck.
@@ -1089,7 +1093,12 @@ export const api = {
     level?: string;
     sourceLang?: string;
     targetLang?: string;
-  }) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts`, { method: "POST", body: JSON.stringify(payload) }),
+    autosave?: boolean; // the Reader keeps every text it opens: dedupes, never AI-names
+  }) =>
+    http<{ id: string; title: string; level?: string | null; translation?: string | null }>(`/api/reader/texts`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   updateReaderText: (
     id: string,
     payload: {

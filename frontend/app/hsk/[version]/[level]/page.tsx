@@ -68,7 +68,9 @@ export default function HskLevelPage() {
     try {
       await api.addWord({ telegramId: accountId, word: w.word, sourceLang: "zh", targetLang: native, level: CEFR_FOR_HSK[level] });
       qc.setQueryData(key, (prev: typeof data) =>
-        prev ? { ...prev, words: prev.words.map((x) => (x.word === w.word ? { ...x, status: "learning" as const } : x)) } : prev,
+        prev
+          ? { ...prev, words: prev.words.map((x) => (x.word === w.word ? { ...x, card: true, status: x.status ?? ("learning" as const) } : x)) }
+          : prev,
       );
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["hskLists"] });
@@ -142,11 +144,13 @@ export default function HskLevelPage() {
               <span className="font-zh text-[17px] text-ink">{w.word}</span>
               <span className="ml-2 text-[12px] text-ink-faint">{w.pinyin}</span>
             </span>
-            {w.status ? (
+            {w.status && (
               <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-sage-deep">
                 <Check className="h-3.5 w-3.5" /> {statusLabel[w.status]}
               </span>
-            ) : (
+            )}
+            {/* Known from the check but no card yet: it can still be taken. */}
+            {!w.card && (
               <button
                 type="button"
                 onClick={() => add(w)}

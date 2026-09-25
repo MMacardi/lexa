@@ -11,6 +11,7 @@ import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { HskTrack } from "@/components/HskTrack";
+import { CoachPicks } from "@/components/CoachPicks";
 import { ErrorState } from "@/components/ErrorState";
 import { FOCUS } from "@/lib/focus";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -196,6 +197,10 @@ export default function TodayPage() {
 
       {/* the mark, the way to the next gap words, or the way in (F11) */}
       <HskTrack />
+
+      {/* AI picks beyond the list, aimed at the learner's goal: here rather than only
+          on the Coach, so they're found — and generated before the Coach is opened */}
+      <CoachPicks compact />
 
       {/* the charts: a browsing surface, not a step of the loop (F7) */}
       {!FOCUS && <StatsPanel />}
