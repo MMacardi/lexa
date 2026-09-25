@@ -29,7 +29,7 @@ export function LoginScreen() {
     await refresh();
     let resume = false;
     try {
-      resume = !!localStorage.getItem("onomika.onboarding");
+      resume = !!(localStorage.getItem("onomika.guestPlan") || localStorage.getItem("onomika.onboarding"));
     } catch {
       /* ignore */
     }

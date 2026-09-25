@@ -11,6 +11,7 @@ import { feedbackRouter } from "./routes/feedback.js";
 import { invitesRouter } from "./routes/invites.js";
 import { adminRouter } from "./routes/admin.js";
 import { betaRouter } from "./routes/beta.js";
+import { publicRouter } from "./routes/public.js";
 import { communityRouter } from "./routes/community.js";
 import { accountRouter } from "./routes/account.js";
 import { seedLibrary } from "./services/librarySeed.js";
@@ -76,8 +77,9 @@ app.get("/health", (_req, res) => {
 
 // Closed-beta gate. Mounted at /api, so req.path here is the un-prefixed route
 // ("/auth/me", "/words", …). Identity is required everywhere except the login
-// routes (they establish the session) and the pre-login beta unlock (a guest has
-// no session yet); the invite check additionally exempts the beta unlock, the
+// routes (they establish the session), the pre-login beta unlock (a guest has
+// no session yet) and /public (read-only HSK list data for the onboarding a guest
+// does before signing in); the invite check additionally exempts those, the
 // redeem endpoint (a signed-in-but-uninvited user must reach it) and feedback (so
 // anyone can still report "I can't get in").
 // Every /api response is per-user. In prod the browser reaches us through Vercel's
@@ -88,12 +90,12 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-const EXEMPT_IDENTITY = /^\/(auth|beta)\//;
+const EXEMPT_IDENTITY = /^\/(auth|beta|public)\//;
 // account/export + account/delete skip the invite gate but NOT the identity one:
 // someone who signed in and never redeemed a code still owns their data and must
 // be able to take it and leave. Refusing that would make "delete my account" a
 // feature you unlock with an invite.
-const EXEMPT_INVITED = /^\/(auth\/|beta\/|invites\/redeem$|feedback$|account\/(export|delete)$)/;
+const EXEMPT_INVITED = /^\/(auth\/|beta\/|public\/|invites\/redeem$|feedback$|account\/(export|delete)$)/;
 app.use("/api", (req, res, next) =>
   EXEMPT_IDENTITY.test(req.path) ? next() : requireIdentity(req, res, next),
 );
@@ -110,6 +112,7 @@ app.use("/api", (req, _res, next) => {
 app.use("/api", authRouter);
 app.use("/api", accountRouter);
 app.use("/api", betaRouter);
+app.use("/api", publicRouter); // onboarding before sign-in: public HSK list reads only
 app.use("/api", invitesRouter);
 app.use("/api", adminRouter);
 app.use("/api", friendsRouter);

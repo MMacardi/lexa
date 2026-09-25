@@ -823,6 +823,12 @@ export const api = {
     if (limit) q.set("limit", String(limit));
     return http<HskWordList>(`/api/hsk/gap?${q}`);
   },
+  // Onboarding before sign-in: the check and the first deck with no account yet
+  // (read-only HSK list data; backend routes/public.ts).
+  publicHskCheck: (version: HskVersion, level: number, size: number) =>
+    http<HskWordList>(`/api/public/hsk/check?${new URLSearchParams({ version, level: String(level), size: String(size) })}`),
+  publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number }) =>
+    http<HskWordList>(`/api/public/hsk/deck`, { method: "POST", body: JSON.stringify(payload) }),
   // One level of an official list, read-only, with the learner's status per word.
   hskList: (version: HskVersion, level: number) =>
     http<{ version: HskVersion; level: number; words: HskListWord[] }>(

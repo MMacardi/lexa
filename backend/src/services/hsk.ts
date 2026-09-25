@@ -369,6 +369,18 @@ export async function hskGapWords(
   return frontierOrder(version, target, (w) => input.status.has(w), input.tapped, input.seed).slice(0, limit);
 }
 
+/**
+ * The first deck for a guest who hasn't made an account yet (onboarding before
+ * sign-in): the same frontier order, fed by the check's taps instead of the
+ * database. A fresh shuffle each time — there is no learner to seed it by.
+ */
+export function hskGuestDeck(version: HskVersion, level: number, known: string[], unknown: string[], limit = 20): HskWord[] {
+  const target = clampLevel(version, level);
+  const knew = new Set(known.map(normalizeHanzi));
+  const tapped = new Set(unknown.map(normalizeHanzi));
+  return frontierOrder(version, target, (w) => knew.has(w), tapped, `guest:${Math.random()}`).slice(0, limit);
+}
+
 // The daily goal the web app starts from (lib/learnPrefs DEFAULT_GOAL) when the
 // account has never saved one.
 const DEFAULT_DAILY = 5;

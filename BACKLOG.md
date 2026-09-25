@@ -28,16 +28,16 @@ bare numbers) are noted in brackets only so older commits and `IDEAS.md` heading
 don't invent new ones.
 
 **Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
-whether anything after it happens. 6–7 make the daily loop smoother while it runs. 8–11 make a beta
-survivable. 12 waits on the test. 13–16 make it legal and named. 17–20 make the result mean
-something. 21+ is after that.
+whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
+session-sized item; 8–13 are small). 14–17 make a beta survivable. 18 waits on the test. 19–22 make
+it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
 
 1. **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an
    untested backup is not a backup. First because it is the only irreversible risk on the board:
-   prod now has a working delete button (see item 8) and F2/F3 made the DB the only copy of the
+   prod now has a working delete button (see item 14) and F2/F3 made the DB the only copy of the
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
 
@@ -121,7 +121,7 @@ something. 21+ is after that.
    don't know, take the daily words, review.
    **Kill rule, set now:** if after two weeks you are not adding words without forcing yourself,
    stop and keep the project as a portfolio piece. If you skip a day, write down why; that reason
-   outranks any feature idea. **Nothing after item 11 starts before this passes.** It has already
+   outranks any feature idea. **Nothing after item 17 starts before this passes.** It has already
    paid for itself once: one hour of real use found the fault behind item 3.
 
 6. **Reader: HSK colours, pinyin only where you need it, how much of a text you know.** From the
@@ -144,13 +144,40 @@ something. 21+ is after that.
    - **Done when:** "this week's lesson" → a five-minute drill of just those words, and their FSRS
      due dates are unchanged afterwards (asserted in a `scripts/check-cram.ts`).
 
-8. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
+8. **Undo the last grade in review.** Anki's most-used safety net: on a phone a mis-tap on Again or
+   Easy silently reschedules the card, with no way back. Keep the card's state from before the
+   grade; "Undo" restores it and deletes that review-log row (`POST /api/words/:id/undo`). Small.
+   - **Done when:** grade a card Easy, undo, and its due date, stability and the review log are
+     exactly as before (asserted in `scripts/check-undo.ts`).
+
+9. **End of review → the next step.** The finish screen only offers "Back to setup". Point on, the
+   Duolingo way: today's new words (HskDaily), the use-step, or the Reader — the loop, one tap at a
+   time. Small.
+
+10. **Play the word when the card flips.** A setting, on by default for Chinese (Anki and Pleco both
+    have it): the word is spoken on reveal. Free listening and tones, which HSK listening needs.
+    Small — `SpeakButton` already speaks it.
+
+11. **A "Paste" button in the Reader and Add word.** One tap reads the clipboard
+    (`navigator.clipboard.readText`), Pleco's clipboard reader: text copied from WeChat or a site
+    is one tap from being read, not a long-press and a menu. Small.
+
+12. **The streak and "today's goal done" on Today.** The count already exists (`stats.streak`) but
+    lives only in the stats panel, hidden while focused. Just visibility — the freeze and the
+    nudge stay under Later. Tiny.
+
+13. **"Add to Home Screen".** Android: an install button from `beforeinstallprompt`. iPhone: a
+    one-time sheet after the second day (Share → Add to Home Screen). Installed, it runs full
+    screen without Safari's bars — which also avoids most of the viewport quirks fixed on
+    2026-09-25 — and it is what web push on iOS needs later. Small–medium.
+
+14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
    the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
    with a 7–30 day window plus a purge job; GDPR-compatible. **After item 1** — a grace period is not
    a backup.
 
-9. **Error monitoring + uptime.** `[H2]` No Sentry anywhere in the repo, so a crash a tester hits is
+15. **Error monitoring + uptime.** `[H2]` No Sentry anywhere in the repo, so a crash a tester hits is
    invisible unless they report it. Sentry (or similar) on backend + frontend, plus an uptime check
    on the existing `GET /health`. Keep the DSN out of git. Pairs with the Next bump that already
    landed, so the SDK matches the major.
@@ -163,7 +190,7 @@ something. 21+ is after that.
      catch and log rather than throw. Verified against a local fake Sentry endpoint: an event
      arrives from each side with a DSN, nothing without one. Tick this once the DSNs are live.
 
-10. **A feedback channel the tester can find.** `[H4]` The bug button and `deliverFeedback` already
+16. **A feedback channel the tester can find.** `[H4]` The bug button and `deliverFeedback` already
     route reports to `FEEDBACK_TELEGRAM_CHAT`/`FEEDBACK_EMAIL`. What's missing is somewhere to
     *answer* — a Telegram chat or group linked from the app and from the landing page, so a 6-week
     beta is a conversation and not a one-way form. The landing already promises you answer.
@@ -174,7 +201,7 @@ something. 21+ is after that.
       nothing shows. `lib/links.ts` accepts https links only. Checked with a test link in the
       local build, logged in and out. Tick once the real link is live.
 
-11. [x] **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
+17. [x] **Stop asking which language.** `[F17]` F8 kept English first-class as a *capability*; it leaked
     into the *interface*, so 14 surfaces still pose «что учу / что знаю» in an app whose positioning
     is a single pair. The pair belongs on the account (F2 stored it), shown as a labelled static chip
     — item 3g's fix, which must survive, because people really did set it backwards — with the picker
@@ -188,7 +215,7 @@ something. 21+ is after that.
       Pickers remain where they are the question: onboarding, Settings, the add form's "which
       language did you type" prompt. Checked on words / reader / coach / import in the local app.
 
-12. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` **On hold until
+18. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` **On hold until
     item 5 passes.** The readiness mark is framing, not the reason anyone switches, and the daily
     words plus rejections (item 3) may locate the frontier well enough on their own. If still needed:
    - **The test:** 24 evenly-spread taps measure nothing. The same budget spent as a ladder locates a
@@ -200,37 +227,37 @@ something. 21+ is after that.
      number that reads 30/1200 to someone who knows a thousand of them is wrong, not conservative,
      and it is the first thing they see.
 
-13. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
+19. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
     the Tavily web-example path, which removed the worst untrusted-text surface. Left: OCR/photo
     capture (F9) and pasted Reader text, both of which reach prompts with no sanitising layer.
 
-14. **Naming decision.** `[6]` Blocks item 15 — decide before buying anything. Criteria and the
+20. **Naming decision.** `[6]` Blocks item 21 — decide before buying anything. Criteria and the
     rename cost are under §Reference. Own session, no code.
 
-15. **Domain + email.** `[6a]` Buy the `.com` (+ `.ru`), set `SMTP_URL` + `EMAIL_FROM`, send a test
+21. **Domain + email.** `[6a]` Buy the `.com` (+ `.ru`), set `SMTP_URL` + `EMAIL_FROM`, send a test
     login link, attach the domain to Vercel. **Until this lands, email sign-in is a dead end:** with
     `SMTP_URL` empty the login link is written to the server log and nothing else, while the UI still
     offers the option. Either finish this or hide email sign-in. IDEAS: "Site email".
 
-16. **Legal pages.** `[7]` Fill the eight `[ЗАПОЛНИТЬ: …]` placeholders across /privacy and /terms
+22. **Legal pages.** `[7]` Fill the eight `[ЗАПОЛНИТЬ: …]` placeholders across /privacy and /terms
     (operator identity, contact email, jurisdiction, min age) — they need a real address for deletion
-    requests, so item 15 comes first. Add a line about the F1 event log and one about the F3
+    requests, so item 21 comes first. Add a line about the F1 event log and one about the F3
     production ledger. The deletion clause already points at the buttons rather than promising a
     reply. Item 20 will add a ToS clause about shared corrections; don't rewrite these twice.
 
-17. **8–10 interviews** with target users. `[V1]` Classmates prepping HSK, Russian-speaking learners
+23. **8–10 interviews** with target users. `[V1]` Classmates prepping HSK, Russian-speaking learners
     at Chinese universities — about how they handle new words *now*, before the beta, not during.
     Explicitly "done first" in STRATEGY.md's Verification table.
 
-18. **Recruiting list.** `[V2]` Where the 30–50 actually come from, named: which communities, which
+24. **Recruiting list.** `[V2]` Where the 30–50 actually come from, named: which communities, which
     student groups, who introduces you. Not friends without a Chinese exam.
 
-19. **Kill-Test thresholds on `/admin`.** `[V3]` The funnel, rolling D1/D7/D30 and use-step quality
+25. **Kill-Test thresholds on `/admin`.** `[V3]` The funnel, rolling D1/D7/D30 and use-step quality
     already render (F1). Put the four thresholds next to the numbers — ≥50% activation, ≥20% week-4
     retention, ≥30% doing 3+ use-steps a week, ≥40% Sean Ellis — and write down what each miss would
     mean *before* seeing the data.
 
-20. **Refresh the defence materials.** `[U1]` `2024998004014_Anton Volkov/` holds the report, the
+26. **Refresh the defence materials.** `[U1]` `2024998004014_Anton Volkov/` holds the report, the
     plan and a source zip, all from **June 2026** — they predate the strategy pass and every one of
     F0–F11, so they describe a different product. Re-export the zip and make the report tell the
     story the repo shows: the pivot from "learn English through the news" to HSK prep, the learner
@@ -241,15 +268,15 @@ something. 21+ is after that.
       `npx tsx scripts/eval-senses.ts` regenerates the CSV; a number you marked by hand is the one
       that survives a question about methodology.
 
-21. **Shared dictionary that learners correct (not just a cache).** `[F6a]` The full design note is
+27. **Shared dictionary that learners correct (not just a cache).** `[F6a]` The full design note is
     under §Reference. Deliberately late: its whole argument is that it compounds *with users*, so it
     is worth least on the day you have none. With one user it is still your own verified dictionary,
     which is worth having anyway.
 
-22. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
+28. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
     Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
 
-23. [x] **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
+29. [x] **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
     篮球 renders a tappable "了三", so the learner can't tap 了 on its own. The bot already has a
     CC-CEDICT longest-match segmenter (`segmentHanzi` in `services/botTutor.ts`); the Reader should
     use the same one. Small, but it sits on the main capture entry — reorder up if it bites.
@@ -263,7 +290,7 @@ something. 21+ is after that.
       matches its gloss (a bare 了 showed "liǎo" over "completed action marker").
       `scripts/check-segment.ts`.
 
-24. [x] **Ground the Reader's tap gloss in CC-CEDICT.** Found in the same run: the contextual Russian
+30. [x] **Ground the Reader's tap gloss in CC-CEDICT.** Found in the same run: the contextual Russian
     for 了 in 他打了三个小时 came back «уже». `glossInContext` (`services/translate.ts`) is the one
     AI path that still invents its own sense; `enrichWordEntry` already passes the dictionary's
     inventory into the prompt, and the tap gloss should do the same.
@@ -315,9 +342,12 @@ Asked for directly after the first tester's report, so none of it is a numbered 
 - HSK lists: "+" on every word without a card, including ones marked known in the check.
 - "Words for you" on Today as well as the Coach, generated before the Coach is opened; for an HSK
   learner chosen from their target level's list (asked to "aim at HSK 4", the model gave HSK 7–9).
-- Onboarding: one question per screen, answered **before sign-in** (landing → questions → plan →
-  beta code → sign-in → the plan resumes → check → first deck). Answers go to the account and
-  the coach memory.
+- Onboarding: one question per screen, and the whole first five minutes **before sign-in**:
+  landing → questions → the check → "Building your plan…" → "Your plan is ready" with the first
+  20 words → sign in (beta code first) → Today applies the plan once (`GuestPlan.tsx`) and the
+  words are waiting. The check and the deck come from `routes/public.ts` (public list data, no
+  account, no model call). The answers go to the account and the coach memory; the plan's words
+  a day set both the daily drip and review's new-cards-per-day.
 - Dialog scrims no longer stop halfway down after the iOS keyboard closes; Telegram login opens
   the app from the tap itself (no `about:blank` tab left behind to come back to).
 
@@ -521,7 +551,7 @@ still gate the invites, and nothing should be sent to a stranger before F13–F1
 
 ## Reference
 
-### Shared dictionary — full design note (open, item 21)
+### Shared dictionary — full design note (open, item 27)
 
 - [ ] **F6a. Shared dictionary that learners correct (not just a cache).** Today every
       `addWordForUser` spends an LLM call even when another learner already has a good card for
@@ -560,7 +590,7 @@ still gate the invites, and nothing should be sent to a stranger before F13–F1
         copied quickly (STRATEGY.md §H). It only compounds with users, so it stays after F1–F5.
         With one user it is still your own verified dictionary, which is worth having anyway.
 
-### Naming criteria (item 14)
+### Naming criteria (item 20)
 "Onomika" is disliked (too long). Every `onomika.*` is still free; 11 of 14 short alternatives
 are taken. Own session: 2–3 syllables, readable in RU + EN, free `.com`, no obscene reading in
 Russian (rules out pinyin *hui*), not locked to Chinese. Decide **before** buying the domain.

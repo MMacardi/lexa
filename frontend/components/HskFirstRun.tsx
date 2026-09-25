@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, type HskVersion, type HskWord } from "@/lib/api";
@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { setLevel as setPrefLevel, pushRecentPair, setNativeLang, setDailyGoal, type CefrLevel } from "@/lib/learnPrefs";
+import { setLevel as setPrefLevel, pushRecentPair, setNativeLang, setDailyGoal, setNewPerDay, type CefrLevel } from "@/lib/learnPrefs";
 import { LangSelect } from "@/components/LangSelect";
 import { langFlag, langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
@@ -77,8 +77,14 @@ const DECK_SIZE = 20;
 // Shared with Today's daily words (HskDaily), which make cards at the same level.
 export const CEFR_FOR_HSK: Record<number, CefrLevel> = { 1: "A1", 2: "A2", 3: "B1", 4: "B2", 5: "C1", 6: "C1", 7: "C2" };
 
-type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done";
+type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done" | "building" | "ready";
 const STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "daily", "plan", "check", "deck", "done"];
+// Before sign-in the whole first five minutes happen here: the questions, the
+// check, the plan being built, the words — and the account comes last, to keep them.
+const GUEST_STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "daily", "check", "building", "ready"];
+// Lines on the "building your plan" screen, ticked off one by one.
+const BUILD_STEPS = 4;
+const BUILD_STEP_MS = 850;
 
 type Icon = ComponentType<{ className?: string }>;
 
@@ -147,6 +153,39 @@ function readAnswers(): Answers | null {
     return a && typeof a.target === "number" && Array.isArray(a.goals) ? a : null;
   } catch {
     return null;
+  }
+}
+
+// Everything a guest's onboarding decided, waiting on the device until they sign
+// in; Today applies it once (GuestPlan.tsx) so the words are there on arrival.
+export const GUEST_PLAN_KEY = "onomika.guestPlan";
+export type GuestPlan = {
+  native: string;
+  version: HskVersion;
+  target: number;
+  daily: number;
+  goal: string; // coach memory, in the interface language they answered in
+  likes: string;
+  known: string[]; // the check's "know it", plus deck words turned down
+  unknown: string[]; // the check's taps
+  words: string[]; // the first deck
+};
+
+export function readGuestPlan(): GuestPlan | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(GUEST_PLAN_KEY) ?? "null") as GuestPlan | null;
+    return p && typeof p.target === "number" && Array.isArray(p.words) ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearGuestPlan() {
+  try {
+    localStorage.removeItem(GUEST_PLAN_KEY);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -231,7 +270,8 @@ export function HskFirstRun({
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
 
-  // Answers given before sign-in, if any: the flow resumes on the plan.
+  // Answers the first pre-sign-in version saved (questions only, no check): the
+  // flow resumes on the plan. The current one hands over a whole GuestPlan instead.
   const [saved] = useState(() => (guest ? null : readAnswers()));
   // "I already know" — Russian by default, and only overridden by the browser's
   // own language. The learning side is never a picker here: it is Chinese.
@@ -258,8 +298,16 @@ export function HskFirstRun({
   const levelName = target === 7 ? "7–9" : String(target);
   const fromZero = known === 0;
   const recommended = DAILY_FOR_EXAM[exam];
-  const idx = STEPS.indexOf(step);
-  const asking = idx <= STEPS.indexOf("plan");
+  const steps = guest ? GUEST_STEPS : STEPS;
+  const idx = steps.indexOf(step);
+  // Back is offered through the questions (and, before sign-in, from the check).
+  const backable = idx > 0 && idx <= steps.indexOf(guest ? "check" : "plan");
+  // The "building your plan" screen: which line is ticking, and the check's
+  // answers it was built from (kept for the account after sign-in).
+  const [buildStep, setBuildStep] = useState(0);
+  const [answers, setAnswers] = useState<{ known: string[]; unknown: string[] }>({ known: [], unknown: [] });
+  const buildTimer = useRef(0);
+  useEffect(() => () => window.clearInterval(buildTimer.current), []);
 
   // Each step opens at its own top: on a phone the last answer tapped sits low on
   // the screen, and the next question would otherwise start half scrolled away.
@@ -298,13 +346,76 @@ export function HskFirstRun({
     return { goal, likes };
   }
 
-  // Before sign-in: keep the answers on the device and go and sign in.
-  function saveForSignIn() {
-    const answers: Answers = { native, goals: [...goals], known, version, target, exam, interests: [...interests], daily };
+  // Before sign-in, after the last question: the check (public list data, no
+  // account needed), or straight to building for someone starting from zero.
+  async function guestNext() {
+    if (fromZero) {
+      startBuilding([], []);
+      return;
+    }
+    setBusy(true);
     try {
-      localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers));
+      const r = await api.publicHskCheck(version, target, CHECK_SIZE);
+      setCheck(r.words);
+      setUnknown(new Set());
+      go("check");
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // The screen phone apps put here: the plan being put together, a line at a
+  // time. The deck request runs underneath and is back long before the last
+  // line, so the wait is the few seconds of the animation, not the network.
+  function startBuilding(knownWords: string[], unknownWords: string[]) {
+    setAnswers({ known: knownWords, unknown: unknownWords });
+    setBuildStep(0);
+    setGap([]);
+    setRejected(new Set());
+    go("building");
+    const deck = api.publicHskDeck({ version, level: target, known: knownWords, unknown: unknownWords, size: DECK_SIZE });
+    let n = 0;
+    window.clearInterval(buildTimer.current);
+    // The last line keeps spinning until the words are really there.
+    buildTimer.current = window.setInterval(() => {
+      n += 1;
+      setBuildStep(n);
+      if (n >= BUILD_STEPS - 1) window.clearInterval(buildTimer.current);
+    }, BUILD_STEP_MS);
+    Promise.all([deck, new Promise((r) => window.setTimeout(r, BUILD_STEP_MS * BUILD_STEPS))])
+      .then(([r]) => {
+        setGap(r.words);
+        setBuildStep(BUILD_STEPS);
+        window.setTimeout(() => go("ready"), 450);
+      })
+      .catch((e) => {
+        window.clearInterval(buildTimer.current);
+        show({ icon: "⚠️", title: errText(e, t) });
+        go(fromZero ? "daily" : "check");
+      });
+  }
+
+  // "Sign in to start": the plan and the words wait on the device; Today applies
+  // them the moment the account exists.
+  function saveForSignIn() {
+    const { goal, likes } = memoryText();
+    const plan: GuestPlan = {
+      native,
+      version,
+      target,
+      daily,
+      goal,
+      likes,
+      known: [...answers.known, ...rejected],
+      unknown: answers.unknown,
+      words: gap.map((w) => w.word).filter((w) => !rejected.has(w)),
+    };
+    try {
+      localStorage.setItem(GUEST_PLAN_KEY, JSON.stringify(plan));
     } catch {
-      /* private mode: they answer again after signing in */
+      /* private mode: the account starts from the onboarding again */
     }
     onGuestDone?.();
   }
@@ -324,6 +435,7 @@ export function HskFirstRun({
       setPrefLevel("zh", level);
       pushRecentPair("zh", native);
       setDailyGoal(daily);
+      setNewPerDay(daily); // review introduces what the plan promised, not the default 15
       try {
         localStorage.setItem("lexa.wordPair", JSON.stringify({ sourceLang: "zh", targetLang: native }));
       } catch {
@@ -359,6 +471,12 @@ export function HskFirstRun({
   }
 
   async function finishCheck() {
+    if (guest) {
+      const knownWords = check.map((w) => w.word).filter((w) => !unknown.has(w));
+      setKnownCount(knownWords.length);
+      startBuilding(knownWords, [...unknown]);
+      return;
+    }
     setBusy(true);
     try {
       const knownWords = check.map((w) => w.word).filter((w) => !unknown.has(w));
@@ -415,16 +533,47 @@ export function HskFirstRun({
   );
 
   const { goal: goalText, likes } = memoryText();
+  const planSummary = (
+    <ul className="space-y-2.5 rounded-[16px] border border-black/[0.06] bg-surface p-4">
+      <li className="flex items-start gap-3 text-[14px] text-ink">
+        <Target className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
+        <span>
+          <span className="font-semibold">{t("onb.planTarget", { level: levelName, list: version })}</span>
+          {exam !== "none" && <span className="text-ink-soft"> · {t(`onb.exam.${exam}`)}</span>}
+        </span>
+      </li>
+      <li className="flex items-start gap-3 text-[14px] text-ink">
+        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
+        {t("onb.planDaily", { n: daily })}
+      </li>
+      <li className="flex items-start gap-3 text-[14px] text-ink">
+        <Languages className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
+        {t("onb.planLang", { lang: langLabel(native) })}
+      </li>
+      {(goalText || likes) && (
+        <li className="flex items-start gap-3 text-[14px] text-ink">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
+          {t("onb.planFor", { what: [goalText, likes].filter(Boolean).join(" · ") })}
+        </li>
+      )}
+    </ul>
+  );
+  const buildLines = [
+    t("onb.build.answers"),
+    fromZero ? t("onb.build.zero") : t("onb.build.level", { known: knownCount, shown: check.length, level: levelName }),
+    t("onb.build.words", { n: DECK_SIZE, level: levelName }),
+    t("onb.build.pace", { n: daily }),
+  ];
 
   return (
     <div ref={rootRef} className="anim-fade-up space-y-4">
       <div className="rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface p-5 sm:p-6">
         {/* where you are: back, progress, and what this is */}
         <div className="mb-5 flex items-center gap-3">
-          {asking && idx > 0 ? (
+          {backable ? (
             <button
               type="button"
-              onClick={() => go(STEPS[idx - 1])}
+              onClick={() => go(steps[idx - 1])}
               aria-label={t("onb.back")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-black/[0.05] hover:text-ink"
             >
@@ -436,7 +585,7 @@ export function HskFirstRun({
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[0.06]">
             <div
               className="h-full rounded-full bg-sage transition-[width] duration-300"
-              style={{ width: `${((idx + 1) / STEPS.length) * 100}%` }}
+              style={{ width: `${((idx + 1) / steps.length) * 100}%` }}
             />
           </div>
           <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("onb.eyebrow")}</span>
@@ -622,7 +771,11 @@ export function HskFirstRun({
                   key={n}
                   Icon={Icon}
                   on={daily === n}
-                  onClick={() => pickThen(() => setDaily(n), "plan")}
+                  onClick={() => {
+                    if (!guest) return pickThen(() => setDaily(n), "plan");
+                    setDaily(n);
+                    window.setTimeout(guestNext, 180);
+                  }}
                   label={`${t(`onb.daily.${n}`)} · ${t("onb.dailyN", { n })}`}
                   desc={t("onb.dailyTime", { m: n })}
                   tag={exam !== "none" && n === recommended ? t("onb.recommended") : undefined}
@@ -634,48 +787,82 @@ export function HskFirstRun({
 
         {step === "plan" && (
           <>
-            {heading(t("onb.planTitle"), guest ? t("onb.planSubGuest") : fromZero ? t("onb.planSubZero") : t("onb.planSub"))}
-            <ul className="space-y-2.5 rounded-[16px] border border-black/[0.06] bg-surface p-4">
-              <li className="flex items-start gap-3 text-[14px] text-ink">
-                <Target className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
-                <span>
-                  <span className="font-semibold">{t("onb.planTarget", { level: levelName, list: version })}</span>
-                  {exam !== "none" && <span className="text-ink-soft"> · {t(`onb.exam.${exam}`)}</span>}
-                </span>
-              </li>
-              <li className="flex items-start gap-3 text-[14px] text-ink">
-                <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
-                {t("onb.planDaily", { n: daily })}
-              </li>
-              <li className="flex items-start gap-3 text-[14px] text-ink">
-                <Languages className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
-                {t("onb.planLang", { lang: langLabel(native) })}
-              </li>
-              {(goalText || likes) && (
-                <li className="flex items-start gap-3 text-[14px] text-ink">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
-                  {t("onb.planFor", { what: [goalText, likes].filter(Boolean).join(" · ") })}
-                </li>
-              )}
-            </ul>
-            {guest ? (
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Button className="w-full sm:w-auto" onClick={saveForSignIn}>
-                  <Check className="mr-2 h-4 w-4" />
-                  {t("onb.saveSignIn")}
-                </Button>
-                <span className="text-[13px] text-ink-soft">{t("onb.saveSignInHint")}</span>
-              </div>
-            ) : (
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Button className="w-full sm:w-auto" disabled={busy} onClick={commitPlan}>
-                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                  {fromZero ? t("onb.startZero") : t("hskFirst.startCheck")}
-                </Button>
-                {!fromZero && <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>}
-              </div>
-            )}
+            {heading(t("onb.planTitle"), fromZero ? t("onb.planSubZero") : t("onb.planSub"))}
+            {planSummary}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button className="w-full sm:w-auto" disabled={busy} onClick={commitPlan}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                {fromZero ? t("onb.startZero") : t("hskFirst.startCheck")}
+              </Button>
+              {!fromZero && <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>}
+            </div>
           </>
+        )}
+
+        {step === "building" && (
+          <div>
+            {heading(t("onb.buildTitle"), t("onb.buildSub"))}
+            <ul className="space-y-3">
+              {buildLines.map((line, i) => (
+                <li key={i} className="flex items-center gap-3 text-[15px]">
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors duration-300",
+                      i < buildStep ? "bg-sage text-white" : "bg-sage-tint/60 text-sage-deep",
+                    )}
+                  >
+                    {i < buildStep ? (
+                      <Check className="h-4 w-4" />
+                    ) : i === buildStep ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    )}
+                  </span>
+                  <span className={cn("transition-colors duration-300", i <= buildStep ? "text-ink" : "text-ink-faint")}>{line}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
+              <div
+                className="h-full rounded-full bg-sage transition-[width] duration-700 ease-out"
+                style={{ width: `${Math.min(100, ((buildStep + 0.5) / BUILD_STEPS) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === "ready" && (
+          <div>
+            {heading(
+              t("onb.readyTitle"),
+              check.length
+                ? t("hskFirst.markLine", { known: knownCount, shown: check.length, level: levelName })
+                : t("onb.deckZero", { level: levelName }),
+            )}
+            {planSummary}
+            <p className="mt-5 text-[15px] font-semibold text-ink">{t("onb.readyWords", { n: gap.length - rejected.size })}</p>
+            <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.rejectHint")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {gap.map((w) => (
+                <HskWordChip
+                  key={w.word}
+                  word={w.word}
+                  pinyin={w.pinyin}
+                  level={w.level}
+                  known={rejected.has(w.word)}
+                  onToggle={() => setRejected((s) => toggleIn(s, w.word))}
+                />
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button className="w-full sm:w-auto" disabled={gap.length === rejected.size} onClick={saveForSignIn}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                {t("onb.readyCta")}
+              </Button>
+              <span className="text-[13px] text-ink-soft">{t("onb.readyHint")}</span>
+            </div>
+          </div>
         )}
 
         {step === "check" && (

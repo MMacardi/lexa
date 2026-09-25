@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
@@ -11,6 +12,8 @@ import { CoachBriefing } from "@/components/CoachBriefing";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { HskTrack } from "@/components/HskTrack";
+import { FinishGuestPlan } from "@/components/GuestPlan";
+import { readGuestPlan } from "@/components/HskFirstRun";
 import { CoachPicks } from "@/components/CoachPicks";
 import { ErrorState } from "@/components/ErrorState";
 import { FOCUS } from "@/lib/focus";
@@ -50,6 +53,8 @@ function Stat({ value, label, accent }: { value: React.ReactNode; label: string;
 export default function TodayPage() {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
+  // The onboarding done before sign-in, not yet on the account: apply it first.
+  const [guestPlan, setGuestPlan] = useState(readGuestPlan);
   const { data: words, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -59,6 +64,13 @@ export default function TodayPage() {
   const dateStr = new Date()
     .toLocaleDateString(dateLocale, { weekday: "long", month: "long", day: "numeric" })
     .replace(",", " ·");
+
+  if (guestPlan)
+    return (
+      <div className="space-y-6 pt-4">
+        <FinishGuestPlan plan={guestPlan} onDone={() => setGuestPlan(null)} />
+      </div>
+    );
 
   if (isLoading)
     return (
