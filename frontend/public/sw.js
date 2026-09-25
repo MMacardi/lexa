@@ -43,8 +43,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (JS/CSS chunks, images, icons): stale-while-revalidate.
-  const cacheable = STATIC.test(url.pathname) || url.pathname.startsWith("/icon") || url.pathname.startsWith("/favicon");
+  // Static assets (JS/CSS chunks, images, icons, the draw pad's stroke data):
+  // stale-while-revalidate.
+  const cacheable =
+    STATIC.test(url.pathname) ||
+    url.pathname.startsWith("/icon") ||
+    url.pathname.startsWith("/favicon") ||
+    url.pathname.startsWith("/handwriting/");
   if (cacheable) {
     event.respondWith(
       (async () => {

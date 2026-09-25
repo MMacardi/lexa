@@ -17,6 +17,16 @@ import type { NextConfig } from "next";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
 const nextConfig: NextConfig = {
+  // The draw pad's stroke data is versioned by filename (hanzi-v1.bin), so it can
+  // be cached for good instead of revalidated on every open.
+  async headers() {
+    return [
+      {
+        source: "/handwriting/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

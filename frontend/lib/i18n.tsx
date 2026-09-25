@@ -1182,6 +1182,23 @@ const DICT: Record<string, Entry> = {
   "han.japanese": { en: "Japanese", ru: "Японский", zh: "日语" },
   "han.korean": { en: "Korean", ru: "Корейский", zh: "韩语" },
   "han.inlinePrompt": { en: "Which language?", ru: "Какой язык?", zh: "哪种语言？" },
+  // --- draw pad (handwriting input) ---
+  "draw.toggle": { en: "Draw a character", ru: "Нарисовать иероглиф", zh: "手写输入" },
+  "draw.pad": { en: "Handwriting pad", ru: "Поле для рисования иероглифа", zh: "手写板" },
+  "draw.hint": {
+    en: "Draw a character — part of it is enough",
+    ru: "Нарисуйте иероглиф — хватит и части",
+    zh: "写一个字——写出一部分就行",
+  },
+  "draw.loading": { en: "Getting handwriting ready…", ru: "Загружаю распознавание…", zh: "正在加载手写识别…" },
+  "draw.loadFailed": {
+    en: "Couldn't load handwriting — check your connection",
+    ru: "Не удалось загрузить распознавание — проверьте интернет",
+    zh: "手写识别加载失败——请检查网络",
+  },
+  "draw.undo": { en: "Undo stroke", ru: "Отменить черту", zh: "撤销一笔" },
+  "draw.clear": { en: "Clear", ru: "Стереть", zh: "清除" },
+  "draw.backspace": { en: "Delete last character", ru: "Удалить последний иероглиф", zh: "删除最后一个字" },
   "han.remembered": { en: "Ideographs are read as", ru: "Иероглифы определяются как", zh: "汉字识别为" },
   "han.reset": { en: "Ask again", ru: "Спрашивать снова", zh: "重新询问" },
 

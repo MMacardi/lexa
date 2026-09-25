@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages } from "lucide-react";
+import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -50,6 +50,7 @@ import { HoverTip } from "@/components/ui/HoverTip";
 import { LangSelect } from "@/components/LangSelect";
 import { PairChip } from "@/components/PairChip";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
+import { HandwritingPad } from "@/components/HandwritingPad";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
 import { Collapse } from "@/components/ui/Collapse";
@@ -234,6 +235,31 @@ export function AddWordForm({
     if (h === "zh" || h === "ja") setHanChoice(h);
   }, []);
   const showHanPicker = sourceLang === "auto" && isAmbiguousHan(word);
+
+  // The draw pad (Pleco's handwriting input) for a character you can see but
+  // can't type — the sign, the textbook margin. Only when you're typing Chinese;
+  // whether it's open is remembered, since people who draw keep drawing.
+  const canDraw = inputLang === "zh";
+  const [drawOpen, setDrawOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setDrawOpen(localStorage.getItem("lexa.drawPad") === "1");
+    } catch {}
+  }, []);
+  const toggleDraw = () => {
+    const open = !drawOpen;
+    setDrawOpen(open);
+    try {
+      localStorage.setItem("lexa.drawPad", open ? "1" : "0");
+    } catch {}
+    // Put the phone keyboard away: it would cover the pad.
+    if (open && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  };
+  const typeWord = (next: string) => {
+    setWord(next);
+    if (suggestions) setSuggestions(null);
+    if (reverse) setReverse(null);
+  };
 
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -693,11 +719,7 @@ export function AddWordForm({
       <div className="flex gap-2">
         <Input
           value={word}
-          onChange={(e) => {
-            setWord(e.target.value);
-            if (suggestions) setSuggestions(null);
-            if (reverse) setReverse(null);
-          }}
+          onChange={(e) => typeWord(e.target.value)}
           placeholder={
             typingKnown
               ? t("add.wordPlaceholderReverse", { known: langLabel(targetLang), studied: langLabel(sourceLang) })
@@ -705,6 +727,23 @@ export function AddWordForm({
           }
           disabled={busy}
         />
+        {canDraw && (
+          <button
+            type="button"
+            onClick={toggleDraw}
+            aria-pressed={drawOpen}
+            title={t("draw.toggle")}
+            aria-label={t("draw.toggle")}
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors",
+              drawOpen
+                ? "border-sage bg-sage-tint text-sage-deep"
+                : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Brush className="h-[18px] w-[18px]" />
+          </button>
+        )}
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
           {reversing
             ? t("add.reversing")
@@ -719,6 +758,15 @@ export function AddWordForm({
               : t("add.submit")}
         </Button>
       </div>
+
+      {canDraw && drawOpen && (
+        <HandwritingPad
+          onPick={(ch) => typeWord(word + ch)}
+          onBackspace={() => typeWord(Array.from(word).slice(0, -1).join(""))}
+          canBackspace={word.length > 0}
+          disabled={busy}
+        />
+      )}
 
       {flipCandidate && (
         <div className="anim-fade-up -mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13px] leading-snug">

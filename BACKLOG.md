@@ -345,6 +345,19 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Draw a character (2026-09-25, asked for directly — Pleco's handwriting input)
+- Brush button on the add form when you type Chinese → a pad (米字格): the characters that look
+  like your drawing line up above it, and part of one is enough (女 on the left → 好 妈 她 姐).
+  Tap one to add it to the field; undo stroke, clear, delete last character. Open/closed is
+  remembered.
+- Offline, in a worker (`lib/handwriting.ts`): Make Me a Hanzi stroke medians (Arphic PL, licence
+  in `public/handwriting/`) for all of GB2312, 605 KB fetched the first time a pad opens. Own
+  matcher (no GPL HanziLookup): strokes paired by the Hungarian method (so order barely matters),
+  plus a "completion" pass on the pad's own coordinates; ties go to lower HSK levels.
+- `frontend/scripts/check-handwriting.ts` (needs graphics.txt + dictionary.txt): HSK 1–4, sloppy
+  99% top-1 · strokes swapped 99% · a stroke missing 76% top-1 / 99% shown · left half only 62%
+  shown. ~15–20 ms per stroke on a desktop.
+
 ### Tester fixes and the first-run pass (2026-09-24→25, outside the list)
 Asked for directly after the first tester's report, so none of it is a numbered item.
 - Reader on a phone: pinyin can't push the page sideways (`<wbr>` per word + minmax(0) grid
