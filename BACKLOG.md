@@ -363,6 +363,16 @@ Asked for directly after the first tester's report, so none of it is a numbered 
   a day set both the daily drip and review's new-cards-per-day.
 - Dialog scrims no longer stop halfway down after the iOS keyboard closes; Telegram login opens
   the app from the tap itself (no `about:blank` tab left behind to come back to).
+- "Words for you" aren't fenced in by the target level (2026-09-25): the candidates add the
+  basics the check says are missing (each word tapped as unknown, marked for the model, plus a
+  sample of any lower level with a third or more missed) and ~20 words one level up, of which at
+  most 2 of 8 picks. Tried with a learner who missed half of HSK 2: 自由, 怎么样 (2) and 具有 (3)
+  came back beside HSK 4 travel words. The daily drip still walks down from the target.
+- The goal is no longer quoted back: Coach's line uses the HSK level and the readiness count
+  ("You recognise N of the M words HSK 4 asks for") instead of "I remember — your goal is “…”",
+  and "Words for you" shows a saved goal as one line with "Change", not an open text box.
+- Import dialog: the language menu opened behind the dialog (z-140 under z-200); the format
+  sample and placeholder are Chinese for a Chinese learner.
 
 ### The focus pass
 F0–F11 shipped 2026-09-22→23. **F6a is the one left**, and deliberately last: its whole

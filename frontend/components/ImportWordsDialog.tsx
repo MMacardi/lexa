@@ -34,6 +34,27 @@ import { HoverPreview } from "@/components/HoverPreview";
 
 type PreviewCard = ImportedCard & { selected: boolean };
 
+// The format sample in the pair being imported: Chinese words for a Chinese
+// learner (an English "hello" sat here in an app about HSK), meanings in the
+// language they know. The field keywords stay English — the parser reads them.
+function formatSample(source: string, target: string) {
+  const m = (ru: string, en: string, zh: string) => (target === "ru" ? ru : target === "zh" ? zh : en);
+  if (source === "zh" || source === "zh-Hant") {
+    return {
+      lines: [["你好", m("привет", "hello", "你好")], ["谢谢", m("спасибо", "thank you", "谢谢")]],
+      example: "你好，你叫什么名字？",
+      translation: m("Привет, как тебя зовут?", "Hello, what's your name?", "你好，你叫什么名字？"),
+      synonyms: "您好",
+    };
+  }
+  return {
+    lines: [["hello", m("привет", "meaning", "你好")], ["goodbye", m("пока", "meaning", "再见")]],
+    example: "Hello, how are you?",
+    translation: m("Привет, как дела?", "…", "你好吗？"),
+    synonyms: "hi, hey",
+  };
+}
+
 // A little flip-card preview of what the FIRST typed line will become, so the
 // learner sees the shape of a card while composing the list. Client-only, no AI.
 function ImportCardPreview({ text }: { text: string }) {
@@ -103,6 +124,7 @@ export function ImportWordsDialog({
   // every other surface shares, else Chinese explained in the native language.
   const [sourceLang, setSourceLang] = useState(() => defaultSourceLang ?? getStudyPair()?.sourceLang ?? "zh");
   const [targetLang, setTargetLang] = useState(() => defaultTargetLang ?? getStudyPair()?.targetLang ?? getNativeLang() ?? "ru");
+  const sample = formatSample(sourceLang, targetLang);
   const [cards, setCards] = useState<PreviewCard[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [newCollectionName, setNewCollectionName] = useState("");
@@ -355,12 +377,12 @@ export function ImportWordsDialog({
                     setSourceLang(targetLang);
                     setTargetLang(sourceLang);
                   }}
-                  menuClassName="z-[140]"
+                  menuClassName="z-[240]"
                 />
                 <textarea
                   value={text}
                   onChange={(event) => setText(event.target.value)}
-                  placeholder={`hello — ${targetLang === "ru" ? "привет" : targetLang === "zh" ? "你好" : "meaning"}\ngoodbye — ${targetLang === "ru" ? "пока" : targetLang === "zh" ? "再见" : "meaning"}`}
+                  placeholder={sample.lines.map(([w, m]) => `${w} — ${m}`).join("\n")}
                   className="min-h-56 w-full resize-y rounded-[18px] border border-black/[0.08] bg-surface p-4 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
                 />
                 <div className="rounded-[14px] border border-black/[0.06] bg-surface/70 px-3.5 py-3">
@@ -373,24 +395,24 @@ export function ImportWordsDialog({
                       is a faithful, copyable template; only the caption is localized. */}
                   <pre className="mt-2 overflow-x-auto rounded-[10px] border border-black/[0.06] bg-paper px-3 py-2.5 font-mono text-[12px] leading-[1.75]">
                     <div>
-                      <span className="font-semibold text-ink">hello</span>
+                      <span className="font-semibold text-ink">{sample.lines[0][0]}</span>
                       <span className="text-ink-faint"> — </span>
-                      <span className="text-sage-deep">привет</span>
+                      <span className="text-sage-deep">{sample.lines[0][1]}</span>
                     </div>
                     <div>
                       <span className="text-ink-faint">{"  "}</span>
                       <span className="font-semibold text-sage-deep">Example:</span>
-                      <span className="text-ink-muted">{" Hello, how are you?"}</span>
+                      <span className="text-ink-muted">{` ${sample.example}`}</span>
                     </div>
                     <div>
                       <span className="text-ink-faint">{"  "}</span>
                       <span className="font-semibold text-sage-deep">Translation:</span>
-                      <span className="text-ink-muted">{" Привет, как дела?"}</span>
+                      <span className="text-ink-muted">{` ${sample.translation}`}</span>
                     </div>
                     <div>
                       <span className="text-ink-faint">{"  "}</span>
                       <span className="font-semibold text-sage-deep">Synonyms:</span>
-                      <span className="text-ink-muted">{" hi, hey"}</span>
+                      <span className="text-ink-muted">{` ${sample.synonyms}`}</span>
                     </div>
                   </pre>
                   <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">{t("import.fmtFree")}</p>

@@ -633,10 +633,12 @@ const DICT: Record<string, Entry> = {
   },
   "coach.refresh": { en: "New picks", ru: "Обновить", zh: "换一批" },
   "coach.picksHintGoal": {
-    en: "Words at your level ({level}) for your goal: {goal}.",
-    ru: "Слова твоего уровня ({level}) под твою цель: {goal}.",
-    zh: "适合你水平（{level}）、贴合你目标的词：{goal}。",
+    en: "Words for your level ({level}) and your goal that you don't have yet.",
+    ru: "Слова под твой уровень ({level}) и цель, которых у тебя ещё нет.",
+    zh: "适合你水平（{level}）和目标、你还没有的词。",
   },
+  "coach.goalLabel": { en: "Goal", ru: "Цель", zh: "目标" },
+  "coach.goalChange": { en: "Change", ru: "Изменить", zh: "修改" },
   "coach.themePlaceholder": {
     en: "Why are you learning? e.g. IELTS, work abroad, travel",
     ru: "Зачем учишь? напр. IELTS, работа за границей, путешествия",
@@ -694,9 +696,19 @@ const DICT: Record<string, Entry> = {
     zh: "今天有 {n} 个词到期了，先从它们开始？",
   },
   "coach.sayGoal": {
-    en: "I remember — your goal is “{goal}”. I've picked words for it below.",
-    ru: "Помню — твоя цель «{goal}». Подобрал слова под неё ниже.",
-    zh: "我记得——你的目标是“{goal}”。下面是我为它挑的词。",
+    en: "The words below are picked for your goal.",
+    ru: "Слова ниже подобраны под твою цель.",
+    zh: "下面的词是按你的目标挑的。",
+  },
+  "coach.sayGoalHsk": {
+    en: "Your HSK {level} words are below. Add a few and they join today's review.",
+    ru: "Слова для HSK {level} — ниже. Добавь несколько, и они войдут в сегодняшнее повторение.",
+    zh: "下面是为 HSK {level} 挑的词。加几个，今天就能开始复习。",
+  },
+  "coach.sayReadiness": {
+    en: "You recognise {known} of the {total} words HSK {level} asks for. The picks below close the gap.",
+    ru: "Ты узнаёшь {known} из {total} слов, которые нужны для HSK {level}. Слова ниже сокращают разрыв.",
+    zh: "HSK {level} 需要的 {total} 个词里，你认识 {known} 个。下面的词帮你补上。",
   },
   "coach.sayAskGoal": {
     en: "Tell me why you're learning {lang} and I'll pick words that actually help.",
@@ -734,9 +746,9 @@ const DICT: Record<string, Entry> = {
     zh: "有 {n} 天没见了——没关系，我们慢慢找回状态。",
   },
   "coach.sayGoalPush": {
-    en: "Every word toward “{goal}” is a step closer — shall we add a few?",
-    ru: "Каждое слово под «{goal}» — шаг ближе. Добавим ещё пару?",
-    zh: "每一个为“{goal}”学的词都更近一步——再加几个？",
+    en: "A few new words a day adds up fast. Shall we add some?",
+    ru: "Несколько новых слов в день быстро складываются. Добавим пару?",
+    zh: "每天几个新词，积累起来很快。加几个吧？",
   },
   "coach.tip1": {
     en: "Tip: learning a word in a sentence beats a bare list several times over.",

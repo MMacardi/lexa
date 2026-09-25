@@ -15,7 +15,7 @@ import { Compass, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
 
 export default function CoachPage() {
-  const { accountId } = useAccount();
+  const { accountId, profile: account } = useAccount();
   const { t } = useI18n();
   const router = useRouter();
 
@@ -54,6 +54,15 @@ export default function CoachPage() {
     queryKey: ["coach-profile", accountId, pair.source],
     queryFn: () => api.coachProfile(accountId, pair.source),
     enabled: !!accountId,
+  });
+
+  // An HSK learner's goal is a level, and the readiness mark says how far off it
+  // is — the concrete fact a goal remark should carry (same cache as the mark).
+  const hskTarget = pair.source === "zh" || pair.source === "zh-Hant" ? (account?.hskTarget ?? null) : null;
+  const { data: readiness } = useQuery({
+    queryKey: ["hskReadiness", accountId],
+    queryFn: () => api.hskReadiness(),
+    enabled: !!accountId && hskTarget != null,
   });
 
   // Stats power the "living" greeting: streak, whether you trained today, yesterday's activity.
@@ -139,9 +148,16 @@ export default function CoachPage() {
     if (weakTop[0]) opts.push(t("coach.sayStumble", { word: weakTop[0].word }));
     if (weak > 1) opts.push(t("coach.sayWeak", { n: weak }));
     if (due >= 15) opts.push(t("coach.sayDue", { n: due }));
-    if (goal) {
-      opts.push(t("coach.sayGoal", { goal }));
-      opts.push(t("coach.sayGoalPush", { goal })); // a second, goal-flavoured nudge
+    // The goal as facts and a next step, never the learner's own words quoted
+    // back ("I remember — your goal is “HSK 4 (in 1-3 months), Study in China”"
+    // read like a form echoing its input).
+    if (hskTarget) {
+      const level = hskTarget === 7 ? "7–9" : String(hskTarget);
+      opts.push(t("coach.sayGoalHsk", { level }));
+      if (readiness?.total) opts.push(t("coach.sayReadiness", { known: readiness.recognise, total: readiness.total, level }));
+    } else if (goal) {
+      opts.push(t("coach.sayGoal"));
+      opts.push(t("coach.sayGoalPush")); // a second, goal-flavoured nudge
     } else {
       opts.push(t("coach.sayAskGoal", { lang: langLabel(pair.source) }));
     }
@@ -153,7 +169,7 @@ export default function CoachPage() {
 
     const remark = opts[seed % opts.length];
     return `${greeting} ${remark}`;
-  }, [weak, due, weakTop, deck, profile?.goal, pair.source, stats, bestStreak, t]);
+  }, [weak, due, weakTop, deck, profile?.goal, pair.source, stats, bestStreak, hskTarget, readiness, t]);
 
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">

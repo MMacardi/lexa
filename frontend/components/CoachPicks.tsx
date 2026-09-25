@@ -103,6 +103,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
   const [pair, setPair] = useState(() => readPair());
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [theme, setTheme] = useState("");
+  const [editingGoal, setEditingGoal] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -145,6 +146,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
   async function loadPicks(goal = theme.trim()) {
     if (fetching || !accountId) return;
     setFetching(true);
+    setEditingGoal(false);
     try {
       if (goal && goal !== memory?.goal?.trim()) {
         await api.updateCoachProfile({ telegramId: accountId, lang: pair.source, goal });
@@ -233,7 +235,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
           <h2 className="font-serif text-[20px] font-medium text-ink">{t("coach.picksTitle")}</h2>
           <p className="mt-0.5 text-[13px] text-ink-soft">
             {memory?.goal?.trim()
-              ? t("coach.picksHintGoal", { level: levelLabel, goal: memory.goal.trim() })
+              ? t("coach.picksHintGoal", { level: levelLabel })
               : t("coach.picksHint", { level: levelLabel, lang: langLabel(pair.source) })}
           </p>
         </div>
@@ -259,24 +261,46 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
             onSwap={() => changePair({ source: pair.target, target: pair.source })}
           />
 
-          {/* The goal, in context: type why you're learning → picks follow it and it's
-              quietly remembered. */}
-          <div>
-            <input
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") loadPicks();
-              }}
-              placeholder={t(zh ? "coach.themePlaceholderZh" : "coach.themePlaceholder")}
-              maxLength={80}
-              className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-            />
-            <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+          {/* The goal steers the picks and is remembered. A saved one is stated in
+              a line with "Change", not left sitting in an open text box — a filled
+              input on every visit read as a form still waiting to be done. Only a
+              learner with no goal yet gets the box straight away. */}
+          {memory?.goal?.trim() && !editingGoal ? (
+            <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted">
               <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
-              {theme.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
+              <span className="shrink-0 font-semibold text-ink-soft">{t("coach.goalLabel")}:</span>
+              <span className="min-w-0 truncate">{memory.goal.trim()}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTheme(memory.goal!.trim());
+                  setEditingGoal(true);
+                }}
+                className="shrink-0 font-semibold text-sage-deep hover:underline"
+              >
+                {t("coach.goalChange")}
+              </button>
             </p>
-          </div>
+          ) : (
+            <div>
+              <input
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") loadPicks();
+                  if (e.key === "Escape") setEditingGoal(false);
+                }}
+                autoFocus={editingGoal}
+                placeholder={t(zh ? "coach.themePlaceholderZh" : "coach.themePlaceholder")}
+                maxLength={80}
+                className="h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+              />
+              <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+                <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
+                {theme.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
+              </p>
+            </div>
+          )}
         </>
       )}
 
