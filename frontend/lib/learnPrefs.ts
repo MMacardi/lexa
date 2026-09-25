@@ -748,6 +748,29 @@ export function useAutoGloss(): boolean {
   return on;
 }
 
+// Reader pinyin: only over the words you don't know yet (Du Chinese's toggle),
+// or over every word. Off by default — pinyin over 我 and 是 is what makes a
+// learner stop reading the characters.
+const RUBY_ALL_KEY = "lexa.rubyAll";
+export function setRubyAll(on: boolean) {
+  localStorage.setItem(RUBY_ALL_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useRubyAll(): boolean {
+  const [on, setState] = useState(false);
+  useEffect(() => {
+    const sync = () => setState(localStorage.getItem(RUBY_ALL_KEY) === "1");
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Coach: make EVERY word in a chat/scene bubble tappable for an instant gloss (and
 // one-tap add to the deck), not just the words already in play. Off = only the
 // highlighted words respond, so no lookup request can fire.

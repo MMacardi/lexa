@@ -1,6 +1,7 @@
 import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { isKnownCard, knownPercent, readerKey, readerTokens } from "./coverage.js";
 import { z } from "zod";
 
 // Saved Reader texts + an AI text generator. All list/mutations are scoped to the
@@ -26,6 +27,24 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     take: 100,
     select: { id: true, title: true, content: true, status: true, collection: true, level: true, sourceLang: true, targetLang: true, updatedAt: true },
   });
+  // What the learner knows, per pair, for each text's "you know 82%". Worked out
+  // on every list rather than stored: it moves each time a card graduates.
+  const cards = await prisma.word.findMany({
+    where: { userId: uid },
+    select: { word: true, sourceLang: true, targetLang: true, state: true, canUseAt: true },
+  });
+  const byPair = new Map<string, Set<string>>();
+  const knownFor = (source: string, target: string | null) => {
+    const k = `${source}>${target ?? ""}`;
+    let set = byPair.get(k);
+    if (!set) {
+      set = new Set(cards.filter((c) => c.sourceLang === source && (!target || c.targetLang === target) && isKnownCard(c)).map((c) => readerKey(c.word)));
+      byPair.set(k, set);
+    }
+    return set;
+  };
+  const knownPct = (r: (typeof rows)[number]) =>
+    r.status === "ready" && r.sourceLang ? knownPercent(readerTokens(r.content, r.sourceLang), knownFor(r.sourceLang, r.targetLang)) : null;
   // Return a short snippet for the list, full content only when opening one.
   return rows.map((r) => ({
     id: r.id,
@@ -36,6 +55,7 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     level: r.level,
     sourceLang: r.sourceLang,
     targetLang: r.targetLang,
+    knownPct: knownPct(r),
     updatedAt: r.updatedAt,
   }));
 }

@@ -3,9 +3,12 @@
 // spaces (Chinese/Japanese) by segmenting on real word boundaries — no jieba or
 // server round-trip needed. Falls back to a Unicode-aware regex split otherwise.
 
+import type { HskTag } from "./api";
+
 export interface Token {
   text: string;
   wordLike: boolean;
+  hsk?: HskTag; // Chinese only, from the server's segmenter
 }
 
 type SegmenterCtor = new (

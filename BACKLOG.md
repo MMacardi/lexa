@@ -124,7 +124,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    outranks any feature idea. **Nothing after item 17 starts before this passes.** It has already
    paid for itself once: one hour of real use found the fault behind item 3.
 
-6. **Reader: HSK colours, pinyin only where you need it, how much of a text you know.** From the
+6. [x] **Reader: HSK colours, pinyin only where you need it, how much of a text you know.** From the
    competitor pass (2026-09-25: Du Chinese, Migaku, Pleco). One session. Placed during the test on
    purpose: the Reader is the capture entry you use every day while it runs.
    - Underline each word in its HSK level's colour (the list the learner targets), and keep the
@@ -137,6 +137,19 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      reach, never over the line being read, and it can't drift on a fast scroll.
    - **Done when:** a pasted HSK 4 lesson shows level colours and the % at iPhone width in the local
      app, and the % matches a hand count on a short text.
+   - **Shipped 2026-09-25.** `POST /api/segment` tags each word with its HSK levels; the Reader
+     underlines it in the level's colour on the learner's list (7 tokens, both themes): solid = no
+     card, dashed = card in learning, faded = known (FSRS state ≥ 2 or can-use, the mark's
+     "recognise"). Pinyin goes over unknown words only, with an Unknown / All switch. "You know
+     60% · 4 new, 4 of them for HSK 4" + a legend over the text; the same % on each saved text,
+     computed on list from `services/coverage.ts` (running words, a number isn't a word, other
+     pairs don't count). On a phone both word popups dock at the bottom over the add bar, and the
+     text scrolls the tapped word above them. `scripts/check-reader-coverage.ts` asserts the hand
+     count (6/11 = 55%, 64% after a card graduates). Run at iPhone width: 60% on a 10-word text by
+     hand, pinyin 4/10 → 10/10, a word at y=562 scrolled to 369 above a dock at 385.
+     Not done: placement "I know this" answers don't count as known in the Reader (the mark counts
+     them); and a card the segmenter can't match stays "new" (很多 and 每天 come out as two words
+     because the CC-CEDICT subset doesn't list them).
 
 7. **Cram a list now.** Hack Chinese's CRAM mode: drill one textbook lesson, collection or HSK level
    right away, outside the schedule, without moving it (logged with source `cram`, never graded into

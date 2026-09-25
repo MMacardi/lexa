@@ -114,6 +114,15 @@ html {
   --color-dot-empty: #dcd4c7;
   --color-onyx: #2e2a26; /* decorative dark panels (stays dark in dark mode) */
   --color-quote: #544e45; /* example-sentence body text */
+  /* HSK level colours (Reader underlines): easy → hard, cool → warm. Each clears
+     3:1 against the surface, the bar for a non-text mark. 7 is the 3.0 7–9 band. */
+  --color-hsk1: #5e9a5a;
+  --color-hsk2: #3f948f;
+  --color-hsk3: #4f7fbf;
+  --color-hsk4: #8a67c2;
+  --color-hsk5: #c08428;
+  --color-hsk6: #c9573d;
+  --color-hsk7: #b0436b;
 
   --font-serif: "Twemoji Country Flags", "Newsreader", Georgia, serif;
   --font-sans: "Twemoji Country Flags", "Hanken Grotesk", system-ui, sans-serif;
@@ -158,6 +167,13 @@ html.dark {
   --color-dot-empty: #39332c;
   --color-onyx: #050403;
   --color-quote: #c6bdaf;
+  --color-hsk1: #8cc486;
+  --color-hsk2: #6cc0b9;
+  --color-hsk3: #86aee6;
+  --color-hsk4: #b69be6;
+  --color-hsk5: #e0ad5a;
+  --color-hsk6: #e98b72;
+  --color-hsk7: #e27fa3;
 }
 
 /* In dark mode the faint black hairlines/fills become invisible — lift them to

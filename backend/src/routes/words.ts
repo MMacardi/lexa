@@ -21,7 +21,7 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, hskTagFor, readinessForUser } from "../services/hsk.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
@@ -927,7 +927,8 @@ wordsRouter.get("/dict", async (req, res) => {
 });
 
 // POST /api/segment -> Chinese text as Reader tokens: ICU's word boundaries
-// repaired with CC-CEDICT (services/segment.ts). No model call.
+// repaired with CC-CEDICT (services/segment.ts), each word tagged with its HSK
+// levels for the Reader's colours. No model call.
 const segmentBody = z.object({ text: z.string().max(50_000) });
 wordsRouter.post("/segment", (req, res) => {
   const parsed = segmentBody.safeParse(req.body);
@@ -935,7 +936,11 @@ wordsRouter.post("/segment", (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  res.json({ tokens: segmentChinese(parsed.data.text) });
+  const tokens = segmentChinese(parsed.data.text).map((t) => {
+    const hsk = t.wordLike && /^\p{Script=Han}+$/u.test(t.text) ? hskTagFor(t.text) : null;
+    return hsk ? { ...t, hsk } : t;
+  });
+  res.json({ tokens });
 });
 
 // POST /api/languages/check -> is this learner-typed custom language a real one?

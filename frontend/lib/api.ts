@@ -170,6 +170,9 @@ export interface ReaderTextSummary {
   level?: string | null;
   sourceLang?: string | null;
   targetLang?: string | null;
+  // Share of the text's running words the learner knows (the Reader's "you know
+  // 82%"); null for a text still generating or with no language set.
+  knownPct?: number | null;
   updatedAt: string;
 }
 export interface ReaderTextFull {
@@ -765,9 +768,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  // Chinese text as Reader tokens: ICU boundaries repaired with CC-CEDICT, no model call.
+  // Chinese text as Reader tokens: ICU boundaries repaired with CC-CEDICT, each
+  // word tagged with its HSK levels (for the Reader's colours). No model call.
   segment: (text: string) =>
-    http<{ tokens: { text: string; wordLike: boolean }[] }>(`/api/segment`, { method: "POST", body: JSON.stringify({ text }) }).then(
+    http<{ tokens: { text: string; wordLike: boolean; hsk?: HskTag }[] }>(`/api/segment`, { method: "POST", body: JSON.stringify({ text }) }).then(
       (r) => r.tokens,
     ),
   // Batch transcription of many words in one call (Reader "pinyin over characters").

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ReaderTextFull } from "@/lib/api";
+import { api, type HskVersion, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { SavedTexts } from "@/components/SavedTexts";
@@ -20,8 +20,11 @@ import {
   useRecentPairs,
   useAutoGloss,
   setAutoGloss,
+  useRubyAll,
+  setRubyAll,
 } from "@/lib/learnPrefs";
-import { segment, wordKey } from "@/lib/segment";
+import { segment, wordKey, type Token } from "@/lib/segment";
+import { useIsMobile } from "@/lib/mobileNav";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
 import { Button } from "@/components/ui/button";
@@ -56,6 +59,22 @@ function popAt(rect: DOMRect) {
 // break between ruby elements sized the text to its longest line and pushed the
 // page sideways on an iPhone.
 const OPENS_BEFORE = /[“‘「『《〈【（(\[]$/;
+
+// The underline colour of each HSK level (globals.css); spelled out so Tailwind
+// sees every class.
+const HSK_DECOR: Record<number, string> = {
+  1: "decoration-hsk1",
+  2: "decoration-hsk2",
+  3: "decoration-hsk3",
+  4: "decoration-hsk4",
+  5: "decoration-hsk5",
+  6: "decoration-hsk6",
+  7: "decoration-hsk7",
+};
+
+// A token the coverage counts: a word with a letter in it — a year or a page
+// number is not a word to know. Twin of countsAsWord in backend services/coverage.ts.
+const countsAsWord = (tk: Token) => tk.wordLike && /\p{L}/u.test(tk.text);
 
 // Is `b` an edit of `a` (an OCR slip fixed) rather than a different text? Edits
 // keep most of the start and the end; a new paste shares almost none of either.
@@ -108,13 +127,15 @@ const SAMPLE: Record<string, string> = {
 };
 
 export default function ReaderPage() {
-  const { accountId } = useAccount();
+  const { accountId, profile } = useAccount();
+  const mobile = useIsMobile();
   const { t } = useI18n();
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
   const recentPairs = useRecentPairs();
   const readerSource = useReaderSource();
   const autoGloss = useAutoGloss();
+  const rubyAll = useRubyAll();
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("zh");
@@ -338,6 +359,18 @@ export default function ReaderPage() {
     return m;
   }, [words, sourceLang, targetLang]);
 
+  // Of those, the words the learner knows: a card past FSRS's learning steps, or
+  // one they can use — the readiness mark's "recognise". A card still in learning
+  // is shown apart and doesn't count as known. Same rule as the saved-text %
+  // (backend services/coverage.ts).
+  const knownKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const w of words ?? []) {
+      if (w.sourceLang === sourceLang && w.targetLang === targetLang && (w.canUseAt || (w.state ?? 0) >= 2)) s.add(wordKey(w.word));
+    }
+    return s;
+  }, [words, sourceLang, targetLang]);
+
   // Chinese boundaries come from the server: ICU (what the browser has) repaired
   // with CC-CEDICT, so 他打了三个 doesn't offer "了三" as one word. The browser's
   // own split shows first and stands in if the request fails.
@@ -349,6 +382,12 @@ export default function ReaderPage() {
     staleTime: Infinity,
   });
   const tokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
+
+  // A word's level on the list the learner targets (HSK 3.0 until they pick),
+  // from the server's segmenter; null off both lists and outside Chinese.
+  const hskVersion: HskVersion = profile?.hskVersion ?? "3.0";
+  const hskTarget = profile?.hskTarget ?? null;
+  const hskLevel = (tk: Token) => tk.hsk?.[hskVersion] ?? null;
 
   // Sentences for read-aloud practice: split on terminal punctuation (incl. CJK),
   // drop empties, cap the panel so it stays scannable. Stable across renders so
@@ -363,17 +402,36 @@ export default function ReaderPage() {
     return { sentences: list.slice(0, 12), hidden: Math.max(0, list.length - 12) };
   }, [reading, text]);
 
-  const { wordCount, newKeys } = useMemo(() => {
-    let count = 0;
+  // The line over the text: "You know 82% · 14 new, 6 of them for HSK 4". The %
+  // is of running words, repeats included (Migaku's comprehension score; the
+  // saved-text list counts the same way). "New" is distinct words with no card,
+  // and the HSK part counts the ones on the learner's exam list — every level up
+  // to the target, since that is what the exam asks.
+  const { knownPct, newKeys, newForTarget, levelsHere } = useMemo(() => {
+    let total = 0;
+    let known = 0;
     const fresh = new Set<string>();
+    const forTarget = new Set<string>();
+    const levels = new Set<number>();
     for (const tk of tokens) {
-      if (!tk.wordLike) continue;
-      count++;
+      if (!countsAsWord(tk)) continue;
+      total++;
       const k = wordKey(tk.text);
-      if (!knownMap.has(k) && !added.has(k)) fresh.add(k);
+      const lvl = tk.hsk?.[hskVersion];
+      if (lvl) levels.add(lvl);
+      if (knownKeys.has(k)) known++;
+      if (!knownMap.has(k) && !added.has(k)) {
+        fresh.add(k);
+        if (lvl && hskTarget && lvl <= hskTarget) forTarget.add(k);
+      }
     }
-    return { wordCount: count, newKeys: fresh };
-  }, [tokens, knownMap, added]);
+    return {
+      knownPct: total ? Math.round((known / total) * 100) : null,
+      newKeys: fresh,
+      newForTarget: forTarget.size,
+      levelsHere: Array.from(levels).sort((a, b) => a - b),
+    };
+  }, [tokens, knownMap, knownKeys, added, hskVersion, hskTarget]);
 
   const busy = queueing;
 
@@ -739,6 +797,22 @@ export default function ReaderPage() {
     };
   }, [knownOpen, closeKnown]);
 
+  // Phone: the word panel docks at the bottom (Pleco's reader) — in thumb reach,
+  // and fixed to the screen, so a fast scroll has nothing to slide off. It must
+  // never cover the line being read: when the tapped word would sit under it the
+  // text scrolls up, and a spacer under the text gives the last line room to.
+  // Re-checked as the meaning arrives, since that is what makes the panel taller.
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const dockOpen = mobile && (gloss !== null || knownPop !== null);
+  useEffect(() => {
+    if (!dockOpen) return;
+    const dock = dockRef.current?.getBoundingClientRect();
+    const el = gloss ? glossElRef.current : knownElRef.current;
+    if (!dock || !el?.isConnected) return;
+    const under = el.getBoundingClientRect().bottom - (dock.top - 16);
+    if (under > 0) window.scrollBy({ top: under, behavior: "smooth" });
+  }, [dockOpen, gloss, knownPop, glossText, glossCedict]);
+
   // The sentence a token belongs to (for provided example / context).
   function sentenceAround(index: number): string {
     const isBoundary = (s: string) => /[.!?。！？\n]/.test(s);
@@ -896,10 +970,11 @@ export default function ReaderPage() {
 
   // Render a word: the highlight (selection/known tint) goes on the base character
   // only, and the transcription floats ABOVE it on the clean page background — so
-  // ruby and the green selection never overlap.
+  // ruby and the green selection never overlap. A word the learner knows gets no
+  // pinyin unless they asked for it over every word (Du Chinese's toggle).
   const rtClass = "pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint";
-  const wordNode = (txt: string, highlight: string) => {
-    if (!(rubyOn && rubyMap[txt])) return <span className={highlight}>{txt}</span>;
+  const wordNode = (txt: string, highlight: string, known = false) => {
+    if (!(rubyOn && rubyMap[txt]) || (known && !rubyAll)) return <span className={highlight}>{txt}</span>;
     const chars = Array.from(txt);
     const syllables = rubyMap[txt].split(/\s+/).filter(Boolean);
     // Per-character ruby when the syllables line up 1:1 with the characters: each
@@ -928,6 +1003,87 @@ export default function ReaderPage() {
     );
   };
   const breakBefore = (i: number) => (rubyOn && i > 0 && !OPENS_BEFORE.test(tokens[i - 1].text) ? <wbr /> : null);
+
+  // The two word popups' contents, shown under the word or docked (phone), where
+  // the type is larger and the panel has its own close button.
+  const dockBox =
+    "mx-auto max-h-[40vh] w-full max-w-[720px] overflow-y-auto rounded-[18px] border border-black/[0.08] bg-surface px-4 py-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]";
+  const dockClose = (close: () => void) => (
+    <button
+      type="button"
+      onClick={close}
+      aria-label={t("common.close")}
+      className="ml-auto rounded-md p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  );
+  const glossBody = (docked: boolean) =>
+    gloss && (
+      <>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("select-text font-semibold text-ink", docked ? "text-[20px]" : "text-[13px]", sourceFont(sourceLang))}>{gloss.word}</span>
+          <SpeakButton text={gloss.word} lang={sourceLang} size="sm" />
+          {docked && dockClose(closeGloss)}
+        </div>
+        {/* The dictionary's reading wins: it is the one its gloss below is
+            for (a bare 了 is le, where the pinyin library says liǎo). */}
+        {(glossTr && !glossLoading) || glossCedict ? (
+          <div className={cn("mt-0.5 select-text font-medium text-ink-faint", docked ? "text-[14px]" : "text-[12px]")}>
+            {glossCedict?.phonetic || glossTr}
+          </div>
+        ) : null}
+        {glossCedict && (
+          <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
+            {glossCedict.gloss}
+            <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+          </div>
+        )}
+        <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
+          {glossLoading ? t("reader.translating") : glossText}
+        </div>
+      </>
+    );
+  const knownBody = (docked: boolean) =>
+    knownPop && (
+      <>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("select-text font-semibold text-ink", docked ? "text-[20px]" : "text-[14px]", sourceFont(sourceLang))}>
+            {knownPop.word}
+          </span>
+          <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
+          {docked && dockClose(closeKnown)}
+        </div>
+        {knownPop.meaning && (
+          <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
+            {knownPop.meaning}
+            {knownPop.dictMeaning && (
+              <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+            )}
+          </div>
+        )}
+        <div className={cn("mt-2.5 flex gap-1.5", docked ? "flex-row" : "flex-col")}>
+          <button
+            type="button"
+            disabled={addingExample || !knownPop.sentence}
+            onClick={() => addExampleFromSentence(knownPop.wordId, knownPop.sentence)}
+            className="rounded-[10px] bg-sage-tint px-2.5 py-1.5 text-left text-[13px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
+          >
+            {addingExample ? t("reader.translating") : t("reader.addExample")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCardPanel({ wordId: knownPop.wordId, sentence: knownPop.sentence });
+              setKnownPop(null);
+            }}
+            className="rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-semibold text-ink-muted hover:bg-black/[0.04]"
+          >
+            {t("reader.openCard")}
+          </button>
+        </div>
+      </>
+    );
 
   // One photo or several (a two-page spread picked from the gallery), read in
   // order, each page appended to the box.
@@ -1108,9 +1264,6 @@ export default function ReaderPage() {
         {textLevel && (
           <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">~{textLevel}</span>
         )}
-        <span className="text-xs font-medium text-ink-faint sm:ml-auto">
-          {t("reader.wordCount", { n: wordCount })} · {t("reader.newCount", { n: newKeys.size })}
-        </span>
 
         {/* save this text (works before or after translating) */}
         <button
@@ -1171,6 +1324,25 @@ export default function ReaderPage() {
             {rubyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Baseline className="h-3.5 w-3.5" />}
             {rubyBusy ? t("reader.rubyLoading") : t("reader.ruby")}
           </button>
+        )}
+        {/* which words carry it: the ones you don't know yet, or all of them */}
+        {hasTranscription(sourceLang) && rubyOn && (
+          <div role="group" aria-label={t("reader.rubyOver")} className="inline-flex rounded-full border border-black/[0.08] bg-surface p-0.5">
+            {([false, true] as const).map((all) => (
+              <button
+                key={String(all)}
+                type="button"
+                onClick={() => setRubyAll(all)}
+                aria-pressed={rubyAll === all}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                  rubyAll === all ? "bg-sage-tint text-sage-deep" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {t(all ? "reader.rubyAllWords" : "reader.rubyUnknown")}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* read-aloud practice: per-sentence pronunciation check via server STT */}
@@ -1248,9 +1420,39 @@ export default function ReaderPage() {
         </div>
       )}
 
-      <p className="mb-3 text-[13px] text-ink-faint">
-        {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
-      </p>
+      {/* how much of it you know, what's new, and the key to the underlines */}
+      <div className="mb-3 space-y-1">
+        <p className="text-[13px] text-ink-muted">
+          {knownPct !== null && (
+            <>
+              <span title={t("reader.knownPctHint")} className="font-semibold text-ink">
+                {t("reader.knowPct", { n: knownPct })}
+              </span>
+              {" · "}
+            </>
+          )}
+          {t("reader.newCount", { n: newKeys.size })}
+          {newForTarget > 0 && hskTarget && `, ${t("reader.newForTarget", { n: newForTarget, level: hskTarget === 7 ? "7–9" : hskTarget })}`}
+        </p>
+        {(levelsHere.length > 0 || knownMap.size > 0) && (
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] font-medium text-ink-muted">
+            {levelsHere.map((n) => (
+              <span key={n} className={cn("underline decoration-2 underline-offset-[3px]", HSK_DECOR[n])}>
+                {n === 7 ? t("hsk.band79") : t("hsk.level", { n })}
+              </span>
+            ))}
+            {knownMap.size > 0 && (
+              <>
+                <span className="underline decoration-ink-faint/60 decoration-dashed decoration-2 underline-offset-[3px]">{t("reader.legendLearning")}</span>
+                <span className="text-ink-faint">{t("reader.legendKnown")}</span>
+              </>
+            )}
+          </p>
+        )}
+        <p className="text-[13px] text-ink-faint">
+          {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
+        </p>
+      </div>
 
       {/* tokenized text (+ optional translation side-by-side). Explicit minmax(0)
           columns + min-w-0: a grid column otherwise grows to the text's
@@ -1270,6 +1472,11 @@ export default function ReaderPage() {
             const knownId = knownMap.get(key);
             const isAdded = added.has(key);
             const isSel = selected.has(key);
+            // Colour = the word's HSK level; line = where the learner stands on it:
+            // solid for a word with no card, dashed while its card is in learning,
+            // none (and faded) once it is known.
+            const lvl = hskLevel(tk);
+            const isKnown = knownKeys.has(key);
             // A saved word (including one just added this session) stays clickable:
             // tap = meaning popup, press-and-hold = the card panel. Freshly-added
             // ones keep the green tint so you can see what you just added.
@@ -1294,8 +1501,11 @@ export default function ReaderPage() {
                       "rounded-[5px] underline-offset-4",
                       isAdded
                         ? "bg-sage-tint px-0.5 text-sage-deep"
-                        : "text-ink-faint underline decoration-ink-faint/30",
+                        : isKnown
+                          ? "text-ink-faint"
+                          : cn("underline decoration-dashed decoration-2", lvl ? HSK_DECOR[lvl] : "decoration-ink-faint/60"),
                     ),
+                    isKnown,
                   )}
                 </span>
               );
@@ -1337,7 +1547,11 @@ export default function ReaderPage() {
                 {breakBefore(i)}
                 {wordNode(
                   tk.text,
-                  cn("rounded-[5px] px-0.5 transition-colors", isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60"),
+                  cn(
+                    "rounded-[5px] px-0.5 transition-colors",
+                    isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
+                    !isSel && lvl != null && cn("underline decoration-2 underline-offset-4", HSK_DECOR[lvl]),
+                  ),
                 )}
               </span>
             );
@@ -1362,31 +1576,46 @@ export default function ReaderPage() {
         </div>
       )}
 
-      {/* sticky add bar (floats above the mobile tab bar) */}
-      {(selected.size > 0 || busy) && (
-        <div className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 px-4 md:bottom-6">
-          <div className="mx-auto flex max-w-[720px] items-center gap-3 rounded-full border border-black/[0.08] bg-surface/95 px-4 py-2.5 shadow-[0_14px_40px_rgba(46,42,38,0.24)] backdrop-blur">
-            <span className="text-sm font-semibold text-ink">
-              {busy ? t("reader.queueing") : t("reader.selectedN", { n: selected.size })}
-            </span>
-            {!busy && (
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="text-xs font-semibold text-ink-faint hover:text-ink-muted"
-              >
-                {t("reader.clearSel")}
-              </button>
-            )}
-            <Button onClick={addSelected} disabled={busy || selected.size === 0} className="ml-auto shrink-0">
-              {busy ? "…" : t("reader.addCards", { n: selected.size })}
-            </Button>
-          </div>
+      {/* Bottom dock, above the mobile tab bar: the add bar, and on a phone the
+          tapped word's panel over it (see keepAboveDock). A wider screen keeps
+          the popups under their word. */}
+      {(dockOpen || selected.size > 0 || busy) && (
+        <div ref={dockRef} className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 px-4 md:bottom-6">
+          {dockOpen && gloss && (
+            <div ref={glossPopRef} className={cn(dockBox, glossClosing ? "anim-popover-out" : "anim-fade-up")}>
+              {glossBody(true)}
+            </div>
+          )}
+          {dockOpen && knownPop && !gloss && (
+            <div ref={knownPopRef} className={cn(dockBox, knownClosing ? "anim-popover-out" : "anim-fade-up")}>
+              {knownBody(true)}
+            </div>
+          )}
+          {(selected.size > 0 || busy) && (
+            <div className="mx-auto flex w-full max-w-[720px] items-center gap-3 rounded-full border border-black/[0.08] bg-surface/95 px-4 py-2.5 shadow-[0_14px_40px_rgba(46,42,38,0.24)] backdrop-blur">
+              <span className="text-sm font-semibold text-ink">
+                {busy ? t("reader.queueing") : t("reader.selectedN", { n: selected.size })}
+              </span>
+              {!busy && (
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="text-xs font-semibold text-ink-faint hover:text-ink-muted"
+                >
+                  {t("reader.clearSel")}
+                </button>
+              )}
+              <Button onClick={addSelected} disabled={busy || selected.size === 0} className="ml-auto shrink-0">
+                {busy ? "…" : t("reader.addCards", { n: selected.size })}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* per-word quick gloss popover */}
+      {/* per-word quick gloss popover (wider screens; a phone docks it) */}
       {gloss &&
+        !mobile &&
         createPortal(
           <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: gloss.x, top: gloss.y + 8 }}>
             <div
@@ -1396,26 +1625,7 @@ export default function ReaderPage() {
                 glossClosing ? "anim-popover-out" : "anim-popover",
               )}
             >
-              <div className="flex items-center gap-1.5">
-                <span className={cn("select-text text-[13px] font-semibold text-ink", sourceFont(sourceLang))}>{gloss.word}</span>
-                <SpeakButton text={gloss.word} lang={sourceLang} size="sm" />
-              </div>
-              {/* The dictionary's reading wins: it is the one its gloss below is
-                  for (a bare 了 is le, where the pinyin library says liǎo). */}
-              {(glossTr && !glossLoading) || glossCedict ? (
-                <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">
-                  {glossCedict?.phonetic || glossTr}
-                </div>
-              ) : null}
-              {glossCedict && (
-                <div className="mt-0.5 select-text text-[12px] text-ink-soft">
-                  {glossCedict.gloss}
-                  <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
-                </div>
-              )}
-              <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>
-                {glossLoading ? t("reader.translating") : glossText}
-              </div>
+              {glossBody(false)}
             </div>
           </div>,
           document.body,
@@ -1423,6 +1633,7 @@ export default function ReaderPage() {
 
       {/* known word — short tap popup: meaning + add example from this sentence */}
       {knownPop &&
+        !mobile &&
         createPortal(
           <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
             <div
@@ -1432,38 +1643,7 @@ export default function ReaderPage() {
                 knownClosing ? "anim-popover-out" : "anim-popover",
               )}
             >
-              <div className="flex items-center gap-1.5">
-                <span className={cn("select-text text-[14px] font-semibold text-ink", sourceFont(sourceLang))}>{knownPop.word}</span>
-                <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
-              </div>
-              {knownPop.meaning && (
-                <div className={cn("mt-0.5 select-text text-[13px] text-sage-deep", sourceFont(targetLang))}>
-                  {knownPop.meaning}
-                  {knownPop.dictMeaning && (
-                    <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
-                  )}
-                </div>
-              )}
-              <div className="mt-2.5 flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  disabled={addingExample || !knownPop.sentence}
-                  onClick={() => addExampleFromSentence(knownPop.wordId, knownPop.sentence)}
-                  className="rounded-[10px] bg-sage-tint px-2.5 py-1.5 text-left text-[13px] font-semibold text-sage-deep hover:bg-sage-tint/70 disabled:opacity-50"
-                >
-                  {addingExample ? t("reader.translating") : t("reader.addExample")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCardPanel({ wordId: knownPop.wordId, sentence: knownPop.sentence });
-                    setKnownPop(null);
-                  }}
-                  className="rounded-[10px] px-2.5 py-1.5 text-left text-[13px] font-semibold text-ink-muted hover:bg-black/[0.04]"
-                >
-                  {t("reader.openCard")}
-                </button>
-              </div>
+              {knownBody(false)}
             </div>
           </div>,
           document.body,
@@ -1603,6 +1783,9 @@ export default function ReaderPage() {
             document.body,
           );
         })()}
+
+      {/* room for the last line to scroll up above a docked word panel */}
+      {dockOpen && <div aria-hidden className="h-[40vh]" />}
 
       {showSave && (
         <SaveModal

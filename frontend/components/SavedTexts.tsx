@@ -183,8 +183,13 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold">
                   {it.collection && <span className="shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-ink-muted">{it.collection}</span>}
                   {pair(it.sourceLang, it.targetLang) && <span className="truncate text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
+                  {it.knownPct != null && (
+                    <span title={t("reader.knownPctHint")} className="ml-auto shrink-0 text-ink-muted">
+                      {t("reader.knownPctShort", { n: it.knownPct })}
+                    </span>
+                  )}
                   {showLevel && it.level && (
-                    <span className="ml-auto shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-sage-deep">~{it.level}</span>
+                    <span className={cn("shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-sage-deep", it.knownPct == null && "ml-auto")}>~{it.level}</span>
                   )}
                 </div>
               </button>
@@ -226,6 +231,9 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
               </button>
               {/* Fixed right-hand columns so level + language pair line up across rows. */}
               <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">
+                <span title={t("reader.knownPctHint")} className="w-[4.5rem] text-right text-ink-muted">
+                  {it.knownPct != null && t("reader.knownPctShort", { n: it.knownPct })}
+                </span>
                 <span className="flex w-9 justify-end">
                   {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] text-sage-deep">~{it.level}</span>}
                 </span>
