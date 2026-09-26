@@ -121,7 +121,9 @@ export function HandwritingPad({
   };
 
   return (
-    <div className="anim-fade-up space-y-2 rounded-[14px] border border-black/[0.08] bg-surface p-2.5">
+    // select-none + no touch callout: a long press while writing is a stroke, not
+    // iOS's Copy / Translate / Share bubble over the pad.
+    <div className="anim-fade-up space-y-2 rounded-[14px] border border-black/[0.08] bg-surface p-2.5 select-none [-webkit-touch-callout:none]">
       {/* Candidates sit above the pad, where a drawing hand doesn't cover them. */}
       <div className="flex h-11 items-center gap-1 overflow-x-auto" aria-live="polite">
         {candidates.length ? (
@@ -162,6 +164,7 @@ export function HandwritingPad({
             data-own-touch
             aria-label={t("draw.pad")}
             className="relative block aspect-square w-full touch-none rounded-[10px] border border-black/[0.08] text-ink"
+            onContextMenu={(e) => e.preventDefault()}
             onPointerDown={(e) => {
               if (disabled || (e.pointerType === "mouse" && e.button !== 0)) return;
               e.currentTarget.setPointerCapture(e.pointerId);

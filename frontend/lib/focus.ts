@@ -1,6 +1,6 @@
 // The focus pass (STRATEGY §G / BACKLOG F7). The app keeps one loop in view —
 // readiness mark → gap deck → review → use — so Community, friend profiles, the
-// graphs, the extra quiz modes and the coach's own chat are hidden behind this
+// stats graphs, the extra quiz modes and the coach's own chat are hidden behind this
 // flag. Nothing is deleted: `NEXT_PUBLIC_FOCUS_MODE=off` brings the full build
 // back for the defence demo.
 //

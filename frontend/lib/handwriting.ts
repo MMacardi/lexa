@@ -13,7 +13,8 @@
 //   stays where it is on the pad, which stands for the character's em box, and
 //   only has to cover *some* of the template's strokes — a 女 on the left half
 //   brings up 好, 妈, 她. The template's undrawn strokes cost a little each, so
-//   the nearer to finished, the higher it ranks.
+//   the nearer to finished, the higher it ranks — and a lot if they'd run over
+//   ink already drawn, since the rest of a character goes where the hand hasn't.
 // Either way a character's cost is the cheapest one-to-one pairing of drawn
 // strokes with its strokes (Hungarian method), each stroke resampled to N points.
 // Pairing, not order, so 口 written in the wrong order is still 口; order only
@@ -37,6 +38,13 @@ const UNDRAWN = 0.05; // completion: per template stroke not drawn yet
 const COMPLETION = 0.3; // completion: flat cost, so a whole match wins a tie
 const RARITY_COMPLETION = 0.1; // completion: per rank step — half a character is
 // ambiguous by design, so how common the whole one is has to count for more
+// Completion: per undrawn stroke that would run over ink already drawn. The rest
+// of a character goes where the hand hasn't been (子 beside 女, 口 inside 门); a
+// finished 我 is no start of 新, whose missing strokes would cross it. Without
+// this, 7 drawn strokes pick their 7 best partners among 新's 13 and beat 我.
+// One missing stroke is exempt: that's a forgotten 提, not another character.
+const OVER_INK = 0.3;
+const NEAR = 20; // on the 256 em box: this close to a drawn stroke is on it
 
 export type Templates = {
   chars: string[];
@@ -307,6 +315,30 @@ function strokeCost(a: Float32Array, ai: number, b: Float32Array, bi: number, sc
   return Math.min(fwd / div, rev / div + REVERSED * N) / N;
 }
 
+// Whether most of template stroke `bi`, mapped onto the pad, runs over the
+// drawing's ink (any of the `n` strokes in `a`, pad units).
+function onInk(a: Float32Array, n: number, b: Float32Array, bi: number, sc: number, dx: number, dy: number): boolean {
+  let hits = 0;
+  for (let k = 0; k < N; k++) {
+    const x = b[bi + k * 2] * sc + dx;
+    const y = b[bi + k * 2 + 1] * sc + dy;
+    near: for (let i = 0; i < n; i++) {
+      for (let q = 1; q < N; q++) {
+        const [ax, ay] = [a[(i * N + q - 1) * 2], a[(i * N + q - 1) * 2 + 1]];
+        const [ex, ey] = [a[(i * N + q) * 2] - ax, a[(i * N + q) * 2 + 1] - ay];
+        const l = ex * ex + ey * ey;
+        const f = l ? Math.min(1, Math.max(0, ((x - ax) * ex + (y - ay) * ey) / l)) : 0;
+        const [fx, fy] = [ax + ex * f - x, ay + ey * f - y];
+        if (fx * fx + fy * fy < NEAR * NEAR) {
+          hits++;
+          break near;
+        }
+      }
+    }
+  }
+  return hits * 2 >= N;
+}
+
 // Pairs of drawn strokes whose partners (among the first `cols` template
 // strokes, so not the padding) come in the opposite order.
 function inversions(n: number, cols: number): number {
@@ -401,7 +433,11 @@ export function rank(t: Templates, strokes: Point[][], opts: { box?: number; lim
           if (rowMin + extra >= bar()) break;
         }
         if (rowMin + extra >= bar()) continue;
-        const score = assign(n, m) + ORDER * inversions(n, m) + extra;
+        let score = assign(n, m) + ORDER * inversions(n, m) + extra;
+        for (let j = 1; m - n > 1 && j <= m && score < bar(); j++) {
+          if (!p[j] && onInk(onPad, n, t.pts, off + (j - 1) * N * 2, sc, cx, cy)) score += OVER_INK;
+        }
+        if (score >= bar()) continue;
         // A character already in as a whole match keeps its better score.
         const had = best.findIndex(([, b]) => b === c);
         if (had >= 0) {

@@ -8,7 +8,8 @@
 // "messy" cases move, turn and resize every stroke on its own, the way a real
 // finger does (the tidy cases alone passed while a phone's 我 missing its 提
 // didn't make the top 16), and a few drawings traced from a phone are replayed
-// as they were. Fails if top-1 / top-16 (what the pad shows) fall under the floors below.
+// as they were. Half-drawn cases take the first component of left | right, top /
+// bottom and enclosing characters (女 → 好, 艹 → 花, 门 → 问). Fails if top-1 / top-16 (what the pad shows) fall under the floors below.
 //
 // Run: npx tsx scripts/check-handwriting.ts path/to/graphics.txt path/to/dictionary.txt
 
@@ -32,9 +33,13 @@ for (const line of readFileSync(graphicsPath, "utf8").trim().split("\n")) {
 }
 // Which component each stroke belongs to, for characters split left | right.
 const leftRight = new Map<string, number[][]>();
+const topBottom = new Map<string, number[][]>();
+const outer = new Map<string, number[][]>();
 for (const line of readFileSync(dictionaryPath, "utf8").trim().split("\n")) {
   const o = JSON.parse(line);
   if (o.decomposition?.startsWith("⿰") && o.matches?.every((m: number[] | null) => m)) leftRight.set(o.character, o.matches);
+  if (/^[⿱]/.test(o.decomposition ?? "") && o.matches?.every((m: number[] | null) => m)) topBottom.set(o.character, o.matches);
+  if (/^[⿴⿵⿶⿷⿸⿹⿺]/.test(o.decomposition ?? "") && o.matches?.every((m: number[] | null) => m)) outer.set(o.character, o.matches);
 }
 
 // Deterministic noise so runs compare.
@@ -127,6 +132,17 @@ const cases: Case[] = [
       return left.length && left.length < m.length ? left : null;
     },
   },
+  ...([["top part only", topBottom, 0.75], ["outer part only", outer, 0.55]] as const).map(([name, map, floorShown]) => ({
+    name,
+    floor1: 0,
+    floorShown,
+    make: (m: number[][][], ch: string) => {
+      const parts = map.get(ch);
+      if (!parts || parts.length !== m.length) return null;
+      const first = m.filter((_, i) => parts[i][0] === 0);
+      return first.length && first.length < m.length ? first : null;
+    },
+  })),
 ];
 
 let failed = false;
@@ -175,6 +191,27 @@ const traced: [string, string, number, number[][][], number][] = [
     [[390,935],[485,920]],
     [[575,515],[615,560],[620,650]],
   ], 3],
+  // A whole 我, 斜钩 upright again: 新 came first, its 13 strokes offering 7 good
+  // partners to a drawing that was plainly finished.
+  ["我 whole", "我", 862, [
+    [[228,198],[225,240],[215,300],[195,345],[173,395]],
+    [[150,462],[175,480],[210,478],[290,462],[380,440],[435,435],[580,438]],
+    [[232,345],[245,380],[262,430],[270,510],[272,600],[280,680],[300,760],[230,700],[160,635]],
+    [[170,600],[200,620],[240,625],[280,612],[315,592]],
+    [[457,345],[460,410],[450,470],[430,560],[418,630],[415,690],[430,705],[460,707],[478,690],[495,628]],
+    [[405,560],[395,580],[385,620]],
+    [[577,327],[618,358],[628,410]],
+  ], 1],
+  ["我 whole, hook apart", "我", 862, [
+    [[228,198],[225,240],[215,300],[195,345],[173,395]],
+    [[150,462],[175,480],[210,478],[290,462],[380,440],[435,435],[580,438]],
+    [[232,345],[245,380],[262,430],[270,510],[272,600],[280,680],[300,760]],
+    [[160,635],[230,700],[285,750]],
+    [[170,600],[200,620],[240,625],[280,612],[315,592]],
+    [[457,345],[460,410],[450,470],[430,560],[418,630],[415,690],[430,705],[460,707],[478,690],[495,628]],
+    [[405,560],[395,580],[385,620]],
+    [[577,327],[618,358],[628,410]],
+  ], 1],
 ];
 for (const [name, ch, box, strokes, within] of traced) {
   const got = recognize(t, strokes.map(densify), { box, limit: SHOWN });

@@ -24,7 +24,6 @@ import { setExamplePinyin, useExamplePinyin } from "@/lib/learnPrefs";
 import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
-import { FOCUS } from "@/lib/focus";
 import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
 import { Link as LinkIcon, BookOpen, Lightbulb, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -301,8 +300,9 @@ export default function WordDetailPage() {
           which ones the card tests. Falls back to the collocation chips. */}
       <WordSenses word={word} />
 
-      {/* synonyms + antonyms as a tappable mini word-family graph (off while focused) */}
-      {!FOCUS && <WordFamilyGraph word={word} />}
+      {/* synonyms + antonyms as a tappable mini word-family graph — kept in the
+          focus pass: telling 近义词 apart is what HSK 4+ gap-fills test */}
+      <WordFamilyGraph word={word} />
 
       <div className="space-y-3">
         {word.examples.length > 0 && (

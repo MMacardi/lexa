@@ -1207,8 +1207,8 @@ const DICT: Record<string, Entry> = {
   "han.korean": { en: "Korean", ru: "Корейский", zh: "韩语" },
   "han.inlinePrompt": { en: "Which language?", ru: "Какой язык?", zh: "哪种语言？" },
   // --- draw pad (handwriting input) ---
-  "draw.toggle": { en: "Draw a character", ru: "Нарисовать иероглиф", zh: "手写输入" },
-  "draw.hide": { en: "Hide the pad", ru: "Скрыть поле для рисования", zh: "收起手写板" },
+  "draw.toggle": { en: "Write a character", ru: "Написать иероглиф", zh: "手写输入" },
+  "draw.hide": { en: "Hide the pad", ru: "Скрыть рукописный ввод", zh: "收起手写板" },
   "add.zhPlaceholder": { en: "Word or meaning", ru: "Слово или значение", zh: "汉字或释义" },
   "add.zhHint": {
     en: "Hanzi → a card with its meaning. A meaning or pinyin → the Chinese word for it.",
@@ -1223,10 +1223,10 @@ const DICT: Record<string, Entry> = {
     ru: "В словаре HSK не нашлось — «Перевести» спросит ИИ.",
     zh: "HSK 词典中没有 ——「翻译」会询问 AI。",
   },
-  "draw.pad": { en: "Handwriting pad", ru: "Поле для рисования иероглифа", zh: "手写板" },
+  "draw.pad": { en: "Handwriting pad", ru: "Поле для письма иероглифа", zh: "手写板" },
   "draw.hint": {
-    en: "Draw a character — part of it is enough",
-    ru: "Нарисуйте иероглиф — хватит и части",
+    en: "Write a character — part of it is enough",
+    ru: "Напишите иероглиф — хватит и части",
     zh: "写一个字——写出一部分就行",
   },
   "draw.loading": { en: "Getting handwriting ready…", ru: "Загружаю распознавание…", zh: "正在加载手写识别…" },
