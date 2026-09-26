@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { captureInstallPrompt } from "@/components/InstallApp";
 
 // Registers the service worker (once, after load) so the app shell works offline.
 // No-op on the server and in browsers without service-worker support.
 export function PwaRegister() {
   useEffect(() => {
+    // Before the worker: Chrome only offers to install once one is registered,
+    // so listening first can't miss its prompt.
+    captureInstallPrompt();
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
     const onLoad = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {

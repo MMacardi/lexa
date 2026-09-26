@@ -1267,6 +1267,30 @@ const DICT: Record<string, Entry> = {
   // --- today ---
   "today.emptyTitle": { en: "Start your collection", ru: "Соберите свою коллекцию", zh: "开始你的单词库" },
   "today.emptyText": { en: "Add your first word — I'll add its meaning and a natural example.", ru: "Добавьте первое слово — я подберу значение и естественный пример.", zh: "添加第一个单词——我会补上释义和自然例句。" },
+  "install.title": { en: "Put Onomika on your home screen", ru: "Onomika на главный экран", zh: "把 Onomika 放到主屏幕" },
+  "install.why": {
+    en: "It opens in one tap, full screen like an app, and reviews work offline.",
+    ru: "Открывается в одно касание, на весь экран, как приложение, и повторение работает без сети.",
+    zh: "一点就开，像应用一样全屏，复习离线也能用。",
+  },
+  "install.button": { en: "Install", ru: "Установить", zh: "安装" },
+  "install.notNow": { en: "Not now", ru: "Не сейчас", zh: "以后再说" },
+  "install.gotIt": { en: "Got it", ru: "Понятно", zh: "知道了" },
+  "install.ios1": {
+    en: "Tap Share in Safari's bar",
+    ru: "Нажмите «Поделиться» внизу Safari",
+    zh: "点 Safari 工具栏里的“分享”",
+  },
+  "install.ios2": {
+    en: "Choose “Add to Home Screen”",
+    ru: "Выберите «На экран „Домой“»",
+    zh: "选择“添加到主屏幕”",
+  },
+  "install.ios3": {
+    en: "Open Onomika from the new icon",
+    ru: "Открывайте Onomika с новой иконки",
+    zh: "以后从新图标打开 Onomika",
+  },
   "today.greeting": { en: "Good day — ready for today's words?", ru: "Добрый день! Повторим слова?", zh: "你好——准备好今天的单词了吗？" },
   // First-run onboarding (empty deck).
   "first.title": { en: "Let's start — your first words", ru: "Начнём — соберём первые слова", zh: "开始吧——你的第一批单词" },

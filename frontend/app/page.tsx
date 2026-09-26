@@ -12,6 +12,7 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { HskTrack } from "@/components/HskTrack";
 import { CoachPicks } from "@/components/CoachPicks";
+import { InstallApp } from "@/components/InstallApp";
 import { ErrorState } from "@/components/ErrorState";
 import { FOCUS } from "@/lib/focus";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -123,6 +124,9 @@ export default function TodayPage() {
 
       {/* coach's daily voice — one adaptive line + next step */}
       <CoachBriefing />
+
+      {/* install to the home screen: only where it applies, once dismissed never again */}
+      <InstallApp />
 
       {/* stats */}
       <div

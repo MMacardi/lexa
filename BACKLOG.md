@@ -217,10 +217,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       `scripts/check-streak.ts`: 20 days → 20 (the old code said 13), +today → 21, a gap → 3.
       Checked at 390px as a learner with a 1-day streak.
 
-13. **"Add to Home Screen".** Android: an install button from `beforeinstallprompt`. iPhone: a
+13. [x] **"Add to Home Screen".** Android: an install button from `beforeinstallprompt`. iPhone: a
     one-time sheet after the second day (Share → Add to Home Screen). Installed, it runs full
     screen without Safari's bars — which also avoids most of the viewport quirks fixed on
     2026-09-25 — and it is what web push on iOS needs later. Small–medium.
+    - **Shipped 2026-09-26.** `components/InstallApp.tsx`, a card on Today under the briefing.
+      `captureInstallPrompt` runs from `PwaRegister` (root layout) before the worker registers, so
+      Chrome's prompt is kept even when it fires before Today mounts. Android: "Install" → the
+      real prompt; accepted or "Not now"/× → never again. iPhone/iPad: the three steps with
+      Share / Add-to-Home icons, from the second day of use (`lexa.firstSeenDay`). Nothing when
+      already installed, inside the Telegram Mini App, or on a desktop without a prompt. Local
+      run: no card → a simulated prompt → card → Install calls `prompt()` → gone; an iPhone UA
+      with a first visit yesterday → the steps (390px screenshot).
 
 14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
