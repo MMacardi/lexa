@@ -1116,11 +1116,12 @@ export async function getStats(telegramId: string) {
   const todayKey = key(new Date(now));
   const trainedToday = reviewMap.get(todayKey) ?? 0;
 
-  // streak: consecutive days (ending today or yesterday) with >=1 review
+  // streak: consecutive days (ending today or yesterday) with >=1 review. Counted
+  // over the heatmap's 119 days, not the 14-day chart — that capped it at 14.
   let streak = 0;
-  for (let i = 0; i < days.length; i++) {
-    const day = days[days.length - 1 - i];
-    if (day.reviews > 0) streak++;
+  for (let i = 0; i < heat.length; i++) {
+    const day = heat[heat.length - 1 - i];
+    if (day.count > 0) streak++;
     else if (i === 0) continue; // allow today to be empty without breaking
     else break;
   }

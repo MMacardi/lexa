@@ -1624,6 +1624,11 @@ const DICT: Record<string, Entry> = {
   "stats.goalReached": { en: "Daily goal reached!", ru: "Цель на день выполнена!", zh: "完成每日目标！" },
   "stats.goalGreat": { en: "Great work today.", ru: "Отличная работа!", zh: "今天做得很好。" },
   "stats.goalToGo": { en: "{n} cards to go", ru: "ещё {n} карточек", zh: "还差 {n} 张" },
+  "stats.keepStreak": {
+    en: "Review today to keep your {n}-day streak",
+    ru: "Повторите сегодня, чтобы не прервать серию: {n} дн.",
+    zh: "今天复习一下，保住连续 {n} 天的记录",
+  },
   "stats.goalDone": { en: "done", ru: "готово", zh: "完成" },
   "stats.last7": { en: "Last 7 days", ru: "Последние 7 дней", zh: "最近 7 天" },
   "stats.byPair": { en: "By language pair", ru: "По языковым парам", zh: "按语言对" },

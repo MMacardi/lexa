@@ -207,9 +207,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       while the field is empty; takes the first line. Local run with a stubbed clipboard:
       他打了三个小时篮球。→ reading view, 6 new; "篮球\nsecond line" → the field reads 篮球.
 
-12. **The streak and "today's goal done" on Today.** The count already exists (`stats.streak`) but
+12. [x] **The streak and "today's goal done" on Today.** The count already exists (`stats.streak`) but
     lives only in the stats panel, hidden while focused. Just visibility — the freeze and the
     nudge stay under Later. Tiny.
+    - **Shipped 2026-09-26.** A flame chip "N-day streak" on Today's goal card (which already said
+      "Great work today" once the goal is met); before today's first review the line reads
+      "Review today to keep your N-day streak". **Found on the way:** the streak was counted off
+      the 14-day chart series, so it could never pass 14 — now counted over the heatmap's 119 days.
+      `scripts/check-streak.ts`: 20 days → 20 (the old code said 13), +today → 21, a gap → 3.
+      Checked at 390px as a learner with a 1-day streak.
 
 13. **"Add to Home Screen".** Android: an install button from `beforeinstallprompt`. iPhone: a
     one-time sheet after the second day (Share → Add to Home Screen). Installed, it runs full

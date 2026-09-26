@@ -7,7 +7,7 @@ import { useDailyGoal } from "@/lib/goal";
 import { useI18n } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PartyPopper, Target } from "lucide-react";
+import { Flame, PartyPopper, Target } from "lucide-react";
 
 // A standalone, prominent daily-goal panel: a big progress ring, encouragement,
 // a 7-day "goal met" strip, and +/- to tune the target.
@@ -81,12 +81,22 @@ export function DailyGoalCard() {
 
         {/* right side */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-serif text-[22px] font-medium text-ink">{t("stats.goal")}</h3>
             {hit ? <PartyPopper className="h-5 w-5 text-sage" /> : <Target className="h-5 w-5 text-ink-faint" />}
+            {/* The streak lived only in the stats panel, which focus mode hides. */}
+            {data.streak > 0 && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[13px] font-semibold text-orange-500">
+                <Flame className="h-3.5 w-3.5" /> {t("stats.streakSummary", { n: data.streak })}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[15px] text-ink-soft">
-            {hit ? t("stats.goalGreat") : t("stats.goalToGo", { n: Math.max(0, goal - done) })}
+            {hit
+              ? t("stats.goalGreat")
+              : done === 0 && data.streak > 0
+                ? t("stats.keepStreak", { n: data.streak })
+                : t("stats.goalToGo", { n: Math.max(0, goal - done) })}
           </p>
 
           {/* 7-day strip */}
