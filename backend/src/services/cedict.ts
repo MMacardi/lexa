@@ -172,6 +172,11 @@ export function cedictCoverage() {
 const NOT_A_MEANING = /^(CL:|surname\b|(old |archaic |erhua )?variant of|erhua form of|see (also )?\S|used in|also written|(Taiwan |also )?pr\. )/i;
 const CLASSIFIER = /^classifier for/i;
 
+/** Is this gloss a meaning, not a cross-reference or a pronunciation note? */
+export function isMeaningGloss(g: string): boolean {
+  return !NOT_A_MEANING.test(g);
+}
+
 // Usage notes make a gloss too long for a card face: drop the "(bound form)" tag
 // and any parenthesis long enough to be an explanation — 一下's first gloss is
 // "(after a verb) a bit; a little (indicating brief duration, or softening …)".
@@ -227,19 +232,41 @@ function toneMarked(numbered: string): string {
 }
 
 // pinyin-pro and CC-CEDICT spell the same reading differently (ü vs u:, 0 vs 5).
-const sameReading = (a: string, b: string) => {
-  const norm = (p: string) => p.toLowerCase().replace(/u:|ü/g, "v").replace(/0/g, "5");
-  return norm(a) === norm(b);
+const syllablesOf = (p: string) => p.toLowerCase().replace(/u:|ü/g, "v").replace(/0/g, "5").split(" ");
+const sameReading = (a: string, b: string) => syllablesOf(a).join(" ") === syllablesOf(b).join(" ");
+// The same but for the dictionary's neutral tones, which pinyin-pro may read
+// toned: 好处 "benefit" is hao3 chu5 there and hao3 chu4 to pinyin-pro.
+const nearReading = (dict: string, expected: string) => {
+  const d = syllablesOf(dict);
+  const e = syllablesOf(expected);
+  return d.length === e.length && d.every((s, i) => s === e[i] || (s.endsWith("5") && s.slice(0, -1) === e[i].slice(0, -1)));
 };
+
+/**
+ * The reading the learner most likely means: the one pinyin-pro gives the word
+ * (it knows 长 is cháng and 着 is zhe, where "the reading with most senses" would
+ * pick zhǎng and zháo), then one it gives but for a neutral tone, then the first
+ * one that has a real meaning. `matched`: pinyin-pro gave exactly this reading,
+ * so its spoken form (yí xià) is the card's pinyin; otherwise the dictionary's
+ * own is (shì qing, where pinyin-pro says shì qíng).
+ */
+export async function mainReading(entry: CedictEntry): Promise<{ reading: CedictReading; matched: boolean }> {
+  const { pinyin } = await import("pinyin-pro");
+  // Tone sandhi off to match the dictionary (一下 is yi1 xia4 there, yí xià spoken).
+  const expected = LEARNER_READING[entry.word] ?? pinyin(entry.word, { toneType: "num", type: "string", toneSandhi: false });
+  // Capitalised readings are proper nouns ("Huan2" is the surname reading of 还).
+  const common = entry.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase());
+  const matched = common.find((r) => sameReading(r.pinyin, expected) && readingGloss(r));
+  const near = matched ? undefined : common.find((r) => nearReading(r.pinyin, expected) && readingGloss(r));
+  return { reading: matched ?? near ?? common.find((r) => readingGloss(r)) ?? entry.readings[0], matched: Boolean(matched) };
+}
 
 export type DictCard = { phonetic: string; gloss: string };
 
 /**
  * The card the dictionary can make with no model call: pinyin plus a short
- * English gloss, for the reading the learner most likely means. That reading is
- * the one pinyin-pro gives the word (it knows 长 is cháng and 着 is zhe, where
- * "the reading with most senses" would pick zhǎng and zháo), falling back to the
- * first one that has a real meaning. Null when the word isn't in the subset.
+ * English gloss, for the reading the learner most likely means (`mainReading`).
+ * Null when neither file has the word.
  * `count: false` for lookups that aren't an add (a Reader tap) — see `hits`.
  */
 export async function cedictCard(word: string, opts: { count?: boolean } = {}): Promise<DictCard | null> {
@@ -247,12 +274,7 @@ export async function cedictCard(word: string, opts: { count?: boolean } = {}): 
   if (!entry) return null;
   const { pinyin } = await import("pinyin-pro");
   const head = entry.word;
-  // Tone sandhi off to match the dictionary (一下 is yi1 xia4 there, yí xià spoken).
-  const expected = LEARNER_READING[head] ?? pinyin(head, { toneType: "num", type: "string", toneSandhi: false });
-  // Capitalised readings are proper nouns ("Huan2" is the surname reading of 还).
-  const common = entry.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase());
-  const matched = common.find((r) => sameReading(r.pinyin, expected) && readingGloss(r));
-  const reading = matched ?? common.find((r) => readingGloss(r)) ?? entry.readings[0];
+  const { reading, matched } = await mainReading(entry);
   // 一下儿 is only "erhua form of 一下": the meaning is the base form's.
   if (!readingGloss(reading) && head.length > 1 && head.endsWith("儿")) {
     const base = await cedictCard(head.slice(0, -1), { count: false });

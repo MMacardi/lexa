@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { cedictCard, cedictEntries, cedictHas, cedictLookup, isChinese } from "./cedict.js";
+import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading } from "./cedict.js";
 import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
 
 /**
@@ -89,7 +89,7 @@ export type LookupHit = {
 };
 export type Lookup = { kind: "zh" | "meaning" | "none"; hits: LookupHit[] };
 
-const MAX_HITS = 6;
+const MAX_HITS = 8;
 
 // Lowest level on either list, so 访问 (HSK 2 in 2.0, 3 in 3.0) ranks as a level-2 word.
 function levelOf(word: string): number {
@@ -150,6 +150,45 @@ function plainPinyin(s: string): string {
     .replace(/[^a-z]/g, "");
 }
 
+// The subset's readings, prepared once for Latin queries. `main` is the reading
+// the row shows (`mainReading`); a match on another ranks below every match on a
+// shown one — 见's xiàn "to appear" put it among "xian" with jiàn on the row.
+// Other proper-noun readings go (还's surname Huán), but not a word's only one:
+// 汉语 is Han4 yu3 and 中国 Zhong1 guo2, and "hanyu" found nothing. A reading with
+// no meaning of its own goes too: 虾's ha2 is only "used in 虾蟆", so "ha" found
+// 虾 as xiā. So do pronunciation notes — 好处's "also pr. [hao3chu4]" made it an
+// English match for "hao".
+type PinyinEntry = { word: string; readings: { syllables: string[]; glosses: string[]; main: boolean }[] };
+let pinyinIdx: Promise<PinyinEntry[]> | null = null;
+
+function pinyinIndex(): Promise<PinyinEntry[]> {
+  pinyinIdx ??= (async () => {
+    const out: PinyinEntry[] = [];
+    for (const e of cedictEntries()) {
+      const main = e.readings.length > 1 ? (await mainReading(e)).reading : e.readings[0];
+      const readings = e.readings.flatMap((r) => {
+        if (r !== main && r.pinyin[0] !== r.pinyin[0].toLowerCase()) return [];
+        const glosses = r.glosses.filter(isMeaningGloss);
+        return glosses.length ? [{ syllables: r.pinyin.split(" ").map(plainPinyin).filter(Boolean), glosses, main: r === main }] : [];
+      });
+      if (readings.length) out.push({ word: e.word, readings });
+    }
+    return out;
+  })();
+  return pinyinIdx;
+}
+
+// Does the reading start with exactly these whole syllables and go on? "hao" →
+// 好处 hao chu; "ha" stays off hai, han and hang.
+function startsWithSyllables(syllables: string[], py: string): boolean {
+  let head = "";
+  for (let i = 0; i < syllables.length - 1 && head.length < py.length; i++) {
+    head += syllables[i];
+    if (head === py) return true;
+  }
+  return false;
+}
+
 // Longest known word at each position — for a phrase typed or drawn whole
 // ("拜访老师"), so the learner can pick the word they meant out of it.
 function wordsIn(text: string): string[] {
@@ -190,7 +229,12 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
     kind = "zh";
     const head = normalizeHanzi(q);
     const scored = new Map<string, number>();
+    // The word itself from all of CC-CEDICT: a word met outside the list (算法) is
+    // still what the learner typed, not 算 and 法. Off the list it comes after the
+    // list words it starts — 访 drawn on the pad is on the way to 访问. Those stay
+    // on the subset: the full dump would bury 好's under idioms.
     if (cedictHas(head)) scored.set(head, 1000);
+    else if (cedictKnows(head)) scored.set(head, 5);
     for (const e of cedictEntries()) if (e.word !== head && e.word.startsWith(head)) scored.set(e.word, 10);
     words = rank(scored);
     if (!words.length && head.length > 1) words = wordsIn(head).slice(0, MAX_HITS);
@@ -206,14 +250,16 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
       }
     } else {
       const py = plainPinyin(q);
-      for (const e of cedictEntries()) {
+      for (const e of await pinyinIndex()) {
         let s = 0;
         for (const r of e.readings) {
-          // Proper-noun readings (capitalised) aren't what a learner types pinyin for.
-          if (r.pinyin[0] !== r.pinyin[0].toLowerCase()) continue;
-          const p = plainPinyin(r.pinyin);
-          if (py && p === py) s = Math.max(s, 90);
-          else if (py.length >= 4 && p.startsWith(py)) s = Math.max(s, 20);
+          const p = r.syllables.join("");
+          let ps = 0;
+          if (py && p === py) ps = 90;
+          // The words a syllable starts, after the words it is: 好 and 号, then 好处.
+          else if (py && startsWithSyllables(r.syllables, py)) ps = 40;
+          else if (py.length >= 4 && p.startsWith(py)) ps = 20;
+          s = Math.max(s, r.main ? ps : ps / 3);
           // Sense order counts, as in `meaningScore`: "to visit" is 访问's first
           // sense and only a late one of 走, which would otherwise win as the easier word.
           r.glosses.forEach((g, i) => {

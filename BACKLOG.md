@@ -551,6 +551,26 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### The add form's pinyin lookup: compounds, and nothing by a reading the row doesn't show (2026-09-26, asked for directly)
+- Asked from two phone screenshots: "ha" offered 虾 xiā, and "hao" stopped at four words. HSK-only
+  stays the rule for pinyin and meanings — untoned pinyin over all 120k headwords is Pleco's page
+  of 蒿 / 郝 / 皓 / 昊, noise for an exam list. What changed is what counts as a match
+  (`services/lookup.ts`):
+  - **A syllable goes on into the words it starts**: "hao" → 号 好 耗, then 好吃 好听 好看 好久…;
+    whole syllables only, so "ha" doesn't pull in hai/han/hang. Eight rows, was six.
+  - **No match by a reading the row doesn't show.** 虾's ha2 is only "used in 虾蟆" (readings with
+    no meaning gloss are skipped); 见's xiàn and 还's huán rank below every match on the shown
+    reading. 好处 had turned up for "hao" only through its English note "also pr. [hao3chu4]" —
+    pronunciation notes are out of the English match too.
+  - **A word whose only reading is capitalised** is found: "hanyu" → 汉语, "zhongguo" → 中国 (both
+    found nothing — the proper-noun filter was meant for 还's surname Huán).
+  - **Hanzi typed or drawn is found in all of CC-CEDICT**: 算法 is the word, not 算 and 法; off the
+    list it ranks after the list words it starts (访 → 访问, 访谈, then 访).
+- `cedict.ts`: `mainReading` (split out of `cedictCard`) also takes a reading pinyin-pro gives but
+  for a neutral tone. One of 11,482 cards changes: 好处 was "hǎo chǔ, easy to get along with", now
+  "hǎo chu, benefit" — the row on the screenshot.
+- `check-lookup.ts` +9 cases (slowest 28 ms); check-capture, check-segment, check-reader-coverage pass.
+
 ### Review: one tap from Today, time left, a grade you can feel (2026-09-26, asked for directly — "some good UI/UX")
 
 - **One tap into review.** Today's due card, "Review all", the briefing's CTA and the daily

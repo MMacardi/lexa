@@ -41,7 +41,7 @@ let settled = 0;
 for (const e of cedictEntries()) if (defaultIsSettled(e.word, "ru")) settled++;
 console.log(`     ${settled}/${total} taps need no model call`);
 
-// 2. Both directions. `top` = the hit must be first; otherwise within the six shown.
+// 2. Both directions. `top` = the hit must be first; otherwise anywhere in the list.
 async function expect(q: string, word: string, top = false) {
   const t0 = performance.now();
   const r = await lookup(q, "ru");
@@ -51,7 +51,8 @@ async function expect(q: string, word: string, top = false) {
   check(ok, `${q} → ${word}${top ? " first" : ""} [${r.kind}, ${ms} ms]: ${r.hits.map((h) => `${h.word} ${h.meaning}`).join(" · ") || "nothing"}`);
   return ms;
 }
-await lookup("warm-up", "ru"); // the first call builds the indexes
+await lookup("warm-up", "ru"); // the first calls build the indexes
+await lookup("算法", "ru"); // and the first word off the list loads the rest of CC-CEDICT
 const times = [
   await expect("访问", "访问", true),
   await expect("访", "访问"), // a character drawn on the pad already offers the word
@@ -67,6 +68,26 @@ const times = [
   await expect("fang3 wen4", "访问", true),
   await expect("lüse", "绿色", true),
 ];
+// A syllable goes on into the words it starts; nothing turns up by a reading the row doesn't show.
+times.push(
+  await expect("hao", "好"),
+  await expect("hao", "好吃"),
+  await expect("haoc", "好处"),
+  await expect("haochu", "好处", true),
+  await expect("hanyu", "汉语", true), // the only reading is capitalised in CC-CEDICT
+  await expect("zhongguo", "中国", true),
+  await expect("算法", "算法", true), // off the list, still the word typed — not 算 and 法
+  await expect("访", "访问", true), // 访 itself is off the list: after the words it starts
+);
+const without_ = async (q: string, word: string, why: string) => {
+  const r = await lookup(q, "ru");
+  check(!r.hits.some((h) => h.word === word), `${q} ↛ ${word} (${why}): ${r.hits.map((h) => `${h.word} ${h.pinyin}`).join(" · ")}`);
+};
+await without_("ha", "虾", "ha2 is only 'used in 虾蟆'");
+await without_("xian", "见", "the row would say jiàn");
+const { cedictCard } = await import("../src/services/cedict.js");
+const haochu = await cedictCard("好处", { count: false });
+check(Boolean(haochu?.gloss.startsWith("benefit") && haochu.phonetic === "hǎo chu"), `好处 is the benefit, not 'easy to get along with': ${JSON.stringify(haochu)}`);
 const nothing = await lookup("qqqzzz", "ru");
 check(nothing.hits.length === 0, "nonsense finds nothing (the form then offers the AI)");
 const hit = (await lookup("访问", "ru")).hits[0];
