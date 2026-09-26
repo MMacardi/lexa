@@ -1972,6 +1972,20 @@ const DICT: Record<string, Entry> = {
   "review.known": { en: "known", ru: "знаю", zh: "认识" },
   "review.learningCount": { en: "to repeat soon", ru: "повторим скоро", zh: "稍后再复习" },
   "review.backToSetup": { en: "Back to setup", ru: "К настройкам", zh: "返回设置" },
+  "review.nextDaily": { en: "Today's new words: {n} left", ru: "Новые слова на сегодня: ещё {n}", zh: "今天的新词：还剩 {n} 个" },
+  "review.nextDailySub": { en: "Take them into review now", ru: "Взять их в повторение", zh: "现在加入复习" },
+  "review.nextUse": { en: "Use them in sentences", ru: "Использовать в предложениях", zh: "用它们造句" },
+  "review.nextUseSub": {
+    en: "A short drill with what you just reviewed ({n})",
+    ru: "Короткая практика со словами из этой сессии: {n}",
+    zh: "用刚复习的 {n} 个词做个小练习",
+  },
+  "review.nextRead": { en: "Read something", ru: "Почитать", zh: "读点东西" },
+  "review.nextReadSub": {
+    en: "A text, a photo of a page — tap the words you don't know",
+    ru: "Текст или фото страницы — нажимайте незнакомые слова",
+    zh: "一段文字或一页照片——点你不认识的词",
+  },
   "review.undo": { en: "Undo", ru: "Отменить", zh: "撤销" },
   "review.undoHint": {
     en: "Take back the last grade (Ctrl+Z)",

@@ -36,7 +36,7 @@ export function HskDaily() {
 
   if (isLoading)
     return (
-      <section className="rounded-[24px] border border-black/[0.06] bg-surface p-6">
+      <section id="daily" className="scroll-mt-20 rounded-[24px] border border-black/[0.06] bg-surface p-6">
         <Skeleton className="h-6 w-48" />
         <Skeleton className="mt-4 h-14 w-full rounded-[14px]" />
       </section>
@@ -87,7 +87,7 @@ export function HskDaily() {
   }
 
   return (
-    <section className="anim-fade-up overflow-hidden rounded-[24px] border border-black/[0.06] bg-surface p-6">
+    <section id="daily" className="anim-fade-up scroll-mt-20 overflow-hidden rounded-[24px] border border-black/[0.06] bg-surface p-6">
       <div className="flex items-center gap-2 text-sage-deep">
         <CalendarDays className="h-5 w-5" />
         <h3 className="font-serif text-[20px] font-medium text-ink">{t("hskDaily.title", { level: levelName })}</h3>

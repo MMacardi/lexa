@@ -36,7 +36,7 @@ import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ExternalLink, MoveVertical, Pencil, Repeat, Undo2 } from "lucide-react";
+import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
@@ -84,7 +84,7 @@ function fmtInterval(m: number, t: (k: string) => string): string {
 
 export default function FlashcardsPage() {
   const qc = useQueryClient();
-  const { accountId } = useAccount();
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const layout = useCardLayout();
   const activePreset = presetIdOf(layout);
@@ -102,6 +102,13 @@ export default function FlashcardsPage() {
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
     queryFn: () => api.collections(accountId),
+  });
+
+  // For the finish screen: are some of today's new words still waiting?
+  const { data: daily } = useQuery({
+    queryKey: ["hskDaily", accountId],
+    queryFn: () => api.hskDaily(),
+    enabled: profile?.hskTarget != null,
   });
 
   const [started, setStarted] = useState(false);
@@ -600,6 +607,29 @@ export default function FlashcardsPage() {
   const total = deck.length;
   const done = index >= total;
 
+  const dailyLeft = daily?.words.filter((w) => !w.added).length ?? 0;
+  const reviewedIds = Array.from(new Set(deck.map((w) => w.id)));
+  const nextSteps = [
+    ...(dailyLeft > 0
+      ? [{ href: "/#daily", Icon: Sparkles, title: t("review.nextDaily", { n: dailyLeft }), sub: t("review.nextDailySub"), onClick: undefined }]
+      : []),
+    {
+      href: "/coach/practice",
+      Icon: Dumbbell,
+      title: t("review.nextUse"),
+      sub: t("review.nextUseSub", { n: reviewedIds.length }),
+      // The drill takes the words just reviewed, the way a set's "Practice" hands them over.
+      onClick: () => {
+        try {
+          sessionStorage.setItem("lexa.coachFocusIds", JSON.stringify(reviewedIds));
+        } catch {
+          /* no storage: the drill picks its own words */
+        }
+      },
+    },
+    { href: "/reader", Icon: BookOpen, title: t("review.nextRead"), sub: t("review.nextReadSub"), onClick: undefined },
+  ];
+
   if (done)
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
@@ -621,10 +651,38 @@ export default function FlashcardsPage() {
             <div className="mt-0.5 text-[13px] font-medium text-ink-soft">{t("review.learningCount")}</div>
           </div>
         </div>
-        <Button variant="dark" className="mt-8" onClick={() => setStarted(false)}>
-          {t("review.backToSetup")}
-        </Button>
-        {undoButton && <div className="mt-3">{undoButton}</div>}
+        {/* The loop, one tap at a time (BACKLOG "End of review → the next step"):
+            today's new words while some are left, then using what was just
+            reviewed, then reading. The first is the one to take. */}
+        <div className="mt-7 w-full space-y-2 text-left">
+          {nextSteps.map(({ href, Icon, title, sub, onClick }, i) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClick}
+              className={cn(
+                "flex items-center gap-3 rounded-[16px] px-4 py-3 transition-colors",
+                i === 0 ? "bg-sage text-white hover:bg-sage-deep" : "border border-black/[0.08] bg-paper text-ink hover:border-sage/60",
+              )}
+            >
+              <Icon className={cn("h-5 w-5 shrink-0", i === 0 ? "text-white" : "text-sage")} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">{title}</span>
+                <span className={cn("block text-[12px]", i === 0 ? "text-white/80" : "text-ink-faint")}>{sub}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />
+            </Link>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <button
+            onClick={() => setStarted(false)}
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.04]"
+          >
+            {t("review.backToSetup")}
+          </button>
+          {undoButton}
+        </div>
       </div>
     );
 

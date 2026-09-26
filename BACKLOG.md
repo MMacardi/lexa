@@ -178,9 +178,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      hour-old grade refused). Local run: Easy → due +9 d → Ctrl+Z → state 0, no log row; Again →
      2/16 → Undo → 1/15.
 
-9. **End of review → the next step.** The finish screen only offers "Back to setup". Point on, the
+9. [x] **End of review → the next step.** The finish screen only offers "Back to setup". Point on, the
    Duolingo way: today's new words (HskDaily), the use-step, or the Reader — the loop, one tap at a
    time. Small.
+   - **Shipped 2026-09-26.** The finish screen lists the next steps, the first one filled: "Today's
+     new words: N left" (only while some are untaken, → `/#daily`, the card anchored even while it
+     loads), "Use them in sentences" (hands the session's words to `/coach/practice` through
+     `lexa.coachFocusIds`, like a set's Practice) and "Read something". "Back to setup" and Undo
+     sit under them. Local run: an account with 5 untaken words gets all three and lands on the
+     card; one with today's words taken gets the last two.
 
 10. **Play the word when the card flips.** A setting, on by default for Chinese (Anki and Pleco both
     have it): the word is spoken on reveal. Free listening and tones, which HSK listening needs.
