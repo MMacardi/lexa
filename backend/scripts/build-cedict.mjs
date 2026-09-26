@@ -70,6 +70,16 @@ function cleanGloss(g, simplified) {
 const byWord = new Map();
 const trad = new Map();
 let kept = 0;
+// Everything else, for data/cedict-extra.jsonl: the words a learner meets reading
+// in their own field (算法, 延迟, 参数). Kept apart so the subset's behaviour — the
+// Reader's joins, the add form's reverse lookup — doesn't change; services/cedict.ts
+// loads it only when a word misses the subset.
+const EXTRA_OUT = join(ROOT, "data", "cedict-extra.jsonl");
+const extraByWord = new Map();
+const extraTrad = new Map();
+let extraKept = 0;
+const HAN_ONLY = /^\p{Script=Han}+$/u;
+const MAX_EXTRA_GLOSSES = 6;
 
 for (const line of text.split("\n")) {
   if (!line || line[0] === "#") continue;
@@ -77,7 +87,22 @@ for (const line of text.split("\n")) {
   const m = line.match(/^(\S+)\s+(\S+)\s+\[([^\]]*)\]\s+\/(.*)\/\s*$/);
   if (!m) continue;
   const [, traditional, simplified, pinyin, body] = m;
-  if (!wanted.has(simplified)) continue;
+  if (!wanted.has(simplified)) {
+    // Han-only headwords (no 卡拉OK, no A型); a few glosses each is all a card or
+    // a tap shows, and it keeps the file a third smaller.
+    if (!HAN_ONLY.test(simplified)) continue;
+    const glosses = body.split("/").map((g) => cleanGloss(g, simplified)).filter(Boolean).slice(0, MAX_EXTRA_GLOSSES);
+    if (!glosses.length) continue;
+    const readings = extraByWord.get(simplified) ?? [];
+    readings.push({ p: pinyin.trim(), g: glosses });
+    extraByWord.set(simplified, readings);
+    if (traditional !== simplified) {
+      const seen = extraTrad.get(simplified);
+      extraTrad.set(simplified, seen === undefined || seen === traditional ? traditional : null);
+    }
+    extraKept++;
+    continue;
+  }
   const glosses = body.split("/").map((g) => cleanGloss(g, simplified)).filter(Boolean);
   if (!glosses.length) continue;
   const readings = byWord.get(simplified) ?? [];
@@ -109,22 +134,33 @@ const meta = {
 };
 
 mkdirSync(dirname(OUT), { recursive: true });
-const lines = [JSON.stringify(meta)];
-for (const word of [...byWord.keys()].sort()) {
-  // One reading per pinyin: the dump splits entries by traditional form, so a
-  // simplified-only app sees the same reading two or three times over.
-  const merged = new Map();
-  for (const { p, g } of byWord.get(word)) {
-    const into = merged.get(p);
-    if (into) for (const gloss of g) into.includes(gloss) || into.push(gloss);
-    else merged.set(p, [...new Set(g)]);
+
+function rows(words, tradMap) {
+  const out = [];
+  for (const word of [...words.keys()].sort()) {
+    // One reading per pinyin: the dump splits entries by traditional form, so a
+    // simplified-only app sees the same reading two or three times over.
+    const merged = new Map();
+    for (const { p, g } of words.get(word)) {
+      const into = merged.get(p);
+      if (into) for (const gloss of g) into.includes(gloss) || into.push(gloss);
+      else merged.set(p, [...new Set(g)]);
+    }
+    const row = { s: word, r: [...merged].map(([p, g]) => ({ p, g })) };
+    const t = tradMap.get(word);
+    if (t) row.t = t;
+    out.push(JSON.stringify(row));
   }
-  const row = { s: word, r: [...merged].map(([p, g]) => ({ p, g })) };
-  const t = trad.get(word);
-  if (t) row.t = t;
-  lines.push(JSON.stringify(row));
+  return out;
 }
-writeFileSync(OUT, lines.join("\n") + "\n", "utf8");
+
+writeFileSync(OUT, [JSON.stringify(meta), ...rows(byWord, trad)].join("\n") + "\n", "utf8");
+
+const extraMeta = {
+  _meta: { ...meta._meta, subset: "every other Han-only headword", words: extraByWord.size, entries: extraKept },
+};
+writeFileSync(EXTRA_OUT, [JSON.stringify(extraMeta), ...rows(extraByWord, extraTrad)].join("\n") + "\n", "utf8");
+console.log(`wrote ${EXTRA_OUT}: ${extraByWord.size} headwords / ${extraKept} readings`);
 
 const missing = [...wanted].filter((w) => !byWord.has(w)).length;
 console.log(

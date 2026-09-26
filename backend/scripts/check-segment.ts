@@ -18,6 +18,12 @@ check("他打了三个小时篮球。", ["他", "打", "了", "三", "个", "小
 check("你打电话给我吧。", ["你", "打电话", "给", "我", "吧"]);
 check("我想了解一下中国的历史。", ["我", "想", "了解", "一下", "中国", "的", "历史"]);
 check("她在北京大学学习汉语。", ["她", "在", "北京", "大学", "学习", "汉语"]);
+// Field words the HSK subset doesn't list stay whole where ICU had them (BACKLOG
+// "The Reader cuts field words the HSK dictionary doesn't know"): the split step
+// used to ask the subset alone and cut 算法 → 算 法, 延迟 → 延 迟.
+check("我们用新的算法降低了推理的延迟，参数也少了。", ["我们", "用", "新", "的", "算法", "降低", "了", "推理", "的", "延迟", "参数", "也", "少", "了"]);
+// A name of common characters no longer comes apart (蒙古 was 蒙 古).
+check("他去过蒙古。", ["他", "去", "过", "蒙古"]);
 // Mixed text passes through: only Chinese tokens are touched.
 check("我们一起去看电影吧！Hello 123", ["我们", "一起", "去", "看", "电影", "吧", "Hello", "123"]);
 

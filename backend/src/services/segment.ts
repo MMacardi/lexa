@@ -1,4 +1,4 @@
-import { cedictHas } from "./cedict.js";
+import { cedictHas, cedictKnows } from "./cedict.js";
 
 /**
  * Chinese word boundaries for the Reader: ICU's segmentation, repaired with
@@ -12,12 +12,15 @@ import { cedictHas } from "./cedict.js";
  * every name and non-HSK compound into characters. So ICU splits first, and the
  * dictionary only corrects it where it is sure:
  *   1. a multi-character token the dictionary doesn't list is split, but only if
- *      every piece is a dictionary word (了三 → 了 三; 乌兰 stays whole);
+ *      every piece is a dictionary word (了三 → 了 三; 乌兰 stays whole). "Doesn't
+ *      list" asks all of CC-CEDICT, not just the HSK subset: asking the subset cut
+ *      every field word ICU had right into characters (算法 → 算 法, 延迟 → 延 迟);
  *   2. neighbouring tokens that together make a dictionary word are joined
  *      (了 解 → 了解), up to four characters.
- * Greedy, so the odd boundary stays wrong (说明 天 for 说 明天), and a name made
- * of common characters comes apart (蒙古 → 蒙 古) — a tap on a wrong split costs
- * the learner one extra tap, never a wrong card.
+ * The joins stay on the subset: the full dump lists phrases (一个人, 的话) that
+ * would glue everyday sentences together. Greedy, so the odd boundary stays wrong
+ * (说明 天 for 说 明天) — a tap on a wrong split costs the learner one extra tap,
+ * never a wrong card.
  */
 
 export type Token = { text: string; wordLike: boolean };
@@ -49,7 +52,7 @@ export function segmentChinese(text: string): Token[] {
   // 1. Split what the dictionary doesn't know into what it does.
   const split: Token[] = [];
   for (const t of raw) {
-    const pieces = isHan(t) && Array.from(t.text).length > 1 && !cedictHas(t.text) ? cover(t.text) : null;
+    const pieces = isHan(t) && Array.from(t.text).length > 1 && !cedictKnows(t.text) ? cover(t.text) : null;
     if (pieces) for (const p of pieces) split.push({ text: p, wordLike: true });
     else split.push(t);
   }

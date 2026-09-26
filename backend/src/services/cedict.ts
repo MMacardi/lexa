@@ -24,6 +24,15 @@ import { normalizeHanzi } from "./hsk.js";
  * entries as a TypeScript literal would be type-checked on every `tsc` run, and
  * `../../data` resolves the same from `src/services` and from `dist/services`,
  * so the build still copies nothing.
+ *
+ * Two files. `cedict.jsonl` is the HSK headwords, the app's own vocabulary.
+ * `cedict-extra.jsonl` is every other headword (~109k): the words a learner meets
+ * reading in their field (算法, 延迟, 参数), which the subset alone left to the
+ * model — and which the Reader chopped into characters (BACKLOG "The Reader cuts
+ * field words the HSK dictionary doesn't know"). Lookups fall through to it, loaded
+ * on the first miss; `cedictHas` and `cedictEntries` stay on the subset on purpose,
+ * because the Reader's joins and the add form's reverse lookup are tuned to it (the
+ * full dump lists phrases like 一个人 and 的话, and would join them).
  */
 
 export type CedictReading = { pinyin: string; glosses: string[] };
@@ -33,6 +42,7 @@ type Row = { s: string; t?: string; r: { p: string; g: string[] }[] };
 type Meta = { source: string; url: string; license: string; licenseUrl: string; release: string; words: number };
 
 let index: Map<string, CedictEntry> | null = null;
+let extraIndex: Map<string, CedictEntry> | null = null;
 let meta: Meta | null = null;
 
 // Words asked for that the HSK subset doesn't hold — names, slang, whatever a
@@ -40,11 +50,11 @@ let meta: Meta | null = null;
 // the only evidence for whether the subset wants widening (see /api/admin/stats).
 let hits = 0;
 let misses = 0;
+let extraHits = 0; // misses the subset, found in the extra file
 
-function build() {
-  index = new Map();
+function load(file: string, into: Map<string, CedictEntry>, onMeta?: (m: Meta) => void) {
   // `../../data` is the same directory from src/services and from dist/services.
-  const path = fileURLToPath(new URL("../../data/cedict.jsonl", import.meta.url));
+  const path = fileURLToPath(new URL(`../../data/${file}`, import.meta.url));
   let text: string;
   try {
     text = readFileSync(path, "utf8");
@@ -61,10 +71,10 @@ function build() {
     if (!line) continue;
     const row = JSON.parse(line) as Row & { _meta?: Meta };
     if (row._meta) {
-      meta = row._meta;
+      onMeta?.(row._meta);
       continue;
     }
-    index.set(row.s, {
+    into.set(row.s, {
       word: row.s,
       ...(row.t ? { traditional: row.t } : {}),
       readings: row.r.map((r) => ({ pinyin: r.p, glosses: r.g })),
@@ -72,21 +82,55 @@ function build() {
   }
 }
 
+function build() {
+  index = new Map();
+  load("cedict.jsonl", index, (m) => (meta = m));
+}
+
 function idx() {
   if (!index) build();
   return index!;
 }
 
+// The rest of CC-CEDICT, read on the first word the subset doesn't hold: ~11 MB
+// that a learner who never leaves the HSK lists never pays for.
+function extraIdx() {
+  if (!extraIndex) {
+    extraIndex = new Map();
+    load("cedict-extra.jsonl", extraIndex);
+  }
+  return extraIndex;
+}
+
+/** The entry in either file, subset first; doesn't move the counters. */
+function find(word: string): CedictEntry | null {
+  const w = normalizeHanzi(word);
+  return idx().get(w) ?? extraIdx().get(w) ?? null;
+}
+
 /**
- * The dictionary entry for a Chinese headword, or null when it is not in the
- * subset. `count: false` for lookups that aren't an add (see `hits`).
+ * The dictionary entry for a Chinese headword — the subset first, then the rest
+ * of CC-CEDICT — or null when neither has it. `count: false` for lookups that
+ * aren't an add (see `hits`).
  */
 export function cedictLookup(word: string, opts: { count?: boolean } = {}): CedictEntry | null {
-  const hit = idx().get(normalizeHanzi(word)) ?? null;
+  const w = normalizeHanzi(word);
+  const inSubset = idx().get(w) ?? null;
+  const hit = inSubset ?? extraIdx().get(w) ?? null;
   if (opts.count === false) return hit;
-  if (hit) hits++;
+  if (inSubset) hits++;
+  else if (hit) extraHits++;
   else misses++;
   return hit;
+}
+
+/**
+ * Is this a word at all, in either file? For the Reader's split step: a token ICU
+ * produced and CC-CEDICT lists (算法, 蒙古) is left whole.
+ */
+export function cedictKnows(word: string): boolean {
+  const w = normalizeHanzi(word);
+  return idx().has(w) || extraIdx().has(w);
 }
 
 /**
@@ -115,10 +159,10 @@ export function cedictCredit() {
   };
 }
 
-/** How often the subset covers what learners actually add. */
+/** How often the subset covers what learners actually add (and the rest of CC-CEDICT the remainder). */
 export function cedictCoverage() {
   if (!index) build();
-  return { words: index!.size, hits, misses };
+  return { words: index!.size, hits, extraHits, misses };
 }
 
 // --- Instant capture: the card the dictionary can make on its own ---
@@ -199,7 +243,7 @@ export type DictCard = { phonetic: string; gloss: string };
  * `count: false` for lookups that aren't an add (a Reader tap) — see `hits`.
  */
 export async function cedictCard(word: string, opts: { count?: boolean } = {}): Promise<DictCard | null> {
-  const entry = opts.count === false ? (idx().get(normalizeHanzi(word)) ?? null) : cedictLookup(word);
+  const entry = opts.count === false ? find(word) : cedictLookup(word);
   if (!entry) return null;
   const { pinyin } = await import("pinyin-pro");
   const head = entry.word;
@@ -232,7 +276,7 @@ export function isCedictGloss(word: string, meaning: string | null | undefined):
   if (!m) return false;
   const head = normalizeHanzi(word);
   const forms = head.length > 1 && head.endsWith("儿") ? [head, head.slice(0, -1)] : [head];
-  return forms.some((f) => idx().get(f)?.readings.some((r) => (readingGloss(r) || r.glosses[0]) === m));
+  return forms.some((f) => find(f)?.readings.some((r) => (readingGloss(r) || r.glosses[0]) === m));
 }
 
 /** Grounding only applies to Chinese headwords; everything else keeps the old path. */
@@ -249,7 +293,7 @@ export function isChinese(lang: string | null | undefined): boolean {
  */
 export function cedictInventory(word: string, maxGlosses = 12, opts: { count?: boolean } = {}): string | null {
   // A Reader tap is not an add, so it stays out of the coverage counters (see `hits`).
-  const entry = opts.count === false ? (idx().get(normalizeHanzi(word)) ?? null) : cedictLookup(word);
+  const entry = opts.count === false ? find(word) : cedictLookup(word);
   if (!entry) return null;
   // Every reading gets a share of the budget. Spent in order, 得's dé (twelve
   // glosses on its own) used all of it, so de5 — the particle in 跑得很快 — and

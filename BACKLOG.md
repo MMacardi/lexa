@@ -275,7 +275,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     - Not done: "make this my topic" from inside the Reader (the editor's text box does the job for
       now), and the exam track's daily number from a date (still "A plan with a date", Later).
 
-13c. **The Reader cuts field words the HSK dictionary doesn't know.** Found building 13b: the
+13c. [x] **The Reader cuts field words the HSK dictionary doesn't know.** Found building 13b: the
     segmenter's repair step splits a token CC-CEDICT's HSK subset lacks whenever each piece is a
     subset word, so 算法 → 算 法, 延迟 → 延 迟, 数据集 → 数据 集 — ICU had them right. Anyone reading in
     their own field taps half-words. Widen the dictionary (the full CC-CEDICT, ~125k headwords,
@@ -283,6 +283,21 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     cover field words too, and English→Chinese lookup keeps ranking the HSK ones first.
     **Done when:** `check-segment.ts` passes with 算法 / 延迟 / 参数 kept whole and its old cases
     unchanged, and tapping 算法 in the Reader shows suàn fǎ + "algorithm" at once.
+    - **Shipped 2026-09-26.** Narrower than "swap in the full dictionary": `build-cedict.mjs` also
+      writes `data/cedict-extra.jsonl` (every other Han-only headword, 109k, ≤6 glosses each,
+      11 MB), and `services/cedict.ts` falls through to it on a subset miss, loading it on the
+      first one (0.2 s, +47 MB heap — only once a non-HSK word is asked for). Lookups (instant
+      capture, the tap's dictionary line, the sense inventory, the "still English" label) see
+      both files; the Reader's **split** step asks both (`cedictKnows`), so a token ICU got right
+      stays whole — 算法, 延迟, 参数, and 蒙古 no longer comes apart. The **joins**, the add form's
+      reverse lookup, the spell-check skip and the bot's segmenter stay on the subset: the full
+      dump lists phrases (一个人, 的话) that would glue everyday sentences together. The subset file
+      is unchanged (a newer CC-CEDICT release reworded three glosses, which would have un-labelled
+      cards still showing them). `check-segment.ts` +2 cases, all old ones unchanged; check-lookup,
+      check-capture and check-reader-coverage pass. Local run: the server splits
+      我们用新的算法降低了推理的延迟 with 算法 / 延迟 whole; `/api/dict` answers 算法 → suàn fǎ
+      "arithmetic; algorithm" (67 ms cold, 5 ms after), 数据集 → "dataset"; 大模型 (not in
+      CC-CEDICT) still goes to the model.
 
 13d. **A sweep instead of a big test.** So the daily words stop offering what the learner already
     knows: a level as a grid of ~50 words a screen, tap only the ones you *don't* know; the rest are
