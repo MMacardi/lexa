@@ -47,13 +47,13 @@ export function CoachBriefing() {
       };
     }
     if (reviewDue > 0) {
-      return { text: t("coach.briefDue", { n: reviewDue }), cta: t("coach.briefDueCta"), run: () => router.push("/review") };
+      return { text: t("coach.briefDue", { n: reviewDue }), cta: t("coach.briefDueCta"), run: () => router.push("/review?go=1") };
     }
     if (newLeft > 0) {
       return {
         text: t("coach.briefNew", { n: Math.min(newLeft, newPerDay) }),
         cta: t("coach.briefNewCta"),
-        run: () => router.push("/review"),
+        run: () => router.push("/review?go=1"),
       };
     }
     return { text: t("coach.briefIdle"), cta: t("coach.briefIdleCta"), run: () => router.push("/coach") };

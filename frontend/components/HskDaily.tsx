@@ -104,7 +104,7 @@ export function HskDaily() {
             ))}
           </div>
           <Link
-            href="/review"
+            href="/review?go=1"
             className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-sage px-4 text-[14px] font-semibold text-white transition-colors hover:bg-sage-deep"
           >
             <Sparkles className="h-4 w-4" /> {t("hskDaily.review")}

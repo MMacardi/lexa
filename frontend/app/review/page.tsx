@@ -138,6 +138,9 @@ export default function FlashcardsPage() {
   // grade in review"): the card as it was, where it sat in the deck, and the send
   // that has to land before it can be undone.
   const [lastGrade, setLastGrade] = useState<{ before: Word; grade: number; at: number; sent: Promise<boolean> } | null>(null);
+  // The session's pace, for the time-left estimate.
+  const startedAt = useRef(0);
+  const graded = useRef(0);
   const [undoing, setUndoing] = useState(false);
   const { show } = useToast();
 
@@ -214,9 +217,26 @@ export default function FlashcardsPage() {
     setFlipped(false);
     setKnown(0);
     setLearning(0);
+    startedAt.current = Date.now();
+    graded.current = 0;
     restCard();
     setStarted(true);
   }, [allWords]);
+
+  // One tap from Today: "?go=1" skips the setup screen and starts the due cards on
+  // the remembered settings. The setup is for changing them, not a toll on every
+  // session. With nothing due it stays, since the setup screen says why.
+  const goStarted = useRef(false);
+  useEffect(() => {
+    if (goStarted.current || started || allWords == null) return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("go") !== "1") return;
+    goStarted.current = true;
+    q.delete("go"); // a reload or "Back to setup" then behaves like a plain visit
+    window.history.replaceState(null, "", `${window.location.pathname}${q.toString() ? `?${q}` : ""}`);
+    if (buildDeck().length > 0) start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allWords, started]);
 
   // While a card is on screen, stop the page rubber-banding: `pan-y` deliberately
   // hands the vertical axis back to the browser, and a thumb swipe travels in an
@@ -371,8 +391,17 @@ export default function FlashcardsPage() {
     setKnown(0);
     setLearning(0);
     setLastGrade(null);
+    startedAt.current = Date.now();
+    graded.current = 0;
     restCard();
     setStarted(true);
+  }
+
+  // "≈ 3 min left", from this session's own pace once it has one (8 s a card
+  // until then; clamped so a card left open over lunch doesn't claim an hour).
+  function minutesLeft(remaining: number) {
+    const per = graded.current >= 3 ? (Date.now() - startedAt.current) / 1000 / graded.current : 8;
+    return Math.max(1, Math.round((remaining * Math.min(30, Math.max(3, per))) / 60));
   }
 
   // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Again re-queues in-session.
@@ -387,6 +416,13 @@ export default function FlashcardsPage() {
       el.style.transform = `translate(${to.x}px, ${to.y}px) rotate(${to.x * 0.035}deg)`;
     }
     grabbing(false);
+    // A tick under the thumb that the grade landed (Android; iOS has no vibrate).
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* not allowed here — the card flying off says it too */
+    }
+    graded.current += 1;
     // Only the newest grade can be taken back, and not while its card is still flying off.
     setLastGrade(null);
     // The card as the list has it now, before this grade — what Undo restores.
@@ -936,6 +972,11 @@ export default function FlashcardsPage() {
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
           <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink-soft">
+            {total - index >= 3 && (
+              <span className="mr-2 text-[13px] font-medium text-ink-faint">
+                {t("review.timeLeft", { n: minutesLeft(total - index) })}
+              </span>
+            )}
             {Math.min(index + 1, total)} / {total}
           </span>
         </div>

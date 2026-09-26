@@ -142,7 +142,7 @@ export default function TodayPage() {
       {/* due panel + word of the day */}
       <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
         <Link
-          href="/review"
+          href="/review?go=1"
           className="anim-fade-up group flex flex-col rounded-[24px] bg-onyx p-7 transition-transform hover:-translate-y-0.5"
           style={{ animationDelay: "120ms" }}
         >
@@ -217,7 +217,7 @@ export default function TodayPage() {
           </h3>
           <span className="h-px flex-1 bg-black/[0.08]" />
           {dueList.length > 0 && (
-            <Link href="/review" className="text-sm font-semibold text-sage hover:text-sage-deep">
+            <Link href="/review?go=1" className="text-sm font-semibold text-sage hover:text-sage-deep">
               {t("today.reviewAll")}
             </Link>
           )}

@@ -1969,9 +1969,9 @@ const DICT: Record<string, Entry> = {
     zh: "滑动或点按给卡片评分（重来 → 简单）——Onomika 会在你快忘记时安排下次复习。",
   },
   "hint.quiz": {
-    en: "Pick how to answer — choice, typing, fill-in-the-blank, or Mixed. A round needs at least 4 words.",
-    ru: "Выберите формат ответа — выбор, ввод, пропуск или Микс. Для раунда нужно минимум 4 слова.",
-    zh: "选择作答方式——选择、拼写、填空或混合。每轮至少需要 4 个单词。",
+    en: "Pick how to answer — choice or typing. A round needs at least 4 words; Cram takes a list of any size.",
+    ru: "Выберите формат ответа — выбор или ввод. Для раунда нужно минимум 4 слова; зубрёжка подходит для списка любого размера.",
+    zh: "选择作答方式——选择或拼写。每轮至少需要 4 个单词；突击复习不限列表大小。",
   },
 
   // --- review (flashcards) ---
@@ -2024,6 +2024,7 @@ const DICT: Record<string, Entry> = {
     zh: "一段文字或一页照片——点你不认识的词",
   },
   "review.undo": { en: "Undo", ru: "Отменить", zh: "撤销" },
+  "review.timeLeft": { en: "≈ {n} min left", ru: "≈ {n} мин", zh: "约剩 {n} 分钟" },
   "review.playOnFlip": { en: "Say the word on flip", ru: "Озвучивать при перевороте", zh: "翻面时朗读" },
   "review.undoHint": {
     en: "Take back the last grade (Ctrl+Z)",

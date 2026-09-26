@@ -440,6 +440,19 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Review: one tap from Today, time left, a grade you can feel (2026-09-26, asked for directly — "some good UI/UX")
+
+- **One tap into review.** Today's due card, "Review all", the briefing's CTA and the daily
+  words' "Review them" open `/review?go=1`, which skips the setup screen and starts the due cards
+  on the remembered pair/set (the setup stays when nothing is due, since it says why; `go` is
+  dropped from the URL so a reload is a plain visit). The setup was a toll on every session.
+- **"≈ N min left"** beside "3 / 12" while 3+ cards remain: this session's own pace after three
+  grades (8 s a card before), clamped to 3–30 s so an idle card doesn't claim an hour.
+- **A haptic tick on each grade** (`navigator.vibrate(8)`; Android — iOS has no vibrate).
+- The quiz hint no longer says every round needs four words — Cram takes any list.
+- Checked in the local app: Today → due card → straight into "1 / 3" with "≈ 1 min left", the
+  URL back to `/review`, both on a full load and on in-app navigation.
+
 ### Photos in Mika chat, and the basics of a chat app (2026-09-26, asked for directly)
 Mika chat should cover what a learner would otherwise open DeepSeek or ChatGPT for.
 - **Photos.** Paperclip, paste or drop, up to 4 per message, on `/mika` and the widget, plus a
