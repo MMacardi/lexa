@@ -323,12 +323,31 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     - Not done: the spot check inside review (the sweep's own check covers the over-claiming it
       was for); pinyin-only knowledge isn't asked — a character you can say but not read is "to learn".
 
-13e. **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
+13e. [x] **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
     grading, but the keyboard only appears after /start or /help (older chats never got it), "➕
     Добавить слово" answers "send `add слово`", and reminders carry no buttons. Send the keyboard to
     existing chats once, cut it to 4 buttons + "Ещё"; a single word (not a sentence — those still go
     to the tutor) comes back as a card preview with [Добавить] [Не надо]; reminders get [Повторить N]
     [Слова на сегодня]. **Done when:** a new user reviews and adds a word without typing a "/".
+    - **Shipped 2026-09-26.** Four persistent buttons — ▶️ Повторить · ✨ Слова на сегодня /
+      ➕ Добавить слово · ☰ Ещё — and "☰ Ещё" an inline menu (practice, my words, reminders, language,
+      site, help); the old eight labels still answer in chats that keep the old keyboard. A chat
+      older than this menu gets it once on its next message (`User.botMenu`, migration `bot_menu`,
+      so a redeploy doesn't repeat it). "➕ Добавить слово" asks for the word and takes the next
+      message as it (several by comma; five minutes, cancelled by any other button). One word in
+      the studied language's script — 算法, resilient — comes back as a dictionary preview (pinyin
+      + the shared Russian or CC-CEDICT's English) with [➕ Добавить] [💬 Спросить]; a sentence or a
+      word in the learner's own language still goes to the tutor. "✨ Слова на сегодня" lists the
+      day's HSK words and topic words with meanings, "➕ Взять все" takes them the web card's way;
+      the end of a review offers them beside the use-step. The reminder keeps its one button (the
+      note there: a second choice is where people stall). The welcome teaches buttons, not
+      /review, `add <слово>`, /remind 9, and language names are Russian and labelled ("учу
+      китайский, знаю русский"). `scripts/check-bot.ts` drives the real handlers through
+      `handleUpdate` with Telegram's API recorded: 16 checks, no "/" typed after /start.
+      **Found on the way:** Telegraf builds a new API client per update, so a stub on
+      `bot.telegram` doesn't catch replies — the check patches `Telegram.prototype`.
+    - Not checked in a real Telegram client (no way to tap from here): the look of the persistent
+      keyboard on iOS/Android.
 
 13f. **Today, shorter.** Seen at 390px on 2026-09-26: Today is ~3,800 px. The due count shows four
     times (briefing, tile, the dark panel, the list at the bottom) and the briefing said "2 due"

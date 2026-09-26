@@ -8,6 +8,12 @@ import { getProfile, profilePreamble, rememberFromSession } from "../services/co
 import { transcribeAudio, ocrImage } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
+import { prisma } from "../services/db.js";
+import { hskDailyWords } from "../services/hsk.js";
+import { topicDaily } from "../services/topic.js";
+import { cedictCard, isChinese } from "../services/cedict.js";
+import { defaultMeaning } from "../services/lookup.js";
+import { importWordsForUser } from "../services/importWords.js";
 import { take } from "../lib/rateLimit.js";
 import { takeMonthly } from "../lib/entitlements.js";
 import { runAsUser } from "../lib/usageContext.js";
@@ -51,6 +57,12 @@ type ChatState = {
   practice?: PracticeState;
   /** Words a scanned photo offered, indexed by the `cap:<i>` buttons under it. */
   captured: string[];
+  /** "➕ Добавить слово" was pressed: the next plain message is the word (until then). */
+  awaitingWordUntil?: number;
+  /** The single word just previewed, for its [➕ Добавить] / [💬 Спросить] buttons. */
+  preview?: string;
+  /** Today's words as last listed, for "➕ Взять все". */
+  today?: { word: string; meaning: string | null; topic: boolean }[];
 };
 const chatState = new Map<string, ChatState>();
 const stateFor = (id: string): ChatState => {
@@ -67,22 +79,37 @@ const stateFor = (id: string): ChatState => {
 // learner's account may be keyed on their email instead (see ensureBotUser).
 const acct = (ctx: Context): string => (ctx.state as { account?: string }).account ?? String(ctx.from?.id ?? "");
 
+// The bot speaks Russian, so its language names do too — "Chinese → Russian" in
+// a Russian sentence read as a leftover — and a pair says which side is which.
+const RU_LANG: Record<string, string> = {
+  zh: "китайский",
+  "zh-Hant": "китайский",
+  en: "английский",
+  ru: "русский",
+  es: "испанский",
+  de: "немецкий",
+  fr: "французский",
+  ja: "японский",
+  ko: "корейский",
+};
+const ruLang = (code: string) => RU_LANG[code] ?? langName(code);
+const pairLabel = (p: { source: string; target: string }) => `учу ${ruLang(p.source)}, знаю ${ruLang(p.target)}`;
+
+// Everything is a button now (BACKLOG "A bot you don't need commands for"): the
+// welcome used to teach /review, `add <слово>` and /remind 9, which is how a
+// newcomer ends up thinking the bot is commands only.
 function welcome(pair: Pair): string {
   return [
-    "👋 <b>Onomika — твой персональный репетитор</b>",
+    "👋 <b>Onomika — слова, которые остаются</b>",
     "",
-    `Пара: <b>${esc(langName(pair.source))} → ${esc(langName(pair.target))}</b>`,
+    `Сейчас: <b>${esc(pairLabel(pair))}</b>`,
     "",
-    "Что я умею:",
-    "• <b>/review</b> — повторить карточки, которым пришло время, и закрыть день шагом на использование",
-    "• <code>add &lt;слово&gt;</code> — сохранить слово с примером и разбором",
-    "• <b>📷 фото страницы</b> — прочитаю её и предложу слова, которых у тебя ещё нет",
-    "• <b>/list</b> — твои слова · <b>/due</b> — сколько ждёт повторения",
-    "• <b>/remind 9</b> — напоминать о повторении каждый день в 9:00",
-    "• просто напиши вопрос — объясню, приведу примеры, помогу с грамматикой",
-    "",
-    "👇 Популярные функции — на кнопках снизу.",
-    "Сменить язык: <code>/lang en ru</code>",
+    "Всё на кнопках внизу 👇",
+    "• <b>▶️ Повторить</b> — карточки, которым пришло время",
+    "• <b>✨ Слова на сегодня</b> — новые слова твоего уровня, одним нажатием",
+    "• <b>➕ Добавить слово</b> — или просто пришли слово сообщением",
+    "• <b>📷 фото страницы</b> — найду слова, которых у тебя ещё нет",
+    "• любой вопрос текстом — объясню, приведу примеры",
   ].join("\n");
 }
 
@@ -116,25 +143,41 @@ function cardBack(word: {
 
 const siteButton = () => Markup.button.url("🌐 Открыть сайт Onomika", env.FRONTEND_URL);
 
-// Persistent reply keyboard: the popular functions as always-visible buttons
-// under the input. Tapping one sends its label, caught by bot.hears below.
+// Reply keyboard: the daily loop as four always-visible buttons under the input,
+// the rest behind "☰ Ещё". Eight used to crowd it, and Telegram folds a keyboard
+// away unless it's persistent. Tapping one sends its label, caught by bot.hears.
 const BTN = {
   review: "▶️ Повторить",
+  today: "✨ Слова на сегодня",
+  add: "➕ Добавить слово",
+  more: "☰ Ещё",
+} as const;
+// The labels of the old eight-button keyboard: a chat keeps it until a new one
+// arrives, so its buttons still have to answer.
+const OLD_BTN = {
   practice: "🎯 Практика",
   due: "⏰ Сколько ждёт",
   list: "📚 Мои слова",
   remind: "🔔 Напоминания",
-  add: "➕ Добавить слово",
   lang: "🗣 Язык",
   site: "🌐 Сайт",
 } as const;
+// Bumped when the keyboard changes; User.botMenu remembers which one a chat has.
+const MENU_VERSION = 2;
 const mainKeyboard = () =>
   Markup.keyboard([
-    [BTN.review, BTN.practice],
-    [BTN.due, BTN.list],
-    [BTN.remind, BTN.add],
-    [BTN.lang, BTN.site],
-  ]).resize();
+    [BTN.review, BTN.today],
+    [BTN.add, BTN.more],
+  ])
+    .resize()
+    .persistent();
+
+const moreKeyboard = () =>
+  Markup.inlineKeyboard([
+    [Markup.button.callback("🎯 Практика", "mn:practice"), Markup.button.callback("📚 Мои слова", "mn:list")],
+    [Markup.button.callback("🔔 Напоминания", "mn:remind"), Markup.button.callback("🗣 Язык", "mn:lang")],
+    [Markup.button.callback("🌐 Сайт", "mn:site"), Markup.button.callback("❓ Что я умею", "mn:help")],
+  ]);
 
 const showKeyboard = (id: string) =>
   Markup.inlineKeyboard([[Markup.button.callback("👁 Показать ответ", `rv:show:${id}`)]]);
@@ -195,7 +238,7 @@ async function replyList(ctx: Context): Promise<void> {
   if (!ctx.from) return;
   const words = await listWordsForUser(acct(ctx));
   if (words.length === 0) {
-    await ctx.reply("Пока пусто. Добавь слово: отправь «add sanction».");
+    await ctx.reply("Пока пусто. Пришли слово сообщением — и оно станет карточкой.");
     return;
   }
   const { text, markup } = wordsPage(words, 0);
@@ -284,12 +327,9 @@ async function replyLangPicker(ctx: Context): Promise<void> {
   }
   const rows = pairs.slice(0, 8).map((p) => {
     const on = p.source === cur.source && p.target === cur.target;
-    return [Markup.button.callback(`${on ? "✅ " : ""}${langName(p.source)} → ${langName(p.target)}`, `lp:${p.source}:${p.target}`)];
+    return [Markup.button.callback(`${on ? "✅ " : ""}${pairLabel(p)}`, `lp:${p.source}:${p.target}`)];
   });
-  await ctx.replyWithHTML(
-    `🗣 Текущая пара: <b>${esc(langName(cur.source))} → ${esc(langName(cur.target))}</b>\nВыбери ниже или задай свою: <code>/lang en ru</code>`,
-    Markup.inlineKeyboard(rows),
-  );
+  await ctx.replyWithHTML(`🗣 Сейчас: <b>${esc(pairLabel(cur))}</b>\nВыбери другое ниже 👇`, Markup.inlineKeyboard(rows));
 }
 
 async function replySite(ctx: Context): Promise<void> {
@@ -301,11 +341,94 @@ async function replySite(ctx: Context): Promise<void> {
   }
 }
 
-async function replyAddHelp(ctx: Context): Promise<void> {
+// "➕ Добавить слово": ask for the word, and take the next message as it — the
+// old reply taught `add слово`, a command in disguise. Several at once work too.
+const AWAIT_WORD_MS = 5 * 60_000;
+async function replyAddPrompt(ctx: Context): Promise<void> {
+  stateFor(String(ctx.chat?.id ?? ctx.from?.id)).awaitingWordUntil = Date.now() + AWAIT_WORD_MS;
   await ctx.replyWithHTML(
-    "➕ Чтобы добавить слово, просто отправь: <code>add слово</code>\nНапример: <code>add resilient</code>" +
-      "\n\n📷 Или пришли <b>фото страницы</b> — я прочитаю её и предложу слова, которых у тебя ещё нет.",
+    "➕ Пришли слово — или несколько через запятую.\n\n📷 Можно и <b>фото страницы</b>: найду слова, которых у тебя ещё нет.",
   );
+}
+
+// A message that is one word in the language being learned — 算法, resilient —
+// is a word to look at, not a question for the tutor. Anything else (a sentence,
+// a word in the learner's own language) still goes to the tutor.
+function singleWord(text: string, source: string): string | null {
+  const t = text.trim();
+  if (isChinese(source)) return /^\p{Script=Han}{1,6}$/u.test(t) ? t : null;
+  if (source === "ru") return /^[\p{Script=Cyrillic}-]{1,30}$/u.test(t) ? t : null;
+  if (source === "ja" || source === "ko") return null;
+  return /^[\p{Script=Latin}'’-]{1,30}$/u.test(t) ? t : null;
+}
+
+// The word as the dictionary has it, with [➕ Добавить] [💬 Спросить]: nothing is
+// saved until the learner says so, and the tutor is one tap away if they meant to ask.
+async function replyWordPreview(ctx: Context, word: string, pair: Pair): Promise<void> {
+  const telegramId = acct(ctx);
+  stateFor(String(ctx.chat?.id ?? ctx.from?.id)).preview = word;
+  let body = `📖 <b>${esc(word)}</b>`;
+  if (isChinese(pair.source)) {
+    const card = await cedictCard(word, { count: false });
+    const meaning = defaultMeaning(word, pair.target);
+    if (card) body += ` ${esc(card.phonetic)}\n${esc(meaning ?? card.gloss)}${meaning ? "" : " <i>(англ., CC-CEDICT)</i>"}`;
+  }
+  const have = await prisma.word.findFirst({
+    where: { user: { telegramId }, word, sourceLang: pair.source },
+    select: { id: true },
+  });
+  const buttons = have
+    ? [Markup.button.callback("💬 Спросить о нём", "aw:ask")]
+    : [Markup.button.callback("➕ Добавить", "aw:add"), Markup.button.callback("💬 Спросить", "aw:ask")];
+  await ctx.replyWithHTML(have ? `${body}\n\n✅ Уже в твоих карточках.` : body, Markup.inlineKeyboard([buttons]));
+}
+
+// "✨ Слова на сегодня": what the web's Today's words card holds — the day's HSK
+// words and the topic ones — listed with their meanings, one tap to take them all.
+async function replyToday(ctx: Context): Promise<void> {
+  const telegramId = acct(ctx);
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { hskTarget: true, nativeLang: true } });
+  if (user?.hskTarget == null) {
+    await ctx.replyWithHTML(
+      "✨ Слова на сегодня — для подготовки к HSK: выбери цель на сайте, и они будут приходить сюда каждый день.",
+      env.FRONTEND_URL.startsWith("https://") ? Markup.inlineKeyboard([[siteButton()]]) : undefined,
+    );
+    return;
+  }
+  const native = user.nativeLang ?? "ru";
+  const [hsk, topic] = await Promise.all([hskDailyWords(telegramId), topicDaily(telegramId)]);
+  const hskLeft = hsk.words.filter((w) => !w.added);
+  const topicLeft = topic.words.filter((w) => !w.added);
+  if (hskLeft.length + topicLeft.length === 0) {
+    await ctx.reply(
+      "✨ Все слова на сегодня уже в повторении. Завтра будут новые.",
+      Markup.inlineKeyboard([[Markup.button.callback("▶️ Повторить", "rv:next")]]),
+    );
+    return;
+  }
+  const levelName = hsk.level === 7 ? "7–9" : String(hsk.level);
+  const line = (w: { word: string; pinyin: string }, meaning: string | null) =>
+    `• <b>${esc(w.word)}</b> ${esc(w.pinyin)}${meaning ? " — " + esc(meaning) : ""}`;
+  const lines = [`✨ <b>Слова на сегодня · HSK ${levelName}</b>`, ...hskLeft.map((w) => line(w, defaultMeaning(w.word, native)))];
+  if (topicLeft.length) lines.push("", `<b>${esc(topic.topic ?? "")}</b>`, ...topicLeft.map((w) => line(w, w.meaning)));
+  const today = [
+    ...hskLeft.map((w) => ({ word: w.word, meaning: null, topic: false })),
+    ...topicLeft.map((w) => ({ word: w.word, meaning: w.meaning, topic: true })),
+  ];
+  stateFor(String(ctx.chat?.id ?? ctx.from?.id)).today = today;
+  lines.push("", "<i>Знакомые можно убрать на сайте, в «Словах на сегодня».</i>");
+  await ctx.replyWithHTML(lines.join("\n"), {
+    link_preview_options: { is_disabled: true },
+    ...Markup.inlineKeyboard([[Markup.button.callback(`➕ Взять все (${today.length})`, "td:all")]]),
+  });
+}
+
+// How many of today's words are still waiting — for the end of a review.
+async function todayLeft(telegramId: string): Promise<number> {
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { hskTarget: true } });
+  if (user?.hskTarget == null) return 0;
+  const [hsk, topic] = await Promise.all([hskDailyWords(telegramId), topicDaily(telegramId)]);
+  return hsk.words.filter((w) => !w.added).length + topic.words.filter((w) => !w.added).length;
 }
 
 /**
@@ -451,6 +574,20 @@ export function createBot(): Telegraf {
     return runAsUser(account, next, "bot");
   });
 
+  // A chat from before the four-button keyboard has the old one, or none at all
+  // (it only ever came with /start and /help). On its next message it gets the
+  // new one, once — remembered in User.botMenu, so a redeploy doesn't repeat it.
+  bot.use(async (ctx, next) => {
+    await next();
+    if (!ctx.message || !ctx.chat) return;
+    if ("text" in ctx.message && /^\/(start|help)\b/.test(ctx.message.text)) return; // they carry it already
+    const r = await prisma.user.updateMany({
+      where: { telegramId: acct(ctx), botMenu: { lt: MENU_VERSION } },
+      data: { botMenu: MENU_VERSION },
+    });
+    if (r.count) await ctx.reply("👇 Теперь всё на кнопках внизу — команды больше не нужны.", mainKeyboard());
+  });
+
   bot.start(async (ctx) => {
     const telegramId = acct(ctx);
     // Deep-link login: /start login_<token>. We DON'T bind silently — the user
@@ -466,11 +603,15 @@ export function createBot(): Telegraf {
     }
     const pair = await resolveUserPair(telegramId);
     await ctx.replyWithHTML(welcome(pair), mainKeyboard());
+    await prisma.user.updateMany({ where: { telegramId }, data: { botMenu: MENU_VERSION } });
   });
 
   // /site — quick link to the web app.
   bot.command("site", (ctx) => replySite(ctx));
-  bot.help(async (ctx) => ctx.replyWithHTML(welcome(await resolveUserPair(acct(ctx))), mainKeyboard()));
+  bot.help(async (ctx) => {
+    await ctx.replyWithHTML(welcome(await resolveUserPair(acct(ctx))), mainKeyboard());
+    await prisma.user.updateMany({ where: { telegramId: acct(ctx) }, data: { botMenu: MENU_VERSION } });
+  });
 
   // Confirm a web sign-in (from the /start login_<token> deep link). The numeric
   // id, not acct(ctx): the site resolves it as a Telegram identity, which is how
@@ -495,14 +636,12 @@ export function createBot(): Telegraf {
     const parts = ctx.message.text.trim().split(/\s+/).slice(1);
     if (parts.length < 2) {
       const p = await resolveUserPair(telegramId);
-      await ctx.replyWithHTML(
-        `Текущая пара: <b>${esc(langName(p.source))} → ${esc(langName(p.target))}</b>\nСменить: <code>/lang en ru</code>`,
-      );
+      await replyLangPicker(ctx);
       return;
     }
     await setUserPair(telegramId, parts[0].toLowerCase(), parts[1].toLowerCase());
     const p = await resolveUserPair(telegramId);
-    await ctx.replyWithHTML(`✅ Пара: <b>${esc(langName(p.source))} → ${esc(langName(p.target))}</b>`);
+    await ctx.replyWithHTML(`✅ Теперь: <b>${esc(pairLabel(p))}</b>`);
   });
 
   // /remind — choose when the daily review nudge arrives (server time), or off.
@@ -537,8 +676,8 @@ export function createBot(): Telegraf {
     await captureWord(ctx, word);
   });
 
-  // /add with nothing after it — explain both ways in.
-  bot.command("add", (ctx) => replyAddHelp(ctx));
+  // /add with nothing after it — ask for the word, same as the button.
+  bot.command("add", (ctx) => replyAddPrompt(ctx));
 
   // /list — saved words (first 50).
   bot.command("list", (ctx) => replyList(ctx));
@@ -552,15 +691,92 @@ export function createBot(): Telegraf {
   // /practice — start an adaptive Coach drill over your own words.
   bot.command("practice", (ctx) => startPractice(ctx));
 
-  // ---- reply-keyboard buttons: the popular functions, no typing needed ----
-  bot.hears(BTN.review, (ctx) => replyReview(ctx));
-  bot.hears(BTN.practice, (ctx) => startPractice(ctx));
-  bot.hears(BTN.due, (ctx) => replyDue(ctx));
-  bot.hears(BTN.list, (ctx) => replyList(ctx));
-  bot.hears(BTN.remind, (ctx) => replyRemindStatus(ctx));
-  bot.hears(BTN.add, (ctx) => replyAddHelp(ctx));
-  bot.hears(BTN.lang, (ctx) => replyLangPicker(ctx));
-  bot.hears(BTN.site, (ctx) => replySite(ctx));
+  // ---- reply-keyboard buttons: the daily loop, no typing needed ----
+  // Pressing any other button ends a pending "➕ Добавить слово": the next message
+  // after it isn't the word any more.
+  const button = (fn: (ctx: Context) => Promise<void>) => (ctx: Context) => {
+    stateFor(String(ctx.chat?.id ?? ctx.from?.id)).awaitingWordUntil = undefined;
+    return fn(ctx);
+  };
+  bot.hears(BTN.review, button(replyReview));
+  bot.hears(BTN.today, button(replyToday));
+  bot.hears(BTN.add, (ctx) => replyAddPrompt(ctx));
+  bot.hears(BTN.more, button((ctx) => ctx.reply("☰ Ещё:", moreKeyboard()).then(() => undefined)));
+  bot.hears(OLD_BTN.practice, button(startPractice));
+  bot.hears(OLD_BTN.due, button(replyDue));
+  bot.hears(OLD_BTN.list, button(replyList));
+  bot.hears(OLD_BTN.remind, button(replyRemindStatus));
+  bot.hears(OLD_BTN.lang, button(replyLangPicker));
+  bot.hears(OLD_BTN.site, button(replySite));
+
+  // ---- "☰ Ещё" ----
+  const MORE: Record<string, (ctx: Context) => Promise<void>> = {
+    practice: startPractice,
+    list: replyList,
+    remind: replyRemindStatus,
+    lang: replyLangPicker,
+    site: replySite,
+    help: async (ctx) => {
+      await ctx.replyWithHTML(welcome(await resolveUserPair(acct(ctx))), mainKeyboard());
+    },
+  };
+  bot.action(/^mn:(\w+)$/, async (ctx) => {
+    await ctx.answerCbQuery();
+    await MORE[ctx.match[1]]?.(ctx);
+  });
+
+  // ---- a previewed word: add it, or ask the tutor about it ----
+  bot.action("aw:add", async (ctx) => {
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const word = st.preview;
+    st.preview = undefined;
+    await ctx.answerCbQuery(word ? `➕ ${word}` : "Пришли слово ещё раз");
+    await ctx.editMessageReplyMarkup(undefined);
+    if (word) await captureWord(ctx, word);
+  });
+  bot.action("aw:ask", async (ctx) => {
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const word = st.preview;
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+    if (word) await askTutor(ctx, word);
+  });
+
+  // ---- today's words: shown from the end of a review, then taken all at once ----
+  bot.action("td:show", async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+    await replyToday(ctx);
+  });
+  bot.action("td:all", async (ctx) => {
+    const telegramId = acct(ctx);
+    const st = stateFor(String(ctx.chat?.id ?? ctx.from.id));
+    const today = st.today ?? [];
+    st.today = undefined;
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined);
+    if (!today.length) return;
+    const native = (await prisma.user.findUnique({ where: { telegramId }, select: { nativeLang: true } }))?.nativeLang ?? "ru";
+    try {
+      // The web card's path: dictionary cards at once, a topic word with its own
+      // meaning; examples and the rest follow in the background.
+      const r = await importWordsForUser({
+        telegramId,
+        sourceLang: "zh",
+        targetLang: native,
+        items: today.map((w) => ({ word: w.word, meaning: w.meaning ?? "", example: "", exampleTranslation: "", synonyms: [] })),
+        generateDetails: true,
+        generateExamples: true,
+      });
+      await ctx.reply(
+        `🌱 Добавил слов: ${r.created}. Они уже в повторении.`,
+        Markup.inlineKeyboard([[Markup.button.callback("▶️ Повторить", "rv:next")]]),
+      );
+    } catch (err) {
+      console.error("bot today's words failed:", (err as Error).message);
+      await ctx.reply("⚠️ Не получилось добавить — попробуй ещё раз.");
+    }
+  });
 
   // ---- inline pagination for "Мои слова" ----
   bot.action(/^wl:(\d+)$/, async (ctx) => {
@@ -606,8 +822,8 @@ export function createBot(): Telegraf {
     const source = ctx.match[1].toLowerCase();
     const target = ctx.match[2].toLowerCase();
     await setUserPair(telegramId, source, target);
-    await ctx.answerCbQuery(`${langName(source)} → ${langName(target)}`);
-    await ctx.editMessageText(`✅ Пара: <b>${esc(langName(source))} → ${esc(langName(target))}</b>`, { parse_mode: "HTML" });
+    await ctx.answerCbQuery(pairLabel({ source, target }));
+    await ctx.editMessageText(`✅ Теперь: <b>${esc(pairLabel({ source, target }))}</b>`, { parse_mode: "HTML" });
   });
 
   // ---- review callbacks ----
@@ -684,7 +900,7 @@ export function createBot(): Telegraf {
     const chatId = String(ctx.chat.id);
     const st = stateFor(chatId);
     if (!st.practice) {
-      await ctx.reply("🎙 Голосовые я слушаю во время практики. Нажми «🎯 Практика», чтобы начать.");
+      await ctx.reply("🎙 Голосовые я слушаю во время практики: ☰ Ещё → 🎯 Практика.");
       return;
     }
     if (!take(`bot:practice:${telegramId}`, 20, 60_000)) {
@@ -740,7 +956,7 @@ export function createBot(): Telegraf {
       // No buttons for a language the segmenter doesn't cover (it's Chinese-only,
       // see captureCandidates) — and none when the page holds nothing new.
       if (candidates.length === 0) {
-        await ctx.replyWithHTML("Выбери слово из текста сам и пришли: <code>add слово</code>");
+        await ctx.reply("Выбери слово из текста сам и пришли его сообщением.");
         return;
       }
       const st = stateFor(String(ctx.chat.id));
@@ -839,37 +1055,60 @@ export function createBot(): Telegraf {
       await handlePracticeAnswer(ctx, active, text);
       return;
     }
-    if (!take(`bot:tutor:${telegramId}`, 20, 60_000)) {
-      await ctx.reply("Слишком часто — подожди минутку.");
+    const pair = await resolveUserPair(telegramId);
+    // Right after "➕ Добавить слово": this message is the word, or several.
+    if (active.awaitingWordUntil && active.awaitingWordUntil > Date.now()) {
+      active.awaitingWordUntil = undefined;
+      const words = text.split(/[,，、;；\n]+/).map((w) => w.trim()).filter(Boolean).slice(0, 10);
+      if (!take(`bot:add:${telegramId}`, 20, 60_000)) {
+        await ctx.reply("Слишком часто — подожди минутку.");
+        return;
+      }
+      for (const w of words) await captureWord(ctx, w);
       return;
     }
-    const pair = await resolveUserPair(telegramId);
-    const st = stateFor(chatId);
-    st.history.push({ role: "user", content: text });
-    st.history = st.history.slice(-8);
-    await ctx.replyWithChatAction("typing");
-    try {
-      const r = await tutorChat({
-        messages: st.history,
-        sourceLang: pair.source,
-        targetLang: pair.target,
-        profileNote: profilePreamble(await getProfile(telegramId, pair.source), pair.source),
-      });
-      st.history.push({ role: "assistant", content: r.answer });
-      st.suggested = r.addWords ?? [];
-      const extra = st.suggested.length
-        ? Markup.inlineKeyboard([
-            [Markup.button.callback(`➕ Добавить ${st.suggested.length} слов: ${st.suggested.slice(0, 6).join(", ")}`.slice(0, 60), "tut:addall")],
-          ])
-        : undefined;
-      await ctx.replyWithHTML(esc(r.answer), extra ? { link_preview_options: { is_disabled: true }, ...extra } : undefined);
-    } catch (err) {
-      console.error(err);
-      await ctx.reply("⚠️ Что-то пошло не так, попробуй ещё раз.");
+    const word = singleWord(text, pair.source);
+    if (word) {
+      await replyWordPreview(ctx, word, pair);
+      return;
     }
+    await askTutor(ctx, text);
   });
 
   return bot;
+}
+
+/** Free text to the conversational tutor, with the one-tap "add these words" under its answer. */
+async function askTutor(ctx: Context, text: string): Promise<void> {
+  const telegramId = acct(ctx);
+  if (!take(`bot:tutor:${telegramId}`, 20, 60_000)) {
+    await ctx.reply("Слишком часто — подожди минутку.");
+    return;
+  }
+  const pair = await resolveUserPair(telegramId);
+  const st = stateFor(String(ctx.chat?.id ?? ctx.from?.id));
+  st.history.push({ role: "user", content: text });
+  st.history = st.history.slice(-8);
+  await ctx.replyWithChatAction("typing");
+  try {
+    const r = await tutorChat({
+      messages: st.history,
+      sourceLang: pair.source,
+      targetLang: pair.target,
+      profileNote: profilePreamble(await getProfile(telegramId, pair.source), pair.source),
+    });
+    st.history.push({ role: "assistant", content: r.answer });
+    st.suggested = r.addWords ?? [];
+    const extra = st.suggested.length
+      ? Markup.inlineKeyboard([
+          [Markup.button.callback(`➕ Добавить ${st.suggested.length} слов: ${st.suggested.slice(0, 6).join(", ")}`.slice(0, 60), "tut:addall")],
+        ])
+      : undefined;
+    await ctx.replyWithHTML(esc(r.answer), extra ? { link_preview_options: { is_disabled: true }, ...extra } : undefined);
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("⚠️ Что-то пошло не так, попробуй ещё раз.");
+  }
 }
 
 /** Send the next due card to review, or a "done" message when none remain. */
@@ -880,9 +1119,13 @@ async function sendNextCard(ctx: Context, telegramId: string): Promise<void> {
     // The end of the queue is where the daily loop closes: recognising the cards
     // was the easy half, so offer the use-step rather than just applauding. One
     // tap, not automatic — it costs a model call the learner may not want.
+    // Today's words beside it while some wait — the web's finish screen does the same.
+    const left = await todayLeft(telegramId);
+    const rows = [[Markup.button.callback("🗣 Шаг на использование", "us:start")]];
+    if (left > 0) rows.push([Markup.button.callback(`✨ Слова на сегодня (${left})`, "td:show")]);
     await ctx.replyWithHTML(
       "🎉 <b>Всё повторено</b> — отличная работа!\n\nОстался один шаг: <i>использовать</i> слово, а не просто узнать его.",
-      Markup.inlineKeyboard([[Markup.button.callback("🗣 Шаг на использование", "us:start")]]),
+      Markup.inlineKeyboard(rows),
     );
     return;
   }

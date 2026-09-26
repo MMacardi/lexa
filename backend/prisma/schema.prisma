@@ -57,6 +57,11 @@ model User {
   topicPool   Json?
   // Telegram chat id for proactive messages (review reminders). Set on /start.
   botChatId   String?
+  // Which version of the bot's button keyboard this chat was sent. A reply
+  // keyboard only reaches a chat when a message carries it, so a chat older than
+  // the current menu gets it once, on its next message (BACKLOG "A bot you don't
+  // need commands for"), and never again after a redeploy.
+  botMenu     Int         @default(0)
   // Hour of day (0–23, server time) the learner wants their review nudge, or null
   // for no reminders. Chosen in-chat via the Reminders button.
   reminderHour Int?
