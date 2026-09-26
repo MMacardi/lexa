@@ -1987,6 +1987,7 @@ const DICT: Record<string, Entry> = {
     zh: "一段文字或一页照片——点你不认识的词",
   },
   "review.undo": { en: "Undo", ru: "Отменить", zh: "撤销" },
+  "review.playOnFlip": { en: "Say the word on flip", ru: "Озвучивать при перевороте", zh: "翻面时朗读" },
   "review.undoHint": {
     en: "Take back the last grade (Ctrl+Z)",
     ru: "Отменить последнюю оценку (Ctrl+Z)",

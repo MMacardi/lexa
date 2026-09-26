@@ -887,6 +887,33 @@ export function useNewPerDay(): number {
   return n;
 }
 
+// --- Review audio: say the word when the card turns over ---
+// On unless switched off: for Chinese it's free listening and tones on every
+// card, which HSK listening needs (Anki and Pleco both do it).
+const PLAY_ON_FLIP_KEY = "lexa.playOnFlip";
+export function getPlayOnFlip(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(PLAY_ON_FLIP_KEY) !== "0";
+}
+export function setPlayOnFlip(on: boolean) {
+  localStorage.setItem(PLAY_ON_FLIP_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function usePlayOnFlip(): boolean {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const sync = () => setOn(getPlayOnFlip());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // --- Review gestures: swiping up/down for Easy/Hard ---
 // Left/right always grade Again/Good. Up/down are opt-in because claiming the
 // vertical axis means the card itself can no longer scroll the page under it.

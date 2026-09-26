@@ -188,9 +188,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      sit under them. Local run: an account with 5 untaken words gets all three and lands on the
      card; one with today's words taken gets the last two.
 
-10. **Play the word when the card flips.** A setting, on by default for Chinese (Anki and Pleco both
+10. [x] **Play the word when the card flips.** A setting, on by default for Chinese (Anki and Pleco both
     have it): the word is spoken on reveal. Free listening and tones, which HSK listening needs.
     Small — `SpeakButton` already speaks it.
+    - **Shipped 2026-09-26.** `reveal()` in review turns the card and speaks the word in its own
+      language, called from the tap/Space handler itself (iOS only lets speech start inside the
+      gesture). A "Say the word on flip" chip beside the up/down swipe chip, on by default
+      (`lexa.playOnFlip`), hidden where the browser has no speech. Local run with `speak` wrapped:
+      a flip says 网络@zh-CN once, flipping back says nothing, chip off → silent.
 
 11. **A "Paste" button in the Reader and Add word.** One tap reads the clipboard
     (`navigator.clipboard.readText`), Pleco's clipboard reader: text copied from WeChat or a site

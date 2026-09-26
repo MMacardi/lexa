@@ -13,6 +13,8 @@ import {
   getNewPerDay,
   useSwipeUpDown,
   setSwipeUpDown,
+  usePlayOnFlip,
+  setPlayOnFlip,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -36,7 +38,8 @@ import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Undo2 } from "lucide-react";
+import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
+import { canSpeak, speak } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
@@ -139,6 +142,15 @@ export default function FlashcardsPage() {
   const { show } = useToast();
 
   const swipeUpDown = useSwipeUpDown();
+  const playOnFlip = usePlayOnFlip();
+
+  // Turn the card to its answer side, saying the word as it turns. Called straight
+  // from the tap or key handler, never from an effect: iOS only lets speech start
+  // inside the user's own gesture.
+  function reveal(w: Word) {
+    setFlipped(true);
+    if (playOnFlip) speak(w.word, w.sourceLang);
+  }
 
   // The drag never goes through React state: a setState per pointermove re-rendered
   // the whole card — both stamps, every field, and the FSRS interval preview — a
@@ -240,7 +252,7 @@ export default function FlashcardsPage() {
       if (!card) return;
       if (!flipped && (e.key === " " || e.key === "Enter")) {
         e.preventDefault();
-        setFlipped(true);
+        reveal(card);
         return;
       }
       const grade = e.key === " " ? 3 : Number(e.key);
@@ -911,7 +923,8 @@ export default function FlashcardsPage() {
       draggedRef.current = false;
       return;
     }
-    setFlipped((f) => !f);
+    if (flipped) setFlipped(false);
+    else reveal(word);
   };
 
   // Nothing on the session screen is text to copy, and a long press anywhere on it
@@ -1084,28 +1097,46 @@ export default function FlashcardsPage() {
         ))}
       </div>
 
-      {/* Up/down swipes are toggled here rather than on the setup screen: this is the
-          only place the gesture can be felt, so the switch sits under the card it
-          applies to — and it takes effect on the very next swipe. */}
+      {/* Up/down swipes and audio are toggled here rather than on the setup screen:
+          this is the only place either can be felt, so the switches sit under the
+          card they apply to — and they take effect on the very next card. */}
       <div className="mt-4 flex w-full max-w-[560px] flex-col items-center gap-2">
         <p className="text-center text-[13px] font-medium text-ink-faint">
           {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
         </p>
-        <button
-          type="button"
-          onClick={() => setSwipeUpDown(!swipeUpDown)}
-          aria-pressed={swipeUpDown}
-          title={t("review.swipeUpDownHint")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
-            swipeUpDown
-              ? "border-sage bg-sage-tint text-sage-deep"
-              : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSwipeUpDown(!swipeUpDown)}
+            aria-pressed={swipeUpDown}
+            title={t("review.swipeUpDownHint")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+              swipeUpDown
+                ? "border-sage bg-sage-tint text-sage-deep"
+                : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+            )}
+          >
+            <MoveVertical className="h-3.5 w-3.5" />
+            {t("review.swipeUpDown")}
+          </button>
+          {canSpeak() && (
+            <button
+              type="button"
+              onClick={() => setPlayOnFlip(!playOnFlip)}
+              aria-pressed={playOnFlip}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                playOnFlip
+                  ? "border-sage bg-sage-tint text-sage-deep"
+                  : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+              )}
+            >
+              {playOnFlip ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+              {t("review.playOnFlip")}
+            </button>
           )}
-        >
-          <MoveVertical className="h-3.5 w-3.5" />
-          {t("review.swipeUpDown")}
-        </button>
+        </div>
       </div>
 
       {editing && (
