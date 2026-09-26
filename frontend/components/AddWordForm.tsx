@@ -1069,7 +1069,13 @@ export function AddWordForm({
         e.preventDefault();
         handleSubmit();
       }}
-      className={cn("space-y-3", !bare && "rounded-[18px] border border-black/[0.06] bg-surface/70 p-4")}
+      // Nothing here is text to copy, and on iOS a finger held still on the draw
+      // pad (a dot) selected the nearest label outside it — "Авто (ИИ)" with its
+      // Copy bubble. So no selection anywhere in the form but the fields.
+      className={cn(
+        "space-y-3 select-none [-webkit-touch-callout:none] [&_input]:select-text [&_textarea]:select-text",
+        !bare && "rounded-[18px] border border-black/[0.06] bg-surface/70 p-4",
+      )}
     >
       {/* Default: the pair first, then the word typed in it. The phone composer
           (compose) puts the word box first, directly under its header. */}

@@ -11,7 +11,7 @@ import { FOCUS } from "@/lib/focus";
 import { useDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
-import { focusOnOpen, useAnchor } from "@/lib/anchor";
+import { focusOnOpen, useAnchor, type Anchor } from "@/lib/anchor";
 
 // Pretty custom dropdown for picking a language. The menu is rendered in a
 // portal so it always floats above the page, stays with its trigger on scroll
@@ -158,10 +158,17 @@ export function LangSelect({
             // in a portal, not inside them.
             data-lang-menu=""
             className={cn(
-              "anim-scale-in z-[80] flex max-h-72 flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
+              "anim-scale-in z-[80] flex flex-col overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.18)]",
               menuClassName,
             )}
-            style={{ position: anchor.position, left: anchor.left, top: anchor.bottom + 6, minWidth: Math.max(anchor.width, 160) }}
+            style={{
+              position: anchor.position,
+              left: anchor.left,
+              minWidth: Math.max(anchor.width, 160),
+              // Same flip as ui/Select: low in a sheet on a phone, the list used to
+              // run off the bottom of the screen under Safari's toolbar.
+              ...dropStyle(anchor),
+            }}
           >
             <input
               autoFocus={focusOnOpen()}
@@ -247,4 +254,13 @@ export function LangSelect({
         )}
     </div>
   );
+}
+
+// Opens up when there's no room below, and never taller than the room it has.
+function dropStyle({ spaceAbove, spaceBelow, top, bottom }: Anchor): React.CSSProperties {
+  const openUp = spaceBelow < 240 && spaceAbove > spaceBelow;
+  const maxHeight = Math.max(140, Math.min(288, (openUp ? spaceAbove : spaceBelow) - 12));
+  return openUp
+    ? ({ maxHeight, top: top - 6, translate: "0 -100%", "--drop": "6px", "--drop-origin": "bottom" } as React.CSSProperties)
+    : { maxHeight, top: bottom + 6 };
 }

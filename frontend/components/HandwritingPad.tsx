@@ -98,6 +98,18 @@ export function HandwritingPad({
     return () => ro.disconnect();
   }, [redraw]);
 
+  // A finger held still (a dot) is iOS's long press, which went looking for text
+  // to select next to the pad. Cancelling the touch at its start keeps it a
+  // stroke: pointer events still arrive, the press-and-hold gesture never starts.
+  // Native and non-passive, as React's touch listeners are passive.
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const hold = (e: TouchEvent) => e.preventDefault();
+    c.addEventListener("touchstart", hold, { passive: false });
+    return () => c.removeEventListener("touchstart", hold);
+  }, []);
+
   const ask = () => {
     const id = ++nextId;
     asked.current = id;

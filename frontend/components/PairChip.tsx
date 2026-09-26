@@ -6,7 +6,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
 import { cn } from "@/lib/utils";
-import { usePresence } from "@/lib/motion";
+import { prefersReducedMotion, usePresence } from "@/lib/motion";
 
 // The study pair as one labelled chip, with the pickers behind it (BACKLOG "Stop
 // asking which language"). The app is one pair — Chinese, explained in what you
@@ -41,6 +41,7 @@ export function PairChip({
   const [open, setOpen] = useState(false);
   const menu = usePresence(open);
   const boxRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on an outside click or Escape. A language menu renders in a portal,
   // outside this box — picking from one must not close the popover first.
@@ -58,6 +59,15 @@ export function PairChip({
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
+  }, [open]);
+
+  // Low in a sheet, the panel opened past the bottom of the screen with the
+  // "I know" picker out of reach; scroll just enough to show all of it. Only
+  // once its entrance ends (onAnimationEnd below): mid-animation it is lifted
+  // and shrunk, and the scroll fell short. Reduced motion has no entrance.
+  const reveal = () => panelRef.current?.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  useEffect(() => {
+    if (open && prefersReducedMotion()) reveal();
   }, [open]);
 
   const sourceName = source === "auto" ? (autoLabel ?? source) : langLabel(source);
@@ -84,7 +94,9 @@ export function PairChip({
 
       {menu.mounted && (
         <div
+          ref={panelRef}
           data-closing={menu.closing || undefined}
+          onAnimationEnd={(e) => open && e.target === e.currentTarget && reveal()}
           className="anim-scale-in absolute left-0 top-full z-50 mt-2 w-[280px] max-w-[calc(100vw-32px)] space-y-2.5 rounded-[16px] border border-black/[0.08] bg-surface p-3 shadow-[0_18px_44px_rgba(46,42,38,0.22)]"
         >
           <label className="block">
