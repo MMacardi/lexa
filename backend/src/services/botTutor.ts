@@ -262,6 +262,7 @@ export async function usersToRemindAt(hour: number): Promise<{ telegramId: strin
     where: {
       reminderHour: hour,
       botChatId: { not: null },
+      deleteAfter: null, // an account waiting to be erased gets no nudges
       words: { some: { OR: [{ nextReviewAt: null }, { nextReviewAt: { lte: now } }] } },
     },
     select: { telegramId: true, botChatId: true, reminderDays: true },

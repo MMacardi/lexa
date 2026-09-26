@@ -283,6 +283,8 @@ export interface Profile {
   // track got inferred from card languages instead (F11).
   hskVersion?: HskVersion | null;
   hskTarget?: number | null;
+  // Set while the account waits out its deletion grace period (ISO date of the erase).
+  deleteAfter?: string | null;
 }
 
 /** The settings half of the learner model, as sent to PATCH /api/auth/me. */
@@ -1233,10 +1235,16 @@ export const api = {
   // Everything we hold about you, as a file. Not http<T>: the response is a
   // download, not a payload the app parses.
   exportAccount: downloadExport,
-  // Irreversible. The literal "DELETE" is the wire contract — the UI asks the
-  // learner to type the word in their own language and sends this on a match.
-  deleteAccount: () =>
-    http<{ ok: boolean }>(`/api/account/delete`, { method: "POST", body: JSON.stringify({ confirm: "DELETE" }) }),
+  // Schedules the erase DELETE_GRACE_DAYS away (signing in before then offers "keep
+  // my account"); `now` erases at once, irreversibly. The literal "DELETE" is the
+  // wire contract — the UI asks the learner to type the word in their own language.
+  deleteAccount: (now = false) =>
+    http<{ ok: boolean; deleteAfter?: string | null; deleted?: boolean }>(`/api/account/delete`, {
+      method: "POST",
+      body: JSON.stringify({ confirm: "DELETE", ...(now ? { now: true } : {}) }),
+    }),
+  // "Keep my account": the scheduled erase is off.
+  restoreAccount: () => http<{ ok: boolean }>(`/api/account/restore`, { method: "POST" }),
 };
 
 async function downloadExport(): Promise<void> {

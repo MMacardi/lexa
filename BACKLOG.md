@@ -369,11 +369,25 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       (≈2 screens, was ~3,800), Today says 15 and the review it opens holds 15; the fold opens
       with the tiles, the word of the day, the readiness and the due list.
 
-14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
+14. [x] **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
    the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
    with a 7–30 day window plus a purge job; GDPR-compatible. **After item 1** — a grace period is not
    a backup.
+   - **Shipped 2026-09-26** (ahead of item 1, which needs the Railway dashboard — this still isn't
+     a backup). "Delete account" (the typed confirmation stays) sets `User.deleteAfter` 14 days
+     out (migration `delete_grace`) and signs out; nothing is erased. Signing in within the window
+     shows one screen in place of the app — "Your account will be deleted on October 10" —
+     with **Keep my account** (`POST /api/account/restore`), **Download my data**, **Delete now
+     instead** (a confirm, then `deleteAccount` at once — the privacy promise's "right away" is one
+     tap from there) and Sign out. `startDeletionPurge` erases accounts past their date on start
+     and hourly, through the same `deleteAccount` that `check-account-delete.ts` proves complete.
+     Meanwhile no reminders go out, and the bot answers any message with the date and the way back
+     (the sign-in deep link still works). /privacy and the Settings hint say 14 days. Checks:
+     `check-delete-grace.ts` (kept while waiting, no nudge, restore, purge only what's due, rows and
+     log gone), `check-account-delete.ts` still passes, `check-bot.ts` +3. Local run: Settings →
+     DELETE → signed out, scheduled for 10 Oct → sign in → the screen → Keep → the app; again →
+     Delete now → confirm → signed out, the account row gone.
 
 15. **Error monitoring + uptime.** `[H2]` No Sentry anywhere in the repo, so a crash a tester hits is
    invisible unless they report it. Sentry (or similar) on backend + frontend, plus an uptime check

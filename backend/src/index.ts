@@ -20,6 +20,7 @@ import { readSession } from "./lib/auth.js";
 import { runAsUser } from "./lib/usageContext.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
+import { startDeletionPurge } from "./services/accountData.js";
 
 // Fail closed: never boot a production server with the guessable dev signing key.
 if (process.env.NODE_ENV === "production" && env.JWT_SECRET === "dev-insecure-secret-change-me") {
@@ -128,6 +129,8 @@ app.listen(env.PORT, () => {
   startImportWorker();
   // Onomika Library starter decks for the Community tab (skips unchanged decks).
   seedLibrary().catch((err) => console.error("[library] seed failed:", err));
+  // Accounts past their deletion grace period are erased here, hourly.
+  startDeletionPurge();
   // No-op unless ENABLE_TELEGRAM_BOT=true.
   launchBot();
 });

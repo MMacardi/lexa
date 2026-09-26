@@ -116,6 +116,15 @@ async function main() {
   r = await send("/start");
   const welcome = texts(r).join("\n");
   expect(!welcome.includes("/review") && !welcome.includes("add &lt;") && !welcome.includes("/remind"), "the welcome no longer teaches /review, add <слово>, /remind");
+
+  // 7. An account waiting out its deletion grace period gets the date, not the bot.
+  await prisma.user.update({ where: { telegramId: TG }, data: { deleteAfter: new Date(Date.now() + 14 * 86_400_000) } });
+  const cardsBefore = await prisma.word.count({ where: { user: { telegramId: TG } } });
+  r = await send("算力");
+  expect(texts(r).some((t) => t.includes("будет удалён")) && !inline(r).includes("aw:add"), "a deleting account gets the date and the way back, not the bot");
+  r = await send("/start login_abc");
+  expect(texts(r).some((t) => t.includes("Вход на сайт")), "…but the sign-in link still works (it's the way back)");
+  expect((await prisma.word.count({ where: { user: { telegramId: TG } } })) === cardsBefore, "…and nothing is added meanwhile");
 }
 
 main()

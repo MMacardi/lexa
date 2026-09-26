@@ -574,6 +574,20 @@ export function createBot(): Telegraf {
     return runAsUser(account, next, "bot");
   });
 
+  // An account waiting out its deletion grace period doesn't use the bot: every
+  // message gets the date and the way back (the site's "keep my account"). The
+  // sign-in deep link and its confirm still pass — that is the way back.
+  bot.use(async (ctx, next) => {
+    const text = ctx.message && "text" in ctx.message ? ctx.message.text : "";
+    const data = ctx.callbackQuery && "data" in ctx.callbackQuery ? ctx.callbackQuery.data : "";
+    if (text.startsWith("/start login_") || data.startsWith("login:ok:")) return next();
+    const u = await prisma.user.findUnique({ where: { telegramId: acct(ctx) }, select: { deleteAfter: true } });
+    if (!u?.deleteAfter) return next();
+    const when = u.deleteAfter.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
+    await ctx.reply(`🗑 Аккаунт будет удалён ${when}. Чтобы сохранить его, войди на сайте — там будет кнопка «Оставить аккаунт».`);
+  });
+
   // A chat from before the four-button keyboard has the old one, or none at all
   // (it only ever came with /start and /help). On its next message it gets the
   // new one, once — remembered in User.botMenu, so a redeploy doesn't repeat it.

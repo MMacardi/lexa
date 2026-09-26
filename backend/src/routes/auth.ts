@@ -268,6 +268,9 @@ authRouter.get("/auth/me", async (req, res) => {
       profileVisibility: true,
       decksVisibility: true,
       invited: true,
+      // Set while the account waits out its deletion grace period: the app shows
+      // "keep my account" instead of itself.
+      deleteAfter: true,
       ...learnerPrefsSelect,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
     },

@@ -62,6 +62,11 @@ model User {
   // the current menu gets it once, on its next message (BACKLOG "A bot you don't
   // need commands for"), and never again after a redeploy.
   botMenu     Int         @default(0)
+  // "Delete my account" schedules the erase rather than doing it (BACKLOG "A grace
+  // period on account deletion"): until this moment everything is kept, and signing
+  // in offers "keep my account". Past it, the purge loop erases the account for
+  // good (services/accountData.ts). Null = not being deleted.
+  deleteAfter DateTime?
   // Hour of day (0–23, server time) the learner wants their review nudge, or null
   // for no reminders. Chosen in-chat via the Reminders button.
   reminderHour Int?

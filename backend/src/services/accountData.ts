@@ -148,6 +148,55 @@ export async function exportAccount(telegramId: string): Promise<Record<string, 
   };
 }
 
+// --- The grace period (BACKLOG "A grace period on account deletion") ---
+//
+// "Delete my account" used to erase on the spot: one typed word and the learner
+// model was gone. That weighed the privacy promise against nothing — a mis-tap on
+// a phone, a change of heart the next morning, and the author being user #1 with
+// no backup yet. Now it schedules: DELETE_GRACE_DAYS in which nothing is erased and
+// signing in offers "keep my account", then the purge erases for good. "Delete
+// now" stays one tap away on the same screen, for anyone who wants it gone at once.
+
+export const DELETE_GRACE_DAYS = 14;
+
+/** Schedule the erase; returns when it will happen, or null if there's no account. */
+export async function scheduleDeletion(telegramId: string, now = new Date()): Promise<Date | null> {
+  const deleteAfter = new Date(now.getTime() + DELETE_GRACE_DAYS * 86_400_000);
+  const r = await prisma.user.updateMany({ where: { telegramId }, data: { deleteAfter } });
+  return r.count ? deleteAfter : null;
+}
+
+/** "Keep my account": the erase is off. */
+export async function cancelDeletion(telegramId: string): Promise<boolean> {
+  const r = await prisma.user.updateMany({ where: { telegramId, deleteAfter: { not: null } }, data: { deleteAfter: null } });
+  return r.count > 0;
+}
+
+/** Erase every account whose grace period has run out. Returns how many went. */
+export async function purgeDueDeletions(now = new Date()): Promise<number> {
+  const due = await prisma.user.findMany({ where: { deleteAfter: { lte: now } }, select: { telegramId: true } });
+  let n = 0;
+  for (const u of due) {
+    try {
+      if (await deleteAccount(u.telegramId)) n++;
+    } catch (err) {
+      // One account failing must not keep the rest waiting another hour.
+      console.error(`[purge] could not delete ${u.telegramId}:`, (err as Error).message);
+    }
+  }
+  return n;
+}
+
+/** Run the purge now and then hourly, for as long as the process lives. */
+export function startDeletionPurge(): void {
+  const run = () =>
+    purgeDueDeletions()
+      .then((n) => n && console.log(`[purge] erased ${n} account(s) past their grace period`))
+      .catch((err) => console.error("[purge] failed:", err));
+  void run();
+  setInterval(run, 3_600_000).unref?.();
+}
+
 /** Erase the account and everything attached to it. Returns false if it was already gone. */
 export async function deleteAccount(telegramId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });

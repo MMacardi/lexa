@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { GuestExperience } from "@/components/GuestExperience";
 import { InviteGate } from "@/components/InviteGate";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { DeletionPending } from "@/components/DeletionPending";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 import { useViewportVars } from "@/lib/mobileNav";
 
@@ -45,6 +46,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Closed beta: a signed-in user who hasn't redeemed an invite code is gated here
   // (the backend enforces the same rule on every /api route).
   if (!profile?.invited) return <InviteGate />;
+
+  // Deleting, within the grace period: "keep my account" instead of the app.
+  if (profile.deleteAfter) return <DeletionPending deleteAfter={profile.deleteAfter} />;
 
   return (
     <OnboardingGate>

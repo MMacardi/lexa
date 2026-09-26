@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { readSession, clearSessionCookie } from "../lib/auth.js";
 import { rateLimit } from "../lib/rateLimit.js";
-import { exportAccount, deleteAccount } from "../services/accountData.js";
+import { exportAccount, deleteAccount, scheduleDeletion, cancelDeletion } from "../services/accountData.js";
 
 export const accountRouter = Router();
 
@@ -30,8 +30,9 @@ accountRouter.get("/account/export", accountLimiter, async (req, res) => {
   res.send(JSON.stringify(data, null, 2));
 });
 
-// POST /api/account/delete — erase the account. Irreversible, and there is no
-// "deleted" flag to undo: the rows are gone.
+// POST /api/account/delete — schedule the erase (DELETE_GRACE_DAYS away; signing
+// in before then offers "keep my account"), or with `now: true` erase at once —
+// irreversible, the rows are gone. Either way the session ends.
 //
 // The typed confirmation is not only UX. Session cookies are SameSite=None in
 // prod (frontend and backend can sit on different origins), so a cross-site POST
@@ -48,8 +49,25 @@ accountRouter.post("/account/delete", accountLimiter, async (req, res) => {
     res.status(400).json({ error: "Confirmation required", code: "confirm_required" });
     return;
   }
-  const ok = await deleteAccount(telegramId);
-  // Log them out either way: whatever the session pointed at, it isn't there now.
+  if (req.body?.now === true) {
+    const ok = await deleteAccount(telegramId);
+    clearSessionCookie(res);
+    res.json({ ok, deleted: true });
+    return;
+  }
+  const deleteAfter = await scheduleDeletion(telegramId);
+  // Log them out either way: the account is on its way out, and "keep it" is
+  // offered at the next sign-in, not in a tab left open.
   clearSessionCookie(res);
-  res.json({ ok });
+  res.json({ ok: deleteAfter !== null, deleteAfter });
+});
+
+// POST /api/account/restore — "keep my account": the scheduled erase is off.
+accountRouter.post("/account/restore", accountLimiter, async (req, res) => {
+  const telegramId = readSession(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  res.json({ ok: await cancelDeletion(telegramId) });
 });
