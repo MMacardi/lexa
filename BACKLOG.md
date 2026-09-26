@@ -29,7 +29,7 @@ don't invent new ones.
 
 **Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
-session-sized item; 8–13 are small). 13b–d came out of the author's own use on 2026-09-26 — the
+session-sized item; 8–13 are small). 13b–f came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 waits on the test. 19–22 make
 it legal and named. 23–26 make the result mean something. 27+ is after that.
 
@@ -243,7 +243,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       code → the link opens for the other account, "Add deck" copies its 3 words;
       `/friends?add=CODE` → request → accepted → friend card with the streak → profile.
 
-13b. **Topic words beside the exam words.** From the author's own use (2026-09-26): a decent HSK 4
+13b. [x] **Topic words beside the exam words.** From the author's own use (2026-09-26): a decent HSK 4
     who can't follow a talk in their own field. The words an AI conference is made of (算法, 模型,
     训练, 数据集) are off the HSK lists or far above, and nothing brings them today: the daily drip
     never leaves the list, and Mika's picks take at most 2–3 words from one level up (a deliberate
@@ -257,20 +257,54 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     - Pairs with "A plan with a date" (Later): the exam track's daily number = gap ÷ days left.
     - **Done when:** an HSK 4 learner who names "AI" and pastes one talk transcript gets 3 topic
       words a day beside the HSK 4 ones, none already known, most of them made of known characters.
+    - **Shipped 2026-09-26.** Inside "Today's words", not a card of its own — Today already had two
+      places offering new words. "+ Add words from a field you follow" opens an inline editor: a
+      topic (presets AI / Business / Travel / Medicine / Games), optionally a text on it (with Paste).
+      One `qwen-flash` call (`agents/topicWords.ts`, ~5 s; qwen-plus took 30 s for the same list)
+      names 30 field words + meanings; `services/topic.ts` ranks them — the learner's text first by
+      count, then all-known characters, then half-known — drops what they have and HSK words at or
+      below the target (the exam track brings those), takes the reading from pinyin-pro, and keeps
+      the pool on `User.topicPool` (migration `topic_words`), so a day costs no model call. Three a
+      day as a second row ("AI · off the list", word + pinyin + meaning), the same "I know it" tap,
+      one "Add N to review"; the cards arrive with the meaning at once, pinyin and an example follow.
+      "More words" when the pool runs dry. The text itself is never stored — only which words occur.
+      `scripts/check-topic.ts` (ranking, the day, `--live`): on a paragraph about training large
+      models an HSK 4 gets 大模型, 推理, 算力 first, 91% of the pool at least half known characters.
+      Local run as an HSK 4 learner at 390px: AI + pasted text → 推理 / 大模型 / 算力 beside ten HSK 4
+      words → added with their Russian meanings.
+    - Not done: "make this my topic" from inside the Reader (the editor's text box does the job for
+      now), and the exam track's daily number from a date (still "A plan with a date", Later).
 
-13c. **A sweep instead of a big test.** So the daily words stop offering what the learner already
+13c. **The Reader cuts field words the HSK dictionary doesn't know.** Found building 13b: the
+    segmenter's repair step splits a token CC-CEDICT's HSK subset lacks whenever each piece is a
+    subset word, so 算法 → 算 法, 延迟 → 延 迟, 数据集 → 数据 集 — ICU had them right. Anyone reading in
+    their own field taps half-words. Widen the dictionary (the full CC-CEDICT, ~125k headwords,
+    loaded beside the subset) so the repair knows real words, instant capture and the tap gloss
+    cover field words too, and English→Chinese lookup keeps ranking the HSK ones first.
+    **Done when:** `check-segment.ts` passes with 算法 / 延迟 / 参数 kept whole and its old cases
+    unchanged, and tapping 算法 in the Reader shows suàn fǎ + "algorithm" at once.
+
+13d. **A sweep instead of a big test.** So the daily words stop offering what the learner already
     knows: a level as a grid of ~50 words a screen, tap only the ones you *don't* know; the rest are
     saved as known (`PlacementAnswer{known:true}`, what a rejection already writes). All of HSK 4 in
     about five minutes, because only the exceptions take a tap. Guard against over-claiming: now and
     then a swept word turns up in review as a spot check, and a miss makes it a card. Item 18's
     ladder still finds the level; this clears what's under it.
 
-13d. **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
+13e. **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
     grading, but the keyboard only appears after /start or /help (older chats never got it), "➕
     Добавить слово" answers "send `add слово`", and reminders carry no buttons. Send the keyboard to
     existing chats once, cut it to 4 buttons + "Ещё"; a single word (not a sentence — those still go
     to the tutor) comes back as a card preview with [Добавить] [Не надо]; reminders get [Повторить N]
     [Слова на сегодня]. **Done when:** a new user reviews and adds a word without typing a "/".
+
+13f. **Today, shorter.** Seen at 390px on 2026-09-26: Today is ~3,800 px. The due count shows four
+    times (briefing, tile, the dark panel, the list at the bottom) and the briefing said "2 due"
+    beside a tile saying 3; four stat tiles repeat the panel; the readiness mark is a full level
+    table reading "0 of 3181" (item 18 already calls it misleading); Mika's picks is a second
+    new-words card under Today's words. One due number with one button, Today's words, the goal
+    ring with the streak, the rest folded ("More on your progress"). **Done when:** Today fits in
+    about two phone screens and no number on it disagrees with another.
 
 14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to

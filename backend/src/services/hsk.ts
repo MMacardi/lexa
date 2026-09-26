@@ -291,7 +291,7 @@ function shuffled<T>(items: T[], rand: () => number): T[] {
 }
 
 // The server's calendar day, the same boundary getStats counts "today" by.
-function dayStart(): Date {
+export function dayStart(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;

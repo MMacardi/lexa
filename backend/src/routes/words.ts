@@ -26,6 +26,7 @@ import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
+import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
 import {
   addWordForUser,
   addWordManual,
@@ -252,6 +253,36 @@ wordsRouter.get("/hsk/gap", async (req, res) => {
 wordsRouter.get("/hsk/daily", async (req, res) => {
   const telegramId = readSession(req)!;
   res.json(await hskDailyWords(telegramId));
+});
+
+// Topic words beside the exam words: GET today's few, PUT names a topic (or asks
+// for more on it — one model call), DELETE drops it. Like Mika's picks, naming a
+// topic isn't charged to the daily AI pool: it's rare and a day costs nothing.
+wordsRouter.get("/topic/daily", async (req, res) => {
+  res.json(await topicDaily(readSession(req)!));
+});
+const topicBody = z.object({
+  topic: z.string().trim().min(1).max(60),
+  text: z.string().max(20_000).optional(),
+});
+wordsRouter.put("/topic", async (req, res) => {
+  const parsed = topicBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req)!;
+  try {
+    await setTopic(telegramId, parsed.data.topic, parsed.data.text);
+    res.json(await topicDaily(telegramId));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+wordsRouter.delete("/topic", async (req, res) => {
+  await clearTopic(readSession(req)!);
+  res.json({ ok: true });
 });
 
 // GET /api/hsk/list?version=3.0&level=4  -> one level of the official list,

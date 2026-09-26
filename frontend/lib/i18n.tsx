@@ -1552,6 +1552,49 @@ const DICT: Record<string, Entry> = {
     zh: "今天的 {n} 个词已加入复习。明天还有新的。",
   },
   "hskDaily.review": { en: "Review now", ru: "Повторить сейчас", zh: "现在复习" },
+
+  // --- Topic words beside the exam words (BACKLOG 13b) ---
+  "topic.offer": {
+    en: "Add words from a field you follow — AI, business, travel…",
+    ru: "Добавить слова твоей сферы — ИИ, бизнес, путешествия…",
+    zh: "加上你关注领域的词——AI、商务、旅行……",
+  },
+  "topic.label": { en: "{topic} · off the list", ru: "{topic} · вне списка HSK", zh: "{topic} · 大纲以外" },
+  "topic.change": { en: "Change the topic", ru: "Сменить тему", zh: "换个主题" },
+  "topic.editorHint": {
+    en: "A few words a day from this field, beside the exam ones: the terms you'd hear in a real talk on it, most of them made of characters you already know.",
+    ru: "Несколько слов в день из этой сферы рядом с экзаменационными: то, что звучит в настоящих докладах, — и в основном из иероглифов, которые ты уже знаешь.",
+    zh: "每天在考试词旁边加几个这个领域的词：真实讲座里会听到的说法，大多由你已经认识的字组成。",
+  },
+  "topic.placeholder": { en: "A topic, e.g. AI", ru: "Тема, например ИИ", zh: "主题，比如人工智能" },
+  "topic.pick": { en: "Pick words", ru: "Подобрать слова", zh: "选词" },
+  "topic.preset.ai": { en: "AI", ru: "ИИ", zh: "人工智能" },
+  "topic.preset.business": { en: "Business", ru: "Бизнес", zh: "商务" },
+  "topic.preset.travel": { en: "Travel", ru: "Путешествия", zh: "旅行" },
+  "topic.preset.medicine": { en: "Medicine", ru: "Медицина", zh: "医学" },
+  "topic.preset.games": { en: "Games", ru: "Игры", zh: "游戏" },
+  "topic.addText": {
+    en: "Add a text on it (optional) — its words come first",
+    ru: "Добавить текст по теме (необязательно) — сначала будут его слова",
+    zh: "加一段相关文字（可选）——先学里面的词",
+  },
+  "topic.textPlaceholder": {
+    en: "A talk transcript, an article, a post — in Chinese",
+    ru: "Расшифровка доклада, статья, пост — на китайском",
+    zh: "讲座文字稿、文章、帖子——中文",
+  },
+  "topic.picking": {
+    en: "Picking words for “{topic}” — a few seconds…",
+    ru: "Подбираю слова для «{topic}» — пара секунд…",
+    zh: "正在为“{topic}”选词——几秒钟……",
+  },
+  "topic.remove": { en: "Stop topic words", ru: "Убрать тему", zh: "不再要主题词" },
+  "topic.usedUp": {
+    en: "You've taken every “{topic}” word so far.",
+    ru: "Все слова по теме «{topic}» уже взяты.",
+    zh: "“{topic}”的词你都已经拿了。",
+  },
+  "topic.more": { en: "More words", ru: "Ещё слова", zh: "再来一些" },
   "hskDaily.empty": {
     en: "You have every word up to HSK {level}. Pick a higher target below.",
     ru: "У тебя уже все слова до HSK {level}. Выбери уровень повыше ниже.",

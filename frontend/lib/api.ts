@@ -331,6 +331,23 @@ export interface HskWordList {
   words: HskWord[];
 }
 
+// A word of the learner's topic (off the HSK list, or above their target).
+export interface TopicWord {
+  word: string;
+  pinyin: string;
+  meaning: string;
+  fromText: boolean; // occurs in the text they gave
+  known: number; // share of its characters they already have
+  hsk: number | null;
+  added: boolean;
+}
+// Today's topic words: `left` = what the pool still holds beyond today's.
+export interface TopicDaily {
+  topic: string | null;
+  words: TopicWord[];
+  left: number;
+}
+
 // A word of a browsed official list, with where the learner stands on it:
 // null = no card and never said they know it.
 export type HskListWord = HskWord & { status: "canUse" | "recognise" | "learning" | null; card: boolean };
@@ -880,6 +897,12 @@ export const api = {
   // day; `added` marks the ones already in review, `size` is the daily goal.
   hskDaily: () =>
     http<{ version: HskVersion; level: number; size: number; words: (HskWord & { added: boolean })[] }>(`/api/hsk/daily`),
+  // Topic words beside the exam ones: today's few, naming a topic (one model call,
+  // `text` = real material on it, whose words come first), dropping it.
+  topicDaily: () => http<TopicDaily>(`/api/topic/daily`),
+  setTopic: (topic: string, text?: string) =>
+    http<TopicDaily>(`/api/topic`, { method: "PUT", body: JSON.stringify({ topic, text: text?.trim() || undefined }) }),
+  clearTopic: () => http<{ ok: true }>(`/api/topic`, { method: "DELETE" }),
 
   // --- collections ---
   collections: (telegramId: string) =>
