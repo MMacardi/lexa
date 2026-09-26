@@ -553,8 +553,11 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
 
   // Practicing counts toward activity/streak regardless of the grade. The word,
   // the grade and the venue go in the same row: this is the learner model's only
-  // record of what actually happened and it cannot be reconstructed later.
-  await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source } });
+  // record of what actually happened and it cannot be reconstructed later. The
+  // schedule it replaces rides along, so a mis-tap can be undone exactly.
+  await prisma.reviewEvent.create({
+    data: { userId: word.userId, wordId: word.id, grade, source, prev: scheduleOf(word) },
+  });
   track("review", { props: { grade, source } });
 
   const now = new Date();
@@ -593,6 +596,84 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
       reviewCount: grade >= 3 ? word.reviewCount + 1 : word.reviewCount,
     },
   });
+}
+
+// Every field a grade writes, as stored on ReviewEvent.prev (dates as ISO strings).
+type Schedule = {
+  stability: number | null;
+  difficulty: number | null;
+  due: string | null;
+  reps: number;
+  lapses: number;
+  state: number;
+  learningSteps: number;
+  lastReview: string | null;
+  nextReviewAt: string | null;
+  reviewCount: number;
+};
+
+function scheduleOf(w: {
+  stability: number | null;
+  difficulty: number | null;
+  due: Date | null;
+  reps: number;
+  lapses: number;
+  state: number;
+  learningSteps: number;
+  lastReview: Date | null;
+  nextReviewAt: Date | null;
+  reviewCount: number;
+}): Schedule {
+  return {
+    stability: w.stability,
+    difficulty: w.difficulty,
+    due: w.due?.toISOString() ?? null,
+    reps: w.reps,
+    lapses: w.lapses,
+    state: w.state,
+    learningSteps: w.learningSteps,
+    lastReview: w.lastReview?.toISOString() ?? null,
+    nextReviewAt: w.nextReviewAt?.toISOString() ?? null,
+    reviewCount: w.reviewCount,
+  };
+}
+
+// How far back "Undo" reaches. It is for the tap you just regret, not for
+// rewriting yesterday: a stale tab must not roll back a card reviewed since.
+const UNDO_WINDOW_MS = 30 * 60_000;
+
+/**
+ * Undo the card's last grade (BACKLOG "Undo the last grade in review"): put its
+ * schedule back exactly as it was and delete that log row, as if the tap never
+ * happened. Null when there is nothing recent to undo.
+ */
+export async function undoLastReview(id: string) {
+  const last = await prisma.reviewEvent.findFirst({
+    where: { wordId: id, source: { not: "cram" } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!last?.prev || Date.now() - last.createdAt.getTime() > UNDO_WINDOW_MS) return null;
+  const p = last.prev as Schedule;
+  const date = (s: string | null) => (s ? new Date(s) : null);
+  const [, word] = await prisma.$transaction([
+    prisma.reviewEvent.delete({ where: { id: last.id } }),
+    prisma.word.update({
+      where: { id },
+      data: {
+        stability: p.stability,
+        difficulty: p.difficulty,
+        due: date(p.due),
+        reps: p.reps,
+        lapses: p.lapses,
+        state: p.state,
+        learningSteps: p.learningSteps,
+        lastReview: date(p.lastReview),
+        nextReviewAt: date(p.nextReviewAt),
+        reviewCount: p.reviewCount,
+      },
+    }),
+  ]);
+  return word;
 }
 
 /**

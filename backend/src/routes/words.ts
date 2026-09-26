@@ -33,6 +33,7 @@ import {
   getWord,
   recordReview,
   recordCram,
+  undoLastReview,
   asReviewSource,
   deleteWord,
   updateWord,
@@ -647,6 +648,19 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
   const word = await recordReview(req.params.id, grade, retention, asReviewSource(body.source));
   if (!word) {
     res.status(404).json({ error: "Word not found" });
+    return;
+  }
+  res.json(word);
+});
+
+// POST /api/words/:id/undo -> take back the card's last grade: its schedule goes
+// back to what it was and the log row is deleted. 409 when there's nothing
+// recent to undo.
+wordsRouter.post("/words/:id/undo", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  const word = await undoLastReview(req.params.id);
+  if (!word) {
+    res.status(409).json({ error: "Nothing to undo" });
     return;
   }
   res.json(word);

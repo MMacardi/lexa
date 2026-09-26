@@ -711,6 +711,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ grade, retention: readRetention(), source }),
     }),
+  // Take back the card's last grade: the schedule as it was, the log row gone.
+  undoReview: (id: string) => http<Word>(`/api/words/${id}/undo`, { method: "POST" }),
   // A cram answer: logged, never graded into the schedule (BACKLOG "Cram a list now").
   cramWord: (id: string, correct: boolean) =>
     http<{ ok: true }>(`/api/words/${id}/cram`, { method: "POST", body: JSON.stringify({ correct }) }),

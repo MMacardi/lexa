@@ -47,6 +47,26 @@ export async function submitReview(wordId: string, grade: number, source: Review
   return false;
 }
 
+/** Take back a card's last grade. A grade still waiting in the offline queue is
+ *  simply dropped from it; one the server has is undone there. Returns false if
+ *  there was nothing to take back. */
+export async function undoReview(wordId: string): Promise<boolean> {
+  const queued = (await outboxAll())
+    .filter((op) => op.kind === "review" && op.wordId === wordId)
+    .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))[0];
+  if (queued?.id != null) {
+    await outboxDelete(queued.id);
+    notify();
+    return true;
+  }
+  try {
+    await api.undoReview(wordId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Queue a word to be added (with AI enrichment) once back online. */
 export async function queueAdd(word: string, sourceLang: string, targetLang: string, notes?: string): Promise<void> {
   await outboxAdd({ kind: "add", word, sourceLang, targetLang, notes, at: Date.now() });

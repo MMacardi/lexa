@@ -34,8 +34,9 @@ import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
-import { fetchWordsCached, mirrorWords, submitReview } from "@/lib/sync";
-import { ExternalLink, MoveVertical, Pencil, Repeat } from "lucide-react";
+import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
+import { useToast } from "@/lib/toast";
+import { ExternalLink, MoveVertical, Pencil, Repeat, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
@@ -123,6 +124,12 @@ export default function FlashcardsPage() {
   const [known, setKnown] = useState(0);
   const [learning, setLearning] = useState(0);
   const [editing, setEditing] = useState<Word | null>(null);
+  // The last grade, kept so a mis-tap can be taken back (BACKLOG "Undo the last
+  // grade in review"): the card as it was, where it sat in the deck, and the send
+  // that has to land before it can be undone.
+  const [lastGrade, setLastGrade] = useState<{ before: Word; grade: number; at: number; sent: Promise<boolean> } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const { show } = useToast();
 
   const swipeUpDown = useSwipeUpDown();
 
@@ -210,9 +217,15 @@ export default function FlashcardsPage() {
   useEffect(() => {
     if (!started || editing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       if (el?.closest("input, textarea, [contenteditable=true]")) return;
+      // Ctrl/⌘+Z takes the last grade back, Anki's key for it.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        void undo();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       // Never steal space/enter from a focused control: someone who tabbed to
       // "Hard" must get Hard, not the space-is-Good shortcut.
       if ((e.key === " " || e.key === "Enter") && el?.closest("button, a")) return;
@@ -231,10 +244,10 @@ export default function FlashcardsPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // `commit` is left out on purpose — it's rebuilt every render, and the deps
-    // above already re-bind the listener on every card and every flip.
+    // `commit` and `undo` are left out on purpose — they're rebuilt every render,
+    // and the deps above already re-bind the listener on every card, flip and grade.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, editing, deck, index, flipped]);
+  }, [started, editing, deck, index, flipped, lastGrade]);
 
   // Put the card back at rest with no animation — for a fresh card, where snapping
   // in from the last one's fly-off would look like the new card arriving pre-swiped.
@@ -281,6 +294,38 @@ export default function FlashcardsPage() {
     void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
     const synced = await submitReview(word.id, grade);
     if (synced) qc.invalidateQueries({ queryKey: ["stats"] });
+    return synced;
+  }
+
+  // Take the last grade back: the card's schedule as it was (on the server, or
+  // dropped from the offline queue), the tallies and a re-queued "Again" copy
+  // undone, and the card back on screen answer-side up, ready to be graded again.
+  async function undo() {
+    const last = lastGrade;
+    if (!last || undoing) return;
+    setUndoing(true);
+    try {
+      await last.sent;
+      if (!(await undoReview(last.before.id))) {
+        setLastGrade(null);
+        show({ icon: "⚠️", title: t("review.undoFailed") });
+        return;
+      }
+      qc.setQueryData<Word[]>(["words", accountId], (prev) =>
+        (prev ?? []).map((w) => (w.id === last.before.id ? last.before : w)),
+      );
+      void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      if (last.grade >= 3) setKnown((k) => Math.max(0, k - 1));
+      else setLearning((l) => Math.max(0, l - 1));
+      if (last.grade === 1) setDeck((d) => d.slice(0, -1));
+      restCard();
+      setIndex(last.at);
+      setFlipped(true);
+      setLastGrade(null);
+    } finally {
+      setUndoing(false);
+    }
   }
 
   // Pace new words: serve all due-for-review cards + at most newPerDay brand-new
@@ -306,6 +351,7 @@ export default function FlashcardsPage() {
     setFlipped(false);
     setKnown(0);
     setLearning(0);
+    setLastGrade(null);
     restCard();
     setStarted(true);
   }
@@ -322,16 +368,33 @@ export default function FlashcardsPage() {
       el.style.transform = `translate(${to.x}px, ${to.y}px) rotate(${to.x * 0.035}deg)`;
     }
     grabbing(false);
-    void recordGrade(word, grade);
+    // Only the newest grade can be taken back, and not while its card is still flying off.
+    setLastGrade(null);
+    // The card as the list has it now, before this grade — what Undo restores.
+    const before = qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === word.id) ?? word;
+    const sent = recordGrade(word, grade);
     if (grade >= 3) setKnown((k) => k + 1);
     else setLearning((l) => l + 1);
     if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session
+    const at = index;
     setTimeout(() => {
       restCard();
       setFlipped(false);
       setIndex((i) => i + 1);
+      setLastGrade({ before, grade, at, sent });
     }, 260);
   }
+
+  const undoButton = lastGrade && (
+    <button
+      onClick={() => void undo()}
+      disabled={undoing}
+      title={t("review.undoHint")}
+      className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+    >
+      <Undo2 className="h-3.5 w-3.5" /> {t("review.undo")}
+    </button>
+  );
 
   if (isLoading)
     return (
@@ -561,6 +624,7 @@ export default function FlashcardsPage() {
         <Button variant="dark" className="mt-8" onClick={() => setStarted(false)}>
           {t("review.backToSetup")}
         </Button>
+        {undoButton && <div className="mt-3">{undoButton}</div>}
       </div>
     );
 
@@ -825,6 +889,7 @@ export default function FlashcardsPage() {
           >
             ← {t("review.backToSetup")}
           </button>
+          {undoButton}
         </div>
         <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
           <div

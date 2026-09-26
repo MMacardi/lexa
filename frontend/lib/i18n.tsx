@@ -1972,6 +1972,17 @@ const DICT: Record<string, Entry> = {
   "review.known": { en: "known", ru: "знаю", zh: "认识" },
   "review.learningCount": { en: "to repeat soon", ru: "повторим скоро", zh: "稍后再复习" },
   "review.backToSetup": { en: "Back to setup", ru: "К настройкам", zh: "返回设置" },
+  "review.undo": { en: "Undo", ru: "Отменить", zh: "撤销" },
+  "review.undoHint": {
+    en: "Take back the last grade (Ctrl+Z)",
+    ru: "Отменить последнюю оценку (Ctrl+Z)",
+    zh: "撤销上一次评分（Ctrl+Z）",
+  },
+  "review.undoFailed": {
+    en: "Couldn't undo that grade — it may be too old.",
+    ru: "Не получилось отменить оценку — возможно, она уже старая.",
+    zh: "无法撤销这次评分——可能已经太久了。",
+  },
   "review.setup": { en: "⚙ Setup", ru: "⚙ Настройки", zh: "⚙ 设置" },
   "review.clickReveal": { en: "Click to reveal · {lang}", ru: "Нажмите, чтобы открыть · {lang}", zh: "点击显示 · {lang}" },
   "review.reveal": { en: "Tap to reveal the back", ru: "Нажмите, чтобы открыть оборот", zh: "点击查看背面" },

@@ -350,6 +350,10 @@ model ReviewEvent {
   // Where the answer was given: review | quiz | drill | scene | chat, or cram
   // (logged only — a cram answer never moves the schedule).
   source    String   @default("review")
+  // The card's schedule from just before this grade, so "Undo" can put it back
+  // exactly (BACKLOG "Undo the last grade in review"). Null on cram rows and on
+  // rows from before undo existed.
+  prev      Json?
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])

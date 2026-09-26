@@ -164,11 +164,19 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      my N cards" on an HSK level page. `scripts/check-cram.ts` passes; local run: a 3-word set,
      one miss → 4 questions, 4 `cram` rows, due dates still null.
 
-8. **Undo the last grade in review.** Anki's most-used safety net: on a phone a mis-tap on Again or
+8. [x] **Undo the last grade in review.** Anki's most-used safety net: on a phone a mis-tap on Again or
    Easy silently reschedules the card, with no way back. Keep the card's state from before the
    grade; "Undo" restores it and deletes that review-log row (`POST /api/words/:id/undo`). Small.
    - **Done when:** grade a card Easy, undo, and its due date, stability and the review log are
      exactly as before (asserted in `scripts/check-undo.ts`).
+   - **Shipped 2026-09-26.** Migration `review_undo`: `ReviewEvent.prev` holds the schedule a grade
+     replaced; `undoLastReview` puts it back and deletes the row in one transaction (cram rows are
+     skipped, nothing older than 30 min). An offline grade still in the outbox is just dropped from
+     it (`undoReview` in `lib/sync.ts`). Review: an "Undo" chip in the header and on the finish
+     screen, Ctrl/⌘+Z; the card comes back answer-side up, the tallies and a re-queued "Again" copy
+     are taken back. `scripts/check-undo.ts` passes (fresh card, mid-schedule, past a cram row, an
+     hour-old grade refused). Local run: Easy → due +9 d → Ctrl+Z → state 0, no log row; Again →
+     2/16 → Undo → 1/15.
 
 9. **End of review → the next step.** The finish screen only offers "Back to setup". Point on, the
    Duolingo way: today's new words (HskDaily), the use-step, or the Reader — the loop, one tap at a
