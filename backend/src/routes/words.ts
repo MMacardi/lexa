@@ -32,6 +32,7 @@ import {
   listWordsForUser,
   getWord,
   recordReview,
+  recordCram,
   asReviewSource,
   deleteWord,
   updateWord,
@@ -649,6 +650,17 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
     return;
   }
   res.json(word);
+});
+
+// POST /api/words/:id/cram -> log a cram answer ({correct}). The schedule is left
+// alone: a list drilled before a class quiz keeps its due dates.
+wordsRouter.post("/words/:id/cram", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  if (!(await recordCram(req.params.id, req.body?.correct === true))) {
+    res.status(404).json({ error: "Word not found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 // POST /api/words/:id/production -> log an attempt to USE the word (drill, scene

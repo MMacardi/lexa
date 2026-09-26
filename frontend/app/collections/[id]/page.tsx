@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { X, GraduationCap, Target, Compass } from "lucide-react";
+import { X, GraduationCap, Target, Compass, Zap } from "lucide-react";
 import { pairLabel } from "@/lib/langs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -87,7 +87,7 @@ export default function CollectionDetailPage() {
           <h1 className="font-serif text-[28px] font-medium break-words sm:text-[34px] tracking-[-0.01em] text-ink">
             {collection?.name ?? "—"}
           </h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/review?coll=${id}`}
               className={cn(
@@ -123,6 +123,17 @@ export default function CollectionDetailPage() {
             >
               <Compass className="h-4 w-4" /> {t("col.practice")}
             </button>
+            <Link
+              href={`/quiz?coll=${id}&cram=1`}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                inSet.length >= 1
+                  ? "border border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]"
+                  : "pointer-events-none border border-black/[0.05] text-ink-faint/50",
+              )}
+            >
+              <Zap className="h-4 w-4" /> {t("quiz.cram")}
+            </Link>
           </div>
         </div>
       </div>

@@ -596,6 +596,21 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
 }
 
 /**
+ * A cram answer (BACKLOG "Cram a list now"): drilling one list right away, outside
+ * the schedule, before a class quiz. Logged — so the day counts and the learner
+ * model can tell it apart — but never graded into FSRS: cramming forty words the
+ * night before must not push them all out a week.
+ */
+export async function recordCram(id: string, correct: boolean): Promise<boolean> {
+  const word = await prisma.word.findUnique({ where: { id }, select: { id: true, userId: true } });
+  if (!word) return false;
+  const grade = correct ? 3 : 1;
+  await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source: "cram" } });
+  track("review", { props: { grade, source: "cram" } });
+  return true;
+}
+
+/**
  * On-demand AI explanation of a word: nuance, when to use it, how it differs
  * from close synonyms, register, and a common mistake — written in the learner's
  * own language (the card's target language). Cached on the card: the first call

@@ -347,7 +347,8 @@ model ReviewEvent {
   word      Word?    @relation(fields: [wordId], references: [id], onDelete: SetNull)
   // FSRS Rating: 1=Again 2=Hard 3=Good 4=Easy. Null on pre-F2 rows.
   grade     Int?
-  // Where the answer was given: review | quiz | drill | scene | chat.
+  // Where the answer was given: review | quiz | drill | scene | chat, or cram
+  // (logged only — a cram answer never moves the schedule).
   source    String   @default("review")
   createdAt DateTime @default(now())
 

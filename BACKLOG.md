@@ -151,11 +151,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      them); and a card the segmenter can't match stays "new" (很多 and 每天 come out as two words
      because the CC-CEDICT subset doesn't list them).
 
-7. **Cram a list now.** Hack Chinese's CRAM mode: drill one textbook lesson, collection or HSK level
+7. [x] **Cram a list now.** Hack Chinese's CRAM mode: drill one textbook lesson, collection or HSK level
    right away, outside the schedule, without moving it (logged with source `cram`, never graded into
    FSRS). Small — the quiz already filters by collection. For the class quiz on Friday.
    - **Done when:** "this week's lesson" → a five-minute drill of just those words, and their FSRS
      due dates are unchanged afterwards (asserted in a `scripts/check-cram.ts`).
+   - **Shipped 2026-09-26.** A "Cram" switch on the quiz: every word in the list (not 8), a miss
+     comes back at the end until each is right, wrong options drawn from all your words in the
+     pair (so a 3-word lesson still gets four choices). `POST /api/words/:id/cram` logs a
+     `ReviewEvent{source:"cram"}` and never touches FSRS. The quiz's list picker gained your HSK
+     levels (`?hsk=5&v=3.0`). Ways in: "Cram" on each set (Collections and the set page) and "Cram
+     my N cards" on an HSK level page. `scripts/check-cram.ts` passes; local run: a 3-word set,
+     one miss → 4 questions, 4 `cram` rows, due dates still null.
 
 8. **Undo the last grade in review.** Anki's most-used safety net: on a phone a mis-tap on Again or
    Easy silently reschedules the card, with no way back. Keep the card's state from before the

@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { api, type Word } from "@/lib/api";
+import { api, type HskVersion, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
-import { BookOpen, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput } from "lucide-react";
+import { BookOpen, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,20 +148,25 @@ function pickKind(w: Word, eligible: Word[]): QKind {
   return opts[Math.floor(Math.random() * opts.length)];
 }
 
-function buildSession(pool: Word[], flip: boolean, mode: QuizMode): Question[] {
+// A round is 8 questions from the pool. A cram round (BACKLOG "Cram a list now")
+// is every word in it, and its wrong options may come from outside the list
+// (`decoys`), so a five-word lesson still gets four choices.
+function buildSession(pool: Word[], flip: boolean, mode: QuizMode, decoys?: Word[]): Question[] {
   const eligible = pool.filter((w) => w.meaningZh);
+  const others = decoys ? decoys.filter((w) => w.meaningZh) : eligible;
+  const size = decoys ? pool.length : 8;
   if (mode === "cloze") {
     return shuffle(clozeEligible(pool))
-      .slice(0, 8)
-      .map((w) => makeQuestion(w, eligible, flip, "cloze"));
+      .slice(0, size)
+      .map((w) => makeQuestion(w, others, flip, "cloze"));
   }
   return shuffle(eligible)
-    .slice(0, 8)
+    .slice(0, size)
     .map((w) => {
-      let kind: QKind = mode === "mixed" ? pickKind(w, eligible) : mode;
-      if (kind === "choice" && eligible.length < 4) kind = "type"; // not enough distractors
+      let kind: QKind = mode === "mixed" ? pickKind(w, others) : mode;
+      if (kind === "choice" && others.length < 4) kind = "type"; // not enough distractors
       if (kind === "cloze" && !isClozeEligible(w)) kind = "type";
-      return makeQuestion(w, eligible, flip, kind);
+      return makeQuestion(w, others, flip, kind);
     });
 }
 
@@ -282,7 +287,7 @@ function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: 
 }
 
 export default function QuizPage() {
-  const { accountId } = useAccount();
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const qc = useQueryClient();
   const [flip, setFlip] = useFlip("vocab.flip.quiz");
@@ -306,6 +311,12 @@ export default function QuizPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [score, setScore] = useState(0);
+  // Cram: the whole list, a miss comes back at the end, and nothing is graded
+  // into the schedule. `decoys` are the wrong-option pool the round was built with.
+  const [cram, setCram] = useState(false);
+  const [misses, setMisses] = useState(0);
+  const [decoys, setDecoys] = useState<Word[]>([]);
+  const [listVersion, setListVersion] = useState<HskVersion | null>(null);
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
@@ -332,6 +343,22 @@ export default function QuizPage() {
     },
   });
 
+  // Right = Good, wrong = Again — except in cram, which only logs the answer and
+  // puts a missed word back at the end of the round until it's answered right.
+  function answer(q: Question, ok: boolean) {
+    if (ok) setScore((s) => s + 1);
+    if (!cram) {
+      review.mutate({ id: q.word.id, grade: ok ? 3 : 1 });
+      return;
+    }
+    // Fire and forget: a lost log row isn't worth interrupting the drill for.
+    api.cramWord(q.word.id, ok).catch(() => {});
+    if (!ok) {
+      setMisses((m) => m + 1);
+      setQuiz((qs) => [...qs, makeQuestion(q.word, decoys, flip, q.kind)]);
+    }
+  }
+
   // Keyboard shortcuts: 1–4 pick an answer (choice mode), Enter/Space continues
   // once answered. Registered before early returns so hook order stays stable.
   useEffect(() => {
@@ -352,35 +379,57 @@ export default function QuizPage() {
         if (opt === undefined) return;
         e.preventDefault();
         setSelected(opt);
-        const ok = opt === q.correct;
-        if (ok) setScore((s) => s + 1);
-        review.mutate({ id: q.word.id, grade: ok ? 3 : 1 });
+        answer(q, opt === q.correct);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [started, quiz, index, selected, mode, review]);
+    // `answer` is rebuilt every render; the deps re-bind the listener per question.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, quiz, index, selected, mode, cram, decoys, flip]);
 
+  // An HSK level is a list too: "hsk:4" picks your cards at that level, on the
+  // HSK list you target (3.0 until you pick one).
+  const hskVersion = listVersion ?? profile?.hskVersion ?? "3.0";
+  const hskOf = (w: Word) => w.hsk?.[hskVersion] ?? null;
+  const hskLevels = Array.from(new Set(words.map(hskOf).filter((n): n is number => n != null))).sort((a, b) => a - b);
+  const hskName = (n: number) => (n === 7 ? t("hsk.band79") : t("hsk.level", { n }));
   const inColl = (w: Word) =>
-    selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
+    selColl === "all" ||
+    (selColl.startsWith("hsk:") ? hskOf(w) === Number(selColl.slice(4)) : (w.collections ?? []).some((c) => c.id === selColl));
   const pool = words.filter((w) => w.meaningZh && sel.includes(pairKey(w)) && inColl(w));
 
-  // Preset the collection from a ?coll= deep link.
+  // Preset the list from a deep link — ?coll=<id> or ?hsk=<level> — and ?cram=1.
   useEffect(() => {
-    const c = new URLSearchParams(window.location.search).get("coll");
+    const q = new URLSearchParams(window.location.search);
+    const c = q.get("coll");
+    const h = q.get("hsk");
     if (c) setSelColl(c);
+    else if (h) setSelColl(`hsk:${h}`);
+    // The HSK page links with its own list, which may not be the one you target.
+    const v = q.get("v");
+    if (v === "2.0" || v === "3.0") setListVersion(v);
+    if (q.get("cram") === "1") setCram(true);
   }, []);
 
   const clozePool = clozeEligible(pool);
-  const canStart =
-    mode === "cloze" ? clozePool.length >= 1 : mode === "mixed" ? pool.length >= 1 : pool.length >= 4;
+  // Cram takes its wrong options from all your words in the pair, so one word is enough.
+  const canStart = cram
+    ? (mode === "cloze" ? clozePool : pool).length >= 1
+    : mode === "cloze" ? clozePool.length >= 1 : mode === "mixed" ? pool.length >= 1 : pool.length >= 4;
+  const roundSize = cram
+    ? (mode === "cloze" ? clozePool : pool).length
+    : Math.min(mode === "cloze" ? clozePool.length : pool.length, 8);
 
   function start() {
-    setQuiz(buildSession(pool, flip, mode));
+    const others = cram ? words.filter((w) => sel.includes(pairKey(w))) : [];
+    setDecoys(others);
+    setQuiz(buildSession(pool, flip, mode, cram ? others : undefined));
     setIndex(0);
     setSelected(null);
     setTyped("");
     setScore(0);
+    setMisses(0);
     setStarted(true);
   }
 
@@ -392,7 +441,7 @@ export default function QuizPage() {
       </div>
     );
 
-  if (words.length < 4)
+  if (words.length < (cram ? 1 : 4))
     return (
       <div className="mx-auto max-w-[480px] rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <BookOpen className="mx-auto h-8 w-8 text-sage" />
@@ -473,8 +522,8 @@ export default function QuizPage() {
             <QuizPreview pool={pool} flip={flip} mode={mode} />
           </div>
 
-          {/* 3. collection (optional) */}
-          {collections && collections.length > 0 && (
+          {/* 3. which list (optional): a collection or an HSK level */}
+          {((collections && collections.length > 0) || hskLevels.length > 0) && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.collection")}
@@ -483,19 +532,52 @@ export default function QuizPage() {
                 <QuickChip active={selColl === "all"} onClick={() => setSelColl("all")}>
                   {t("common.allWords")}
                 </QuickChip>
-                {collections.slice(0, 5).map((c) => (
+                {(collections ?? []).slice(0, 5).map((c) => (
                   <QuickChip key={c.id} active={selColl === c.id} onClick={() => setSelColl(c.id)}>
                     {c.name}
                   </QuickChip>
                 ))}
+                {hskLevels.map((n) => (
+                  <QuickChip key={n} active={selColl === `hsk:${n}`} onClick={() => setSelColl(`hsk:${n}`)}>
+                    {hskName(n)}
+                  </QuickChip>
+                ))}
               </div>
-              {collections.length > 5 && (
+              {collections && collections.length > 5 && (
                 <div className="mt-2">
                   <CollectionSelect options={collections} value={selColl} onChange={setSelColl} />
                 </div>
               )}
             </div>
           )}
+
+          {/* 4. cram: this list now, outside the schedule */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={cram}
+            onClick={() => setCram((v) => !v)}
+            className={cn(
+              "flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors",
+              cram ? "border-sage bg-sage-tint/60" : "border-black/[0.08] hover:border-sage/60",
+            )}
+          >
+            <Zap className={cn("mt-0.5 h-4 w-4 shrink-0", cram ? "text-sage-deep" : "text-ink-faint")} />
+            <span className="min-w-0 flex-1">
+              <span className={cn("block text-sm font-semibold", cram ? "text-sage-deep" : "text-ink-muted")}>
+                {t("quiz.cram")}
+              </span>
+              <span className="block text-[12px] leading-snug text-ink-faint">{t("quiz.cramDesc")}</span>
+            </span>
+            <span className={cn("relative mt-0.5 h-4 w-7 shrink-0 rounded-full transition-colors", cram ? "bg-sage" : "bg-black/15")}>
+              <span
+                className={cn(
+                  "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all duration-200",
+                  cram ? "left-3.5" : "left-0.5",
+                )}
+              />
+            </span>
+          </button>
         </div>
 
         <Button className="w-full" disabled={!canStart} onClick={start}>
@@ -504,8 +586,10 @@ export default function QuizPage() {
             : !canStart
               ? mode === "cloze"
                 ? t("quiz.needExamples")
-                : t("quiz.needFour")
-              : t("quiz.start", { n: Math.min(mode === "cloze" ? clozePool.length : pool.length, 8) })}
+                : cram
+                  ? t("quiz.cramEmpty")
+                  : t("quiz.needFour")
+              : t(cram ? "quiz.cramStart" : "quiz.start", { n: roundSize })}
         </Button>
 
         {/* direction — tucked away; word → meaning suits most people */}
@@ -537,6 +621,23 @@ export default function QuizPage() {
 
   const total = quiz.length;
 
+  if (index >= total && cram)
+    return (
+      <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+        <Confetti />
+        <Zap className="mx-auto h-9 w-9 text-sage" />
+        <h2 className="mt-4 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("quiz.cramDone")}</h2>
+        <p className="mt-2 text-ink-soft">{t("quiz.cramScore", { n: total - misses, m: misses })}</p>
+        <p className="mt-1 text-[13px] text-ink-faint">{t("quiz.cramUntouched")}</p>
+        <div className="mt-7 flex flex-wrap justify-center gap-2">
+          <Button onClick={start}>{t("quiz.cramAgain")}</Button>
+          <Button variant="dark" onClick={() => setStarted(false)}>
+            {t("review.backToSetup")}
+          </Button>
+        </div>
+      </div>
+    );
+
   if (index >= total)
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
@@ -558,16 +659,13 @@ export default function QuizPage() {
   function choose(opt: string) {
     if (selected !== null) return;
     setSelected(opt);
-    const ok = opt === q.correct;
-    if (ok) setScore((s) => s + 1);
-    review.mutate({ id: q.word.id, grade: ok ? 3 : 1 }); // Good on right, Again on wrong
+    answer(q, opt === q.correct);
   }
   function submitTyped() {
     if (selected !== null || !typed.trim()) return;
     const ok = norm(typed) === norm(q.correct);
     setSelected(ok ? q.correct : typed.trim());
-    if (ok) setScore((s) => s + 1);
-    review.mutate({ id: q.word.id, grade: ok ? 3 : 1 });
+    answer(q, ok);
   }
   function next() {
     setSelected(null);
@@ -585,7 +683,10 @@ export default function QuizPage() {
   return (
     <div className="mx-auto max-w-[620px]">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("quiz.title")}</h2>
+        <h2 className="flex items-center gap-2 font-serif text-[22px] font-medium text-ink sm:text-[28px]">
+          {cram && <Zap className="h-5 w-5 text-sage" />}
+          {cram ? t("quiz.cram") : t("quiz.title")}
+        </h2>
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setEditing(q.word)}

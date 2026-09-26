@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Folder, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { X, Pencil, GraduationCap, Target, FolderPlus, FolderOpen, Share2, Globe } from "lucide-react";
+import { X, Pencil, GraduationCap, Target, FolderPlus, FolderOpen, Share2, Globe, Zap } from "lucide-react";
 import { CollectionShare, VISIBILITY_ICON } from "@/components/CollectionShare";
 import { useDialog } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
@@ -344,6 +344,9 @@ function CollectionCard({
         </Action>
         <Action href={`/quiz?coll=${collection.id}`} disabled={count < 4} reason={t("col.needFour")}>
           <Target className="h-4 w-4" /> {t("col.quiz")}
+        </Action>
+        <Action href={`/quiz?coll=${collection.id}&cram=1`} disabled={count < 1} reason={t("col.needWords")}>
+          <Zap className="h-4 w-4" /> {t("quiz.cram")}
         </Action>
         <Action href={`/collections/${collection.id}`} variant="ghost">
           {t("col.open")} →

@@ -711,6 +711,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ grade, retention: readRetention(), source }),
     }),
+  // A cram answer: logged, never graded into the schedule (BACKLOG "Cram a list now").
+  cramWord: (id: string, correct: boolean) =>
+    http<{ ok: true }>(`/api/words/${id}/cram`, { method: "POST", body: JSON.stringify({ correct }) }),
   // A use-step answer: the learner said or wrote the word. Separate from review
   // on purpose — it moves the "can use" state and leaves the interval alone.
   recordProduction: (
