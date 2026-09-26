@@ -350,7 +350,12 @@ export interface TopicDaily {
 
 // A word of a browsed official list, with where the learner stands on it:
 // null = no card and never said they know it.
-export type HskListWord = HskWord & { status: "canUse" | "recognise" | "learning" | null; card: boolean };
+export type HskListWord = HskWord & {
+  status: "canUse" | "recognise" | "learning" | null;
+  card: boolean;
+  meaning: string | null; // the shared meaning in the learner's language, where there is one
+  toLearn: boolean; // they said they don't know it yet (the check, the sweep)
+};
 
 // Which surface graded an answer. Logged per review so the learner model can tell
 // "recognised it on a card" from "produced it in a sentence".

@@ -192,7 +192,13 @@ export function HskDaily() {
           {t("hskDaily.done", { n: data.words.length + topicWords.length })}
         </p>
       ) : (
-        <p className="mt-1.5 max-w-[560px] text-[13px] leading-relaxed text-ink-soft">{t("hskDaily.sub", { n: data.size })}</p>
+        <p className="mt-1.5 max-w-[560px] text-[13px] leading-relaxed text-ink-soft">
+          {t("hskDaily.sub", { n: data.size })}{" "}
+          {/* Tapping "I know it" on most of them every day is the sign a sweep would save time. */}
+          <Link href={`/hsk/${data.version}/${data.level}/sweep`} className="font-semibold text-sage-deep hover:text-sage">
+            {t("sweep.offer", { level: levelName })}
+          </Link>
+        </p>
       )}
 
       {data.words.length > 0 && (

@@ -1553,6 +1553,52 @@ const DICT: Record<string, Entry> = {
   },
   "hskDaily.review": { en: "Review now", ru: "Повторить сейчас", zh: "现在复习" },
 
+  // --- The sweep: mark what you already know, a screen at a time ---
+  "sweep.offer": {
+    en: "Know most of HSK {level}? Sweep it in a few minutes →",
+    ru: "Знаешь почти весь HSK {level}? Отметь за пару минут →",
+    zh: "HSK {level} 大部分都会？几分钟扫一遍 →",
+  },
+  "sweep.entry": { en: "Mark what I know", ru: "Отметить, что знаю", zh: "标出我认识的" },
+  "sweep.title": { en: "Sweep HSK {level}", ru: "Отметить HSK {level}", zh: "扫一遍 HSK {level}" },
+  "sweep.how": {
+    en: "Tap the words you don't know. The rest of the screen counts as known, and those words won't be offered to you again.",
+    ru: "Нажми на слова, которых не знаешь. Остальные на экране засчитаются как знакомые — их больше не будут предлагать.",
+    zh: "点你不认识的词。这一屏其余的算作认识，以后不再推给你。",
+  },
+  "sweep.screen": { en: "Screen {n} of {of}", ru: "Экран {n} из {of}", zh: "第 {n}/{of} 屏" },
+  "sweep.sofar": { en: "{known} known · {unknown} to learn", ru: "знаю: {known} · учить: {unknown}", zh: "认识 {known} · 要学 {unknown}" },
+  "sweep.pinyin": { en: "Pinyin", ru: "Пиньинь", zh: "拼音" },
+  "sweep.toLearn": { en: "to learn", ru: "учить", zh: "要学" },
+  "sweep.confirm": { en: "I know the other {n} →", ru: "Остальные {n} знаю →", zh: "其余 {n} 个都认识 →" },
+  "sweep.confirmNone": { en: "None of these yet →", ru: "Пока не знаю ни одного →", zh: "这些都还不认识 →" },
+  "sweep.stop": { en: "Stop here", ru: "Хватит", zh: "先到这" },
+  "sweep.checkWhy": {
+    en: "A quick check on one word you marked known",
+    ru: "Быстрая проверка одного слова, которое ты отметил",
+    zh: "抽查一个你标为认识的词",
+  },
+  "sweep.checkQ": { en: "What does it mean?", ru: "Что оно значит?", zh: "它是什么意思？" },
+  "sweep.checkMiss": {
+    en: "{word} means “{meaning}” — it goes to the words to learn.",
+    ru: "{word} — это «{meaning}». Добавим его к словам, которые надо выучить.",
+    zh: "{word} 是“{meaning}”的意思——放进要学的词里。",
+  },
+  "sweep.next": { en: "Next screen →", ru: "Следующий экран →", zh: "下一屏 →" },
+  "sweep.done": { en: "HSK {level} swept", ru: "HSK {level} отмечен", zh: "HSK {level} 扫完了" },
+  "sweep.nothingLeft": {
+    en: "Nothing left to sweep in HSK {level}",
+    ru: "В HSK {level} больше нечего отмечать",
+    zh: "HSK {level} 已经没有要扫的词了",
+  },
+  "sweep.doneSummary": {
+    en: "{known} marked known, {unknown} to learn — today's words will bring those first.",
+    ru: "Знакомых: {known}, учить: {unknown} — слова на сегодня начнут с них.",
+    zh: "认识 {known} 个，要学 {unknown} 个——今日生词会先给你这些。",
+  },
+  "sweep.toToday": { en: "To today's words", ru: "К словам на сегодня", zh: "去今日生词" },
+  "sweep.toList": { en: "HSK {level} list", ru: "Список HSK {level}", zh: "HSK {level} 列表" },
+
   // --- Topic words beside the exam words (BACKLOG 13b) ---
   "topic.offer": {
     en: "Add words from a field you follow — AI, business, travel…",

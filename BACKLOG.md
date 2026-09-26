@@ -299,12 +299,29 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       "arithmetic; algorithm" (67 ms cold, 5 ms after), 数据集 → "dataset"; 大模型 (not in
       CC-CEDICT) still goes to the model.
 
-13d. **A sweep instead of a big test.** So the daily words stop offering what the learner already
+13d. [x] **A sweep instead of a big test.** So the daily words stop offering what the learner already
     knows: a level as a grid of ~50 words a screen, tap only the ones you *don't* know; the rest are
     saved as known (`PlacementAnswer{known:true}`, what a rejection already writes). All of HSK 4 in
     about five minutes, because only the exceptions take a tap. Guard against over-claiming: now and
     then a swept word turns up in review as a spot check, and a miss makes it a card. Item 18's
     ladder still finds the level; this clears what's under it.
+    - **Shipped 2026-09-26.** `/hsk/[version]/[level]/sweep`: 32 characters a screen (4 wide, one
+      phone screen, pinyin off unless asked — it's a recognition claim), tap = "to learn", and one
+      confirm per screen in a bar above the tab bar ("I know the other 29 →"), never the whole
+      level at once. The guard moved *into* the sweep rather than into review: each confirm asks
+      what one claimed word means, four options from the list's own Russian meanings (no model);
+      a miss shows the meaning and sends the word to "to learn". Every screen is saved as it goes,
+      so "Stop here" loses nothing and a return resumes where it left off; `/api/hsk/list` now
+      carries `meaning` and `toLearn`, so a resumed sweep doesn't re-ask. "To learn" answers are
+      the ones the daily words already put first. Ways in: "Mark what I know" on a level page, and
+      "Know most of HSK 4? Sweep it in a few minutes →" in Today's words while words are waiting.
+      **Found on the way:** a `fixed` bar inside an `anim-fade-up` wrapper anchors to the wrapper
+      (the animation leaves a transform), so the confirm bar sat below the screen — not on this
+      wrapper now. `scripts/check-sweep.ts`: 36 known leave the daily words, the 4 to learn open
+      them, the list flags them. Local run at 390px as an HSK 4 learner: 3 tapped + a missed check
+      (丈夫 → «муж») = 4 to learn, 60 known over two screens; Today's words then open with those 4.
+    - Not done: the spot check inside review (the sweep's own check covers the over-claiming it
+      was for); pinyin-only knowledge isn't asked — a character you can say but not read is "to learn".
 
 13e. **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
     grading, but the keyboard only appears after /start or /help (older chats never got it), "➕

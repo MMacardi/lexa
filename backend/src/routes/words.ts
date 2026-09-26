@@ -26,6 +26,7 @@ import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
+import { prisma } from "../services/db.js";
 import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
 import {
   addWordForUser,
@@ -291,7 +292,11 @@ wordsRouter.get("/hsk/list", async (req, res) => {
   const telegramId = readSession(req)!;
   const version = asHskVersion(req.query.version) ?? "3.0";
   const level = Number(req.query.level) || 1;
-  res.json({ version, level, words: await hskListWords(telegramId, version, level) });
+  // Each word's shared meaning in the learner's language where there is one (Russian
+  // today) — the sweep's spot check asks for it, with no model call.
+  const native = (await prisma.user.findUnique({ where: { telegramId }, select: { nativeLang: true } }))?.nativeLang;
+  const words = (await hskListWords(telegramId, version, level)).map((w) => ({ ...w, meaning: defaultMeaning(w.word, native) }));
+  res.json({ version, level, words });
 });
 
 // ---------------- Collections ----------------

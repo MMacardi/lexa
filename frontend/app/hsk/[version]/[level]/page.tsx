@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Check, Plus, Zap } from "lucide-react";
+import { CalendarDays, Check, ListChecks, Plus, Zap } from "lucide-react";
 
 const PAGE = 120;
 
@@ -106,6 +106,7 @@ export default function HskLevelPage() {
 
   const have = data.words.filter((w) => w.status).length;
   const cards = data.words.filter((w) => w.card).length;
+  const unswept = data.words.filter((w) => !w.card && !w.status && !w.toLearn).length;
   const words = onlyNew ? data.words.filter((w) => !w.status) : data.words;
   const statusLabel = { canUse: t("hskList.canUse"), recognise: t("hskList.known"), learning: t("hskList.learning") };
 
@@ -124,6 +125,14 @@ export default function HskLevelPage() {
             <Button onClick={makeDaily} disabled={savingDaily}>
               <CalendarDays className="mr-2 h-4 w-4" /> {t("hskList.makeDaily")}
             </Button>
+          )}
+          {unswept > 0 && (
+            <Link
+              href={`/hsk/${version}/${level}/sweep`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
+            >
+              <ListChecks className="h-4 w-4 text-sage" /> {t("sweep.entry")}
+            </Link>
           )}
           {cards > 0 && (
             <Link

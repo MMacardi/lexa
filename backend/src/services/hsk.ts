@@ -209,7 +209,7 @@ export async function hskReadiness(telegramId: string, version: HskVersion, leve
   };
 }
 
-export type ListWord = HskWord & { status: WordStatus | null; card: boolean };
+export type ListWord = HskWord & { status: WordStatus | null; card: boolean; toLearn: boolean };
 
 /**
  * One level of an official list, read-only, with where the learner stands on
@@ -219,19 +219,23 @@ export type ListWord = HskWord & { status: WordStatus | null; card: boolean };
  */
 export async function hskListWords(telegramId: string, version: HskVersion, level: number): Promise<ListWord[]> {
   const n = clampLevel(version, level);
-  const [status, cards] = await Promise.all([
+  const [status, cards, told] = await Promise.all([
     learnerStatus(telegramId),
     prisma.word.findMany({ where: { user: { telegramId }, sourceLang: "zh" }, select: { word: true } }),
+    prisma.placementAnswer.findMany({ where: { user: { telegramId }, sourceLang: "zh", known: false }, select: { word: true } }),
   ]);
   // A word marked known in the check, or turned down in the daily words, has no
   // card, and the learner can still take it: only a card takes the "+" away.
   const carded = new Set(cards.map((c) => normalizeHanzi(c.word)));
+  // "I don't know it yet" (the check, the sweep): the sweep mustn't ask again.
+  const toLearn = new Set(told.map((p) => normalizeHanzi(p.word)));
   return hskLevelWords(version, n).map((w) => ({
     word: w.word,
     pinyin: w.pinyin,
     level: n,
     status: status.get(w.word) ?? null,
     card: carded.has(w.word),
+    toLearn: toLearn.has(w.word),
   }));
 }
 
