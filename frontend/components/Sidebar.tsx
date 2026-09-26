@@ -42,9 +42,10 @@ const ALL_NAV: NavItem[] = [
 ];
 
 // Focused (F7), the nav is the loop itself: Today · Words · Capture (the Reader).
-// Everything still in the build — coach, flashcards, recall, sets — moves under
-// "More"; the social tabs go entirely, since their pages are off too.
-const FOCUS_HIDDEN = ["/community", "/friends"];
+// Everything still in the build — coach, flashcards, recall, sets, friends — moves
+// under "More". Only Community (public discovery) stays off: friends came back on
+// 2026-09-26 — classmates on the same lesson are the one group that sharing serves.
+const FOCUS_HIDDEN = ["/community"];
 const FOCUS_MAIN = ["/", "/words", "/reader"];
 
 const NAV = FOCUS ? ALL_NAV.filter((n) => !FOCUS_HIDDEN.includes(n.href)) : ALL_NAV;

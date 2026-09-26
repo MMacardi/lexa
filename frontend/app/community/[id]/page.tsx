@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { notFound, useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flag, Plus } from "lucide-react";
 import { api, type DeckWord, type ReportReason } from "@/lib/api";
@@ -19,9 +19,10 @@ import { Segmented } from "@/components/ui/Segmented";
 
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 
+// One deck, read-only unless it's yours. The Community tab is still hidden by the
+// focus pass (F7), but this page isn't: it is where a share link and a friend's
+// profile lead, and "share a deck by link" is the one social piece STRATEGY §G kept.
 export default function DeckPage() {
-  // Hidden by the focus pass (F7) — the flag brings the page back untouched.
-  if (FOCUS) notFound();
   return (
     <Suspense fallback={<DeckSkeleton />}>
       <DeckView />
@@ -151,9 +152,10 @@ function DeckView() {
 
 function BackLink() {
   const { t } = useI18n();
+  // Focused, there's no Community to go back to; your sets are the nearest home.
   return (
-    <Link href="/community" className="text-sm font-semibold text-ink-soft hover:text-ink">
-      ← {t("nav.community")}
+    <Link href={FOCUS ? "/collections" : "/community"} className="text-sm font-semibold text-ink-soft hover:text-ink">
+      ← {t(FOCUS ? "nav.collections" : "nav.community")}
     </Link>
   );
 }

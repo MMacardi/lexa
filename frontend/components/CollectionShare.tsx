@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Segmented";
+import { FOCUS } from "@/lib/focus";
 
 export const VISIBILITY_ICON: Record<Visibility, LucideIcon> = {
   private: Lock,
@@ -15,7 +16,7 @@ export const VISIBILITY_ICON: Record<Visibility, LucideIcon> = {
   code: KeyRound,
   public: Globe,
 };
-const MODES: Visibility[] = ["private", "friends", "code", "public"];
+const ALL_MODES: Visibility[] = ["private", "friends", "code", "public"];
 
 /** Owner panel on a collection card: who can see it, its share link, its folder. */
 export function CollectionShare({
@@ -30,6 +31,9 @@ export function CollectionShare({
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const visibility = collection.visibility ?? "private";
+  // "Public" means listed in Community, which the focus pass keeps hidden — so it
+  // isn't offered there, unless a deck already is public and has to show as such.
+  const modes = ALL_MODES.filter((m) => !FOCUS || m !== "public" || visibility === "public");
 
   const update = useMutation({
     mutationFn: (patch: { visibility?: Visibility; folderId?: string | null }) => api.updateCollection(collection.id, patch),
@@ -48,12 +52,12 @@ export function CollectionShare({
         <Segmented
           grid
           tone="chips"
-          className="grid-cols-2 sm:grid-cols-4"
+          className={modes.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}
           itemClassName="px-2.5"
           value={visibility}
           // one change at a time: a second tap mid-save is ignored, not queued
           onChange={(m) => !update.isPending && m !== visibility && update.mutate({ visibility: m })}
-          options={MODES.map((m) => ({
+          options={modes.map((m) => ({
             value: m,
             label: t(`share.${m}`),
             Icon: VISIBILITY_ICON[m],

@@ -29,7 +29,8 @@ don't invent new ones.
 
 **Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
-session-sized item; 8–13 are small). 14–17 make a beta survivable. 18 waits on the test. 19–22 make
+session-sized item; 8–13 are small). 13b–d came out of the author's own use on 2026-09-26 — the
+kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 waits on the test. 19–22 make
 it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
@@ -230,6 +231,47 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       run: no card → a simulated prompt → card → Install calls `prompt()` → gone; an iPhone UA
       with a first visit yesterday → the steps (390px screenshot).
 
+13a. [x] **Friends and deck sharing back.** (2026-09-26, asked for directly.) STRATEGY §G kept "share
+    a deck by link", but F7 also hid the share button and 404'd the deck page, so every link already
+    sent was dead. Friends come back for the one group that sharing serves: classmates on the same
+    lesson.
+    - **Shipped 2026-09-26.** `/friends`, `/profile/[id]` and `/community/[id]` (the deck behind a
+      link or on a friend's profile) render with focus on; Friends sits under More. The share button
+      is back on each set: Only me / Friends / By code — "Public" (= listed in Community) is offered
+      only while Community is on, or for a deck already public. Community discovery stays hidden and
+      the deck page's back link goes to Collections. Local run with two accounts: a set shared by
+      code → the link opens for the other account, "Add deck" copies its 3 words;
+      `/friends?add=CODE` → request → accepted → friend card with the streak → profile.
+
+13b. **Topic words beside the exam words.** From the author's own use (2026-09-26): a decent HSK 4
+    who can't follow a talk in their own field. The words an AI conference is made of (算法, 模型,
+    训练, 数据集) are off the HSK lists or far above, and nothing brings them today: the daily drip
+    never leaves the list, and Mika's picks take at most 2–3 words from one level up (a deliberate
+    guard — a free model handed "work" HSK 7–9 business words).
+    - A topic track: a small share of the day (3–5 of it) from a topic the learner names, allowed
+      off-list, ranked by how often a word appears in real material on the topic and by whether
+      it's built from characters the learner already knows (数据 = 数 + 据) — that is what "usable
+      at my level" means in Chinese.
+    - Real text as the source, not the model's list: a transcript or article in the Reader → "make
+      this my topic" turns its new words into the topic pool (the Reader already counts them).
+    - Pairs with "A plan with a date" (Later): the exam track's daily number = gap ÷ days left.
+    - **Done when:** an HSK 4 learner who names "AI" and pastes one talk transcript gets 3 topic
+      words a day beside the HSK 4 ones, none already known, most of them made of known characters.
+
+13c. **A sweep instead of a big test.** So the daily words stop offering what the learner already
+    knows: a level as a grid of ~50 words a screen, tap only the ones you *don't* know; the rest are
+    saved as known (`PlacementAnswer{known:true}`, what a rejection already writes). All of HSK 4 in
+    about five minutes, because only the exceptions take a tap. Guard against over-claiming: now and
+    then a swept word turns up in review as a spot check, and a miss makes it a card. Item 18's
+    ladder still finds the level; this clears what's under it.
+
+13d. **A bot you don't need commands for.** It already has an 8-button reply keyboard and inline
+    grading, but the keyboard only appears after /start or /help (older chats never got it), "➕
+    Добавить слово" answers "send `add слово`", and reminders carry no buttons. Send the keyboard to
+    existing chats once, cut it to 4 buttons + "Ещё"; a single word (not a sentence — those still go
+    to the tutor) comes back as a card preview with [Добавить] [Не надо]; reminders get [Повторить N]
+    [Слова на сегодня]. **Done when:** a new user reviews and adds a word without typing a "/".
+
 14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
    the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
@@ -310,6 +352,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 24. **Recruiting list.** `[V2]` Where the 30–50 actually come from, named: which communities, which
     student groups, who introduces you. Not friends without a Chinese exam.
+
+24a. **A class deck: one link, the whole class gets the lesson.** One learner photographs this week's
+    list, instant capture makes the cards, the share link goes to the class chat, and each classmate
+    taps "add only what I don't have" — then Cram before the quiz. Missing: the link has to survive
+    the gate. A logged-out classmate lands on the landing page and the deck is lost; the link should
+    carry the deck through sign-up and count as their invite (`lib/gate.ts`). Item 24's recruiting
+    list in feature form, placed beside it on purpose: worth most once there is a class to send it to.
 
 25. **Kill-Test thresholds on `/admin`.** `[V3]` The funnel, rolling D1/D7/D30 and use-step quality
     already render (F1). Put the four thresholds next to the numbers — ≥50% activation, ≥20% week-4

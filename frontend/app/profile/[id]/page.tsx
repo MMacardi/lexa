@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Flame, GraduationCap, Lock, Repeat } from "lucide-react";
 import { api, type LearnerProfile, type Stats } from "@/lib/api";
@@ -10,7 +10,6 @@ import { useDailyGoal } from "@/lib/goal";
 import { errText } from "@/lib/errText";
 import { langFlag, langLabel } from "@/lib/langs";
 import { computeBadges } from "@/lib/achievements";
-import { FOCUS } from "@/lib/focus";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { DeckCard } from "@/components/DeckCard";
 import { ErrorState } from "@/components/ErrorState";
@@ -39,8 +38,6 @@ function asStats(s: NonNullable<LearnerProfile["stats"]>): Stats {
 }
 
 export default function ProfilePage() {
-  // Hidden by the focus pass (F7) — the flag brings the page back untouched.
-  if (FOCUS) notFound();
   const { id } = useParams<{ id: string }>();
   const { t, locale } = useI18n();
   const [goal] = useDailyGoal();

@@ -280,17 +280,16 @@ function CollectionCard({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {/* publishing a set is the other half of Community, so it waits with it (F7) */}
-              {!FOCUS && (
-                <button
-                  onClick={() => setSharing((v) => !v)}
-                  aria-label={t("share.title")}
-                  title={t("share.title")}
-                  className={cn("rounded-lg p-1.5 hover:bg-black/[0.04]", sharing ? "text-sage-deep" : "text-ink-faint")}
-                >
-                  <Share2 className="h-4 w-4" />
-                </button>
-              )}
+              {/* Share with friends or by link — STRATEGY §G's one kept piece of the
+                  social layer. Listing it in Community still waits with Community. */}
+              <button
+                onClick={() => setSharing((v) => !v)}
+                aria-label={t("share.title")}
+                title={t("share.title")}
+                className={cn("rounded-lg p-1.5 hover:bg-black/[0.04]", sharing ? "text-sage-deep" : "text-ink-faint")}
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setEditing(true)}
                 aria-label="Rename"
