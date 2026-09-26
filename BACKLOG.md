@@ -197,9 +197,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       (`lexa.playOnFlip`), hidden where the browser has no speech. Local run with `speak` wrapped:
       a flip says 网络@zh-CN once, flipping back says nothing, chip off → silent.
 
-11. **A "Paste" button in the Reader and Add word.** One tap reads the clipboard
+11. [x] **A "Paste" button in the Reader and Add word.** One tap reads the clipboard
     (`navigator.clipboard.readText`), Pleco's clipboard reader: text copied from WeChat or a site
     is one tap from being read, not a long-press and a menu. Small.
+    - **Shipped 2026-09-26.** `components/PasteButton.tsx`, shown only where the browser can read
+      the clipboard; a refused permission says to long-press instead. Reader: "Paste & read" first
+      in the tools row — straight into the reading view (`startReading(from)`), autosaved like a
+      typed text. Add word (page and the quick-add sheet): "Paste" beside "Write a character"
+      while the field is empty; takes the first line. Local run with a stubbed clipboard:
+      他打了三个小时篮球。→ reading view, 6 new; "篮球\nsecond line" → the field reads 篮球.
 
 12. **The streak and "today's goal done" on Today.** The count already exists (`stats.streak`) but
     lives only in the stats panel, hidden while focused. Just visibility — the freeze and the

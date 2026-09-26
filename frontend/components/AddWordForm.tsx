@@ -51,6 +51,7 @@ import { LangSelect } from "@/components/LangSelect";
 import { PairChip } from "@/components/PairChip";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { HandwritingPad } from "@/components/HandwritingPad";
+import { PasteButton } from "@/components/PasteButton";
 import { HskBadge } from "@/components/HskBadge";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
@@ -789,8 +790,10 @@ export function AddWordForm({
       {/* Drawing is a way in as common as typing for a character off a sign or a
           page, so it is a labelled button of its own under the field — as an icon
           squeezed between the field and "Add" nobody found it. */}
-      {(canDraw || (zhMode && !typedNow)) && (
+      {(canDraw || (zhMode && !typedNow) || !word.trim()) && (
         <div className="-mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {/* a word copied somewhere else: its first line, one tap */}
+          {!word.trim() && <PasteButton onPaste={(s) => typeWord(s.split(/\r?\n/)[0].trim())} disabled={busy} />}
           {canDraw && (
             <button
               type="button"

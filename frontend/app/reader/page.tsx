@@ -7,6 +7,7 @@ import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib
 import { downscaleImage } from "@/lib/image";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
+import { PasteButton } from "@/components/PasteButton";
 import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
@@ -530,18 +531,20 @@ export default function ReaderPage() {
     [],
   );
 
-  function startReading() {
-    if (!text.trim()) {
+  // `from`: a text that isn't in the box yet (Paste & read hands it straight over).
+  function startReading(from = text) {
+    if (!from.trim()) {
       show({ icon: "📖", title: t("reader.emptyText") });
       return;
     }
+    if (from !== text) setText(from);
     dictRef.current?.stop(); // leaving the input view — release the mic
     setSelected(new Set());
     setShowTr(false);
     setTextLevel(null); // a freshly pasted text has no level until it's saved
     setOpenText(null); // fresh paste → Save creates a new text, not an update
     setReading(true);
-    autosave(text.trim());
+    autosave(from.trim());
   }
 
   // Keep the text: an edit of the one already saved updates that row, anything
@@ -1162,11 +1165,16 @@ export default function ReaderPage() {
             onChange={(e) => scanPhotos(Array.from(e.target.files ?? []))}
           />
           {/* primary action */}
-          <Button onClick={startReading} disabled={!text.trim()} className="w-full">
+          <Button onClick={() => startReading()} disabled={!text.trim()} className="w-full">
             {t("reader.read")}
           </Button>
           {/* secondary tools — one compact chip row */}
           <div className="flex flex-wrap items-center gap-1.5">
+            <PasteButton
+              onPaste={(s) => startReading(s)}
+              label={t("reader.pasteRead")}
+              className="border-sage/40 text-xs text-sage-deep hover:bg-sage-tint/60"
+            />
             <ReaderTextTools sourceLang={sourceLang} targetLang={targetLang} onStartGen={startGen} />
             <button
               type="button"
