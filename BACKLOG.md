@@ -570,6 +570,10 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   for a neutral tone. One of 11,482 cards changes: 好处 was "hǎo chǔ, easy to get along with", now
   "hǎo chu, benefit" — the row on the screenshot.
 - `check-lookup.ts` +9 cases (slowest 28 ms); check-capture, check-segment, check-reader-coverage pass.
+- **Ranking stays tier first, then the easiest level** (decided 2026-09-26): ordering by usage or by
+  distance to `User.hskTarget` was weighed and left out. If it's ever wanted it only reorders rows
+  inside a tier (exact 90 > starts with the syllable 40 > partial 20 > another reading), so 好 can
+  never drop below 好处, and the HSK level already stands in for frequency. No usage data needed.
 
 ### Review: one tap from Today, time left, a grade you can feel (2026-09-26, asked for directly — "some good UI/UX")
 
