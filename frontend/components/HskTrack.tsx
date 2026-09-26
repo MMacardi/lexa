@@ -38,7 +38,9 @@ function readDismissed(): boolean {
   }
 }
 
-export function HskTrack() {
+// `withReadiness`: Today folds the mark away under "More on your progress" and
+// renders it there itself; elsewhere it stays under the daily words.
+export function HskTrack({ withReadiness = true }: { withReadiness?: boolean } = {}) {
   const { accountId, profile, refresh } = useAccount();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -68,7 +70,7 @@ export function HskTrack() {
     return (
       <>
         <HskDaily />
-        <HskReadiness />
+        {withReadiness && <HskReadiness />}
       </>
     );
 

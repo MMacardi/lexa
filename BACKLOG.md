@@ -349,13 +349,25 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     - Not checked in a real Telegram client (no way to tap from here): the look of the persistent
       keyboard on iOS/Android.
 
-13f. **Today, shorter.** Seen at 390px on 2026-09-26: Today is ~3,800 px. The due count shows four
+13f. [x] **Today, shorter.** Seen at 390px on 2026-09-26: Today is ~3,800 px. The due count shows four
     times (briefing, tile, the dark panel, the list at the bottom) and the briefing said "2 due"
     beside a tile saying 3; four stat tiles repeat the panel; the readiness mark is a full level
     table reading "0 of 3181" (item 18 already calls it misleading); Mika's picks is a second
     new-words card under Today's words. One due number with one button, Today's words, the goal
     ring with the streak, the rest folded ("More on your progress"). **Done when:** Today fits in
     about two phone screens and no number on it disagrees with another.
+    - **Shipped 2026-09-26.** Why the counts disagreed: the briefing counted reviewed cards only,
+      the tile every due card, and the session holds due reviews plus today's share of new ones.
+      Now one number, that last one, in one dark card — "15 cards ready · about 2 min" and "Start
+      review" (`/review?go=1`) — with the slipping-words drill as a line under it; when nothing is
+      due, one "All caught up" card that points at what's next. Then Today's words (HSK + topic),
+      then the goal ring with the streak. The stat tiles, the word of the day, the HSK readiness
+      table and the due list fold under "More on your progress · 32 words · 0 mastered" (closed).
+      Mika's picks leave Today for learners on the HSK track — Today's words and topic words
+      cover them; they stay on the Coach page, and on Today for everyone else. `CoachBriefing`
+      is gone, its logic folded into the card. Local run at 390px as an HSK 4 learner: 1,716 px
+      (≈2 screens, was ~3,800), Today says 15 and the review it opens holds 15; the fold opens
+      with the tiles, the word of the day, the readiness and the due list.
 
 14. **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
