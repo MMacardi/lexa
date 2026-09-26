@@ -309,6 +309,7 @@ authRouter.patch("/auth/me", async (req, res) => {
     retention?: number | null;
     hskVersion?: string | null;
     hskTarget?: number | null;
+    examDate?: Date | null;
   } = {};
   const privacy = (v: unknown) => (PRIVACY_LEVELS as readonly string[]).includes(v as string);
   if (typeof b.displayName === "string") data.displayName = b.displayName.trim().slice(0, 60) || null;
@@ -336,6 +337,9 @@ authRouter.patch("/auth/me", async (req, res) => {
     // 2.0 list that ends at 6. The readiness endpoint clamps again on read.
     data.hskTarget =
       prefs.data.hskTarget === null ? null : clampHskTarget(prefs.data.hskVersion ?? null, prefs.data.hskTarget);
+  }
+  if (prefs.data.examDate !== undefined) {
+    data.examDate = prefs.data.examDate === null ? null : new Date(`${prefs.data.examDate}T00:00:00Z`);
   }
   try {
     const user = await prisma.user.update({

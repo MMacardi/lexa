@@ -33,6 +33,14 @@ export const learnerPrefsSchema = z.object({
   // the pair is checked together below because "2.0 level 7" is not a thing.
   hskVersion: z.enum(HSK_VERSIONS).nullable().optional(),
   hskTarget: z.number().int().min(1).max(7).nullable().optional(),
+  // The exam day as the calendar picked it ("2026-11-22"). A past day is allowed:
+  // the plan says the date has gone by rather than the save failing.
+  examDate: z
+    .string()
+    .regex(/^20\d\d-\d\d-\d\d$/)
+    .refine((s) => !Number.isNaN(Date.parse(`${s}T00:00:00Z`)))
+    .nullable()
+    .optional(),
 });
 
 export type LearnerPrefs = z.infer<typeof learnerPrefsSchema>;
@@ -45,6 +53,7 @@ export const learnerPrefsSelect = {
   retention: true,
   hskVersion: true,
   hskTarget: true,
+  examDate: true,
 } as const;
 
 /** Keep the target on its list's ladder: HSK 2.0 has no level 7. */

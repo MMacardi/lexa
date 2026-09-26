@@ -36,6 +36,65 @@ function toBase64(buf: ArrayBuffer): string {
   return btoa(bin);
 }
 
+// Ends a take on the speaker's own pause instead of a second tap: speech, then
+// `silenceMs` of quiet, calls `onSilence` (as does `noSpeechMs` with no speech at
+// all). The room's own level over the first quarter second sets what counts as
+// speech. Returns the teardown. Where Web Audio is missing, it simply never fires
+// and the tap (or maxMs) ends the take as before.
+function watchSilence(stream: MediaStream, silenceMs: number, noSpeechMs: number, onSilence: () => void): () => void {
+  const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AC) return () => {};
+  let ctx: AudioContext;
+  try {
+    ctx = new AC();
+  } catch {
+    return () => {};
+  }
+  void ctx.resume?.().catch(() => {});
+  const src = ctx.createMediaStreamSource(stream);
+  const meter = ctx.createAnalyser();
+  meter.fftSize = 1024;
+  src.connect(meter);
+  const buf = new Float32Array(meter.fftSize);
+  const began = performance.now();
+  let floor = 0.01;
+  let spoke = false;
+  let quietSince = 0;
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    window.clearInterval(tick);
+    src.disconnect();
+    void ctx.close().catch(() => {});
+  };
+  const tick = window.setInterval(() => {
+    meter.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (const v of buf) sum += v * v;
+    const level = Math.sqrt(sum / buf.length);
+    const now = performance.now();
+    // Capped, so a word said the instant the mic opens isn't taken for the room.
+    if (now - began < 250) {
+      floor = Math.min(0.03, Math.max(floor, level));
+      return;
+    }
+    if (level > Math.max(0.015, floor * 2.5)) {
+      spoke = true;
+      quietSince = 0;
+    } else if (spoke) {
+      quietSince ||= now;
+      if (now - quietSince < silenceMs) return;
+      stop();
+      onSilence();
+    } else if (now - began >= noSpeechMs) {
+      stop();
+      onSilence();
+    }
+  }, 50);
+  return stop;
+}
+
 export interface Recording {
   /** Stop and resolve with the captured audio (base64 + format for /api/coach/stt). */
   stop(): Promise<{ base64: string; format: string }>;
@@ -44,10 +103,13 @@ export interface Recording {
 /**
  * Start recording. Resolves `start()` with a controller; `stop()` resolves with
  * the audio, or rejects with "denied" (mic permission) / "fail" / "empty".
- * Recording auto-stops after `maxMs`; the promise from `stop()` still resolves
- * with everything captured up to that point.
+ * Recording auto-stops after `maxMs`, or after `silenceMs` of quiet once the
+ * speaker has spoken; either way `onAutoStop` tells the caller to collect it with
+ * `stop()`, which resolves with everything captured up to that point.
  */
-export async function startRecording(opts: { maxMs?: number } = {}): Promise<Recording> {
+export async function startRecording(
+  opts: { maxMs?: number; silenceMs?: number; noSpeechMs?: number; onAutoStop?: () => void } = {},
+): Promise<Recording> {
   const maxMs = opts.maxMs ?? 20000;
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch((e) => {
     throw new Error(e?.name === "NotAllowedError" || e?.name === "SecurityError" ? "denied" : "fail");
@@ -66,13 +128,18 @@ export async function startRecording(opts: { maxMs?: number } = {}): Promise<Rec
   rec.start();
   const autoStop = setTimeout(() => {
     if (rec.state !== "inactive") rec.stop();
+    opts.onAutoStop?.();
   }, maxMs);
+  const unwatch = opts.silenceMs
+    ? watchSilence(stream, opts.silenceMs, opts.noSpeechMs ?? maxMs, () => opts.onAutoStop?.())
+    : () => {};
 
   let finishing: Promise<{ base64: string; format: string }> | null = null;
   const finish = () => {
     if (finishing) return finishing;
     finishing = (async () => {
       clearTimeout(autoStop);
+      unwatch();
       if (rec.state !== "inactive") rec.stop();
       await stopped;
       stream.getTracks().forEach((tr) => tr.stop());

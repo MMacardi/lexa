@@ -283,6 +283,8 @@ export interface Profile {
   // track got inferred from card languages instead (F11).
   hskVersion?: HskVersion | null;
   hskTarget?: number | null;
+  // The exam day (ISO; the day is the first 10 characters). Null = no date yet.
+  examDate?: string | null;
   // Set while the account waits out its deletion grace period (ISO date of the erase).
   deleteAfter?: string | null;
 }
@@ -295,6 +297,7 @@ export interface LearnerPrefs {
   retention?: number | null;
   hskVersion?: HskVersion | null;
   hskTarget?: number | null;
+  examDate?: string | null; // "2026-11-22"
 }
 
 // --- HSK lists and the readiness mark ---
@@ -318,6 +321,39 @@ export interface HskReadiness extends Omit<HskLevelReadiness, "level"> {
   version: HskVersion;
   level: number; // the target level these totals cover (everything up to it)
   levels: HskLevelReadiness[];
+}
+
+// The plan with a date (backend services/studyPlan.ts): the words left to the
+// target, what the exam day needs a day, and the paces — minutes a day, with the
+// day each one gets there. `exact` is false while part of `left` is an estimate.
+export interface StudyPace {
+  minutes: number;
+  words: number;
+  finish: string;
+  fits: boolean | null;
+}
+export interface StudyPlan {
+  version: HskVersion;
+  level: number;
+  today: string;
+  examDate: string | null;
+  daysLeft: number | null;
+  total: number;
+  left: number;
+  exact: boolean;
+  sweepLevel: number | null;
+  perDay: number | null;
+  need: number | null;
+  status: "done" | "noDate" | "passed" | "close" | "fits" | "tight";
+  pick: number | null;
+  paces: StudyPace[];
+  current: { words: number; minutes: number; finish: string };
+  lower: { level: number; minutes: number } | null;
+}
+
+/** The learner's calendar day, "2026-09-26" — the plan counts days from it, not the server's. */
+export function localDay(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** One headword off the official list, as the check and the gap deck return it. */
@@ -876,6 +912,7 @@ export const api = {
     if (level) q.set("level", String(level));
     return http<HskReadiness>(`/api/hsk/readiness${q.toString() ? `?${q}` : ""}`);
   },
+  hskPlan: () => http<StudyPlan>(`/api/hsk/plan?today=${localDay()}`),
   // The onboarding check: a sample of the list to tap through. The taps go back
   // via savePlacement, so the mark picks them up like any placement run.
   hskCheck: (version: HskVersion, level: number, size?: number) => {
@@ -893,6 +930,13 @@ export const api = {
   // (read-only HSK list data; backend routes/public.ts).
   publicHskCheck: (version: HskVersion, level: number, size: number) =>
     http<HskWordList>(`/api/public/hsk/check?${new URLSearchParams({ version, level: String(level), size: String(size) })}`),
+  // The plan's paces while the questions are still being asked: an estimate from
+  // the level the guest says they have.
+  publicHskPlan: (p: { version: HskVersion; level: number; known: number; examDate: string | null; daily: number }) => {
+    const q = new URLSearchParams({ version: p.version, level: String(p.level), known: String(p.known), daily: String(p.daily), today: localDay() });
+    if (p.examDate) q.set("examDate", p.examDate);
+    return http<StudyPlan>(`/api/public/hsk/plan?${q}`);
+  },
   publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number }) =>
     http<HskWordList>(`/api/public/hsk/deck`, { method: "POST", body: JSON.stringify(payload) }),
   // One level of an official list, read-only, with the learner's status per word.

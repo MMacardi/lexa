@@ -6,7 +6,7 @@ import { recognizeOnce, dictationSupported, speechLang, type DictationController
 import { recorderSupported, startRecording, type Recording } from "@/lib/record";
 import { resolveMicEngine } from "@/lib/micEngine";
 import { markMicBrowserFailed } from "@/lib/learnPrefs";
-import { scorePronunciation, type PronounceScore } from "@/lib/pronounce";
+import { preloadScoring, scorePronunciation, scoreSpoken, type PronounceScore } from "@/lib/pronounce";
 import { useI18n } from "@/lib/i18n";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,9 @@ import { usePresence } from "@/lib/motion";
 // learner's mic pref: the browser recogniser where it works, else our server STT
 // (qwen3-asr) — which is what finally makes this work on iPhone and in mainland China.
 // Renders nothing when neither engine is available.
+//
+// No second tap: the browser engine ends the moment it hears the word, the
+// recording when the speaker pauses after it.
 export function PronounceButton({
   text,
   lang,
@@ -102,13 +105,15 @@ export function PronounceButton({
     const ctrl = recognizeOnce({
       lang: speechLang(lang),
       onInterim: setInterim,
+      // Heard it: stop now, don't wait out the engine's end-of-speech pause.
+      accept: (heard) => scorePronunciation(text, [heard]).band === "great",
       onResult: (cands) => {
         setInterim("");
         if (!cands.length) {
           setErr(t("pron.nothing"));
           return;
         }
-        setResult(scorePronunciation(text, cands));
+        void scoreSpoken(text, cands, lang).then((r) => mountedRef.current && setResult(r));
       },
       onError: (kind) => {
         // Browser recogniser failed — make "auto" prefer the server engine next time.
@@ -129,7 +134,7 @@ export function PronounceButton({
 
   const startServer = async () => {
     try {
-      const rec = await startRecording({ maxMs: 8000 });
+      const rec = await startRecording({ maxMs: 6000, silenceMs: 700, onAutoStop: () => void stopServer() });
       if (!mountedRef.current) {
         rec.stop().catch(() => {});
         return;
@@ -156,7 +161,7 @@ export function PronounceButton({
         setErr(t("pron.nothing"));
         return;
       }
-      setResult(scorePronunciation(text, [transcript]));
+      setResult(await scoreSpoken(text, [transcript], lang));
     } catch (e) {
       if (!mountedRef.current) return;
       const msg = (e as Error)?.message ?? "";
@@ -178,6 +183,7 @@ export function PronounceButton({
     setErr(null);
     setInterim("");
     const eng = resolveMicEngine();
+    preloadScoring(lang);
     if (eng === "none") {
       setErr(t("pron.unsupported"));
       return;
@@ -205,7 +211,10 @@ export function PronounceButton({
         {t(bandKey)} · {Math.round(result.score * 100)}%
       </span>
       {result.heard && (
-        <span className="mt-0.5 block text-[12px] text-ink-faint">{t("pron.heard", { heard: result.heard })}</span>
+        <span className="mt-0.5 block text-[12px] text-ink-faint">
+          {t("pron.heard", { heard: result.heard })}
+          {result.heardPinyin && <span className="text-ink-soft"> · {result.heardPinyin}</span>}
+        </span>
       )}
       <button type="button" onClick={start} className="mt-1.5 text-[12px] font-semibold text-sage hover:text-sage-deep">
         {t("pron.again")}

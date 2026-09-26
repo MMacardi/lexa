@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type HskVersion, type HskWord } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -15,6 +15,7 @@ import { langFlag, langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { HskWordChip } from "@/components/HskWordChip";
+import { ExamCalendar, formatDay, shortDay } from "@/components/ExamCalendar";
 import { prefetchCoachPicks } from "@/components/CoachPicks";
 import {
   BookOpen,
@@ -89,7 +90,7 @@ const BUILD_STEP_MS = 850;
 
 type Icon = ComponentType<{ className?: string }>;
 
-const GOALS: { id: string; Icon: Icon }[] = [
+export const GOALS: { id: string; Icon: Icon }[] = [
   { id: "exam", Icon: GraduationCap },
   { id: "study", Icon: School },
   { id: "work", Icon: Briefcase },
@@ -103,10 +104,7 @@ const GOALS: { id: string; Icon: Icon }[] = [
 // learner starting from zero skips the check: there is nothing to check yet.
 const LEVELS: Icon[] = [Sprout, Leaf, MessageCircle, MessagesSquare, BookOpen, Newspaper];
 
-const EXAMS = ["none", "3", "6", "12", "later"] as const;
-type Exam = (typeof EXAMS)[number];
-
-const INTERESTS: { id: string; Icon: Icon }[] = [
+export const INTERESTS: { id: string; Icon: Icon }[] = [
   { id: "food", Icon: UtensilsCrossed },
   { id: "travel", Icon: Plane },
   { id: "tech", Icon: Cpu },
@@ -121,15 +119,19 @@ const INTERESTS: { id: string; Icon: Icon }[] = [
   { id: "fashion", Icon: Shirt },
 ];
 
-const DAILY: { n: number; Icon: Icon }[] = [
-  { n: 5, Icon: Leaf },
-  { n: 10, Icon: Footprints },
-  { n: 15, Icon: Flame },
-  { n: 20, Icon: Zap },
+// The pace, in minutes a day (BACKLOG "A plan with a date"): what a person plans a
+// day around. The words it holds and the day it gets them there come from the
+// plan (backend services/studyPlan.ts, the same numbers Today and Settings show);
+// these are only the fallback while that loads.
+const MIN_PER_WORD = 1.25;
+const PACES: { m: number; Icon: Icon }[] = [
+  { m: 10, Icon: Leaf },
+  { m: 15, Icon: Footprints },
+  { m: 20, Icon: Flame },
+  { m: 30, Icon: Zap },
 ];
-// Words a day that make a target reachable by the exam, roughly: a closer date
-// asks for more. Only a suggestion — it is tagged, not chosen for them.
-const DAILY_FOR_EXAM: Record<Exam, number> = { none: 10, "3": 20, "6": 15, "12": 10, later: 10 };
+const wordsFor = (m: number) => Math.floor(m / MIN_PER_WORD);
+const minutesFor = (n: number) => Math.max(5, Math.ceil((n * MIN_PER_WORD) / 5) * 5);
 
 // The answers, kept on the device between the questions (asked before sign-in,
 // the way phone apps do it) and the account they end up on. Cleared once the
@@ -142,7 +144,7 @@ type Answers = {
   known: number | null;
   version: HskVersion;
   target: number;
-  exam: Exam;
+  examDate?: string | null;
   interests: string[];
   daily: number;
 };
@@ -164,6 +166,7 @@ export type GuestPlan = {
   native: string;
   version: HskVersion;
   target: number;
+  examDate?: string | null; // "2026-11-22"; older saved plans have none
   daily: number;
   goal: string; // coach memory, in the interface language they answered in
   likes: string;
@@ -285,9 +288,9 @@ export function HskFirstRun({
   const [known, setKnown] = useState<number | null>(saved?.known ?? null); // self-rated level, 0–5
   const [version, setVersion] = useState<HskVersion>(saved?.version ?? "3.0");
   const [target, setTarget] = useState(saved?.target ?? 4);
-  const [exam, setExam] = useState<Exam>(saved?.exam ?? "none");
+  const [examDate, setExamDate] = useState<string | null>(saved?.examDate ?? null);
   const [interests, setInterests] = useState<Set<string>>(new Set(saved?.interests ?? []));
-  const [daily, setDaily] = useState(saved?.daily ?? 10);
+  const [daily, setDaily] = useState(saved?.daily ?? wordsFor(15));
 
   const [step, setStep] = useState<Step>(saved ? "plan" : "lang");
   const [busy, setBusy] = useState(false);
@@ -302,7 +305,6 @@ export function HskFirstRun({
   const level = CEFR_FOR_HSK[target] ?? "B1";
   const levelName = target === 7 ? "7–9" : String(target);
   const fromZero = known === 0;
-  const recommended = DAILY_FOR_EXAM[exam];
   const steps = guest ? GUEST_STEPS : STEPS;
   const idx = steps.indexOf(step);
   // Back is offered through the questions (and, before sign-in, from the check).
@@ -327,6 +329,17 @@ export function HskFirstRun({
     apply();
     window.setTimeout(() => go(next), 180);
   };
+  // The plan's paces for these answers: an estimate from the self-rated level
+  // (the check hasn't run yet), with the day each pace gets there and which one
+  // fits the exam date. Public, so the questions before sign-in get it too.
+  const { data: plan } = useQuery({
+    queryKey: ["onbPlan", version, target, known, examDate],
+    queryFn: () => api.publicHskPlan({ version, level: target, known: known ?? 0, examDate, daily }),
+    enabled: step === "daily" || step === "plan" || step === "ready",
+    staleTime: 60_000,
+  });
+  const paceMinutes = plan?.paces.find((p) => p.words === daily)?.minutes ?? minutesFor(daily);
+
   const toggleIn = (set: Set<string>, id: string) => {
     const next = new Set(set);
     if (next.has(id)) next.delete(id);
@@ -334,16 +347,14 @@ export function HskFirstRun({
     return next;
   };
 
-  // What the coach memory keeps: the reasons (the exam one carries the target and
-  // the date) and the interests, in the learner's own interface language — it is
-  // shown back to them on the Coach, and the model reads any language.
+  // What the coach memory keeps: the reasons and the interests, in the learner's
+  // own interface language — shown back to them as chips in Settings, and the
+  // model reads any language. The level and the exam day are not in it: they are
+  // fields on the account, which the coach reads fresh (a "1–3 months" written
+  // here went stale the week after).
   function memoryText() {
     const goal = GOALS.filter((g) => goals.has(g.id))
-      .map((g) =>
-        g.id === "exam"
-          ? `HSK ${levelName}${exam !== "none" ? ` (${t(`onb.exam.${exam}`)})` : ""}`
-          : t(`onb.goal.${g.id}`),
-      )
+      .map((g) => t(`onb.goal.${g.id}`))
       .join(", ");
     const likes = INTERESTS.filter((i) => interests.has(i.id))
       .map((i) => t(`onb.int.${i.id}`))
@@ -410,6 +421,7 @@ export function HskFirstRun({
       native,
       version,
       target,
+      examDate,
       daily,
       goal,
       likes,
@@ -446,7 +458,9 @@ export function HskFirstRun({
       } catch {
         /* ignore */
       }
-      void api.updateLearnerPrefs({ hskVersion: version, hskTarget: target, nativeLang: native, dailyGoal: daily }).catch(() => {});
+      void api
+        .updateLearnerPrefs({ hskVersion: version, hskTarget: target, examDate, nativeLang: native, dailyGoal: daily })
+        .catch(() => {});
       const { goal, likes } = memoryText();
       // The Coach's "Words for you" are made now, while the check runs, so Today has
       // them waiting — after the memory lands, so they follow the goal.
@@ -544,12 +558,12 @@ export function HskFirstRun({
         <Target className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
         <span>
           <span className="font-semibold">{t("onb.planTarget", { level: levelName, list: version })}</span>
-          {exam !== "none" && <span className="text-ink-soft"> · {t(`onb.exam.${exam}`)}</span>}
+          {examDate && <span className="text-ink-soft"> · {formatDay(examDate, locale)}</span>}
         </span>
       </li>
       <li className="flex items-start gap-3 text-[14px] text-ink">
         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
-        {t("onb.planDaily", { n: daily })}
+        {t("onb.planDaily", { m: paceMinutes, n: daily })}
       </li>
       <li className="flex items-start gap-3 text-[14px] text-ink">
         <Languages className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
@@ -687,25 +701,8 @@ export function HskFirstRun({
             </div>
 
             <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("onb.examTitle")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {EXAMS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => {
-                    setExam(e);
-                    setDaily(DAILY_FOR_EXAM[e]);
-                  }}
-                  aria-pressed={e === exam}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition-colors",
-                    e === exam ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink hover:bg-black/[0.03]",
-                  )}
-                >
-                  {e !== "none" && <CalendarDays className="h-3.5 w-3.5" />}
-                  {t(`onb.exam.${e}`)}
-                </button>
-              ))}
+            <div className="mt-2 max-w-[360px]">
+              <ExamCalendar value={examDate} onChange={setExamDate} />
             </div>
 
             <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("hsk.list")}</p>
@@ -770,22 +767,35 @@ export function HskFirstRun({
         {step === "daily" && (
           <>
             {heading(t("onb.dailyTitle"), t("onb.dailySub"))}
+            {plan?.status === "tight" && plan.need && (
+              <p className="-mt-1 mb-3 rounded-[12px] bg-warn-bg px-3 py-2 text-[13px] leading-snug text-warn-text">
+                {t(fromZero ? "onb.paceTightZero" : "onb.paceTight", { m: plan.need })}
+              </p>
+            )}
             <div className="space-y-2">
-              {DAILY.map(({ n, Icon }) => (
-                <Choice
-                  key={n}
-                  Icon={Icon}
-                  on={daily === n}
-                  onClick={() => {
-                    if (!guest) return pickThen(() => setDaily(n), "plan");
-                    setDaily(n);
-                    window.setTimeout(guestNext, 180);
-                  }}
-                  label={`${t(`onb.daily.${n}`)} · ${t("onb.dailyN", { n })}`}
-                  desc={t("onb.dailyTime", { m: n })}
-                  tag={exam !== "none" && n === recommended ? t("onb.recommended") : undefined}
-                />
-              ))}
+              {PACES.map(({ m, Icon }) => {
+                const p = plan?.paces.find((x) => x.minutes === m);
+                const words = p?.words ?? wordsFor(m);
+                return (
+                  <Choice
+                    key={m}
+                    Icon={Icon}
+                    on={daily === words}
+                    onClick={() => {
+                      if (!guest) return pickThen(() => setDaily(words), "plan");
+                      setDaily(words);
+                      window.setTimeout(guestNext, 180);
+                    }}
+                    label={`${t("plan.min", { m })} · ${t(`onb.pace.${m}`)}`}
+                    desc={
+                      p
+                        ? `${t("plan.words", { n: words })} · HSK ${levelName} ${t("plan.by", { date: shortDay(p.finish, locale) })}`
+                        : t("plan.words", { n: words })
+                    }
+                    tag={plan?.pick === m ? t("onb.recommended") : undefined}
+                  />
+                );
+              })}
             </div>
           </>
         )}

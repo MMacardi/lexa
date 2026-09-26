@@ -16,6 +16,10 @@ export interface CoachProfile {
   goal: string;
   interests: string;
   notes: string;
+  // Chinese only: the exam from the account's own fields (target, list, day), so
+  // the prompt always has today's version — the goal text used to carry "HSK 4
+  // (in 1–3 months)", which was stale the week after onboarding wrote it.
+  exam?: string;
 }
 
 const NOTES_CAP = 900; // keep the injected summary compact + cheap
@@ -23,13 +27,17 @@ const EMPTY: CoachProfile = { goal: "", interests: "", notes: "" };
 
 /** Never throws: a missing user or a missing row for that language is just "nothing known yet". */
 export async function getProfile(telegramId: string, lang: string): Promise<CoachProfile> {
-  const u = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  const u = await prisma.user.findUnique({
+    where: { telegramId },
+    select: { id: true, hskVersion: true, hskTarget: true, examDate: true },
+  });
   if (!u) return EMPTY;
   const m = await prisma.coachMemory.findUnique({
     where: { userId_lang: { userId: u.id, lang } },
     select: { goal: true, interests: true, notes: true },
   });
-  return m ? { goal: m.goal, interests: m.interests, notes: m.notes } : EMPTY;
+  const p = m ? { goal: m.goal, interests: m.interests, notes: m.notes } : EMPTY;
+  return lang === "zh" && u.hskTarget ? { ...p, exam: examLine(u.hskTarget, u.hskVersion, u.examDate) } : p;
 }
 
 export async function updateProfile(
@@ -64,8 +72,17 @@ export async function updateProfile(
  * A compact "about this learner" preamble to prepend to a prompt. Returns "" when
  * nothing is known yet, so prompts stay lean for new users.
  */
+function examLine(target: number, version: string | null, day: Date | null): string {
+  const level = `HSK ${target === 7 ? "7–9" : target}${version ? ` (${version} list)` : ""}`;
+  if (!day) return `${level}, no date set`;
+  const days = Math.ceil((day.getTime() - Date.now()) / 86_400_000);
+  const iso = day.toISOString().slice(0, 10);
+  return days >= 0 ? `${level} on ${iso}, ${days} days from now` : `${level}; the date set (${iso}) has passed`;
+}
+
 export function profilePreamble(p: CoachProfile, lang: string): string {
   const lines: string[] = [];
+  if (p.exam) lines.push(`- Exam: ${p.exam}`);
   if (p.goal.trim()) lines.push(`- Goal: ${p.goal.trim()}`);
   if (p.interests.trim()) lines.push(`- Interests / topics they like: ${p.interests.trim()}`);
   if (p.notes.trim()) lines.push(`- What you've learned about them (mistakes, level, preferences): ${p.notes.trim()}`);

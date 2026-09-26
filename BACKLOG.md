@@ -29,7 +29,7 @@ don't invent new ones.
 
 **Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
-session-sized item; 8–13 are small). 13b–f came out of the author's own use on 2026-09-26 — the
+session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 waits on the test. 19–22 make
 it legal and named. 23–26 make the result mean something. 27+ is after that.
 
@@ -369,6 +369,53 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       (≈2 screens, was ~3,800), Today says 15 and the review it opens holds 15; the fold opens
       with the tiles, the word of the day, the readiness and the due list.
 
+13g. [x] **A plan with a date.** (Moved up from Later, 2026-09-26, from the author's own use.) The goal
+    was a line of text in Settings — "HSK 4 (через 1–3 месяца), Учёба в Китае" — written once by
+    onboarding, stale the week after ("1–3 months" never ages), and changeable only by retyping it.
+    The words-a-day number was a guess from the bucket (20/15/10), blind to what the learner knows.
+    **Done when:** the exam is a day on a calendar, the plan says what it takes in minutes a day,
+    and a date no pace reaches says so and offers a way out instead of "48 words a day".
+    - **Shipped 2026-09-26.** `User.examDate` (migration `exam_date`), saved from a month-grid
+      calendar (`ExamCalendar`) in onboarding and in the plan. `services/studyPlan.ts` +
+      `GET /api/hsk/plan` (and `/api/public/hsk/plan` for the questions before sign-in): the words
+      left to the target, priced per level by the check's sample (a level with no sample borrows a
+      harder level's rate; none → unknown), a review stretch before the exam with no new words
+      (a tenth of the time, 3–14 days), and four paces — 10/15/20/30 min a day at 1.25 min per daily
+      word (the first meeting plus its reviews), each with the day it gets the learner *ready* and
+      whether that is by the exam. 30 min is the ceiling: past it the plan says "≈75 min a day —
+      too much" and offers a sweep of the level where it would settle the most words, the highest
+      level that does fit ("HSK 4 by this date: 30 min a day"), or 30 min and its later date.
+    - Where it shows: a line under "Today's words" ("HSK 4 к 28 нояб. · 30 мин в день", amber when
+      behind or out of reach) that opens the plan in place; Settings → "What Onomika knows" for
+      Chinese is the plan (level chips, list, calendar, paces) plus the reasons and interests as the
+      onboarding chips — read back from the stored text in any interface language, the old "HSK 4
+      (…)" folded into "Сдать HSK", unknown pieces kept as their own chip. Onboarding asks the day
+      on the calendar and the pace in minutes, with "For your date" on the one that fits (a warning
+      when none does). The coach reads the exam from the account ("HSK 4 (3.0 list) on 2026-11-28,
+      63 days from now"), not from the goal text. `t()` learned plurals: `{n:слово|слова|слов}`.
+    - `scripts/check-plan.ts` (23 checks): the cold HSK 4 gap vs the sampled one, borrowing, dates
+      that passed or are too close, the fit tag agreeing with the ready day, no sweep of a known
+      level or above an unknown one, the account's date round trip, a sweep shrinking the plan.
+      Local run at 390px through the whole onboarding (HSK 3 → HSK 4, 28 Nov → 30 min fits, check,
+      deck), Today's line and plan, Settings with a legacy goal text, HSK 6 → the out-of-reach
+      advice → "HSK 4 by this date" → a new date on the calendar.
+
+13h. [x] **Say the word once.** From the author's own use (2026-09-26): the pronunciation check heard
+    一切 said once, kept listening, heard it again and scored "一切一切" 50% "not quite" — Chinese
+    has no spaces, so the "target inside the phrase" rule never fired, and the Web Speech engine
+    waits seconds for its own end-of-speech. Now the word inside what was heard (said twice, inside
+    a phrase) counts; for Chinese the pinyin with tones is compared too, so a homophone the engine
+    spelled differently counts and a wrong tone reads "close" with the heard pinyin shown ("yì qiě");
+    the browser engine stops the moment the live text is the word (or at the first final result,
+    7 s at most); the recorder (iPhone, China) stops on 0.7 s of quiet after speech instead of a
+    second tap, and its 6 s limit now ends the take instead of leaving the button "listening".
+    Scoring checked on the cases above; the silence stop is not yet tried on a real phone.
+
+13i. [x] **Less hand-holding copy.** (2026-09-26.) The bot's sign-in reply said "Вернись в браузер (на
+    iPhone — «◀ Safari» вверху слева): вкладка Onomika войдёт сама" — now "Вход подтверждён." Settings
+    lost "memory is kept separately for each language — …" and the other hints got one clause each;
+    Today's words lost "it won't come back" and friends. New copy in this pass says the thing once.
+
 14. [x] **A grace period on account deletion.** `[H5]` The delete shipped as a hard delete — one
    confirmation and the rows are gone. That optimised for the privacy promise and gave no weight to
    the misclick, which is the wrong balance for a beta where the author is also user #1. Soft-delete
@@ -526,10 +573,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 ## Later — only after the retention test passes
 
 - **Weekly recap**, reshaped as the "know → can use" report + next week's gap words. `[10]`
-- **A plan with a date** (Busuu's Study Plan). Onboarding asks when the exam is but keeps it only in
-  the coach-memory goal text: store it, and show "at 15 words a day you cover HSK 4 by 12 March" on
-  Today, recomputed from the readiness gap; suggest a higher daily goal when the date slips.
-  `[competitor pass 2026-09-25]`
+- **The plan nudges when it slips** (the rest of "A plan with a date", 13g): a reminder when the
+  pace in use stops reaching the date, and the bot saying the plan's line. `[competitor pass]`
 - **Stroke order and character parts on the word page.** Hanzi Writer (MIT, loads its own stroke
   data) for the animation and a practice-writing mode — HSK 3.0 adds handwriting. Parts that give the
   sound vs the meaning (Outlier's idea) from Make Me a Hanzi; check its dictionary licence first.

@@ -45,7 +45,10 @@ export interface PronounceScore {
   score: number; // 0..1 similarity of the best-matching candidate
   heard: string; // that candidate, as the engine returned it
   band: PronounceBand;
+  heardPinyin?: string; // Chinese: what was heard, with the tones it was heard in
 }
+
+const HAN = /\p{Script=Han}/u;
 
 /**
  * Best similarity between `target` and any of the recogniser's `candidates`.
@@ -62,6 +65,9 @@ export function scorePronunciation(target: string, candidates: string[]): Pronou
     const cand = normalize(c);
     let s = ratio(tgt, cand);
     if (single && cand.split(" ").includes(tgt)) s = Math.max(s, 0.97);
+    // Chinese has no spaces to find the word between: said twice ("一切一切") or
+    // inside a phrase, it is still the word said.
+    if (HAN.test(tgt) && cand.includes(tgt)) s = Math.max(s, 0.97);
     if (s > best) {
       best = s;
       heard = c;
@@ -69,4 +75,48 @@ export function scorePronunciation(target: string, candidates: string[]): Pronou
   }
   const band: PronounceBand = best >= 0.85 ? "great" : best >= 0.6 ? "close" : "off";
   return { score: best, heard: heard.trim(), band };
+}
+
+// Share of the target's syllables heard, in order, at the best spot: the right
+// syllable in the right tone scores 1, the right syllable in another tone 0.65 —
+// "close", not "off": the sounds were there, the tone is what to fix.
+function syllableScore(target: string[], heard: string[]): number {
+  if (!target.length || !heard.length) return 0;
+  let best = 0;
+  for (let i = 0; i <= Math.max(0, heard.length - target.length); i++) {
+    let sum = 0;
+    target.forEach((syl, j) => {
+      const h = heard[i + j];
+      if (!h) return;
+      if (h === syl) sum += 1;
+      else if (h.replace(/\d/, "") === syl.replace(/\d/, "")) sum += 0.65;
+    });
+    best = Math.max(best, sum / target.length);
+  }
+  return best;
+}
+
+/**
+ * The score for a spoken attempt. For Chinese it also compares the sounds: the
+ * recogniser picks characters, and a homophone it wrote down (the right syllables
+ * in the right tones) is the word pronounced right. It also returns the pinyin of
+ * what was heard, so a wrong tone shows. pinyin-pro loads only when it's needed.
+ */
+export async function scoreSpoken(target: string, candidates: string[], lang: string): Promise<PronounceScore> {
+  const base = scorePronunciation(target, candidates);
+  if (!(lang === "zh" || lang === "zh-Hant") || !HAN.test(target)) return base;
+  const { pinyin } = await import("pinyin-pro");
+  const syl = (text: string) => pinyin(text, { toneType: "num", type: "array", nonZh: "removed" }).filter(Boolean);
+  const want = syl(target);
+  let best = base;
+  for (const c of candidates) {
+    const s = syllableScore(want, syl(c)) * 0.97;
+    if (s > best.score) best = { score: s, heard: c.trim(), band: s >= 0.85 ? "great" : s >= 0.6 ? "close" : "off" };
+  }
+  return best.heard ? { ...best, heardPinyin: pinyin(best.heard, { toneType: "symbol", nonZh: "removed" }) } : best;
+}
+
+/** Warm pinyin-pro while the learner is still speaking, so the score isn't waiting on it. */
+export function preloadScoring(lang: string) {
+  if (lang === "zh" || lang === "zh-Hant") void import("pinyin-pro");
 }

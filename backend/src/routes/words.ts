@@ -28,6 +28,7 @@ import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
 import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
+import { isoDay, planForUser } from "../services/studyPlan.js";
 import {
   addWordForUser,
   addWordManual,
@@ -224,6 +225,15 @@ wordsRouter.get("/hsk/readiness", async (req, res) => {
   // Session only: requireIdentity has already run, and the mark is personal.
   const telegramId = readSession(req)!;
   res.json(await readinessForUser(telegramId, req.query.version, req.query.level));
+});
+
+// GET /api/hsk/plan?today=2026-09-26 -> the plan with a date: the words left to
+// the saved target, what the exam day needs a day, and the paces with the day
+// each one gets there. `today` is the learner's calendar day, not the server's.
+wordsRouter.get("/hsk/plan", async (req, res) => {
+  const telegramId = readSession(req)!;
+  const q = String(req.query.today ?? "");
+  res.json(await planForUser(telegramId, /^20\d\d-\d\d-\d\d$/.test(q) ? q : isoDay(new Date())));
 });
 
 // GET /api/hsk/check?version=3.0&level=4&size=24  -> the onboarding readiness

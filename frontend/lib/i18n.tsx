@@ -1379,7 +1379,7 @@ const DICT: Record<string, Entry> = {
   "hskFirst.chinese": { en: "Chinese", ru: "Китайский", zh: "中文" },
   "hskFirst.explainIn": { en: "Explain in", ru: "Объяснять на", zh: "用哪种语言讲解" },
   "hskFirst.startCheck": { en: "Run the check", ru: "Пройти проверку", zh: "开始自测" },
-  "hskFirst.checkLen": { en: "{n} words, about a minute", ru: "{n} слов, примерно минута", zh: "{n} 个词，约一分钟" },
+  "hskFirst.checkLen": { en: "{n} words, about a minute", ru: "{n} {n:слово|слова|слов}, примерно минута", zh: "{n} 个词，约一分钟" },
   "hskFirst.tapTitle": { en: "Tap the words you DON'T know", ru: "Нажми на слова, которые НЕ знаешь", zh: "点出你不认识的词" },
   "hskFirst.tapSub": {
     en: "Words from the official list, spread over every level up to your target. Whatever you leave untapped counts as known.",
@@ -1449,10 +1449,6 @@ const DICT: Record<string, Entry> = {
   "onb.targetSub": { en: "Your daily words come from it, and your readiness is measured against it.", ru: "Из него будут ежедневные слова, и по нему считается готовность.", zh: "每日单词从这一级来，准备度也按它计算。" },
   "onb.examTitle": { en: "When is the exam?", ru: "Когда экзамен?", zh: "什么时候考试？" },
   "onb.exam.none": { en: "No date yet", ru: "Пока без даты", zh: "还没定" },
-  "onb.exam.3": { en: "in 1–3 months", ru: "через 1–3 месяца", zh: "1–3 个月后" },
-  "onb.exam.6": { en: "in 3–6 months", ru: "через 3–6 месяцев", zh: "3–6 个月后" },
-  "onb.exam.12": { en: "in 6–12 months", ru: "через 6–12 месяцев", zh: "6–12 个月后" },
-  "onb.exam.later": { en: "in more than a year", ru: "больше чем через год", zh: "一年以后" },
   "onb.interestsTitle": { en: "What are you into?", ru: "Что тебе интересно?", zh: "你对什么感兴趣？" },
   "onb.interestsSub": { en: "Examples and suggested words will lean this way.", ru: "Примеры и подборки слов будут в эту сторону.", zh: "例句和推荐词会偏向这些。" },
   "onb.int.food": { en: "Food & cooking", ru: "Еда и кулинария", zh: "美食烹饪" },
@@ -1467,20 +1463,28 @@ const DICT: Record<string, Entry> = {
   "onb.int.history": { en: "History & culture", ru: "История и культура", zh: "历史文化" },
   "onb.int.nature": { en: "Nature & animals", ru: "Природа и животные", zh: "自然与动物" },
   "onb.int.fashion": { en: "Fashion & beauty", ru: "Мода и красота", zh: "时尚美妆" },
-  "onb.dailyTitle": { en: "How many new words a day?", ru: "Сколько новых слов в день?", zh: "每天学几个新词？" },
-  "onb.dailySub": { en: "They arrive on Today every morning, straight into review. Change it any time.", ru: "Они будут на «Сегодня» каждое утро, сразу в повторение. Можно поменять в любой момент.", zh: "每天早上出现在“今天”，直接进入复习。随时可改。" },
-  "onb.daily.5": { en: "Light", ru: "Легко", zh: "轻松" },
-  "onb.daily.10": { en: "Steady", ru: "Стабильно", zh: "稳定" },
-  "onb.daily.15": { en: "Serious", ru: "Серьёзно", zh: "认真" },
-  "onb.daily.20": { en: "Intense", ru: "Интенсивно", zh: "冲刺" },
-  "onb.dailyN": { en: "{n} words a day", ru: "{n} слов в день", zh: "每天 {n} 个" },
-  "onb.dailyTime": { en: "About {m} min a day with reviews", ru: "Около {m} мин в день с повторением", zh: "连复习约每天 {m} 分钟" },
+  "onb.dailyTitle": { en: "How much time a day?", ru: "Сколько времени в день?", zh: "每天花多少时间？" },
+  "onb.dailySub": { en: "New words plus their reviews.", ru: "Новые слова и их повторение.", zh: "新词加复习。" },
+  "onb.pace.10": { en: "Light", ru: "Легко", zh: "轻松" },
+  "onb.pace.15": { en: "Steady", ru: "Стабильно", zh: "稳定" },
+  "onb.pace.20": { en: "Serious", ru: "Серьёзно", zh: "认真" },
+  "onb.pace.30": { en: "Intense", ru: "Интенсивно", zh: "冲刺" },
   "onb.recommended": { en: "For your date", ru: "Под твою дату", zh: "适合你的时间" },
+  "onb.paceTight": {
+    en: "Your date needs about {m} min a day. The check next shows how much you already know.",
+    ru: "К твоей дате нужно ≈{m} мин в день. Проверка дальше покажет, сколько ты уже знаешь.",
+    zh: "按你的日期每天约需 {m} 分钟。接下来的测试会看看你已经会多少。",
+  },
+  "onb.paceTightZero": {
+    en: "Your date needs about {m} min a day. A closer level would fit better.",
+    ru: "К твоей дате нужно ≈{m} мин в день. Лучше выбрать уровень поближе.",
+    zh: "按你的日期每天约需 {m} 分钟。选近一点的级别更合适。",
+  },
   "onb.planTitle": { en: "Your plan", ru: "Твой план", zh: "你的计划" },
   "onb.planSub": { en: "Built from your answers. One step left: a one-minute check of what you already know.", ru: "Собран по твоим ответам. Остался шаг: минутная проверка того, что ты уже знаешь.", zh: "根据你的回答生成。只剩一步：一分钟测一测你已经会的词。" },
   "onb.planSubZero": { en: "Built from your answers. Your first words are one tap away.", ru: "Собран по твоим ответам. Первые слова — в одно касание.", zh: "根据你的回答生成。第一批单词一键即得。" },
   "onb.planTarget": { en: "HSK {level} · {list} list", ru: "HSK {level} · список {list}", zh: "HSK {level} · {list} 词表" },
-  "onb.planDaily": { en: "{n} new words a day, straight into review", ru: "{n} новых слов в день, сразу в повторение", zh: "每天 {n} 个新词，直接复习" },
+  "onb.planDaily": { en: "{m} min a day · {n} new {n:word|words}", ru: "{m} мин в день · {n} {n:новое слово|новых слова|новых слов}", zh: "每天 {m} 分钟 · {n} 个新词" },
   "onb.planLang": { en: "Explained in {lang}", ru: "Объяснения: {lang}", zh: "用{lang}解释" },
   "onb.planFor": { en: "Words picked for: {what}", ru: "Слова под: {what}", zh: "按此选词：{what}" },
   "onb.startZero": { en: "Get my first words", ru: "Получить первые слова", zh: "领取第一批单词" },
@@ -1548,9 +1552,9 @@ const DICT: Record<string, Entry> = {
   // --- Today's words: the daily drip at the learner's level ---
   "hskDaily.title": { en: "Today's words · HSK {level}", ru: "Слова на сегодня · HSK {level}", zh: "今日生词 · HSK {level}" },
   "hskDaily.sub": {
-    en: "{n} new words a day from your level, straight into review. Tap one you already know and it's swapped out for good.",
-    ru: "{n} новых слов в день с твоего уровня — сразу в повторение. Нажми на слово, которое уже знаешь, — оно заменится и больше не вернётся.",
-    zh: "每天 {n} 个你这个等级的新词，直接进入复习。点一下已经认识的词，它会被换掉，不再出现。",
+    en: "{n} new {n:word|words} a day from your level. Tap one you know and it's swapped out.",
+    ru: "{n} {n:новое слово|новых слова|новых слов} в день с твоего уровня. Нажми на знакомое — оно заменится.",
+    zh: "每天 {n} 个你这个等级的新词。点一下认识的词就会换掉。",
   },
   "hskDaily.known": { en: "I know it", ru: "Знаю", zh: "认识" },
   "hskDaily.add": { en: "Add {n} to review", ru: "В повторение: {n}", zh: "加入复习 · {n} 个" },
@@ -1750,7 +1754,7 @@ const DICT: Record<string, Entry> = {
   "stats.goal": { en: "Daily goal", ru: "Цель на день", zh: "每日目标" },
   "stats.goalReached": { en: "Daily goal reached!", ru: "Цель на день выполнена!", zh: "完成每日目标！" },
   "stats.goalGreat": { en: "Great work today.", ru: "Отличная работа!", zh: "今天做得很好。" },
-  "stats.goalToGo": { en: "{n} cards to go", ru: "ещё {n} карточек", zh: "还差 {n} 张" },
+  "stats.goalToGo": { en: "{n} {n:card|cards} to go", ru: "ещё {n} {n:карточка|карточки|карточек}", zh: "还差 {n} 张" },
   "stats.keepStreak": {
     en: "Review today to keep your {n}-day streak",
     ru: "Повторите сегодня, чтобы не прервать серию: {n} дн.",
@@ -2347,16 +2351,11 @@ const DICT: Record<string, Entry> = {
   // Coach memory (what the personal mentor remembers about you)
   "coachmem.title": { en: "What Onomika knows about you", ru: "Что Onomika знает о тебе", zh: "Onomika 对你的了解" },
   "coachmem.hint": {
-    en: "Onomika remembers this between sessions and tailors practice, tips and word picks to you.",
-    ru: "Onomika запоминает это между сессиями и подстраивает практику, подсказки и подбор слов под тебя.",
-    zh: "Onomika 会跨会话记住这些，并据此调整练习、提示和选词。",
+    en: "Practice and word picks follow this.",
+    ru: "Под это подстраиваются практика и подбор слов.",
+    zh: "练习和选词会据此调整。",
   },
   "coachmem.lang": { en: "Language", ru: "Язык", zh: "语言" },
-  "coachmem.perLang": {
-    en: "Memory is kept separately for each language — an English goal won't leak into your Chinese practice.",
-    ru: "Память хранится отдельно для каждого языка — цель для английского не попадёт в практику китайского.",
-    zh: "每种语言的记忆是分开保存的——英语目标不会出现在你的中文练习里。",
-  },
   "coachmem.goal": { en: "Your goal", ru: "Твоя цель", zh: "你的目标" },
   "coachmem.goalPh": { en: "e.g. IELTS 7.0, a trip to Japan", ru: "напр. IELTS 7.0, поездка в Японию", zh: "如 雅思 7.0、日本旅行" },
   "coachmem.interests": { en: "Interests / topics", ru: "Интересы / темы", zh: "兴趣 / 主题" },
@@ -2364,10 +2363,45 @@ const DICT: Record<string, Entry> = {
   "coachmem.notes": { en: "Onomika's observations", ru: "Наблюдения Onomika", zh: "Onomika 的观察" },
   "coachmem.notesEmpty": { en: "Onomika fills this in as it gets to know you.", ru: "Onomika заполнит это, узнавая тебя.", zh: "Onomika 会在了解你的过程中填写。" },
   "coachmem.notesHint": {
-    en: "Onomika updates this after your sessions — you can edit or clear it anytime.",
-    ru: "Onomika дописывает это после практик — можешь редактировать или очистить в любой момент.",
-    zh: "Onomika 会在练习后更新——你随时可以编辑或清除。",
+    en: "Onomika adds to this after practice.",
+    ru: "Onomika дописывает это после практик.",
+    zh: "Onomika 会在练习后补充。",
   },
+  "coachmem.exam": { en: "Exam", ru: "Экзамен", zh: "考试" },
+  "coachmem.why": { en: "Why Chinese", ru: "Зачем китайский", zh: "为什么学中文" },
+  // A plan with a date: the exam day, the words left, the pace in minutes.
+  "plan.prevMonth": { en: "Previous month", ru: "Предыдущий месяц", zh: "上个月" },
+  "plan.nextMonth": { en: "Next month", ru: "Следующий месяц", zh: "下个月" },
+  "plan.noDate": { en: "No date", ru: "Без даты", zh: "不定日期" },
+  "plan.date": { en: "Exam date", ru: "Дата экзамена", zh: "考试日期" },
+  "plan.pickDate": { en: "Pick a day", ru: "Выбрать день", zh: "选择日期" },
+  "plan.inDays": { en: "in {n} days", ru: "через {n} дн.", zh: "还有 {n} 天" },
+  "plan.left": { en: "{n} {n:word|words} left to HSK {level}", ru: "До HSK {level} осталось {n} {n:слово|слова|слов}", zh: "距 HSK {level} 还差 {n} 个词" },
+  "plan.leftApprox": { en: "About {n} {n:word|words} left to HSK {level}", ru: "До HSK {level} примерно {n} {n:слово|слова|слов}", zh: "距 HSK {level} 约差 {n} 个词" },
+  "plan.fits": { en: "{m} min a day is enough.", ru: "Хватит {m} мин в день.", zh: "每天 {m} 分钟就够。" },
+  "plan.tight": { en: "This date needs about {m} min a day. That's too much.", ru: "К этой дате нужно ≈{m} мин в день. Это слишком много.", zh: "按这个日期每天约需 {m} 分钟，太多了。" },
+  "plan.noDateLine": { en: "Pick a date to see the pace you need.", ru: "Выбери дату — покажем нужный темп.", zh: "选个日期，看看需要的节奏。" },
+  "plan.passed": { en: "That date has passed. Pick the next one.", ru: "Эта дата прошла. Выбери следующую.", zh: "这个日期已过，选下一个吧。" },
+  "plan.close": { en: "{n} days to go: review only, no new words.", ru: "Осталось {n} дн.: только повторение, без новых слов.", zh: "还剩 {n} 天：只复习，不学新词。" },
+  "plan.done": { en: "Every HSK {level} word is covered. Aim higher?", ru: "Все слова HSK {level} уже есть. Выше?", zh: "HSK {level} 的词都学过了。再往上？" },
+  "plan.pace": { en: "Pace", ru: "Темп", zh: "节奏" },
+  "plan.min": { en: "{m} min", ru: "{m} мин", zh: "{m} 分钟" },
+  "plan.words": { en: "{n} {n:word|words} a day", ru: "{n} {n:слово|слова|слов} в день", zh: "每天 {n} 个词" },
+  "plan.by": { en: "by {date}", ru: "к {date}", zh: "{date} 前" },
+  "plan.onTime": { en: "on time", ru: "успеваешь", zh: "来得及" },
+  "plan.now": { en: "Now: {n} {n:word|words} a day (≈{m} min), ready by {date}", ru: "Сейчас: {n} {n:слово|слова|слов} в день (≈{m} мин), к {date}", zh: "现在：每天 {n} 个词（约 {m} 分钟），{date} 学完" },
+  "plan.estimate": { en: "An estimate: part of the list is unchecked.", ru: "Это оценка: часть списка не проверена.", zh: "这是估算：部分词表还没测。" },
+  "plan.sweep": { en: "Sweep HSK {level}", ru: "Пройти HSK {level}", zh: "过一遍 HSK {level}" },
+  "plan.sweepWhy": { en: "You may know many of these already.", ru: "Многие из этих слов ты, возможно, уже знаешь.", zh: "其中很多词你可能已经会了。" },
+  "plan.lower": { en: "HSK {level} by this date: {m} min a day", ru: "HSK {level} к этой дате: {m} мин в день", zh: "这个日期前 HSK {level}：每天 {m} 分钟" },
+  "plan.max": { en: "Keep HSK {level} at {m} min a day, ready by {date}", ru: "Оставить HSK {level}: {m} мин в день, к {date}", zh: "保持 HSK {level}：每天 {m} 分钟，{date} 学完" },
+  "plan.line.fits": { en: "HSK {level} by {date} · {m} min a day", ru: "HSK {level} к {date} · {m} мин в день", zh: "{date} 前 HSK {level} · 每天 {m} 分钟" },
+  "plan.line.behind": { en: "HSK {level} by {date} · needs {m} min a day", ru: "HSK {level} к {date} · нужно {m} мин в день", zh: "{date} 前 HSK {level} · 需每天 {m} 分钟" },
+  "plan.line.tight": { en: "HSK {level} by {date} won't fit · see the plan", ru: "HSK {level} к {date} не успеть · открыть план", zh: "{date} 前 HSK {level} 来不及 · 看计划" },
+  "plan.line.noDate": { en: "Set your exam date", ru: "Указать дату экзамена", zh: "设定考试日期" },
+  "plan.line.passed": { en: "Exam date passed · set a new one", ru: "Дата экзамена прошла · указать новую", zh: "考试日期已过 · 设新的" },
+  "plan.line.close": { en: "Exam in {n} days · review only", ru: "Экзамен через {n} дн. · только повторение", zh: "{n} 天后考试 · 只复习" },
+  "plan.line.done": { en: "HSK {level} covered · aim higher", ru: "HSK {level} пройден · выбрать выше", zh: "HSK {level} 已覆盖 · 再往上" },
   "coachmem.save": { en: "Save", ru: "Сохранить", zh: "保存" },
   "coachmem.saved": { en: "Saved", ru: "Сохранено", zh: "已保存" },
   "coachmem.clear": { en: "Clear", ru: "Очистить", zh: "清除" },
@@ -2706,6 +2740,12 @@ function detectLocale(): Locale | null {
   return null;
 }
 
+function pluralForm(locale: Locale, n: number, forms: string[]): string {
+  const cat = new Intl.PluralRules(locale).select(n);
+  const i = locale === "ru" ? (cat === "one" ? 0 : cat === "few" ? 1 : 2) : cat === "one" ? 0 : 1;
+  return forms[Math.min(i, forms.length - 1)] ?? "";
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
@@ -2729,7 +2769,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const t = (key: string, vars?: Record<string, string | number>) => {
     const entry = DICT[key];
     let str = entry ? entry[locale] : key;
-    if (vars) for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, String(v));
+    if (vars)
+      for (const [k, v] of Object.entries(vars)) {
+        // "{n:слово|слова|слов}" — the word form for the number: ru one|few|many, en one|other.
+        str = str.replace(new RegExp(`\\{${k}:([^}]*)\\}`, "g"), (_, forms: string) => pluralForm(locale, Number(v), forms.split("|")));
+        str = str.replace(`{${k}}`, String(v));
+      }
     return str;
   };
 
@@ -2737,3 +2782,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useI18n = () => useContext(I18nCtx);
+
+/** A string in every interface language — to recognise a label saved in any of them. */
+export function translationsOf(key: string): string[] {
+  const entry = DICT[key];
+  return entry ? [entry.en, entry.ru, entry.zh] : [];
+}

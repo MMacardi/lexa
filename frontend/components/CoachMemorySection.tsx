@@ -4,11 +4,96 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { useI18n } from "@/lib/i18n";
+import { translationsOf, useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { LangSelect } from "@/components/LangSelect";
-import { Compass, Trash2 } from "lucide-react";
+import { ExamPlan } from "@/components/ExamPlan";
+import { GOALS, INTERESTS } from "@/components/HskFirstRun";
+import { cn } from "@/lib/utils";
+import { Compass, Trash2, X, type LucideIcon } from "lucide-react";
+
+type ChipOption = { id: string; key: string; Icon: LucideIcon | React.ComponentType<{ className?: string }> };
+
+// The goal and interests are text in the coach memory (the model reads text), but
+// for Chinese they are picked the way onboarding picks them: chips. The text is
+// read back into chips by matching the labels in any interface language; what
+// matches none stays as a chip of its own, so nothing typed earlier is lost. The
+// old "HSK 4 (in 1–3 months)" is the exam reason — the level and day live in the
+// plan above now, and the coach reads them from there.
+function parseChips(text: string, options: ChipOption[]) {
+  const on = new Set<string>();
+  const extra: string[] = [];
+  for (const piece of text.split(/\s*[,，、;；]\s*/).map((p) => p.trim()).filter(Boolean)) {
+    if (/^HSK\s*[\d–-]/i.test(piece) && options.some((o) => o.id === "exam")) {
+      on.add("exam");
+      continue;
+    }
+    const hit = options.find((o) => translationsOf(o.key).some((l) => l.toLowerCase() === piece.toLowerCase()));
+    if (hit) on.add(hit.id);
+    else if (!extra.includes(piece)) extra.push(piece);
+  }
+  return { on, extra };
+}
+
+function ChipField({
+  label,
+  options,
+  text,
+  onChange,
+}: {
+  label: string;
+  options: ChipOption[];
+  text: string;
+  onChange: (text: string) => void;
+}) {
+  const { t } = useI18n();
+  const { on, extra } = parseChips(text, options);
+  const write = (ids: Set<string>, rest: string[]) =>
+    onChange([...options.filter((o) => ids.has(o.id)).map((o) => t(o.key)), ...rest].join(", "));
+  const toggle = (id: string) => {
+    const next = new Set(on);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    write(next, extra);
+  };
+  return (
+    <div>
+      <label className="text-[13px] font-semibold text-ink">{label}</label>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {options.map(({ id, key, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={on.has(id)}
+            onClick={() => toggle(id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
+              on.has(id) ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink hover:bg-black/[0.03]",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {t(key)}
+          </button>
+        ))}
+        {extra.map((piece) => (
+          <button
+            key={piece}
+            type="button"
+            onClick={() => write(on, extra.filter((x) => x !== piece))}
+            className="inline-flex items-center gap-1 rounded-full border border-sage bg-sage px-3 py-1.5 text-[13px] font-medium text-white"
+          >
+            {piece}
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const WHY: ChipOption[] = GOALS.map((g) => ({ id: g.id, key: `onb.goal.${g.id}`, Icon: g.Icon }));
+const LIKES: ChipOption[] = INTERESTS.map((i) => ({ id: i.id, key: `onb.int.${i.id}`, Icon: i.Icon }));
 
 // "What your coach knows about you" — the learner-visible view of the coach memory
 // (goal + interests they set, plus the model-maintained notes). Editable + clearable,
@@ -65,6 +150,15 @@ export function CoachMemorySection() {
     }
   }
 
+  // A chip is a choice, not a draft: it saves as it's tapped, like the plan does.
+  async function saveNow(patch: { goal?: string; interests?: string }) {
+    try {
+      await api.updateCoachProfile({ telegramId: accountId, lang, ...patch });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    }
+  }
+
   async function clearNotes() {
     setNotes("");
     try {
@@ -85,28 +179,58 @@ export function CoachMemorySection() {
         <div>
           <label className="text-[13px] font-semibold text-ink">{t("coachmem.lang")}</label>
           <LangSelect value={lang} onChange={setLang} className="mt-1" />
-          <p className="mt-1 text-[12px] text-ink-faint">{t("coachmem.perLang")}</p>
         </div>
-        <div>
-          <label className="text-[13px] font-semibold text-ink">{t("coachmem.goal")}</label>
-          <input
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            maxLength={300}
-            placeholder={t("coachmem.goalPh")}
-            className="mt-1 h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-[13px] font-semibold text-ink">{t("coachmem.interests")}</label>
-          <input
-            value={interests}
-            onChange={(e) => setInterests(e.target.value)}
-            maxLength={300}
-            placeholder={t("coachmem.interestsPh")}
-            className="mt-1 h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-          />
-        </div>
+        {lang === "zh" ? (
+          <>
+            <div id="plan" className="scroll-mt-24">
+              <label className="text-[13px] font-semibold text-ink">{t("coachmem.exam")}</label>
+              <div className="mt-1.5">
+                <ExamPlan />
+              </div>
+            </div>
+            <ChipField
+              label={t("coachmem.why")}
+              options={WHY}
+              text={goal}
+              onChange={(v) => {
+                setGoal(v);
+                void saveNow({ goal: v });
+              }}
+            />
+            <ChipField
+              label={t("coachmem.interests")}
+              options={LIKES}
+              text={interests}
+              onChange={(v) => {
+                setInterests(v);
+                void saveNow({ interests: v });
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="text-[13px] font-semibold text-ink">{t("coachmem.goal")}</label>
+              <input
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                maxLength={300}
+                placeholder={t("coachmem.goalPh")}
+                className="mt-1 h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[13px] font-semibold text-ink">{t("coachmem.interests")}</label>
+              <input
+                value={interests}
+                onChange={(e) => setInterests(e.target.value)}
+                maxLength={300}
+                placeholder={t("coachmem.interestsPh")}
+                className="mt-1 h-10 w-full rounded-[12px] border border-black/[0.08] bg-surface px-3.5 text-[14px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
+              />
+            </div>
+          </>
+        )}
         <div>
           <div className="flex items-center justify-between">
             <label className="text-[13px] font-semibold text-ink">{t("coachmem.notes")}</label>

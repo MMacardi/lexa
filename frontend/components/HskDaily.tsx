@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HskWordChip } from "@/components/HskWordChip";
 import { TopicEditor } from "@/components/TopicEditor";
 import { CEFR_FOR_HSK } from "@/components/HskFirstRun";
+import { ExamPlan, PlanLine } from "@/components/ExamPlan";
 import { CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
 
 // Today's new words at the learner's level: a daily drip, not a one-off build.
@@ -35,6 +36,7 @@ export function HskDaily() {
   const [busy, setBusy] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
   const [refilling, setRefilling] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["hskDaily", accountId],
@@ -184,6 +186,13 @@ export function HskDaily() {
         <CalendarDays className="h-5 w-5" />
         <h3 className="font-serif text-[20px] font-medium text-ink">{t("hskDaily.title", { level: levelName })}</h3>
       </div>
+      {/* The plan these words are the day of: the exam, the pace, whether it fits. */}
+      <PlanLine open={planOpen} onToggle={() => setPlanOpen((o) => !o)} />
+      {planOpen && (
+        <div className="mt-3">
+          <ExamPlan />
+        </div>
+      )}
 
       {data.words.length === 0 ? (
         <p className="mt-2 text-[14px] leading-relaxed text-ink-soft">{t("hskDaily.empty", { level: levelName })}</p>

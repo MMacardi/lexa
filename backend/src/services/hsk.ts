@@ -137,7 +137,7 @@ type WordStatus = "canUse" | "recognise" | "learning";
  * several cards for one word (different senses), and the strongest one is the
  * honest answer. Shared by the mark and the gap deck so the two never disagree.
  */
-async function learnerStatus(telegramId: string): Promise<Map<string, WordStatus>> {
+export async function learnerStatus(telegramId: string): Promise<Map<string, WordStatus>> {
   const status = new Map<string, WordStatus>();
   const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
   if (!user) return status;
@@ -412,6 +412,6 @@ export async function hskDailyWords(
   return { version, level, size, words: order.slice(0, size).map((w) => ({ ...w, added: addedToday.has(w.word) })) };
 }
 
-function clampLevel(version: HskVersion, level: number): number {
+export function clampLevel(version: HskVersion, level: number): number {
   return Math.min(Math.max(Math.round(level) || 1, 1), HSK_MAX_LEVEL[version]);
 }

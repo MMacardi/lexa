@@ -639,7 +639,7 @@ export function createBot(): Telegraf {
     await ctx.answerCbQuery();
     await ctx.editMessageText(
       ok
-        ? "✅ Вход подтверждён. Вернись в браузер (на iPhone — «◀ Safari» вверху слева): вкладка Onomika войдёт сама."
+        ? "✅ Вход подтверждён."
         : "Ссылка для входа устарела. Войди на сайте ещё раз.",
     );
   });

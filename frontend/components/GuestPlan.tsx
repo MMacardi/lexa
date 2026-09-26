@@ -46,7 +46,13 @@ export function FinishGuestPlan({ plan, onDone }: { plan: GuestPlan; onDone: () 
       } catch {
         /* ignore */
       }
-      await api.updateLearnerPrefs({ hskVersion: plan.version, hskTarget: plan.target, nativeLang: plan.native, dailyGoal: plan.daily });
+      await api.updateLearnerPrefs({
+        hskVersion: plan.version,
+        hskTarget: plan.target,
+        examDate: plan.examDate ?? null,
+        nativeLang: plan.native,
+        dailyGoal: plan.daily,
+      });
       void api
         .updateCoachProfile({ telegramId: accountId, lang: "zh", goal: plan.goal, interests: plan.likes })
         .catch(() => {})

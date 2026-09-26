@@ -123,6 +123,11 @@ export function startDictation(opts: {
  * Capture ONE spoken utterance (for a quick "say the word" check). Returns every
  * final alternative the engine offers so the caller can score against the best
  * match, not just the top guess. `onInterim` streams the live tail for feedback.
+ *
+ * It ends at the first thing worth scoring rather than when the engine decides
+ * the speaker is done — that wait was seconds, long enough to say the word again
+ * and be scored on "一切一切": the moment the live text is what `accept` wants,
+ * or the first final result, or `maxMs` of nothing.
  */
 export function recognizeOnce(opts: {
   lang: string;
@@ -130,6 +135,8 @@ export function recognizeOnce(opts: {
   onResult: (candidates: string[]) => void;
   onError?: (kind: "unsupported" | "fail") => void;
   onEnd?: () => void;
+  accept?: (heard: string) => boolean;
+  maxMs?: number;
 }): DictationController | null {
   const SR = getSR();
   if (!SR) {
@@ -138,14 +145,21 @@ export function recognizeOnce(opts: {
   }
   const finals: string[] = [];
   let done = false;
+  let limit = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rec: any = null;
   const finish = () => {
     if (done) return;
     done = true;
+    window.clearTimeout(limit);
+    try {
+      rec?.abort();
+    } catch {
+      /* already ended */
+    }
     opts.onResult(finals);
     opts.onEnd?.();
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let rec: any = null;
   try {
     rec = new SR();
     rec.lang = opts.lang;
@@ -163,6 +177,11 @@ export function recognizeOnce(opts: {
           it += r[0].transcript;
         }
       }
+      if (finals.length) return finish();
+      if (it && opts.accept?.(it)) {
+        finals.push(it);
+        return finish();
+      }
       if (it) opts.onInterim?.(it);
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,6 +190,7 @@ export function recognizeOnce(opts: {
     };
     rec.onend = finish;
     rec.start();
+    limit = window.setTimeout(finish, opts.maxMs ?? 7000);
   } catch {
     opts.onError?.("unsupported");
     return null;
