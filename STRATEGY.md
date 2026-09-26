@@ -66,7 +66,7 @@ _The decision and the research behind it. Ordering in `BACKLOG.md` follows §G o
 | Word page: senses, pinyin, family graph, explain | Pleco | solid; senses are LLM-only (3 correctness bugs in 3 days: 3a/3c/3h) |
 | Reader: paste / OCR / AI text, tap-gloss, batch save with sentence | LingQ-lite | solid; no URL, video or PDF |
 | Coach scenes (22 presets, twist, corrections, report card) | Praktika / Duolingo Video Call | solid |
-| Mika widget + /mika page | ChatGPT | solid; **does not see the deck**; history only in localStorage |
+| Mika widget + /mika page | ChatGPT | solid; reads photos, voice, stop/regenerate/edit (2026-09-26); **does not see the deck**; history only in localStorage |
 | Achievements, streak, heatmap, friends, profiles | Duolingo | solid |
 | Telegram bot: review, voice practice, reminders, `add <word>` | — | solid; the bot probably opens a separate empty account for Google/email users (`ensureBotUser`) |
 

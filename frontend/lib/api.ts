@@ -540,7 +540,8 @@ export interface TutorCard {
 
 // Mika (global tutor) chat, in both the streaming and non-streaming flavours.
 export type TutorAskPayload = {
-  messages: { role: "user" | "assistant"; content: string }[];
+  // images: downscaled JPEG data: URLs attached to that user turn (photos in the chat)
+  messages: { role: "user" | "assistant"; content: string; images?: string[] }[];
   sourceLang?: string;
   targetLang?: string;
   level?: string;

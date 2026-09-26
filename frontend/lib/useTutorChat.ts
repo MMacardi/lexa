@@ -10,10 +10,14 @@ import { useToast } from "@/lib/toast";
 import { displayCode, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
+import { downscaleImage } from "@/lib/image";
 
 export type TutorMsg = {
   role: "user" | "assistant";
   content: string;
+  // Photos on a user turn, as small thumbnails — what the thread shows and history
+  // keeps. The copy Mika actually reads is in `fullImages` below.
+  images?: string[];
   addWords?: string[];
   addCards?: TutorCard[];
   streaming?: boolean;
@@ -23,7 +27,7 @@ export type TutorMsg = {
   addExamples?: { sentence: string; translation: string }[];
 };
 /** One past conversation, as the history menu lists it. `hay` is what search reads. */
-export type TutorChatEntry = { id: string; at: number; title: string; n: number; hay: string };
+export type TutorChatEntry = { id: string; at: number; title: string; photo: boolean; n: number; hay: string };
 /** The card a chat is about, when Mika was opened from a word page. */
 export type TutorCardCtx = { id: string; word: string; sourceLang: string; targetLang: string };
 
@@ -40,6 +44,86 @@ const MAX_CHATS = 12;
 const MAX_CHATS_BYTES = 180_000;
 
 type StoredChat = { id: string; at: number; messages: TutorMsg[] };
+
+// Photos. The thread and the saved history hold a ~320 px thumbnail; the ~1400 px
+// copy Mika reads lives per tab (memory, mirrored to sessionStorage best-effort) —
+// a history of full photos would crowd every other chat out of localStorage. A chat
+// reopened in a later tab resends the thumbnail: blurrier, but still the picture.
+const IMGS_KEY = "lexa.tutorImgs";
+export const MAX_ATTACH = 4; // per message — the server's own cap
+const SEND_IMAGES = 4; // newest photos resent with each turn; the server keeps no more
+const SEND_MESSAGES = 12; // the server reads the last 12 turns and rejects more than 20
+const fullImages = new Map<string, string>();
+let fullImagesLoaded = false;
+
+function imageKey(thumb: string): string {
+  let h = 5381;
+  for (let i = 0; i < thumb.length; i++) h = ((h * 33) ^ thumb.charCodeAt(i)) >>> 0;
+  return `${thumb.length.toString(36)}.${h.toString(36)}`;
+}
+
+// Read the tab's mirror back in once — before the first read AND the first save, or
+// a reload would save the still-empty map over it.
+function loadFullImages() {
+  if (fullImagesLoaded || typeof window === "undefined") return;
+  fullImagesLoaded = true;
+  try {
+    for (const [k, v] of JSON.parse(sessionStorage.getItem(IMGS_KEY) ?? "[]") as [string, string][]) {
+      if (!fullImages.has(k)) fullImages.set(k, v);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** The upload-size copy of a thread thumbnail (the thumbnail itself if this tab never had it). */
+export function fullImage(thumb: string): string {
+  loadFullImages();
+  return fullImages.get(imageKey(thumb)) ?? thumb;
+}
+
+// Mirror the photos of the open chat, so a reload keeps them sharp; oldest dropped
+// first until it fits.
+function saveFullImages(msgs: TutorMsg[]) {
+  loadFullImages();
+  const keys = new Set(msgs.flatMap((m) => m.images ?? []).map(imageKey));
+  let entries = [...fullImages].filter(([k]) => keys.has(k));
+  while (entries.length) {
+    try {
+      sessionStorage.setItem(IMGS_KEY, JSON.stringify(entries));
+      return;
+    } catch {
+      entries = entries.slice(1);
+    }
+  }
+  try {
+    sessionStorage.removeItem(IMGS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+// What goes up with a turn: the last few messages, the newest photos at full size,
+// older ones only named (the server would drop them, and they are the bulk).
+function payloadMessages(msgs: TutorMsg[]): { role: "user" | "assistant"; content: string; images?: string[] }[] {
+  let left = SEND_IMAGES;
+  return msgs
+    .slice(-SEND_MESSAGES)
+    .reverse()
+    .map((m) => {
+      const content = m.content.slice(0, 4000);
+      const imgs = m.images ?? [];
+      if (m.role !== "user" || !imgs.length) return { role: m.role, content };
+      const kept = imgs.slice(0, left);
+      left -= kept.length;
+      const dropped = imgs.length - kept.length;
+      const note = dropped ? `[${dropped} earlier photo${dropped > 1 ? "s" : ""}, no longer attached]` : "";
+      return kept.length
+        ? { role: m.role, content, images: kept.map(fullImage) }
+        : { role: m.role, content: [content, note].filter(Boolean).join("\n") };
+    })
+    .reverse();
+}
 
 // The learner's current pair (shared with Add/Reader). Tutor adds words to it.
 function readPair(): { source: string; target: string } {
@@ -107,6 +191,8 @@ const summarize = (list: StoredChat[]): TutorChatEntry[] =>
     id: c.id,
     at: c.at,
     title: chatTitle(c.messages),
+    // A chat opened with just a photo has no words to be titled by.
+    photo: !!c.messages.find((x) => x.role === "user")?.images?.length,
     n: c.messages.length,
     // What the history search looks through: the whole conversation, capped —
     // people look for a chat by something said in it, not just by its first line.
@@ -156,6 +242,12 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const [creating, setCreating] = useState(false);
   const [collIds, setCollIds] = useState<string[]>([]);
   const [wordSel, setWordSel] = useState<Record<number, string[]>>({}); // per-message word selection
+  // Photos waiting in the composer (thumbnails; see fullImages), and how many are
+  // still being shrunk — Send waits for them.
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attaching, setAttaching] = useState(0);
+  const attachedRef = useRef(attachments);
+  attachedRef.current = attachments;
 
   useEffect(() => {
     // A half-written answer isn't worth rewriting storage for on every token.
@@ -166,6 +258,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     } catch {
       /* ignore */
     }
+    saveFullImages(trimmed);
     if (!chatId) return;
     const stored = readChats();
     const rest = stored.filter((c) => c.id !== chatId);
@@ -284,7 +377,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     try {
       const r = await api.tutorAskStream(
         {
-          messages: msgs.map((m) => ({ role: m.role, content: m.content })),
+          messages: payloadMessages(msgs),
           sourceLang: pair.source,
           targetLang: pair.target,
           level: getLevel(pair.source) ?? undefined,
@@ -292,16 +385,18 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
         },
         {
           onDelta: (chunk) => {
+            if (inFlight.current !== ac) return; // stopped: what was written is already kept
             acc += chunk;
             setMessages((m) => closeOpen(m, { role: "assistant", content: acc, streaming: true }));
           },
           signal: ac.signal,
         },
       );
+      if (inFlight.current !== ac) return;
       // Snap to the validated text and attach the one-tap "create cards" words.
       setMessages((m) => closeOpen(m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }));
     } catch (e) {
-      if ((e as Error).name === "AbortError") return;
+      if ((e as Error).name === "AbortError" || inFlight.current !== ac) return;
       setIsError(true);
       setMessages((m) => closeOpen(m));
     } finally {
@@ -312,14 +407,81 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     }
   }
 
+  // `text` = a preset sent as is; without it, the composer's text and photos go.
   function send(text?: string) {
     const q = (text ?? input).trim();
-    if (!q || busy || (text === undefined && unfinished)) return;
+    const images = text === undefined ? attachments : [];
+    if ((!q && !images.length) || busy || attaching || (text === undefined && unfinished)) return;
     setTemplate(null);
-    const next = [...messages, { role: "user" as const, content: q }];
+    const next: TutorMsg[] = [...messages, { role: "user", content: q, ...(images.length ? { images } : {}) }];
     setMessages(next);
     setInput("");
+    if (text === undefined) setAttachments([]);
     void ask(next);
+  }
+
+  // Shrink picked/pasted/dropped photos into the composer: a ~1400 px JPEG for Mika,
+  // a thumbnail for the thread. Beyond MAX_ATTACH the rest are refused, with a note.
+  async function addImages(files: File[]) {
+    const room = MAX_ATTACH - attachedRef.current.length;
+    if (files.length > room) show({ icon: "⚠️", title: t("tutor.attachLimit", { n: MAX_ATTACH }) });
+    const take = files.slice(0, Math.max(0, room));
+    if (!take.length) return;
+    setAttaching((n) => n + take.length);
+    for (const file of take) {
+      try {
+        const full = await downscaleImage(file, 1400, 0.8);
+        const thumb = await downscaleImage(full, 320, 0.6);
+        fullImages.set(imageKey(thumb), full);
+        setAttachments((a) => (a.length < MAX_ATTACH && !a.includes(thumb) ? [...a, thumb] : a));
+      } catch {
+        show({ icon: "⚠️", title: t("tutor.attachFailed") });
+      } finally {
+        setAttaching((n) => n - 1);
+      }
+    }
+  }
+
+  const removeAttachment = (i: number) => setAttachments((a) => a.filter((_, k) => k !== i));
+
+  // Stop the answer being written. What already arrived stays as the answer (without
+  // word offers — those come with the finished reply); nothing at all, no bubble.
+  function stop() {
+    const ac = inFlight.current;
+    if (!ac) return;
+    inFlight.current = null;
+    ac.abort();
+    setBusy(false);
+    setMessages((m) => {
+      const last = m[m.length - 1];
+      if (!last?.streaming) return m;
+      return last.content.trim() ? [...m.slice(0, -1), { role: "assistant", content: last.content }] : m.slice(0, -1);
+    });
+  }
+
+  // Ask the last question again: replaces the last answer, or retries after an error.
+  function regenerate() {
+    if (busy) return;
+    const base = messages[messages.length - 1]?.role === "assistant" ? messages.slice(0, -1) : messages;
+    if (base[base.length - 1]?.role !== "user") return;
+    setWordSel((s) => {
+      const next = { ...s };
+      delete next[base.length]; // the new answer starts with its own selection
+      return next;
+    });
+    setMessages(base);
+    void ask(base);
+  }
+
+  // Take the last question back into the composer (text and photos) to fix and resend.
+  function editLast() {
+    if (busy) return;
+    const i = messages.map((m) => m.role).lastIndexOf("user");
+    if (i < 0) return;
+    setMessages(messages.slice(0, i));
+    setInput(messages[i].content);
+    setAttachments(messages[i].images ?? []);
+    setTemplate(null);
   }
 
   // Drop whatever is in flight — shared by "new chat" and opening a past one.
@@ -347,6 +509,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     stopAsking();
     setMessages([]);
     setWordSel({});
+    setAttachments([]);
     setCard(null);
     // The chat just left stays in history; this one starts its own entry.
     freshChat();
@@ -360,6 +523,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   async function startCard(ctx: TutorCardCtx) {
     stopAsking();
     setWordSel({});
+    setAttachments([]); // a card chat takes no photos
     setCard(ctx);
     // The chat is in the card's own pair, whatever the widget was last set to —
     // without touching the saved preference Add and the Reader share.
@@ -434,6 +598,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     if (!found) return;
     stopAsking();
     setWordSel({});
+    setAttachments([]);
     setCard(null);
     setChatId(id);
     try {
@@ -550,8 +715,17 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     },
     unfinished,
     send,
+    stop,
+    regenerate,
+    editLast,
     reset,
     busy,
+    attachments,
+    attaching: attaching > 0,
+    addImages,
+    removeAttachment,
+    // A card chat answers from the card's own endpoint, which reads no photos.
+    canAttach: !card,
     streaming,
     isError,
     creating,

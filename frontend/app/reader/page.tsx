@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib/api";
+import { downscaleImage } from "@/lib/image";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { SavedTexts } from "@/components/SavedTexts";
@@ -86,32 +87,6 @@ function sameText(a: string, b: string) {
   let s = 0;
   while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
   return p + s >= Math.min(a.length, b.length) * 0.5;
-}
-
-// Downscale + re-encode a photo before upload, so OCR payloads stay small/fast.
-function downscaleImage(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("no canvas"));
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", quality));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("bad image"));
-    };
-    img.src = url;
-  });
 }
 
 // Chinese/Japanese read better in the CJK face.

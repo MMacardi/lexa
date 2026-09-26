@@ -1,9 +1,13 @@
-import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
+import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
 const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
+
+// Every turn resends the whole window, photos included, so only the newest few stay
+// attached; an older one is named in its turn so the thread still reads.
+const MAX_IMAGES = 4;
 
 /**
  * Global AI tutor chat — not tied to a specific card. Helps the learner with the
@@ -11,7 +15,7 @@ const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
  * the client turns into one-tap "create cards" actions.
  */
 export async function tutorChat(params: {
-  messages: { role: "user" | "assistant"; content: string }[];
+  messages: { role: "user" | "assistant"; content: string; images?: string[] }[]; // images: data: URIs
   sourceLang?: string;
   targetLang?: string;
   level?: string;
@@ -24,10 +28,31 @@ export async function tutorChat(params: {
   const levelLine = params.level ? ` The learner's level is about ${params.level} (CEFR) — pitch your ${source}, examples and explanations to it.` : "";
   // Past replies go back in the same JSON shape we ask for: fed as plain text, Qwen
   // copies them and answers with a bare JSON string, which fails the schema.
-  const clipped = params.messages.slice(-12).map((m) => ({
-    role: m.role,
-    content: m.role === "assistant" ? JSON.stringify({ answer: m.content.slice(0, 2000) }) : m.content.slice(0, 2000),
-  })) as ChatMessage[];
+  // Walked newest-first so the photo budget goes to the latest turns.
+  let photosLeft = MAX_IMAGES;
+  const clipped = params.messages
+    .slice(-12)
+    .reverse()
+    .map((m): ChatMessage => {
+      if (m.role === "assistant") return { role: "assistant", content: JSON.stringify({ answer: m.content.slice(0, 2000) }) };
+      const text = m.content.slice(0, 2000);
+      const kept = (m.images ?? []).slice(0, photosLeft);
+      photosLeft -= kept.length;
+      const dropped = (m.images?.length ?? 0) - kept.length;
+      if (!kept.length) {
+        const note = dropped ? `[${dropped} earlier photo${dropped > 1 ? "s" : ""}, no longer attached]` : "";
+        return { role: "user", content: [text, note].filter(Boolean).join("\n") };
+      }
+      return {
+        role: "user",
+        content: [
+          { type: "text", text: text || "(A photo, no question — help me with it.)" },
+          ...kept.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+        ],
+      };
+    })
+    .reverse();
+  const withPhotos = clipped.some((m) => typeof m.content !== "string");
 
   const messages: ChatMessage[] = [
     {
@@ -40,7 +65,17 @@ export async function tutorChat(params: {
         `${source}: meanings, usage, grammar, example sentences, and picking vocabulary. ` +
         `Stay on language learning — questions about words in OTHER languages are fine too; politely ` +
         `decline unrelated general-knowledge questions. ` +
-        `Role-plays, level checks and study plans are welcome.\n\n` +
+        `Role-plays, level checks and study plans are welcome, and so is translating, correcting or ` +
+        `writing a text (a message, a post, homework) — say briefly what you changed and why.\n\n` +
+        // Only when a photo is in the window: the paragraph costs tokens on every turn.
+        (withPhotos
+          ? `PHOTOS — the learner attached photos (a textbook page, a sign, a menu, a screenshot, handwriting, ` +
+            `an object). Look closely. If a photo has ${source} text, read it exactly — quote the ${source} ` +
+            `lines you explain — and explain what it says and the words or grammar worth learning at their ` +
+            `level. If it has no text, name what is in it in ${source}. A photo sent with no question means ` +
+            `"help me with this". Offer the words from it worth learning (not the ones far below their ` +
+            `level) in "addWords"/"addCards".\n\n`
+          : "") +
         // So "how does X work / what should I do today" questions get real answers.
         `ABOUT THE APP (you are Mika, the tutor inside Onomika) — use when asked how things work or what to do: ` +
         `Today = home with the daily goal and due count. Flashcards = spaced repetition (FSRS): after each card ` +
@@ -48,12 +83,14 @@ export async function tutorChat(params: {
         `first, daily. Quiz = multiple-choice, typing and fill-the-blank drills over saved words. Reader = paste or generate a ` +
         `text, tap any word to see its meaning and save it. Onomika Coach = picks what to study, a practice drill, ` +
         `free chat, and role-play scenes with a scored report. My words / Collections = the deck and Quizlet-style ` +
-        `sets. Friends = streaks and invites. There is also a Telegram bot, @onomikabot. Name the page to open; ` +
+        `sets. Friends = streaks and invites. There is also a Telegram bot, @onomikabot. This chat reads photos ` +
+        `too (the paperclip, or paste/drop an image) and takes voice (the mic). Name the page to open; ` +
         `don't invent features.\n\n` +
         `ACTIONS — you can add words to the learner's deck: whenever they ask to save/add words, OR ask ` +
         `you to suggest words on a topic/level to study, put those ${source} words (single words or short ` +
         `phrases, real ${source}, deduplicated) in "addWords" so they can be added with one tap. If no ` +
-        `words are being added, use an empty array. ` +
+        `words are being added, use an empty array. Those words are only OFFERED — the learner taps to ` +
+        `save them — so never say you have added or saved them; say they can add them below. ` +
         `IMPORTANT (saves work): for EACH word in "addWords", also add an object to "addCards" with ` +
         `{word, meaning, example, exampleTr}, REUSING the exact meaning and example sentence you already ` +
         `wrote in "answer" — do not invent new ones. "meaning" is the definition in ${target}; "example" is ` +
@@ -73,6 +110,8 @@ export async function tutorChat(params: {
     ...clipped,
   ];
 
+  // A photo anywhere in the window needs the vision model; plain text stays on qwen-plus.
+  const model = withPhotos ? CHAT_VISION_MODEL : undefined;
   const ask = (stream: boolean) =>
     stream && params.onDelta
       ? chatJsonConversationStream({
@@ -83,8 +122,9 @@ export async function tutorChat(params: {
           signal: params.signal,
           timeoutMs: 60000,
           label: "tutorChat.stream",
+          model,
         })
-      : chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat" });
+      : chatJsonConversation({ messages, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat", model });
   // One retry on an off-schema reply (e.g. a bare string) — it rarely repeats. The
   // retry does NOT stream: its deltas would append to the half-written first attempt
   // in the open bubble. The client replaces that text with the final answer anyway.

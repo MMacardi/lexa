@@ -345,6 +345,29 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Photos in Mika chat, and the basics of a chat app (2026-09-26, asked for directly)
+Mika chat should cover what a learner would otherwise open DeepSeek or ChatGPT for.
+- **Photos.** Paperclip, paste or drop, up to 4 per message, on `/mika` and the widget, plus a
+  "photo of a page" preset or chip. A photo-only turn means "help me with this". Mika reads the
+  studied-language text on it, explains it at the learner's level, and offers the words as one-tap
+  cards (a zh→ru lesson list becomes 4 Russian-meaning cards in one tap). A turn with a photo in
+  the window goes to `qwen3.5-plus` with thinking off (`CHAT_VISION_MODEL`, env
+  `BAILIAN_CHAT_VISION_MODEL`). That's ¥0.8/¥4.8 per M, ~1.2k tokens for a photo turn, first token
+  in under a second. Text-only chats stay on qwen-plus. Images are base64 `data:` URIs only
+  (the server fetches nothing). The client shrinks them to ~1400 px; the newest 4 are resent each
+  turn and older ones are named, not sent. The thread and history keep a 320 px thumbnail; the
+  sharp copy is kept per tab (sessionStorage).
+- **Basics:** Stop while an answer is being written (the partial text stays, and the model call is
+  aborted), copy, answer again, edit-and-resend on the last question, try again after an error,
+  and voice input (the coach's mic hook, in the answer language). `###` headings render.
+- **Two old bugs fixed on the way.** The client sent every message, but the route takes at most
+  20, so a long chat started failing. Answers over 4000 characters also failed validation. Mika
+  also claimed "I added them" for words it had only offered.
+- `backend/scripts/check-tutor-photo.ts` (live): the photo is read, streamed, offered as cards and
+  billed under the vision model; a text follow-up still sees it; a text chat stays on qwen-plus.
+  Local run at desktop and 390 px: preset → photo → answer → cards; paste, drop, stop, answer
+  again, edit, reload (thumbnails and the sharp copy survive), History shows "Фото".
+
 ### Russian for every HSK word, a two-way add form, pinyin over examples (2026-09-25, asked for directly)
 - **Default meanings, written once.** `data/hsk-ru.jsonl`: a Russian meaning for all 11,482
   CC-CEDICT subset headwords (`scripts/build-hsk-ru.ts`, qwen-plus picking and translating the

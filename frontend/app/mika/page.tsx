@@ -11,13 +11,16 @@ import { useTutorChat } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
+import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, type LucideIcon } from "lucide-react";
+import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, Camera, type LucideIcon } from "lucide-react";
 
 // Welcome-screen presets. Each fills the input (editable, not sent) and doubles as
 // a tour: the blurb says which part of the app it relates to, `href` links there.
 // `open` = the prompt ends where the learner types (a topic, two words): Send waits for it.
+// "photo" has no prompt: it opens the photo picker (a textbook page, a sign, a menu).
 const PRESETS: { key: string; Icon: LucideIcon; href?: string; nav?: string; open?: boolean }[] = [
+  { key: "photo", Icon: Camera },
   { key: "level", Icon: GraduationCap },
   { key: "topic", Icon: Tags, open: true, href: "/collections", nav: "nav.collections" },
   { key: "compare", Icon: Scale, open: true },
@@ -31,9 +34,11 @@ export default function MikaPage() {
   const { t } = useI18n();
   const { accountId } = useAccount();
   const chat = useTutorChat();
-  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished } = chat;
+  const { pair, changePair, messages, setInput, reset, busy, unfinished } = chat;
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const drop = useImageDrop(chat);
 
   // Due count, so "what should I study today?" gives Mika real context.
   const { data: words } = useQuery({
@@ -49,15 +54,8 @@ export default function MikaPage() {
     if (el && (messages.length || busy)) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
-  // Grow the textarea with its content (up to a cap).
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  }, [input]);
-
   function applyPreset(key: string, open?: boolean) {
+    if (key === "photo") return fileRef.current?.click();
     const text = t(`mika.p.${key}.prompt`, { level: getLevel(pair.source) ?? "B1", due });
     if (open) chat.fillTemplate(text);
     else setInput(text);
@@ -70,7 +68,8 @@ export default function MikaPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-176px)] max-w-[760px] flex-col md:h-[calc(100dvh-140px)]">
+    <div {...drop.props} className="relative mx-auto flex h-[calc(100dvh-176px)] max-w-[760px] flex-col md:h-[calc(100dvh-140px)]">
+      {drop.dragging && <DropHint />}
       {/* Title on the left, the session actions against the right edge, the pair on
           its own line below. All three pills used to sit in one left-hugging huddle
           under the subtitle, which left the header lopsided — and History's menu
@@ -149,36 +148,7 @@ export default function MikaPage() {
           the conversation is two lines or twenty */}
       <div className="mt-3">
         {unfinished && <p className="mb-1.5 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
-        <form
-          className="flex items-end gap-2 rounded-[22px] border border-black/[0.08] bg-surface p-2 shadow-[0_10px_30px_rgba(46,42,38,0.12)]"
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-        >
-          <textarea
-            ref={inputRef}
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder={t("tutor.placeholder")}
-            disabled={busy}
-            className="max-h-[180px] min-h-10 flex-1 resize-none bg-transparent px-3 py-2 text-[16px] leading-relaxed text-ink placeholder:text-ink-faint focus:outline-none sm:text-[15px]"
-          />
-          <button
-            type="submit"
-            disabled={busy || !input.trim() || unfinished}
-            className="shrink-0 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
-          >
-            {t("word.send")}
-          </button>
-        </form>
+        <TutorComposer chat={chat} inputRef={inputRef} fileRef={fileRef} large />
       </div>
     </div>
   );

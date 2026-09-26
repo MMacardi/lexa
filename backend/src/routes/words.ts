@@ -1058,11 +1058,27 @@ async function streamNdjson(
 }
 
 // POST /api/tutor/ask -> global AI tutor chat (not tied to a card).
+// Photos come as base64 data: URIs the client has already downscaled (~1280 px JPEG,
+// a few hundred KB) — never a URL, so the server fetches nothing on anyone's behalf.
+const chatImage = z
+  .string()
+  .max(3_000_000)
+  .regex(/^data:image\/(jpeg|png|webp|gif);base64,/, "Expected an image data URL");
 const tutorBody = z.object({
   messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .array(
+      z
+        .object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().max(4000),
+          images: z.array(chatImage).max(4).optional(),
+        })
+        // A photo on its own is a question ("what's this?"); an empty text alone is not.
+        .refine((m) => m.content.trim() || (m.role === "user" && m.images?.length), "Empty message"),
+    )
     .min(1)
-    .max(20),
+    .max(20)
+    .refine((ms) => ms.reduce((n, m) => n + (m.images?.length ?? 0), 0) <= 8, "Too many photos"),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   level: z.string().max(4).optional(),

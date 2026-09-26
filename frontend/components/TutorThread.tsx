@@ -1,18 +1,23 @@
 "use client";
 
-import type { TutorChat } from "@/lib/useTutorChat";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { fullImage, type TutorChat } from "@/lib/useTutorChat";
 import { useI18n } from "@/lib/i18n";
+import { useToast } from "@/lib/toast";
 import { displayCode, pairLabel } from "@/lib/langs";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { RichText } from "@/components/RichText";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Copy, Pencil, RefreshCw, X } from "lucide-react";
 
 // Mika's messages + the "create cards" picker under answers that suggest words.
 // Shared by the floating widget and the /mika page; `large` = the roomier page sizing.
 export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: boolean }) {
   const { t } = useI18n();
+  const { show } = useToast();
+  const [zoom, setZoom] = useState<string | null>(null); // a photo opened full size
   const {
     messages,
     pair,
@@ -32,7 +37,19 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
     card,
     addToCard,
     addExampleToCard,
+    regenerate,
+    editLast,
   } = chat;
+  const lastUser = messages.map((m) => m.role).lastIndexOf("user");
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      show({ icon: "📋", title: t("tutor.copied") });
+    } catch {
+      /* clipboard blocked (http, old browser) — nothing useful to say */
+    }
+  }
 
   return (
     <>
@@ -40,6 +57,18 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
         m.role === "assistant" ? (
           <div key={i} className="anim-msg space-y-2">
             <RichText text={m.content} streaming={m.streaming} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
+            {!m.streaming && (
+              <div className="-ml-1.5 flex items-center gap-0.5 text-ink-faint">
+                <MsgAction label={t("tutor.copy")} onClick={() => copy(m.content)}>
+                  <Copy className="h-3.5 w-3.5" />
+                </MsgAction>
+                {i === messages.length - 1 && !busy && (
+                  <MsgAction label={t("tutor.regenerate")} onClick={regenerate}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </MsgAction>
+                )}
+              </div>
+            )}
             {m.addWords &&
               m.addWords.length > 0 &&
               (() => {
@@ -173,15 +202,38 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
             ) : null}
           </div>
         ) : (
-          <div key={i} className="anim-msg flex justify-end">
-            <span
-              className={cn(
-                "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 py-2 font-medium text-white",
-                large ? "text-[15px]" : "text-[13px]",
+          <div key={i} className="anim-msg flex flex-col items-end gap-1.5">
+            {m.images && m.images.length > 0 && (
+              <div className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
+                {m.images.map((src, k) => (
+                  <button key={k} type="button" onClick={() => setZoom(src)} aria-label={t("tutor.openPhoto")} className="overflow-hidden rounded-[14px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a local data: URL */}
+                    <img
+                      src={src}
+                      alt=""
+                      className={cn("border border-black/[0.08] object-cover", m.images!.length > 1 ? "h-24 w-24" : large ? "max-h-56 max-w-[260px]" : "max-h-44 max-w-[200px]")}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex max-w-full items-end justify-end gap-1">
+              {i === lastUser && !busy && (
+                <MsgAction label={t("tutor.edit")} onClick={editLast} className="text-ink-faint">
+                  <Pencil className="h-3.5 w-3.5" />
+                </MsgAction>
               )}
-            >
-              {m.content}
-            </span>
+              {m.content && (
+                <span
+                  className={cn(
+                    "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 py-2 font-medium text-white",
+                    large ? "text-[15px]" : "text-[13px]",
+                  )}
+                >
+                  {m.content}
+                </span>
+              )}
+            </div>
           </div>
         ),
       )}
@@ -196,7 +248,58 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
           {t("word.thinking")}
         </p>
       )}
-      {isError && <p className="text-sm text-warn-text">{t("word.askError")}</p>}
+      {isError && (
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-warn-text">
+          {t("word.askError")}
+          {!busy && (
+            <button type="button" onClick={regenerate} className="inline-flex items-center gap-1 font-semibold text-sage hover:text-sage-deep">
+              <RefreshCw className="h-3.5 w-3.5" /> {t("tutor.retry")}
+            </button>
+          )}
+        </p>
+      )}
+      {zoom && <PhotoZoom src={fullImage(zoom)} onClose={() => setZoom(null)} />}
     </>
+  );
+}
+
+function MsgAction({ label, onClick, className, children }: { label: string; onClick: () => void; className?: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn("rounded-lg p-1.5 transition-colors hover:bg-black/[0.05] hover:text-ink", className)}
+    >
+      {children}
+    </button>
+  );
+}
+
+// A photo from the thread, full size over the page. Esc or a tap anywhere closes it.
+// Portalled to <body>: the floating panel is moved with a transform, which would
+// pin a `fixed` overlay inside the panel instead of over the page.
+function PhotoZoom({ src, onClose }: { src: string; onClose: () => void }) {
+  const { t } = useI18n();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="anim-scrim fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4" onClick={onClose} role="dialog" aria-modal>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a local data: URL */}
+      <img src={src} alt="" className="max-h-full max-w-full rounded-[12px] object-contain shadow-2xl" />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t("common.close")}
+        className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70"
+      >
+        <X className="h-5 w-5" />
+      </button>
+    </div>,
+    document.body,
   );
 }

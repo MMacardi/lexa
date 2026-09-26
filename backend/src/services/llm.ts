@@ -236,7 +236,27 @@ export async function transcribeAudio(opts: { base64: string; format?: string; s
   }
 }
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+// A user turn may carry photos (Mika chat): text + image parts, OpenAI-style. Images
+// are always base64 data: URIs from the client, never URLs we would have to fetch.
+export type ChatPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+export type ChatMessage =
+  | { role: "system" | "assistant"; content: string }
+  | { role: "user"; content: string | ChatPart[] };
+
+// Model for a chat turn that includes a photo. Qwen3.5 is natively multimodal and
+// keeps JSON mode + streaming; with thinking off it starts answering in under a
+// second (thinking on took ~18 s to the first token). Env override per region.
+export const CHAT_VISION_MODEL = process.env.BAILIAN_CHAT_VISION_MODEL || "qwen3.5-plus";
+
+// Qwen3.5 and Qwen3-VL think by default; we never want that (latency + ¥ output).
+const noThinking = (model: string) => (/^qwen3(\.\d|-vl)/.test(model) ? { enable_thinking: false } : {});
+
+// The text of a message, for the aborted-stream token estimate. An image counts
+// as roughly a thousand tokens at the sizes the client uploads.
+const messageText = (m: ChatMessage) =>
+  typeof m.content === "string"
+    ? m.content
+    : m.content.map((p) => (p.type === "text" ? p.text : " ".repeat(4000))).join("\n");
 
 /** Multi-turn chat that returns validated JSON (used by the actionable tutor). */
 export async function chatJsonConversation<T>(opts: {
@@ -255,6 +275,7 @@ export async function chatJsonConversation<T>(opts: {
         messages: opts.messages,
         response_format: { type: "json_object" },
         temperature: 0.4,
+        ...noThinking(opts.model ?? MODEL),
       },
       opts.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
     );
@@ -294,7 +315,7 @@ export async function chatJsonConversationStream<T>(opts: {
   model?: string;
 }): Promise<T> {
   const extractor = createFieldExtractor(opts.onDelta, opts.field);
-  const promptText = opts.messages.map((m) => m.content).join("\n");
+  const promptText = opts.messages.map(messageText).join("\n");
   let raw = "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let usage: any;
@@ -310,6 +331,7 @@ export async function chatJsonConversationStream<T>(opts: {
         temperature: 0.4,
         stream: true,
         stream_options: { include_usage: true },
+        ...noThinking(opts.model ?? MODEL),
       },
       {
         ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),

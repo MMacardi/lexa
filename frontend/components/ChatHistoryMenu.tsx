@@ -119,7 +119,7 @@ export function ChatHistoryMenu({
                     c.id === chatId && "bg-sage-tint/50",
                   )}
                 >
-                  <span className="block truncate text-[13px] font-medium text-ink">{c.title || t("mika.untitledChat")}</span>
+                  <span className="block truncate text-[13px] font-medium text-ink">{c.title || t(c.photo ? "tutor.photoChat" : "mika.untitledChat")}</span>
                   <span className="mt-0.5 block text-[11px] text-ink-faint">{when(c.at)}</span>
                 </button>
                 <button

@@ -53,6 +53,16 @@ export function RichText({ text, className, streaming = false }: { text: string;
             </div>
           );
         }
+        // Headings and rules (the photo model likes them): a bold line, a gap.
+        const head = line.match(/^\s*#{1,4}\s+(.*)$/);
+        if (head) {
+          return (
+            <p key={i} className="pt-1 font-semibold leading-relaxed">
+              {inline(fix(head[1]))}
+            </p>
+          );
+        }
+        if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) return <div key={i} className="h-1.5" />;
         const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
         if (bullet) {
           return (

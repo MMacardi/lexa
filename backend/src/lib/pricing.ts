@@ -13,6 +13,8 @@ export const PRICING: Record<string, { in: number; out: number }> = {
   "qwen-plus": { in: 0.8, out: 2.0 },
   "qwen-flash": { in: 0.15, out: 1.5 },
   "qwen-vl-plus": { in: 1.5, out: 4.5 },
+  // Mika chat turns with a photo. Verified 2026-09-26 (≤128K input tier, non-thinking).
+  "qwen3.5-plus": { in: 0.8, out: 4.8 },
   "qwen3-asr-flash": { in: 0, out: 0 },
 };
 

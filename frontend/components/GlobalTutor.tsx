@@ -9,6 +9,7 @@ import { useTutorChat, type TutorCardCtx } from "@/lib/useTutorChat";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
+import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,8 @@ export function GlobalTutor() {
   const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
   useLockScroll(open && mobile);
   const chat = useTutorChat({ active: open });
-  const { pair, changePair, messages, input, setInput, send, reset, busy, unfinished, card, startCard } = chat;
+  const { pair, changePair, messages, send, reset, busy, unfinished, card, startCard } = chat;
+  const drop = useImageDrop(chat);
   // The word page opens Mika on a card ("Explain with Onomika"); the tab bar opens
   // it plain. Kept in a ref so the listener is registered once.
   const startRef = useRef(startCard);
@@ -42,7 +44,8 @@ export function GlobalTutor() {
     return () => window.removeEventListener(OPEN_MIKA, on);
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   // Draggable panel: offset from its docked corner, remembered across opens and
   // page reloads (localStorage). The "reset position" button clears it.
   const [offset, setOffset] = useState<{ x: number; y: number }>(() => {
@@ -143,12 +146,14 @@ export function GlobalTutor() {
           className={cn(
             "z-[60] flex flex-col overflow-hidden bg-surface",
             mobile
-              ? "anim-sheet max-h-[calc(100%-12px)] min-h-[min(420px,calc(100%-12px))] rounded-t-[24px] border-t border-black/[0.08] shadow-[0_-12px_40px_rgba(46,42,38,0.25)]"
+              ? "anim-sheet relative max-h-[calc(100%-12px)] min-h-[min(420px,calc(100%-12px))] rounded-t-[24px] border-t border-black/[0.08] shadow-[0_-12px_40px_rgba(46,42,38,0.25)]"
               : "anim-panel fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
           )}
           style={mobile ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
           onClick={(e) => e.stopPropagation()}
+          {...drop.props}
         >
+          {drop.dragging && <DropHint />}
           {mobile && <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-black/15" />}
           {/* header — title, centered drag handle, clickable language pair, actions */}
           <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
@@ -236,6 +241,7 @@ export function GlobalTutor() {
               <div className="space-y-3">
                 <p className="text-[14px] leading-relaxed text-ink-soft">{t("tutor.welcome")}</p>
                 <div className="flex flex-wrap gap-1.5">
+                  <Chip onClick={() => fileRef.current?.click()}>{t("tutor.suggestPhoto")}</Chip>
                   <Chip onClick={() => fillTemplate(t("tutor.topicTemplate"))}>{t("tutor.suggestTopic")}</Chip>
                   <Chip onClick={() => send(t("tutor.levelTemplate", { level: getLevel(pair.source) ?? "B1" }))}>
                     {t("tutor.suggestLevel")}
@@ -261,29 +267,7 @@ export function GlobalTutor() {
               </button>
             )}
             {unfinished && <p className="mb-1.5 px-1 text-[12px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                send();
-              }}
-            >
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={t("tutor.placeholder")}
-                disabled={busy}
-                className="h-10 flex-1 rounded-full border border-black/[0.08] bg-surface px-4 text-[16px] text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none sm:text-[14px]"
-              />
-              <button
-                type="submit"
-                disabled={busy || !input.trim() || unfinished}
-                className="shrink-0 rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-40"
-              >
-                {t("word.send")}
-              </button>
-            </form>
+            <TutorComposer chat={chat} inputRef={inputRef} fileRef={fileRef} />
           </div>
         </div>
         </SheetScrim>
