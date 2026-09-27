@@ -1413,6 +1413,18 @@ const DICT: Record<string, Entry> = {
     ru: "Нужна точность? Пройди весь HSK {level}: отмечаешь только незнакомое, минут 5.",
     zh: "想要精确？扫一遍 HSK {level}：只点不认识的，大约 5 分钟。",
   },
+  "check.estimateAccount": {
+    en: "About {known} of the {total} words up to HSK {level}, from this check and everything you've shown before.",
+    ru: "Примерно {known} из {total} слов до HSK {level} — по этой проверке и всему, что было раньше.",
+    zh: "HSK {level} 以内 {total} 个词中，你大约认识 {known} 个——根据这次测试和之前的所有记录。",
+  },
+  "check.again": { en: "Check again — 2 minutes", ru: "Проверить ещё раз — 2 минуты", zh: "再测一次——2 分钟" },
+  "check.againNote": {
+    en: "Up to HSK {level}. Words you already have as cards or have answered aren't asked again.",
+    ru: "До HSK {level}. Слова, которые уже есть в карточках или были в ответах, не спрашиваем.",
+    zh: "到 HSK {level} 为止。已有卡片或已经答过的词不会再问。",
+  },
+  "check.againDone": { en: "Your estimate is updated", ru: "Оценка обновлена", zh: "估算已更新" },
   "check.sweepLater": {
     en: "Want it exact? Later, sweep HSK {level} from Today — about 5 minutes.",
     ru: "Нужна точность? Потом можно пройти весь HSK {level} с главной — минут 5.",

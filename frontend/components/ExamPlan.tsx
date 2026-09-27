@@ -172,6 +172,14 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
               <span className="block text-[12px] text-ink-soft">{t("plan.sweepWhy")}</span>
             </Link>
           )}
+          {!plan.exact && (
+            <Link
+              href={`/hsk/${plan.version}/${plan.level}/check`}
+              className="block rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-[14px] font-semibold text-ink transition-colors hover:bg-black/[0.02]"
+            >
+              {t("check.again")}
+            </Link>
+          )}
           {plan.lower && (
             <button
               type="button"
@@ -230,12 +238,22 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
         </>
       )}
 
-      {!plan.exact && plan.status !== "tight" && plan.sweepLevel && (
+      {/* An estimate says so, with the two ways to firm it up: the 2-minute check,
+          and the sweep of the level where the guess is biggest. */}
+      {!plan.exact && plan.status !== "tight" && (
         <p className="mt-3 text-[12px] text-ink-soft">
           {t("plan.estimate")}{" "}
-          <Link href={`/hsk/${plan.version}/${plan.sweepLevel}/sweep`} className="font-semibold text-sage-deep hover:text-sage">
-            {t("plan.sweep", { level: levelLabel(plan.sweepLevel) })}
+          <Link href={`/hsk/${plan.version}/${plan.level}/check`} className="font-semibold text-sage-deep hover:text-sage">
+            {t("check.again")}
           </Link>
+          {plan.sweepLevel && (
+            <>
+              {" · "}
+              <Link href={`/hsk/${plan.version}/${plan.sweepLevel}/sweep`} className="font-semibold text-sage-deep hover:text-sage">
+                {t("plan.sweep", { level: levelLabel(plan.sweepLevel) })}
+              </Link>
+            </>
+          )}
         </p>
       )}
     </div>

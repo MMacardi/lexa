@@ -155,7 +155,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      predicted vs actual share and words off, per level. With no argument it self-tests on a
      throwaway account: HSK 4 at 42% predicted vs 34% swept, 74 words off of 960. The number that
      counts needs the author's own check followed by a sweep of the target level; running it
-     against prod is the author's call. A meaning question's right answers stay unstored on
+     against prod is the author's call. An account past onboarding can't reach the onboarding
+     check, so **"Check again — 2 minutes"** (`/hsk/[version]/[level]/check`, linked from the
+     readiness card and the plan card while it's an estimate) runs the same check (`HskCheck`,
+     moved out of `HskFirstRun`). It starts at the lowest level whose estimate is under 70%, skips
+     words already carded or answered, and saves at the end. Local run at 390 px: an account with an
+     old 24-word check → Today → Check again → five screens → "Your estimate is updated". A sweep
+     of the rest of HSK 4 then gave the report 954 held-out words (22% predicted, 33% actual). A meaning question's right answers stay unstored on
      purpose: the proof above found discounting by them made things worse. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
      cache on the bind mount): `rm -rf /app/.next` + restart, or add `WATCHPACK_POLLING`.
 

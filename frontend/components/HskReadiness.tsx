@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type HskVersion } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -95,6 +96,13 @@ export function HskReadiness() {
         </span>
       </div>
       {estimated && <p className="mt-1 text-[13px] leading-snug text-ink-faint">{t("hsk.measuredLine", { a: recognise })}</p>}
+      {/* The estimate is only as good as its sample: the check adds to it in two minutes. */}
+      <Link
+        href={`/hsk/${data.version}/${data.level}/check`}
+        className="mt-1 inline-block text-[13px] font-semibold text-sage-deep underline-offset-2 hover:underline"
+      >
+        {t("check.again")}
+      </Link>
       <p className="mt-1 text-[15px] font-medium text-sage-deep">{t("hsk.canUseOf", { a: canUse })}</p>
 
       {/* recognise / can use / learning, in one track */}
