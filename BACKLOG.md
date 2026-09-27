@@ -41,7 +41,7 @@ bare numbers) are noted in brackets only so older commits and `IDEAS.md` heading
 don't invent new ones.
 
 **Where the line is.** Items 1a–1e are the algorithms (2026-09-27): test before any claim, the
-list's own data right, then the next word. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+list's own data right, then the next word. 1f is the first five minutes, built from their output. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1c. 19–22 make
@@ -115,6 +115,24 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - Instant capture (item 2) already asks for "one example built from words the learner already
      has"; this makes it the rule everywhere examples are made, and checks it (segment the
      sentence, count the words not on the learner's cards).
+
+1f. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
+   same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and
+   20 words, then sign-in and the invite code — and has learned nothing yet. After 1c–1e because
+   the hook is made of their output and there is no traffic to convert before the beta; the
+   funnel events are the exception, small enough for any session.
+   - **Funnel first:** no event fires before sign-in (landing → each question → check → ready →
+     sign-in), so where visitors drop is a guess. `track` exists server-side (signup, adds,
+     reviews); add a public event route, or send the steps with the first signed-in request.
+   - **A result worth a screenshot:** the check now prices the gap, so the ready screen can say
+     "About 480 HSK 4 words to go — at 15 min a day, ready by Nov 15, two weeks before your
+     exam." Honest once 1c makes the check trustworthy; labelled an estimate until then.
+   - **Learn before the wall:** five of their missing words, a sentence each they can fully read
+     (1e), a one-minute review, then "Sign in to keep them" — Duolingo's first lesson comes
+     before the account for this reason.
+   - **Fewer questions before value:** level, target and date, then the check. Why Chinese and
+     the interests after the first result; the 2.0/3.0 toggle out of the first run; the
+     explanation language from the browser.
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
