@@ -253,7 +253,7 @@ export function evidenceFrom(version: HskVersion, said: Map<string, boolean>, ha
  * on first sight was known (Hard, Good or Easy — only Again means it wasn't).
  * DISTINCT ON keeps it to one row a card, however many reviews there are.
  */
-async function firstReviews(userId: string): Promise<Map<string, { at: Date; recalled: boolean }>> {
+export async function firstReviews(userId: string): Promise<Map<string, { at: Date; recalled: boolean }>> {
   const rows = await prisma.$queryRaw<{ word: string; grade: number; at: Date }[]>`
     SELECT DISTINCT ON (e."wordId") w."word" AS word, e."grade" AS grade, e."createdAt" AS at
     FROM "ReviewEvent" e JOIN "Word" w ON w."id" = e."wordId"

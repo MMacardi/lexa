@@ -149,9 +149,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      discounting by missed meaning questions. Account part: fakes never counted, guest plan =
      account plan, mark = plan, first reviews and taken words move it. Browser run at 390 px: guest
      check → pace summary → sign-in → the answers, fakes and taken words on the account → the card.
-   - Not done: a meaning question's *right* answers aren't stored (only a miss, as "to learn"), so
-     the real-data proof, predicting a sweep from a check, has to wait for the author's own
-     sweep. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
+   - **Real data:** `scripts/check-placement-holdout.ts <telegramId>` (read-only) splits an account
+     at its last check. The rates as they stood then predict every later answer: a sweep (it
+     never re-asks a checked word), a daily "I know it", a taken word's first review. It reports
+     predicted vs actual share and words off, per level. With no argument it self-tests on a
+     throwaway account: HSK 4 at 42% predicted vs 34% swept, 74 words off of 960. The number that
+     counts needs the author's own check followed by a sweep of the target level; running it
+     against prod is the author's call. A meaning question's right answers stay unstored on
+     purpose: the proof above found discounting by them made things worse. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
      cache on the bind mount): `rm -rf /app/.next` + restart, or add `WATCHPACK_POLLING`.
 
 1d. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
