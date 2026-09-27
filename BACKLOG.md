@@ -172,27 +172,26 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    (the example's source) with no sign the example is coming, because `DictMeaningLabel` only
    labels cards still in CC-CEDICT's English. Upfront, not "the first opener makes it for
    everyone": in a beta of five nearly every open is a first open, a full set can be checked before
-   anyone sees it, and ~¥20 is nothing.
-   - **The fixed half, the same for everyone:** one offline pass like `build-hsk-ru.ts` over the
-     11,482 headwords. Per word: the sense list (grounded in the CEDICT inventory, the `wordSenses`
-     shape), 2 phrases per sense with pinyin and Russian, synonyms/antonyms, and a situation tag
-     (1e session 2 needs one for every word). Shipped as data. `wordSenses`/`wordFamily` read it
-     before asking the model; `onCard` still comes from `flagByMeaning`.
-   - **Examples are the part that isn't fixed:** a sentence that suits HSK 5 is unreadable at HSK 2.
-     So each word gets a pool of 3–4 sentences, each with a stated ceiling (HSK 1–2 words only / up
-     to the word's own level / natural), stored already segmented. On add or open, pick the one with
-     the fewest words not on the learner's cards. If even the best has more than one unknown word
-     besides the headword, the per-card call writes one from the learner's own words, and that one
-     stays on their card, never shared.
+   anyone sees it, and ~¥10 is nothing.
+   - **The fixed half only, the same for everyone:** one offline pass like `build-hsk-ru.ts` over
+     the 11,482 headwords. Per word: the sense list (grounded in the CEDICT inventory, the
+     `wordSenses` shape), 2 short phrases per sense with pinyin and Russian, the card's part of
+     speech, synonyms/antonyms, and a situation tag (1e session 2 needs one for every word). Shipped
+     as data. `wordSenses`/`wordFamily` read it before asking the model; `onCard` still comes from
+     `flagByMeaning`.
+   - **No example sentences in this pass** (decided with the author): they depend on the learner's
+     level, so they are 1f's. Until then the per-card call still writes the example, and the list
+     says "example on the way" instead of a silent "—".
    - **Checked before anyone sees it** (`check-word-pages.ts`): pinyin = the list's reading (1b),
-     each phrase contains the headword, each sentence segmented and its ceiling true, the Russian
-     agrees with `hsk-ru`. Then read by hand: the flagged entries, the ~500 most polysemous common
-     words (打 上 过 得) and a random 200 — the error rate is stated, fixes go through `--redo`.
-   - **Not in it:** words outside the list (Reader captures, topic words) keep the per-card path,
-     with a visible "example on the way" in the list. Made on first open and kept for everyone is
-     item 27. HSK pages no longer follow the custom meaning style.
-   - **Proof:** a fresh HSK card's page has its meanings on first paint and no model call in the
-     log; an HSK 2 and an HSK 5 account get different sentences for the same HSK 4 word.
+     each phrase contains the headword, every sense is in the inventory, the Russian agrees with
+     `hsk-ru`. Then read by hand: the flagged entries, the ~500 most polysemous common words
+     (打 上 过 得) and a random 200 — the error rate is stated, fixes go through `--redo`. The model
+     is picked first on 50 hard words, qwen-plus vs qwen3.5-plus.
+   - **Not in it:** words outside the list (Reader captures, topic words) keep the per-card path.
+     Made on first open and kept for everyone is item 27. HSK pages no longer follow the custom
+     meaning style.
+   - **Proof:** a fresh HSK card's page has its meanings and word family on first paint, and no
+     model call for them in the log.
 
 1e. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
@@ -228,8 +227,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 1f. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
    one new word, on the themes they picked (the onboarding interests) or the HSK topic list. Qwen
    writes them — nothing is copied. Strong in Chinese, not error-free, hence the check below.
-   For HSK words 1d's sentence pool and its pick already do most of this; what's left is the themes,
-   the register and the same rule for every other place examples are made.
+   - **For HSK words, a pool written once** (moved here from 1d): a sentence that suits HSK 5 is
+     unreadable at HSK 2, so each word gets 3 sentences with a stated ceiling (HSK 1–2 words only /
+     up to the word's own level / natural), with pinyin and Russian, stored already segmented and
+     each ceiling checked. On add or open, pick the one with the fewest words not on the learner's
+     cards; if even the best has more than one unknown besides the headword, the per-card call
+     writes one from the learner's own words, kept on their card only. Proof: an HSK 2 and an HSK 5
+     account get different sentences for the same HSK 4 word.
    - **A register beside the themes** (from the author, 2026-09-27): everyday, formal (news,
      work, exam-style), and internet — Douyin/Weibo slang, labelled as slang so nobody writes it
      in an exam essay.
