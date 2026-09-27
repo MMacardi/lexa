@@ -932,9 +932,12 @@ export const api = {
     http<HskWordList>(`/api/public/hsk/check?${new URLSearchParams({ version, level: String(level), size: String(size) })}`),
   // The plan's paces while the questions are still being asked: an estimate from
   // the level the guest says they have.
-  publicHskPlan: (p: { version: HskVersion; level: number; known: number; examDate: string | null; daily: number }) => {
+  // `knew`/`missed`: the check's taps, once it has run — the plan is then priced from them.
+  publicHskPlan: (p: { version: HskVersion; level: number; known: number; examDate: string | null; daily: number; knew?: string[]; missed?: string[] }) => {
     const q = new URLSearchParams({ version: p.version, level: String(p.level), known: String(p.known), daily: String(p.daily), today: localDay() });
     if (p.examDate) q.set("examDate", p.examDate);
+    if (p.knew?.length) q.set("knew", p.knew.join(","));
+    if (p.missed?.length) q.set("missed", p.missed.join(","));
     return http<StudyPlan>(`/api/public/hsk/plan?${q}`);
   },
   publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number }) =>

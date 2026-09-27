@@ -92,6 +92,21 @@ async function main() {
   const after = await planForUser(TG, TODAY);
   check(after.left < before.left, `a sweep of HSK 1 lowers the words left (${before.left} → ${after.left})`);
   check(after.sweepLevel !== 1, `…and HSK 1 isn't offered for a sweep again (${after.sweepLevel})`);
+
+  // 7. The check runs before the pace question: the guest's plan from the same taps is the
+  // account's plan (no cards yet), so the pace picked before sign-in and Today's date agree.
+  const tapped = guestPlan({
+    version: "3.0",
+    level: 4,
+    known: 4,
+    answers: { known: l1.slice(10), unknown: l1.slice(0, 10) },
+    today: TODAY,
+    examDate: addDays(TODAY, 60),
+    daily: 12,
+  });
+  check(tapped.left === after.left && tapped.status === after.status, `guest from taps = the account's plan (${tapped.left} / ${after.left}, ${tapped.status})`);
+  check(tapped.paces.every((p, i) => p.finish === after.paces[i].finish), "…and every pace finishes on the same day");
+  check(tapped.left !== same.left, `the taps replace the self-rating (${tapped.left} vs ${same.left} from "Around HSK 4")`);
 }
 
 main()

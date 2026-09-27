@@ -24,8 +24,9 @@ publicRouter.get("/public/hsk/check", limiter, (req, res) => {
 });
 
 // GET /api/public/hsk/plan?version=3.0&level=4&known=3&examDate=2026-11-22&today=…&daily=12
-// — the plan's paces while the questions are still being asked, from the level
-// the guest said they have (no check yet, so an estimate and labelled one).
+//   &knew=你好,喜欢&missed=宣布,巨大
+// — the plan's paces before sign-in: from the check's taps (`knew`/`missed`,
+// comma-separated) once it has run, else from the level the guest said they have.
 const day = z.string().regex(/^20\d\d-\d\d-\d\d$/);
 const planQuery = z.object({
   version: z.string().optional(),
@@ -34,7 +35,11 @@ const planQuery = z.object({
   examDate: day.optional(),
   today: day.optional(),
   daily: z.coerce.number().int().min(1).max(100).default(10),
+  knew: z.string().max(1000).optional(),
+  missed: z.string().max(1000).optional(),
 });
+// A tap list: the check shows ~24 words, so 100 is a ceiling, not a limit anyone meets.
+const tapList = (s: string | undefined) => (s ? s.split(",").map((w) => w.trim()).filter(Boolean).slice(0, 100) : []);
 publicRouter.get("/public/hsk/plan", limiter, (req, res) => {
   const parsed = planQuery.safeParse(req.query);
   if (!parsed.success) {
@@ -48,6 +53,7 @@ publicRouter.get("/public/hsk/plan", limiter, (req, res) => {
       version,
       level: q.level,
       known: q.known,
+      answers: { known: tapList(q.knew), unknown: tapList(q.missed) },
       today: q.today ?? isoDay(new Date()),
       examDate: q.examDate ?? null,
       daily: q.daily,

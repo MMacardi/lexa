@@ -189,6 +189,24 @@ export function buildPlan(input: {
   };
 }
 
+/** Per-level evidence from the answers ("I know it" true/false) and the words the learner has. */
+function evidenceFrom(version: HskVersion, said: Map<string, boolean>, has: (word: string) => boolean): LevelEvidence[] {
+  const levels: LevelEvidence[] = [];
+  for (let n = 1; n <= HSK_MAX_LEVEL[version]; n++) {
+    const l: LevelEvidence = { level: n, total: 0, have: 0, toLearn: 0, saidKnown: 0, saidUnknown: 0 };
+    for (const w of hskLevelWords(version, n)) {
+      l.total++;
+      const answer = said.get(w.word);
+      if (answer === true) l.saidKnown++;
+      if (answer === false) l.saidUnknown++;
+      if (has(w.word)) l.have++;
+      else if (answer === false) l.toLearn++;
+    }
+    levels.push(l);
+  }
+  return levels;
+}
+
 /** Per-level evidence for one learner: cards, "I know it"s, and the check's taps. */
 async function levelEvidence(telegramId: string, version: HskVersion): Promise<LevelEvidence[]> {
   const [status, answers] = await Promise.all([
@@ -198,21 +216,7 @@ async function levelEvidence(telegramId: string, version: HskVersion): Promise<L
       select: { word: true, known: true },
     }),
   ]);
-  const said = new Map(answers.map((a) => [normalizeHanzi(a.word), a.known]));
-  const levels: LevelEvidence[] = [];
-  for (let n = 1; n <= HSK_MAX_LEVEL[version]; n++) {
-    const l: LevelEvidence = { level: n, total: 0, have: 0, toLearn: 0, saidKnown: 0, saidUnknown: 0 };
-    for (const w of hskLevelWords(version, n)) {
-      l.total++;
-      const answer = said.get(w.word);
-      if (answer === true) l.saidKnown++;
-      if (answer === false) l.saidUnknown++;
-      if (status.has(w.word)) l.have++;
-      else if (answer === false) l.toLearn++;
-    }
-    levels.push(l);
-  }
-  return levels;
+  return evidenceFrom(version, new Map(answers.map((a) => [normalizeHanzi(a.word), a.known])), (w) => status.has(w));
 }
 
 export async function planForUser(telegramId: string, today: string): Promise<StudyPlan> {
@@ -232,21 +236,34 @@ export async function planForUser(telegramId: string, today: string): Promise<St
 }
 
 /**
- * Before sign-in there is no evidence yet, only the level the guest said they
- * have. "Around HSK 4" is what someone preparing for HSK 4 taps, so it reads as
+ * Before sign-in, priced from the check's taps when there are any: the same
+ * per-level evidence as the account's plan (no cards yet), so the pace the
+ * guest picks and the date Today shows after sign-in come from one sum.
+ *
+ * Without taps (from zero, or before the check) only the self-rated level is
+ * left. "Around HSK 4" is what someone preparing for HSK 4 taps, so it reads as
  * working on it: the levels below count as known, that one as half known, the
  * rest up to the target as unknown. Read as "knows all of HSK 4" it left an HSK 4
- * target with nothing to learn, and every pace said the same date. The check that
- * follows (and the account's own plan after it) refines it.
+ * target with nothing to learn, and every pace said the same date.
  */
 export function guestPlan(input: {
   version: HskVersion;
   level: number;
   known: number;
+  answers?: { known: string[]; unknown: string[] };
   today: string;
   examDate: string | null;
   daily: number;
 }): StudyPlan {
+  const { answers } = input;
+  if (answers && answers.known.length + answers.unknown.length > 0) {
+    const said = new Map<string, boolean>();
+    for (const w of answers.known) said.set(normalizeHanzi(w), true);
+    for (const w of answers.unknown) said.set(normalizeHanzi(w), false);
+    // An "I know it" is a word they have, as in `learnerStatus`: never offered as new.
+    const levels = evidenceFrom(input.version, said, (w) => said.get(w) === true);
+    return { ...buildPlan({ ...input, levels }), sweepLevel: null };
+  }
   const levels: LevelEvidence[] = [];
   for (let n = 1; n <= HSK_MAX_LEVEL[input.version]; n++) {
     const total = hskLevelWords(input.version, n).length;

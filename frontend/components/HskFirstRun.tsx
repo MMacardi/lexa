@@ -56,8 +56,11 @@ import { cn } from "@/lib/utils";
 
 // The one onboarding path, the way phone apps do it now: a question per screen
 // (the language words are explained in, why Chinese, how much they know, the
-// target and the exam date, what they're into, how many words a day), then the
-// plan those answers make, then the check → gap deck → first review as before.
+// target and the exam date, what they're into), then the check, then how many
+// words a day, then the plan → gap deck → first review. The check comes before
+// the pace on purpose: "fits your date" is a claim about what the learner
+// knows, and a self-rating is not that. It can be skipped; then the pace screen
+// says minutes and words, and nothing about a date.
 // Every answer lands somewhere that uses it: the target and daily goal on the
 // account (daily words, readiness mark), the reasons and interests in the coach
 // memory (the Coach's picks, examples, the tutor). Everything is one language
@@ -80,10 +83,10 @@ const DECK_SIZE = 20;
 export const CEFR_FOR_HSK: Record<number, CefrLevel> = { 1: "A1", 2: "A2", 3: "B1", 4: "B2", 5: "C1", 6: "C1", 7: "C2" };
 
 type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done" | "building" | "ready";
-const STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "daily", "plan", "check", "deck", "done"];
+const STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"];
 // Before sign-in the whole first five minutes happen here: the questions, the
 // check, the plan being built, the words — and the account comes last, to keep them.
-const GUEST_STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "daily", "check", "building", "ready"];
+const GUEST_STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready"];
 // Lines on the "building your plan" screen, ticked off one by one.
 const BUILD_STEPS = 4;
 const BUILD_STEP_MS = 850;
@@ -298,6 +301,10 @@ export function HskFirstRun({
   const [check, setCheck] = useState<HskWord[]>([]);
   const [unknown, setUnknown] = useState<Set<string>>(new Set());
   const [knownCount, setKnownCount] = useState(0);
+  // The check's taps, once it has run: the pace screen's plan is priced from
+  // them, and before sign-in the deck and the account are built from them too.
+  const [answers, setAnswers] = useState<{ known: string[]; unknown: string[] }>({ known: [], unknown: [] });
+  const [skipped, setSkipped] = useState(false);
   const [gap, setGap] = useState<HskWord[]>([]);
   // Deck words the learner turned down as already known (saved on build).
   const [rejected, setRejected] = useState<Set<string>>(new Set());
@@ -306,14 +313,17 @@ export function HskFirstRun({
   const level = CEFR_FOR_HSK[target] ?? "B1";
   const levelName = target === 7 ? "7–9" : String(target);
   const fromZero = known === 0;
+  // What the plan may claim a date from: the check's taps, or "from zero" (then
+  // every word is new, which is no guess). A skipped check claims nothing.
+  const measured = !skipped && answers.known.length + answers.unknown.length > 0;
   const steps = guest ? GUEST_STEPS : STEPS;
   const idx = steps.indexOf(step);
-  // Back is offered through the questions (and, before sign-in, from the check).
-  const backable = idx > 0 && idx <= steps.indexOf(guest ? "check" : "plan");
-  // The "building your plan" screen: which line is ticking, and the check's
-  // answers it was built from (kept for the account after sign-in).
+  // Back is offered through the questions, the check and the pace. From zero
+  // there was no check, so the pace goes back to the interests.
+  const backable = idx > 0 && idx <= steps.indexOf(guest ? "daily" : "plan");
+  const back = () => go(step === "daily" && fromZero ? "interests" : steps[idx - 1]);
+  // The "building your plan" screen: which line is ticking.
   const [buildStep, setBuildStep] = useState(0);
-  const [answers, setAnswers] = useState<{ known: string[]; unknown: string[] }>({ known: [], unknown: [] });
   const buildTimer = useRef(0);
   useEffect(() => () => window.clearInterval(buildTimer.current), []);
 
@@ -330,15 +340,16 @@ export function HskFirstRun({
     apply();
     window.setTimeout(() => go(next), 180);
   };
-  // The plan's paces for these answers: an estimate from the self-rated level
-  // (the check hasn't run yet) — which one fits the exam date, and whether none
-  // does. No finish date on the rows: before the check it is a guess dressed as a
-  // promise; Today's plan shows the day once the check's taps are in. Public, so
-  // the questions before sign-in get it too.
+  // The plan's paces for the check's taps: which one fits the exam date, and
+  // whether none does. Only once there is something to price — the taps, or
+  // "from zero" — so a skipped check gets no "for your date". No finish date on
+  // the rows: Today's plan shows the day. Public, so the questions before
+  // sign-in get it too, and the same sum as the account's plan after it.
   const { data: plan } = useQuery({
-    queryKey: ["onbPlan", version, target, known, examDate],
-    queryFn: () => api.publicHskPlan({ version, level: target, known: known ?? 0, examDate, daily }),
-    enabled: step === "daily" || step === "plan" || step === "ready",
+    queryKey: ["onbPlan", version, target, known, examDate, answers],
+    queryFn: () =>
+      api.publicHskPlan({ version, level: target, known: known ?? 0, examDate, daily, knew: answers.known, missed: answers.unknown }),
+    enabled: (measured || fromZero) && (step === "daily" || step === "plan" || step === "ready"),
     staleTime: 60_000,
   });
   const paceMinutes = plan?.paces.find((p) => p.words === daily)?.minutes ?? minutesFor(daily);
@@ -365,16 +376,18 @@ export function HskFirstRun({
     return { goal, likes };
   }
 
-  // Before sign-in, after the last question: the check (public list data, no
-  // account needed), or straight to building for someone starting from zero.
-  async function guestNext() {
+  // After the last question: the check (before sign-in from the public list
+  // data), or straight to the pace for someone starting from zero.
+  async function startCheck() {
+    setSkipped(false);
+    setAnswers({ known: [], unknown: [] });
     if (fromZero) {
-      startBuilding([], []);
+      go("daily");
       return;
     }
     setBusy(true);
     try {
-      const r = await api.publicHskCheck(version, target, CHECK_SIZE);
+      const r = guest ? await api.publicHskCheck(version, target, CHECK_SIZE) : await api.hskCheck(version, target, CHECK_SIZE);
       setCheck(r.words);
       setUnknown(new Set());
       go("check");
@@ -389,7 +402,6 @@ export function HskFirstRun({
   // time. The deck request runs underneath and is back long before the last
   // line, so the wait is the few seconds of the animation, not the network.
   function startBuilding(knownWords: string[], unknownWords: string[]) {
-    setAnswers({ known: knownWords, unknown: unknownWords });
     setBuildStep(0);
     setGap([]);
     setRejected(new Set());
@@ -412,7 +424,7 @@ export function HskFirstRun({
       .catch((e) => {
         window.clearInterval(buildTimer.current);
         show({ icon: "⚠️", title: errText(e, t) });
-        go(fromZero ? "daily" : "check");
+        go("daily");
       });
   }
 
@@ -472,46 +484,8 @@ export function HskFirstRun({
         .catch(() => {})
         .then(() => prefetchCoachPicks(qc, accountId, "zh", native));
 
-      if (fromZero) {
-        // Nothing to check yet: the first deck is the start of the target level.
-        const r = await api.hskGap(version, target, DECK_SIZE);
-        setCheck([]);
-        setGap(r.words);
-        setRejected(new Set());
-        go("deck");
-      } else {
-        const r = await api.hskCheck(version, target, CHECK_SIZE);
-        setCheck(r.words);
-        setUnknown(new Set());
-        go("check");
-      }
-    } catch (e) {
-      show({ icon: "⚠️", title: errText(e, t) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function finishCheck() {
-    if (guest) {
-      const knownWords = check.map((w) => w.word).filter((w) => !unknown.has(w));
-      setKnownCount(knownWords.length);
-      startBuilding(knownWords, [...unknown]);
-      return;
-    }
-    setBusy(true);
-    try {
-      const knownWords = check.map((w) => w.word).filter((w) => !unknown.has(w));
-      setKnownCount(knownWords.length);
-      await api.savePlacement({
-        sourceLang: "zh",
-        targetLang: native,
-        level,
-        known: knownWords,
-        unknown: [...unknown],
-      });
-      // The gap deck is computed after the taps land, so the words the learner
-      // just said they know never come back as something to learn.
+      // The check ran before the pace and its taps are on the account, so the gap
+      // deck reads them: the words the learner said they know never come back.
       const r = await api.hskGap(version, target, DECK_SIZE);
       setGap(r.words);
       setRejected(new Set());
@@ -521,6 +495,33 @@ export function HskFirstRun({
     } finally {
       setBusy(false);
     }
+  }
+
+  // The taps become the evidence for the pace screen. Signed in, they land on
+  // the account at once, so a learner who drops out here still has them.
+  async function finishCheck() {
+    const knownWords = check.map((w) => w.word).filter((w) => !unknown.has(w));
+    if (!guest) {
+      setBusy(true);
+      try {
+        await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: knownWords, unknown: [...unknown] });
+      } catch (e) {
+        show({ icon: "⚠️", title: errText(e, t) });
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    setKnownCount(knownWords.length);
+    setAnswers({ known: knownWords, unknown: [...unknown] });
+    setSkipped(false);
+    go("daily");
+  }
+
+  function skipCheck() {
+    setAnswers({ known: [], unknown: [] });
+    setSkipped(true);
+    go("daily");
   }
 
   async function buildDeck() {
@@ -582,7 +583,11 @@ export function HskFirstRun({
   );
   const buildLines = [
     t("onb.build.answers"),
-    fromZero ? t("onb.build.zero") : t("onb.build.level", { known: knownCount, shown: check.length, level: levelName }),
+    fromZero
+      ? t("onb.build.zero")
+      : measured
+        ? t("onb.build.level", { known: knownCount, shown: check.length, level: levelName })
+        : t("onb.build.skipped", { level: levelName }),
     t("onb.build.words", { n: DECK_SIZE, level: levelName }),
     t("onb.build.pace", { n: daily }),
   ];
@@ -595,7 +600,7 @@ export function HskFirstRun({
           {backable ? (
             <button
               type="button"
-              onClick={() => go(steps[idx - 1])}
+              onClick={back}
               aria-label={t("onb.back")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-black/[0.05] hover:text-ink"
             >
@@ -760,7 +765,8 @@ export function HskFirstRun({
               })}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button className="w-full sm:w-auto" onClick={() => go("daily")}>
+              <Button className="w-full sm:w-auto" disabled={busy} onClick={startCheck}>
+                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {interests.size ? t("onb.continue") : t("onb.skip")}
               </Button>
             </div>
@@ -772,7 +778,7 @@ export function HskFirstRun({
             {heading(t("onb.dailyTitle"), t("onb.dailySub"))}
             {plan?.status === "tight" && plan.need && (
               <p className="-mt-1 mb-3 rounded-[12px] bg-warn-bg px-3 py-2 text-[13px] leading-snug text-warn-text">
-                {t(fromZero ? "onb.paceTightZero" : "onb.paceTight", { m: plan.need })}
+                {t("onb.paceTight", { m: plan.need })}
               </p>
             )}
             <div className="space-y-2">
@@ -787,7 +793,7 @@ export function HskFirstRun({
                     onClick={() => {
                       if (!guest) return pickThen(() => setDaily(words), "plan");
                       setDaily(words);
-                      window.setTimeout(guestNext, 180);
+                      window.setTimeout(() => startBuilding(answers.known, answers.unknown), 180);
                     }}
                     label={`${t("plan.min", { m })} · ${t(`onb.pace.${m}`)}`}
                     desc={t("plan.words", { n: words })}
@@ -801,21 +807,20 @@ export function HskFirstRun({
 
         {step === "plan" && (
           <>
-            {heading(t("onb.planTitle"), fromZero ? t("onb.planSubZero") : t("onb.planSub"))}
+            {heading(t("onb.planTitle"), t("onb.planSub"))}
             {planSummary}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Button className="w-full sm:w-auto" disabled={busy} onClick={commitPlan}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                {fromZero ? t("onb.startZero") : t("hskFirst.startCheck")}
+                {t("onb.startWords")}
               </Button>
-              {!fromZero && <span className="text-[13px] text-ink-soft">{t("hskFirst.checkLen", { n: CHECK_SIZE })}</span>}
             </div>
           </>
         )}
 
         {step === "building" && (
           <div>
-            {heading(t("onb.buildTitle"), t("onb.buildSub"))}
+            {heading(t("onb.buildTitle"), measured ? t("onb.buildSub") : t("onb.buildSubPlain"))}
             <ul className="space-y-3">
               {buildLines.map((line, i) => (
                 <li key={i} className="flex items-center gap-3 text-[15px]">
@@ -850,7 +855,7 @@ export function HskFirstRun({
           <div>
             {heading(
               t("onb.readyTitle"),
-              check.length
+              measured
                 ? t("hskFirst.markLine", { known: knownCount, shown: check.length, level: levelName })
                 : t("onb.deckZero", { level: levelName }),
             )}
@@ -908,6 +913,14 @@ export function HskFirstRun({
                 {t("hskFirst.seeMark")}
               </Button>
               <span className="text-[13px] text-ink-soft">{t("hskFirst.tapped", { n: unknown.size })}</span>
+              <button
+                type="button"
+                onClick={skipCheck}
+                disabled={busy}
+                className="text-[13px] font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline sm:ml-auto"
+              >
+                {t("onb.skipCheck")}
+              </button>
             </div>
           </div>
         )}
@@ -915,10 +928,10 @@ export function HskFirstRun({
         {step === "deck" && (
           <div>
             {heading(
-              check.length
+              measured
                 ? t("hskFirst.markLine", { known: knownCount, shown: check.length, level: levelName })
                 : t("onb.deckZero", { level: levelName }),
-              check.length ? t("hskFirst.markSub") : undefined,
+              measured ? t("hskFirst.markSub") : undefined,
             )}
             <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.rejectHint")}</p>
             <div className="flex flex-wrap gap-1.5">

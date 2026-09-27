@@ -27,9 +27,11 @@ whether the words feel right: **knowing what the learner knows** (a test before 
 checked against overclaiming, and never really over), and **choosing the next word** (frequent
 first, built from characters they know, one situation at a time, with example sentences they can
 fully read). Users never see "the algorithm"; they see a test that told them the truth and words
-that feel like the right next ones. Items 1a–1d do this; the two-week test (item 5) is how it is
+that feel like the right next ones. Items 1a–1e do this; the two-week test (item 5) is how it is
 judged, and a number proves it: how well the check predicts words it never asked, and new words
-kept after 7 days per 10 minutes.
+kept after 7 days per 10 minutes. **Not a full HSK exam app** (no mock tests, no SuperTest or
+hskonline clone): the HSK list is where the words come from, and the point is reading, listening
+and speaking with the words used most, learned faster than an Anki deck read top to bottom.
 
 ## Open — one list, in order
 
@@ -38,11 +40,11 @@ does, so commits and notes name the **title**, never the number. The old prefixe
 bare numbers) are noted in brackets only so older commits and `IDEAS.md` headings still resolve —
 don't invent new ones.
 
-**Where the line is.** Items 1a–1d are the algorithms (2026-09-27): test before any claim, then
-the next word. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+**Where the line is.** Items 1a–1e are the algorithms (2026-09-27): test before any claim, the
+list's own data right, then the next word. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
-kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1b. 19–22 make
+kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1c. 19–22 make
 it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
@@ -54,14 +56,32 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
 
-1a. **Test before pace.** One session. The pace screen claimed "For your date" from a self-rating
-   ("Around HSK 4"), before the check had run. Move the check ahead of "How much time a day?" in
-   both flows (guest and signed-in); after it, the plan is priced from the taps, with the same
-   per-level evidence as Today's plan card, so the label and the "needs ~X min" warning mean
-   something. The check can be skipped: then the rows say minutes and words, and nothing about a
-   date.
+1a. [x] **Test before pace.** One session. The pace screen claimed "For your date" from a
+   self-rating ("Around HSK 4"), before the check had run.
+   - **Done 2026-09-27.** Both flows are now questions → check → "How much time a day?" → plan.
+     After the check the pace screen's plan is priced from the taps (`guestPlan` takes them; the
+     per-level evidence is `evidenceFrom`, shared with the account's plan), so the label and the
+     "needs ~X min" warning come from what the learner showed, and match Today's plan card after
+     sign-in. **"Skip the check"** on the check screen: then no plan is fetched, the rows say
+     minutes and words only, and the build/ready screens say "No check: starting from HSK 4".
+     From zero there is no check (nothing to check); Back from the pace returns to the interests.
+     Signed in, the taps land on the account before the pace question.
+   - `check-plan.ts`: "guest from taps = the account's plan", same finish day per pace. Run in the
+     browser at 390 px: guest check → pace (21 known / 3 missed → 483 left, 15 min tagged), back →
+     skip → no tag → ready; from zero; signed in (dev login, throwaway account deleted) through to
+     the deck with the tapped words first and none of the known ones.
 
-1b. **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
+1b. **Wrong readings on HSK words.** Found running 1a: the check showed 听 as "yǐn". The list's
+   pinyin (`src/data/hskWords.ts`) looks like it took the first CC-CEDICT reading for many
+   characters: 说 shuì, 读 dòu, 行 háng, 都 Dū, 还 Huán, 页 xié, 万 mò, 句 gōu, 提 dī, 离 chī,
+   骑 jì, 鸟 diǎo, 厂 hǎn, 胖 pán, 追 duī, 便宜 biàn yí — HSK 1–3 words a learner meets on day
+   one, in the check, the daily words, the lists and the Reader. A scan against `pinyin-pro`: 164
+   of 10,969 words differ in syllables (many only in erhua spelling, "r" vs "er"), 572 in tones
+   only (mostly 一/不 sandhi, neutral tones). Some list readings are right and pinyin-pro wrong
+   (了 le, 地 de), so it needs a pass by hand over the syllable differences, not a blind
+   overwrite; stray tone numbers too ("yīhuǐr5", "yǒukòngr5"). Keep the scan as `check-*.ts`.
+
+1c. **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
    "A placement that finds your level, and a mark that isn't a lie".
    - **Quick (~2 min, ~30 words), adaptive:** start at the claimed level, go up or down with the
      answers (≥70% known → up, ≤30% → down), so an HSK 3 who says "HSK 4" and a real HSK 4 end up
@@ -75,7 +95,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      predicted exam score (F4's rule).
    - **Proof:** hold some words out of the check and score how often it predicts them right.
 
-1c. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
+1d. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
    carry a level and nothing else. So 入乡随俗 can come on the same day as 地图.
    - **Frequency data:** jieba's dictionary ships word frequencies under MIT; SUBTLEX-CH is better,
@@ -86,12 +106,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      at once cause mix-ups. Group by situation, keep near-synonyms apart.
    - **Proof:** new words kept after 7 days per 10 minutes, old order vs new, on the author first.
 
-1d. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
-   one new word, on the themes they picked (the onboarding interests) or the official HSK topic
-   list. Exam-style sentences written by us — copying real HSK papers is a licensing problem.
-   Instant capture (item 2) already asks for "one example built from words the learner already
-   has"; this makes it the rule everywhere examples are made, and checks it (segment the sentence,
-   count the words not on the learner's cards).
+1e. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
+   one new word, on the themes they picked (the onboarding interests) or the HSK topic list. Qwen
+   writes them — nothing is copied. Strong in Chinese, not error-free, hence the check below.
+   - **A register beside the themes** (from the author, 2026-09-27): everyday, formal (news,
+     work, exam-style), and internet — Douyin/Weibo slang, labelled as slang so nobody writes it
+     in an exam essay.
+   - Instant capture (item 2) already asks for "one example built from words the learner already
+     has"; this makes it the rule everywhere examples are made, and checks it (segment the
+     sentence, count the words not on the learner's cards).
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
@@ -530,7 +553,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       Pickers remain where they are the question: onboarding, Settings, the add form's "which
       language did you type" prompt. Checked on words / reader / coach / import in the local app.
 
-18. **(Moved up to 1b, 2026-09-27.)** "A placement that finds your level, and a mark that isn't a
+18. **(Moved up to 1c, 2026-09-27.)** "A placement that finds your level, and a mark that isn't a
     lie" is now part of "An adaptive check that catches overclaiming".
 
 19. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
