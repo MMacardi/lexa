@@ -15,7 +15,7 @@ import { langFlag, langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { HskWordChip } from "@/components/HskWordChip";
-import { ExamCalendar, formatDay, shortDay } from "@/components/ExamCalendar";
+import { ExamCalendar, formatDay } from "@/components/ExamCalendar";
 import { prefetchCoachPicks } from "@/components/CoachPicks";
 import {
   BookOpen,
@@ -100,8 +100,9 @@ export const GOALS: { id: string; Icon: Icon }[] = [
   { id: "self", Icon: Sparkles },
 ];
 
-// Self-rated level, 0 = none. It picks the default target (one above) and a
-// learner starting from zero skips the check: there is nothing to check yet.
+// Self-rated level, 0 = none. "Around HSK 4" is what someone preparing for HSK 4
+// taps, so it is the default target too (HSK 1 from zero), and a learner starting
+// from zero skips the check: there is nothing to check yet.
 const LEVELS: Icon[] = [Sprout, Leaf, MessageCircle, MessagesSquare, BookOpen, Newspaper];
 
 export const INTERESTS: { id: string; Icon: Icon }[] = [
@@ -120,9 +121,9 @@ export const INTERESTS: { id: string; Icon: Icon }[] = [
 ];
 
 // The pace, in minutes a day (BACKLOG "A plan with a date"): what a person plans a
-// day around. The words it holds and the day it gets them there come from the
-// plan (backend services/studyPlan.ts, the same numbers Today and Settings show);
-// these are only the fallback while that loads.
+// day around. The words it holds come from the plan (backend services/studyPlan.ts,
+// the same numbers Today and Settings show); these are only the fallback while
+// that loads.
 const MIN_PER_WORD = 1.25;
 const PACES: { m: number; Icon: Icon }[] = [
   { m: 10, Icon: Leaf },
@@ -330,8 +331,10 @@ export function HskFirstRun({
     window.setTimeout(() => go(next), 180);
   };
   // The plan's paces for these answers: an estimate from the self-rated level
-  // (the check hasn't run yet), with the day each pace gets there and which one
-  // fits the exam date. Public, so the questions before sign-in get it too.
+  // (the check hasn't run yet) — which one fits the exam date, and whether none
+  // does. No finish date on the rows: before the check it is a guess dressed as a
+  // promise; Today's plan shows the day once the check's taps are in. Public, so
+  // the questions before sign-in get it too.
   const { data: plan } = useQuery({
     queryKey: ["onbPlan", version, target, known, examDate],
     queryFn: () => api.publicHskPlan({ version, level: target, known: known ?? 0, examDate, daily }),
@@ -669,7 +672,7 @@ export function HskFirstRun({
                   onClick={() =>
                     pickThen(() => {
                       setKnown(n);
-                      setTarget(Math.min(MAX_LEVEL[version], n + 1));
+                      setTarget(Math.min(MAX_LEVEL[version], Math.max(1, n)));
                     }, "target")
                   }
                   label={t(`onb.level.${n}`)}
@@ -787,11 +790,7 @@ export function HskFirstRun({
                       window.setTimeout(guestNext, 180);
                     }}
                     label={`${t("plan.min", { m })} · ${t(`onb.pace.${m}`)}`}
-                    desc={
-                      p
-                        ? `${t("plan.words", { n: words })} · HSK ${levelName} ${t("plan.by", { date: shortDay(p.finish, locale) })}`
-                        : t("plan.words", { n: words })
-                    }
+                    desc={t("plan.words", { n: words })}
                     tag={plan?.pick === m ? t("onb.recommended") : undefined}
                   />
                 );

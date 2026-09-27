@@ -596,6 +596,22 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### The pace question without a date: "Around HSK 4" is working on HSK 4 (2026-09-27, asked for directly)
+- Asked from a phone screenshot: on Sep 27, every pace on "How much time a day?" said "HSK 4 by
+  Oct 5". The guest estimate read "Around HSK 4" as knows all of HSK 1–4, so an HSK 4 target had
+  0 words left, and every row showed today plus the review stretch before a late-November exam.
+  People preparing for HSK 4 tap "Around HSK 4", so this was the normal case.
+  - **The rows say minutes and words, no date.** Before the check, any date is a guess. The
+    "For your date" tag and the "your date needs ~X min" warning stay. The real date is on Today's
+    plan card (`planForUser`, from the check's taps), one screen after sign-in.
+  - **`guestPlan` reads a self-rating as working on that level**: the levels below count as known,
+    that one as half known. "Around HSK 4", aiming at HSK 4, late-Nov exam: 486 words left, 15 min
+    recommended, and the four paces finish on four different days.
+  - **The default target is the rated level** (was one above): "Around HSK 4" preselects HSK 4.
+- `check-plan.ts`: the guest case updated, plus "Around HSK 4 → HSK 4 isn't done already" and one
+  finish day per pace. All pass. The guest flow was run locally at 390 px through to "Your plan is
+  ready".
+
 ### The add form's pinyin lookup: compounds, and nothing by a reading the row doesn't show (2026-09-26, asked for directly)
 - Asked from two phone screenshots: "ha" offered 虾 xiā, and "hao" stopped at four words. HSK-only
   stays the rule for pinyin and meanings — untoned pinyin over all 120k headwords is Pleco's page

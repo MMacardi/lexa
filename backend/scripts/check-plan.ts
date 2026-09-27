@@ -70,9 +70,14 @@ async function main() {
   const close = buildPlan({ version: "3.0", level: 4, levels: sampled, today: TODAY, examDate: addDays(TODAY, 2), daily: 10 });
   check(close.status === "close" && close.perDay === null, `two days out: reviews only, no new words (${close.status})`);
 
-  // 5. Before sign-in: "I know HSK 3" counts HSK 1–3 as known, HSK 4 as all left.
+  // 5. Before sign-in: "Around HSK 3" is working on it — HSK 1–2 known, half of HSK 3, all of HSK 4 left.
   const guest = guestPlan({ version: "3.0", level: 4, known: 3, today: TODAY, examDate: addDays(TODAY, 90), daily: 10 });
-  check(guest.left === size(4) && guest.sweepLevel === null, `guest estimate: HSK 4 only (${guest.left}), no sweep offered`);
+  const halfOf3 = size(3) - Math.round(size(3) / 2);
+  check(guest.left === halfOf3 + size(4) && guest.sweepLevel === null, `guest estimate: half of HSK 3 + HSK 4 (${guest.left}), no sweep offered`);
+  // "Around HSK 4" aiming at HSK 4 — the common case — still has words to learn, and the paces differ.
+  const same = guestPlan({ version: "3.0", level: 4, known: 4, today: TODAY, examDate: addDays(TODAY, 63), daily: 12 });
+  check(same.left > 0 && same.status !== "done", `"Around HSK 4" → HSK 4 isn't done already (${same.left} left, ${same.status})`);
+  check(new Set(same.paces.map((p) => p.finish)).size === same.paces.length, `…and each pace finishes on its own day (${same.paces.map((p) => p.finish).join(", ")})`);
 
   // 6. The account: the saved date round-trips, and a sweep of HSK 1 shrinks the plan.
   await prisma.user.create({

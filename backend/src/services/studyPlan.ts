@@ -233,8 +233,11 @@ export async function planForUser(telegramId: string, today: string): Promise<St
 
 /**
  * Before sign-in there is no evidence yet, only the level the guest said they
- * have: those levels count as known, the rest up to the target as unknown. The
- * check that follows (and the account's own plan after it) refines it.
+ * have. "Around HSK 4" is what someone preparing for HSK 4 taps, so it reads as
+ * working on it: the levels below count as known, that one as half known, the
+ * rest up to the target as unknown. Read as "knows all of HSK 4" it left an HSK 4
+ * target with nothing to learn, and every pace said the same date. The check that
+ * follows (and the account's own plan after it) refines it.
  */
 export function guestPlan(input: {
   version: HskVersion;
@@ -247,7 +250,8 @@ export function guestPlan(input: {
   const levels: LevelEvidence[] = [];
   for (let n = 1; n <= HSK_MAX_LEVEL[input.version]; n++) {
     const total = hskLevelWords(input.version, n).length;
-    levels.push({ level: n, total, have: n <= input.known ? total : 0, toLearn: 0, saidKnown: 0, saidUnknown: 0 });
+    const have = n < input.known ? total : n === input.known ? Math.round(total / 2) : 0;
+    levels.push({ level: n, total, have, toLearn: 0, saidKnown: 0, saidUnknown: 0 });
   }
   return { ...buildPlan({ ...input, levels }), sweepLevel: null };
 }
