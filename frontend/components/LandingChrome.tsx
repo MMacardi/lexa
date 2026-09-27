@@ -9,14 +9,15 @@ import { Check, Sun, Moon, Globe, ChevronDown } from "lucide-react";
 // (`LandingScreen`) and the focused HSK one (`FocusLanding`). Nothing here knows
 // which is rendering; it is just the chrome around whichever copy is in play.
 
-export function LangMenu() {
+// `compact` drops the chevron on phones, for a header that also carries a text link.
+export function LangMenu({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const cur = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] px-3 py-2 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-ink">
-        <Globe className="h-4 w-4" /> {cur.label} <ChevronDown className="h-3.5 w-3.5" />
+      <button type="button" onClick={() => setOpen((o) => !o)} className={`inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] ${compact ? "px-2.5 sm:px-3" : "px-3"} py-2 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-ink`}>
+        <Globe className="h-4 w-4" /> {cur.label} <ChevronDown className={compact ? "hidden h-3.5 w-3.5 sm:block" : "h-3.5 w-3.5"} />
       </button>
       {open && (
         <>

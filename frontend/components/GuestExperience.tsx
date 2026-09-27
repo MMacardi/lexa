@@ -8,6 +8,7 @@ import { LandingScreen } from "@/components/LandingScreen";
 import { LoginScreen } from "@/components/LoginScreen";
 import { BetaGate } from "@/components/BetaGate";
 import { HskFirstRun, OTHER_LANGUAGE_KEY } from "@/components/HskFirstRun";
+import { LangMenu } from "@/components/LandingChrome";
 
 // What a signed-out visitor sees: the marketing landing, then (focused) the
 // onboarding questions, then the shared beta-code gate, then sign-in. The
@@ -35,13 +36,16 @@ export function GuestExperience() {
               <span className="font-serif text-[24px] font-semibold text-ink">Onomika</span>
               <span className="h-1.5 w-1.5 rounded-full bg-sage" />
             </button>
-            <button
-              type="button"
-              onClick={() => setStage("login")}
-              className="text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
-            >
-              {t("onb.haveAccount")}
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setStage("login")}
+                className="whitespace-nowrap text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+              >
+                {t("onb.haveAccount")}
+              </button>
+              <LangMenu compact />
+            </div>
           </div>
           <HskFirstRun
             guest

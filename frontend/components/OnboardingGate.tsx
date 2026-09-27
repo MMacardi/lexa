@@ -7,6 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { FinishGuestPlan } from "@/components/GuestPlan";
 import { HskFirstRun, readGuestPlan } from "@/components/HskFirstRun";
+import { LangMenu } from "@/components/LandingChrome";
 
 // The first minutes after sign-in, with nothing else on screen. An account comes
 // through here in one of two ways:
@@ -47,9 +48,12 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-paper px-4 pb-10 pt-[calc(16px+env(safe-area-inset-top))] sm:pt-10">
       <div className="mx-auto max-w-[560px]">
-        <div className="mb-4 flex items-center gap-1.5">
-          <span className="font-serif text-[24px] font-semibold text-ink">Onomika</span>
-          <span className="h-1.5 w-1.5 rounded-full bg-sage" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="font-serif text-[24px] font-semibold text-ink">Onomika</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-sage" />
+          </div>
+          <LangMenu />
         </div>
         {mode === "plan" && plan ? (
           <FinishGuestPlan plan={plan} onDone={() => setMode("app")} />
