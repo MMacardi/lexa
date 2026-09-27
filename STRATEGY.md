@@ -804,7 +804,7 @@ claim (adaptive, checked against overclaiming, never finished), then the choice 
 the learner has plus one. Unlike a feed algorithm, this one starts with no data about the learner,
 so it has to be right from rules on day one (HSK level, frequency, characters, the check) and then
 learn from that learner's reviews. It is proven by numbers, not by feel: how well the check predicts
-words it never asked, and new words kept after 7 days per 10 minutes of study. BACKLOG items 1a–1e.
+words it never asked, and new words kept after 7 days per 10 minutes of study. BACKLOG items 1a–1f.
 
 Also decided the same day: **not a full HSK exam app.** No mock tests; SuperTest and hskonline do
 that. The HSK list is the source of words and the exam is the deadline, but the point is reading,

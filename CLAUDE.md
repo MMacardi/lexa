@@ -14,7 +14,7 @@ Scenes/coach/readiness mark get no new work until the two-week self-test in `BAC
 **2026-09-27:** the algorithms are the product: test before any claim, then choose the next word well
 (frequency, known characters, one situation at a time, sentences one step above the learner).
 Not a full HSK exam app (no mock tests): the list is the source of words, the point is using them.
-`STRATEGY.md` §"The algorithms are the product", BACKLOG items 1a–1e.
+`STRATEGY.md` §"The algorithms are the product", BACKLOG items 1a–1f.
 
 ## Layout
 - `backend/` Express + Prisma (Postgres) + TypeScript, ESM. Entry `src/index.ts`.

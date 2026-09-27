@@ -27,7 +27,7 @@ whether the words feel right: **knowing what the learner knows** (a test before 
 checked against overclaiming, and never really over), and **choosing the next word** (frequent
 first, built from characters they know, one situation at a time, with example sentences they can
 fully read). Users never see "the algorithm"; they see a test that told them the truth and words
-that feel like the right next ones. Items 1a–1e do this; the two-week test (item 5) is how it is
+that feel like the right next ones. Items 1a–1f do this; the two-week test (item 5) is how it is
 judged, and a number proves it: how well the check predicts words it never asked, and new words
 kept after 7 days per 10 minutes. **Not a full HSK exam app** (no mock tests, no SuperTest or
 hskonline clone): the HSK list is where the words come from, and the point is reading, listening
@@ -40,8 +40,8 @@ does, so commits and notes name the **title**, never the number. The old prefixe
 bare numbers) are noted in brackets only so older commits and `IDEAS.md` headings still resolve —
 don't invent new ones.
 
-**Where the line is.** Items 1a–1e are the algorithms (2026-09-27): test before any claim, the
-list's own data right, then the next word. 1f is the first five minutes, built from their output. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+**Where the line is.** Items 1a–1f are the algorithms (2026-09-27): test before any claim, the
+list's own data right (1b, 1d), then the next word. 1g is the first five minutes, built from their output. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1c. 19–22 make
@@ -165,7 +165,36 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      purpose: the proof above found discounting by them made things worse. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
      cache on the bind mount): `rm -rf /app/.next` + restart, or add `WATCHPACK_POLLING`.
 
-1d. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
+1d. **HSK word pages, written once.** One session. From the author (2026-09-27): a fresh HSK card's
+   page says "Ищем значения…" on its first open. The Meanings list (`wordSenses`), the example and
+   the part of speech are each a Qwen call per card, made after the fact and kept on that card only,
+   so the next learner waits for the same word again. Meanwhile the list shows "—" under Источник
+   (the example's source) with no sign the example is coming, because `DictMeaningLabel` only
+   labels cards still in CC-CEDICT's English. Upfront, not "the first opener makes it for
+   everyone": in a beta of five nearly every open is a first open, a full set can be checked before
+   anyone sees it, and ~¥20 is nothing.
+   - **The fixed half, the same for everyone:** one offline pass like `build-hsk-ru.ts` over the
+     11,482 headwords. Per word: the sense list (grounded in the CEDICT inventory, the `wordSenses`
+     shape), 2 phrases per sense with pinyin and Russian, synonyms/antonyms, and a situation tag
+     (1e session 2 needs one for every word). Shipped as data. `wordSenses`/`wordFamily` read it
+     before asking the model; `onCard` still comes from `flagByMeaning`.
+   - **Examples are the part that isn't fixed:** a sentence that suits HSK 5 is unreadable at HSK 2.
+     So each word gets a pool of 3–4 sentences, each with a stated ceiling (HSK 1–2 words only / up
+     to the word's own level / natural), stored already segmented. On add or open, pick the one with
+     the fewest words not on the learner's cards. If even the best has more than one unknown word
+     besides the headword, the per-card call writes one from the learner's own words, and that one
+     stays on their card, never shared.
+   - **Checked before anyone sees it** (`check-word-pages.ts`): pinyin = the list's reading (1b),
+     each phrase contains the headword, each sentence segmented and its ceiling true, the Russian
+     agrees with `hsk-ru`. Then read by hand: the flagged entries, the ~500 most polysemous common
+     words (打 上 过 得) and a random 200 — the error rate is stated, fixes go through `--redo`.
+   - **Not in it:** words outside the list (Reader captures, topic words) keep the per-card path,
+     with a visible "example on the way" in the list. Made on first open and kept for everyone is
+     item 27. HSK pages no longer follow the custom meaning style.
+   - **Proof:** a fresh HSK card's page has its meanings on first paint and no model call in the
+     log; an HSK 2 and an HSK 5 account get different sentences for the same HSK 4 word.
+
+1e. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
    carry a level and nothing else. So 入乡随俗 can come on the same day as 地图.
    - **Frequency data:** jieba's dictionary ships word frequencies under MIT; SUBTLEX-CH is better,
@@ -187,9 +216,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      `scripts/check-next-word.ts`: HSK 3.0 L4, the first 100 words cover 45.9% of the level's usage
      vs 10.5% shuffled, 0.38 vs 0.68 new characters per word; 分之 moves 17 → 2 once 之一 is a card;
      the day holds still; `check-gap-deck` and `check-sweep` still pass.
-   - **Left for session 2:** one situation at a time (no data yet: every HSK word needs a situation,
-     likely one offline Qwen pass shipped as data; near-synonyms kept apart, e.g. by shared CEDICT
-     glosses). And weigh what the first half surfaced: jieba's corpus is written, so a level now
+   - **Left for session 2:** one situation at a time (every HSK word's situation tag comes from
+     1d's pass; near-synonyms kept apart, e.g. by shared CEDICT glosses). And weigh what the first half surfaced: jieba's corpus is written, so a level now
      opens with abstract connectors (HSK 3.0 L4: 而 此 自 以及 却 曾; 2.0 L4: 对 而 以 等 过), and a
      single character's count spans senses the learner may know from a lower level. Situation days
      would cap them (they have no situation). **The 7-day proof:** a read-only script like
@@ -197,9 +225,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      new; kept = first review ≥ 7 days after adding not Again; minutes from `ReviewEvent` gaps
      (no duration column; cap each gap). Needs a week of the author's reviews on the new order.
 
-1e. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
+1f. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
    one new word, on the themes they picked (the onboarding interests) or the HSK topic list. Qwen
    writes them — nothing is copied. Strong in Chinese, not error-free, hence the check below.
+   For HSK words 1d's sentence pool and its pick already do most of this; what's left is the themes,
+   the register and the same rule for every other place examples are made.
    - **A register beside the themes** (from the author, 2026-09-27): everyday, formal (news,
      work, exam-style), and internet — Douyin/Weibo slang, labelled as slang so nobody writes it
      in an exam essay.
@@ -207,9 +237,9 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      has"; this makes it the rule everywhere examples are made, and checks it (segment the
      sentence, count the words not on the learner's cards).
 
-1f. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
+1g. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
    same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and
-   20 words, then sign-in and the invite code — and has learned nothing yet. After 1c–1e because
+   20 words, then sign-in and the invite code — and has learned nothing yet. After 1c–1f because
    the hook is made of their output and there is no traffic to convert before the beta; the
    funnel events are the exception, small enough for any session.
    - **Funnel first:** no event fires before sign-in (landing → each question → check → ready →
@@ -219,7 +249,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      "About 480 HSK 4 words to go — at 15 min a day, ready by Nov 15, two weeks before your
      exam." Honest once 1c makes the check trustworthy; labelled an estimate until then.
    - **Learn before the wall:** five of their missing words, a sentence each they can fully read
-     (1e), a one-minute review, then "Sign in to keep them" — Duolingo's first lesson comes
+     (1f), a one-minute review, then "Sign in to keep them" — Duolingo's first lesson comes
      before the account for this reason.
    - **Fewer questions before value:** level, target and date, then the check. Why Chinese and
      the interests after the first result; the 2.0/3.0 toggle out of the first run; the
