@@ -156,7 +156,7 @@ export async function learnerStatus(telegramId: string): Promise<Map<string, Wor
       select: { word: true, state: true, canUseAt: true },
     }),
     prisma.placementAnswer.findMany({
-      where: { userId: user.id, sourceLang: "zh", known: true },
+      where: { userId: user.id, sourceLang: "zh", known: true, fake: false },
       select: { word: true },
     }),
   ]);
@@ -222,7 +222,7 @@ export async function hskListWords(telegramId: string, version: HskVersion, leve
   const [status, cards, told] = await Promise.all([
     learnerStatus(telegramId),
     prisma.word.findMany({ where: { user: { telegramId }, sourceLang: "zh" }, select: { word: true } }),
-    prisma.placementAnswer.findMany({ where: { user: { telegramId }, sourceLang: "zh", known: false }, select: { word: true } }),
+    prisma.placementAnswer.findMany({ where: { user: { telegramId }, sourceLang: "zh", known: false, took: false }, select: { word: true } }),
   ]);
   // A word marked known in the check, or turned down in the daily words, has no
   // card, and the learner can still take it: only a card takes the "+" away.
@@ -241,8 +241,8 @@ export async function hskListWords(telegramId: string, version: HskVersion, leve
 
 // --- The onboarding check, and the gap deck it feeds ---
 //
-// Onboarding asks for a target level, then shows a sample of the list to tap
-// through ("which of these don't you know"). That is the readiness check: it
+// Onboarding asks for a target level, then the check (placementCheck.ts) shows
+// screens of the list to tap through ("which of these don't you know"). It
 // writes PlacementAnswers, which the mark above already reads. The gap deck is
 // then the other half of the same list — words at or below the target that the
 // learner has neither a card for nor claimed to know.
@@ -253,6 +253,8 @@ export type HskWord = { word: string; pinyin: string; level: number };
  * A sample spread evenly over levels 1..target, `size` words in total. Taken by
  * stride rather than at random so one level is never represented by a single
  * corner of the alphabet, with a random offset so a re-take asks new words.
+ * The fixed check the adaptive one replaced; kept as the baseline that
+ * scripts/check-placement.ts measures it against.
  */
 export function hskCheckWords(version: HskVersion, level: number, size = 24): HskWord[] {
   const target = clampLevel(version, level);
@@ -340,7 +342,8 @@ async function frontierInputs(telegramId: string) {
   const [status, tapped, today] = await Promise.all([
     learnerStatus(telegramId),
     prisma.placementAnswer.findMany({
-      where: { userId: user.id, sourceLang: "zh", known: false },
+      // "Don't know" said, not a daily word merely taken (`took`).
+      where: { userId: user.id, sourceLang: "zh", known: false, took: false },
       select: { word: true },
     }),
     prisma.word.findMany({

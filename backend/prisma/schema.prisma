@@ -420,6 +420,13 @@ model PlacementAnswer {
   // something: knowing a B2 word is not the same claim as knowing an A1 one.
   level      String?
   known      Boolean
+  // A made-up word the check slipped in (services/placementCheck.ts): "known" on
+  // one is an overclaim, and the share of those discounts every other "I know
+  // it". Never vocabulary — nothing that counts words reads these rows.
+  fake       Boolean  @default(false)
+  // Taken from the daily words: not a claim either way until the card's first
+  // review says whether it was really new (studyPlan.ts `levelEvidence`).
+  took       Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   // Re-taking the test overwrites the previous answer for the same word.

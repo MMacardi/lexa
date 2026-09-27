@@ -387,6 +387,8 @@ export async function importAccount(telegramId: string, file: Rec): Promise<Impo
             targetLang: str(x.targetLang)!,
             level: strN(x.level),
             known: x.known as boolean,
+            fake: x.fake === true,
+            took: x.took === true,
             createdAt: date(x.createdAt) ?? undefined,
           })),
         skipDuplicates: true,

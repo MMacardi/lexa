@@ -71,7 +71,7 @@ export function rankTopicWords(
 async function learnerWords(userId: string, version: HskVersion, target: number) {
   const [cards, told] = await Promise.all([
     prisma.word.findMany({ where: { userId, sourceLang: "zh" }, select: { word: true, createdAt: true } }),
-    prisma.placementAnswer.findMany({ where: { userId, sourceLang: "zh", known: true }, select: { word: true } }),
+    prisma.placementAnswer.findMany({ where: { userId, sourceLang: "zh", known: true, fake: false }, select: { word: true } }),
   ]);
   const have = new Set([...cards.map((c) => normalizeHanzi(c.word)), ...told.map((p) => normalizeHanzi(p.word))]);
   // Characters: every card and every "I know it", plus the list below the target —

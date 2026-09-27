@@ -107,7 +107,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      a space per syllable), and every word that differs from pinyin-pro (109) must be hand-checked;
      the old list fails it with 184 unreviewed.
 
-1c. **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
+1c. [x] **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
    "A placement that finds your level, and a mark that isn't a lie".
    - **Quick (~2 min, ~30 words), adaptive:** start at the claimed level, go up or down with the
      answers (≥70% known → up, ≤30% → down), so an HSK 3 who says "HSK 4" and a real HSK 4 end up
@@ -120,6 +120,39 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      Extrapolate per level from the sample and label measured vs estimated — coverage, never a
      predicted exam score (F4's rule).
    - **Proof:** hold some words out of the check and score how often it predicts them right.
+   - **Done 2026-09-27.** `services/placementCheck.ts`, stateless (`POST /api/hsk/check`, and
+     `/api/public/hsk/check` before sign-in): five screens of 6 real words + 1 made up, each from one
+     level, starting at the claimed one; ≥70% → up, ≤30% → down, between → its neighbours, then
+     the least settled level. Never above the target; an account's check skips words it already
+     has. Made-up words: two real characters of that level, not a word in CC-CEDICT either way
+     round, saved apart (`PlacementAnswer.fake`). Their false-alarm rate (first one forgiven)
+     discounts each level's share by the standard correction for guessing before it is
+     stretched over unasked words. One claimed word a screen is asked back (4 options); a miss is
+     "to learn". The pace screen opens with what the check found (per level, "about 2,374 of the
+     3,181 words up to HSK 4: 30 checked, the rest estimated", what the made-up words said, and the
+     sweep of the target as the long form).
+   - **Never over:** a card's first review after an answer replaces it (recalled = known, Again =
+     not). Daily words taken are now answers too (`PlacementAnswer.took`), neutral until that first
+     review. Before, only the "I know it"s went in, which crept towards "knows all of HSK 4" within a
+     week. **The mark** (`withEstimate`): per level, measured + unasked words at the level's rate,
+     the same sum as the plan. The card shows "~2371 … estimated" with "Measured: 20" beneath it,
+     and "not started" is now the plan's words left. Level rates pool adjacent violators instead of
+     lifting an easier level to a harder one's share (six lucky taps at HSK 4 had made all of HSK 3
+     "known").
+   - **Proof** (`scripts/check-placement.ts`, 8 simulated learner profiles × 100 runs, words never
+     asked): adaptive vs the old fixed 24, **231 vs 296 words off** up to the target, Brier 0.131 vs
+     0.143, 82% vs 78% of held-out words right (±~10 words between runs: the old check's draw isn't
+     seeded). An HSK 3 who says "HSK 4" ends at ~38% of HSK 4, a real HSK 4 at ~75%. Heavy
+     overclaimers: 470 vs 700 and 291 vs 377 words off. Not free: for a mild overclaimer the
+     correction costs ~10 words (190 → 200), since five made-up words are a noisy rate. Measured and dropped: "trust nothing
+     once half the made-up words are claimed" (zeroed whole runs, worse than no correction), and
+     discounting by missed meaning questions. Account part: fakes never counted, guest plan =
+     account plan, mark = plan, first reviews and taken words move it. Browser run at 390 px: guest
+     check → pace summary → sign-in → the answers, fakes and taken words on the account → the card.
+   - Not done: a meaning question's *right* answers aren't stored (only a miss, as "to learn"), so
+     the real-data proof, predicting a sweep from a check, has to wait for the author's own
+     sweep. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
+     cache on the bind mount): `rm -rf /app/.next` + restart, or add `WATCHPACK_POLLING`.
 
 1d. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words

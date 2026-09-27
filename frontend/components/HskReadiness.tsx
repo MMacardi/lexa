@@ -11,6 +11,10 @@ import { GraduationCap } from "lucide-react";
 // and how much of it they can actually use. Deliberately two numbers — the gap
 // between them is the product. It is vocabulary coverage and says so in the
 // subtitle: predicting an exam score off it would be a lie we can't calibrate.
+// What was measured (cards past learning, words marked known) is only a sample
+// after a 30-word check, so the headline is the estimate — the words nobody
+// asked about, priced by each level's sample as the plan prices them — with the
+// measured count said beside it.
 
 const LEVELS: Record<HskVersion, number[]> = {
   "2.0": [1, 2, 3, 4, 5, 6],
@@ -61,8 +65,10 @@ export function HskReadiness() {
 
   if (!data || (!studiesChinese && !onTrack)) return null;
 
-  const { total, recognise, canUse, learning } = data;
+  const { total, recognise, canUse, learning, estimate } = data;
+  const estimated = estimate > recognise;
   const pctRecognise = total ? (recognise / total) * 100 : 0;
+  const pctEstimate = total ? (Math.max(estimate, recognise) / total) * 100 : 0;
   const pctCanUse = total ? (canUse / total) * 100 : 0;
   const pctLearning = total ? (learning / total) * 100 : 0;
   const levelName = (n: number) => (n === 7 ? t("hsk.band79") : t("hsk.level", { n }));
@@ -77,17 +83,25 @@ export function HskReadiness() {
 
       {/* the mark */}
       <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-serif text-[34px] font-bold leading-none text-ink">{recognise}</span>
+        <span className="font-serif text-[34px] font-bold leading-none text-ink">
+          {estimated ? `~${estimate}` : recognise}
+        </span>
         <span className="text-[15px] text-ink-soft">
-          {t("hsk.ofTotal", { a: recognise, b: total, n: data.level === 7 ? "7–9" : data.level })}
+          {t(estimated ? "hsk.ofTotalEst" : "hsk.ofTotal", {
+            a: estimated ? estimate : recognise,
+            b: total,
+            n: data.level === 7 ? "7–9" : data.level,
+          })}
         </span>
       </div>
+      {estimated && <p className="mt-1 text-[13px] leading-snug text-ink-faint">{t("hsk.measuredLine", { a: recognise })}</p>}
       <p className="mt-1 text-[15px] font-medium text-sage-deep">{t("hsk.canUseOf", { a: canUse })}</p>
 
       {/* recognise / can use / learning, in one track */}
       <div className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-track">
         <div className="bg-sage-deep" style={{ width: `${pctCanUse}%` }} />
         <div className="bg-sage" style={{ width: `${pctRecognise - pctCanUse}%` }} />
+        <div className="bg-sage/35" style={{ width: `${pctEstimate - pctRecognise}%` }} />
         <div className="bg-sage-tint" style={{ width: `${pctLearning}%` }} />
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-faint">
@@ -99,9 +113,16 @@ export function HskReadiness() {
           <i className="h-2 w-2 rounded-full bg-sage" />
           {t("hsk.recognise")} {recognise}
         </span>
+        {estimated && (
+          <span className="flex items-center gap-1.5">
+            <i className="h-2 w-2 rounded-full bg-sage/35" />
+            {t("hsk.estLegend", { n: estimate - recognise })}
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <i className="h-2 w-2 rounded-full bg-sage-tint" />
-          {t("hsk.gapWords", { n: data.gap })}
+          {/* With an estimate, what's left is what it doesn't cover — the plan's "words left". */}
+          {t("hsk.gapWords", { n: estimated ? Math.max(0, total - estimate - learning) : data.gap })}
         </span>
       </div>
 
@@ -151,21 +172,26 @@ export function HskReadiness() {
         <div className="space-y-1.5">
           {data.levels.map((l) => {
             const pct = l.total ? (l.recognise / l.total) * 100 : 0;
+            const est = l.total ? (Math.max(l.estimate, l.recognise) / l.total) * 100 : 0;
             return (
               <div
                 key={l.level}
-                className={`flex items-center gap-3 rounded-[12px] px-2 py-1.5 ${
+                className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-[12px] px-2 py-1.5 ${
                   l.level <= data.level ? "bg-paper" : ""
                 }`}
               >
                 <span className="w-[58px] shrink-0 text-[12px] font-semibold text-ink-soft">
                   {levelName(l.level)}
                 </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-track">
-                  <span className="block h-full bg-sage" style={{ width: `${pct}%` }} />
+                <span className="relative h-2 min-w-[64px] flex-1 overflow-hidden rounded-full bg-track">
+                  <span className="absolute inset-y-0 left-0 bg-sage/35" style={{ width: `${est}%` }} />
+                  <span className="absolute inset-y-0 left-0 bg-sage" style={{ width: `${pct}%` }} />
                 </span>
-                <span className="shrink-0 text-[11px] text-ink-faint">
-                  {t("hsk.levelRow", { a: l.recognise, b: l.total, c: l.canUse })}
+                {/* Under the bar on a phone: the estimated row's text doesn't fit beside it. */}
+                <span className="w-full pl-[70px] text-[11px] text-ink-faint sm:w-auto sm:shrink-0 sm:pl-0">
+                  {l.estimate > l.recognise
+                    ? t("hsk.levelRowEst", { e: l.estimate, a: l.recognise, b: l.total, c: l.canUse })
+                    : t("hsk.levelRow", { a: l.recognise, b: l.total, c: l.canUse })}
                 </span>
               </div>
             );

@@ -21,14 +21,15 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskCheckWords, hskDailyWords, hskGapWords, hskListWords, hskTagFor, readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskDailyWords, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
+import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
 import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
-import { isoDay, planForUser } from "../services/studyPlan.js";
+import { isoDay, planForUser, withEstimate } from "../services/studyPlan.js";
 import {
   addWordForUser,
   addWordManual,
@@ -219,12 +220,13 @@ wordsRouter.get("/stats", async (req, res) => {
 });
 
 // GET /api/hsk/readiness?version=3.0&level=4  -> vocabulary coverage of that HSK
-// list: how many of its words the learner recognises and how many they can use.
-// Not an exam-score prediction, and the UI must not present it as one.
+// list: how many of its words the learner recognises and how many they can use,
+// measured, and estimated from the levels' samples. Not an exam-score
+// prediction, and the UI must not present it as one.
 wordsRouter.get("/hsk/readiness", async (req, res) => {
   // Session only: requireIdentity has already run, and the mark is personal.
   const telegramId = readSession(req)!;
-  res.json(await readinessForUser(telegramId, req.query.version, req.query.level));
+  res.json(await withEstimate(telegramId, await readinessForUser(telegramId, req.query.version, req.query.level)));
 });
 
 // GET /api/hsk/plan?today=2026-09-26 -> the plan with a date: the words left to
@@ -236,15 +238,35 @@ wordsRouter.get("/hsk/plan", async (req, res) => {
   res.json(await planForUser(telegramId, /^20\d\d-\d\d-\d\d$/.test(q) ? q : isoDay(new Date())));
 });
 
-// GET /api/hsk/check?version=3.0&level=4&size=24  -> the onboarding readiness
-// check: a sample of the list spread over levels 1..target for the learner to
-// tap through. The taps come back to POST /api/words/placement like any other
-// placement run, so the mark above picks them up with no extra plumbing.
-wordsRouter.get("/hsk/check", async (req, res) => {
-  const version = asHskVersion(req.query.version) ?? "3.0";
-  const level = Number(req.query.level) || 4;
-  const size = Math.min(Math.max(Number(req.query.size) || 24, 6), 60);
-  res.json({ version, level, words: hskCheckWords(version, level, size) });
+// POST /api/hsk/check {version, target, claimed, done: [screens so far]} -> the
+// next screen of the adaptive check, or `result` once it's over. An account's
+// check leaves out the words it already has a card or an answer for: those are
+// known, and the sample is for the rest. The answers come back to POST
+// /api/words/placement like any other placement run, so the mark picks them up.
+wordsRouter.post("/hsk/check", async (req, res) => {
+  const parsed = checkBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const telegramId = readSession(req)!;
+  const b = parsed.data;
+  const version = asHskVersion(b.version) ?? "3.0";
+  const [user, status, answered] = await Promise.all([
+    prisma.user.findUnique({ where: { telegramId }, select: { nativeLang: true } }),
+    learnerStatus(telegramId),
+    prisma.placementAnswer.findMany({ where: { user: { telegramId }, sourceLang: "zh" }, select: { word: true } }),
+  ]);
+  const seen = new Set(answered.map((a) => normalizeHanzi(a.word)));
+  const screen = nextCheckScreen({
+    version,
+    target: b.target,
+    claimed: b.claimed,
+    native: user?.nativeLang ?? b.native,
+    done: b.done,
+    skip: (w) => status.has(w) || seen.has(w),
+  });
+  res.json({ screen, result: screen ? null : checkResult(version, b.done) });
 });
 
 // GET /api/hsk/gap?version=3.0&level=4&limit=30  -> the gap deck: words up to

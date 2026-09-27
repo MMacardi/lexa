@@ -75,6 +75,14 @@ export const placementAnswersSchema = z.object({
   // The whole list the learner was shown, split by their taps.
   known: z.array(z.string().min(1).max(80)).max(200),
   unknown: z.array(z.string().min(1).max(80)).max(200),
+  // The check's made-up words, split the same way: kept apart (PlacementAnswer.fake),
+  // they say how freely this learner claims and never count as vocabulary.
+  fakes: z
+    .object({ known: z.array(z.string().min(1).max(20)).max(50), unknown: z.array(z.string().min(1).max(20)).max(50) })
+    .optional(),
+  // Words taken from the daily words (or the first deck) to learn: offered, not
+  // turned down. Not a claim until each card's first review settles it.
+  took: z.array(z.string().min(1).max(20)).max(100).optional(),
 });
 
 export type PlacementAnswers = z.infer<typeof placementAnswersSchema>;
@@ -93,23 +101,34 @@ export async function savePlacementAnswers(telegramId: string, a: PlacementAnswe
   });
 
   const rows = [
-    ...a.known.map((word) => ({ word: word.trim(), known: true })),
-    ...a.unknown.map((word) => ({ word: word.trim(), known: false })),
+    ...a.known.map((word) => ({ word: word.trim(), known: true, fake: false })),
+    ...a.unknown.map((word) => ({ word: word.trim(), known: false, fake: false })),
+    ...(a.fakes?.known ?? []).map((word) => ({ word: word.trim(), known: true, fake: true })),
+    ...(a.fakes?.unknown ?? []).map((word) => ({ word: word.trim(), known: false, fake: true })),
   ].filter((r) => r.word);
 
   // A word can only be on one side; if the client sends both, the tap ("I don't
   // know it") wins because it is the deliberate action.
-  const seen = new Map<string, boolean>();
-  for (const r of rows) if (!seen.has(r.word) || !r.known) seen.set(r.word, r.known);
+  const seen = new Map<string, { known: boolean; fake: boolean }>();
+  for (const r of rows) if (!seen.has(r.word) || !r.known) seen.set(r.word, { known: r.known, fake: r.fake });
 
   await prisma.$transaction(
-    [...seen].map(([word, known]) =>
+    [...seen].map(([word, { known, fake }]) =>
       prisma.placementAnswer.upsert({
         where: { userId_word_sourceLang: { userId: user.id, word, sourceLang: a.sourceLang } },
-        create: { userId: user.id, word, known, sourceLang: a.sourceLang, targetLang: a.targetLang, level: a.level ?? null },
-        update: { known, targetLang: a.targetLang, level: a.level ?? null, createdAt: new Date() },
+        create: { userId: user.id, word, known, fake, sourceLang: a.sourceLang, targetLang: a.targetLang, level: a.level ?? null },
+        update: { known, fake, took: false, targetLang: a.targetLang, level: a.level ?? null, createdAt: new Date() },
       }),
     ),
   );
-  return seen.size;
+  // Only where there is no answer yet: a word tapped "don't know" in the check,
+  // then taken from the daily words, keeps the tap — it is the better evidence.
+  const took = (a.took ?? []).map((w) => w.trim()).filter((w) => w && !seen.has(w));
+  if (took.length) {
+    await prisma.placementAnswer.createMany({
+      data: took.map((word) => ({ userId: user.id, word, known: false, took: true, sourceLang: a.sourceLang, targetLang: a.targetLang, level: a.level ?? null })),
+      skipDuplicates: true,
+    });
+  }
+  return seen.size + took.length;
 }

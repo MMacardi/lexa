@@ -57,8 +57,18 @@ export function FinishGuestPlan({ plan, onDone }: { plan: GuestPlan; onDone: () 
         .updateCoachProfile({ telegramId: accountId, lang: "zh", goal: plan.goal, interests: plan.likes })
         .catch(() => {})
         .then(() => prefetchCoachPicks(qc, accountId, "zh", plan.native));
-      if (plan.known.length || plan.unknown.length) {
-        await api.savePlacement({ sourceLang: "zh", targetLang: plan.native, level, known: plan.known, unknown: plan.unknown });
+      // The check's answers and made-up words, and the first deck as taken words
+      // (not a claim until each is reviewed; a word tapped in the check keeps its tap).
+      if (plan.known.length || plan.unknown.length || plan.words.length) {
+        await api.savePlacement({
+          sourceLang: "zh",
+          targetLang: plan.native,
+          level,
+          known: plan.known,
+          unknown: plan.unknown,
+          fakes: plan.fakes,
+          took: plan.words,
+        });
       }
       setStage(1);
       if (plan.words.length) {

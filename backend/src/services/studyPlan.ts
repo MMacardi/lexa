@@ -12,10 +12,24 @@
 // knows HSK 1–3 isn't told to learn them again. A level with no sample borrows
 // the rate of a harder one ("knows 80% of HSK 4" → at least that much of HSK 3),
 // and with nothing to go on the words count as unknown. `exact` says which it is;
-// the sweep of `sweepLevel` is what settles it.
+// the sweep of `sweepLevel` is what settles it. A sample is only as good as the
+// claims in it: the check's made-up words say how freely this learner claims,
+// and that rate discounts the share before it is stretched over the words never
+// asked (placementCheck.ts `correctForGuessing`).
 
 import { prisma } from "./db.js";
-import { HSK_MAX_LEVEL, asHskVersion, clampLevel, hskLevelWords, learnerStatus, normalizeHanzi, type HskVersion } from "./hsk.js";
+import {
+  HSK_MAX_LEVEL,
+  asHskVersion,
+  clampLevel,
+  hskLevelWords,
+  learnerStatus,
+  normalizeHanzi,
+  type HskVersion,
+  type LevelReadiness,
+  type Readiness,
+} from "./hsk.js";
+import { correctForGuessing, falseAlarmRate } from "./placementCheck.js";
 
 // Minutes a day that one new word a day costs once its reviews have piled up: the
 // first meeting (~20 s) plus the ~7 reviews a young card gets in its first weeks
@@ -74,22 +88,47 @@ const dayMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
 export const daysBetween = (from: string, to: string) => Math.round((dayMs(to) - dayMs(from)) / 86_400_000);
 export const addDays = (iso: string, n: number) => new Date(dayMs(iso) + n * 86_400_000).toISOString().slice(0, 10);
 
-/** Share of a level known, per level: its own sample, or the best of the levels above it. */
-function knownRates(levels: LevelEvidence[]): Map<number, number | null> {
+/**
+ * Share of a level known, per level: its own sample, or the best of the levels
+ * above it — discounted by `falseAlarm`, the rate this learner claims words they
+ * don't know. null: nothing to go on.
+ *
+ * A harder level can't be better known than an easier one, and when two samples
+ * say so it is noise: the two are pooled, weighted by how many words each asked
+ * (pool-adjacent-violators). The old rule lifted the easier level to the harder
+ * one's share instead, so one lucky screen of six at HSK 4 made all of HSK 3
+ * "known" over its own 8 of 12 — and the adaptive check samples right at that
+ * boundary, where such screens happen.
+ */
+export function levelRates(levels: LevelEvidence[], falseAlarm = 0): Map<number, number | null> {
+  type Block = { levels: number[]; known: number; asked: number };
+  const blocks: Block[] = [];
+  for (const l of [...levels].sort((a, b) => a.level - b.level)) {
+    const asked = l.saidKnown + l.saidUnknown;
+    if (asked < MIN_SAMPLE) continue;
+    blocks.push({ levels: [l.level], known: l.saidKnown, asked });
+    while (blocks.length > 1) {
+      const [easier, harder] = blocks.slice(-2);
+      if (harder.known / harder.asked <= easier.known / easier.asked) break;
+      blocks.splice(-2, 2, { levels: [...easier.levels, ...harder.levels], known: easier.known + harder.known, asked: easier.asked + harder.asked });
+    }
+  }
+  const own = new Map<number, number>();
+  for (const b of blocks) for (const n of b.levels) own.set(n, correctForGuessing(b.known / b.asked, falseAlarm));
+
   const rates = new Map<number, number | null>();
   let above: number | null = null;
   for (const l of [...levels].sort((a, b) => b.level - a.level)) {
-    const answered = l.saidKnown + l.saidUnknown;
-    const own = answered >= MIN_SAMPLE ? l.saidKnown / answered : null;
-    if (own !== null) above = above === null ? own : Math.max(above, own);
-    rates.set(l.level, above);
+    const r = own.get(l.level);
+    if (r !== undefined) above = above === null ? r : Math.max(above, r);
+    rates.set(l.level, r ?? above);
   }
   return rates;
 }
 
 /** Words still to meet up to `target`, and how much of that is a guess. */
-export function wordsLeft(levels: LevelEvidence[], target: number) {
-  const rates = knownRates(levels);
+export function wordsLeft(levels: LevelEvidence[], target: number, falseAlarm = 0) {
+  const rates = levelRates(levels, falseAlarm);
   let total = 0;
   let left = 0;
   let unsure = 0;
@@ -101,7 +140,7 @@ export function wordsLeft(levels: LevelEvidence[], target: number) {
     const answered = l.saidKnown + l.saidUnknown;
     // Nothing on this level, but the easier one is mostly unknown: so is this one.
     const likelyUnknown = rate === null && sampledBelow !== null && sampledBelow < 0.5;
-    if (answered >= MIN_SAMPLE) sampledBelow = l.saidKnown / answered;
+    if (answered >= MIN_SAMPLE) sampledBelow = correctForGuessing(l.saidKnown / answered, falseAlarm);
     total += l.total;
     left += l.toLearn + Math.round(open * (1 - (rate ?? 0)));
     unsure += open;
@@ -124,10 +163,11 @@ export function buildPlan(input: {
   today: string;
   examDate: string | null;
   daily: number;
+  falseAlarm?: number;
 }): StudyPlan {
   const { version, today, examDate } = input;
   const level = clampLevel(version, input.level);
-  const { total, left, exact, sweepLevel } = wordsLeft(input.levels, level);
+  const { total, left, exact, sweepLevel } = wordsLeft(input.levels, level, input.falseAlarm);
   const daysLeft = examDate ? daysBetween(today, examDate) : null;
   const buffer = daysLeft === null ? null : bufferDays(daysLeft);
   const newDays = daysLeft === null || buffer === null ? null : daysLeft - buffer;
@@ -157,7 +197,7 @@ export function buildPlan(input: {
   let lower: StudyPlan["lower"] = null;
   if (status === "tight") {
     for (let n = level - 1; n >= 1; n--) {
-      const below = wordsLeft(input.levels, n).left;
+      const below = wordsLeft(input.levels, n, input.falseAlarm).left;
       if (below === 0) break; // already covered: nothing to aim at there
       const need = perDayFor(below) ?? Infinity;
       const fit = PACES.find((m) => wordsFor(m) >= need);
@@ -190,7 +230,7 @@ export function buildPlan(input: {
 }
 
 /** Per-level evidence from the answers ("I know it" true/false) and the words the learner has. */
-function evidenceFrom(version: HskVersion, said: Map<string, boolean>, has: (word: string) => boolean): LevelEvidence[] {
+export function evidenceFrom(version: HskVersion, said: Map<string, boolean>, has: (word: string) => boolean): LevelEvidence[] {
   const levels: LevelEvidence[] = [];
   for (let n = 1; n <= HSK_MAX_LEVEL[version]; n++) {
     const l: LevelEvidence = { level: n, total: 0, have: 0, toLearn: 0, saidKnown: 0, saidUnknown: 0 };
@@ -207,16 +247,69 @@ function evidenceFrom(version: HskVersion, said: Map<string, boolean>, has: (wor
   return levels;
 }
 
-/** Per-level evidence for one learner: cards, "I know it"s, and the check's taps. */
-async function levelEvidence(telegramId: string, version: HskVersion): Promise<LevelEvidence[]> {
-  const [status, answers] = await Promise.all([
+/**
+ * The first grade each Chinese headword got in review, and when. A card's first
+ * review is the one moment it tests what the learner knew before: a word recalled
+ * on first sight was known (Hard, Good or Easy — only Again means it wasn't).
+ * DISTINCT ON keeps it to one row a card, however many reviews there are.
+ */
+async function firstReviews(userId: string): Promise<Map<string, { at: Date; recalled: boolean }>> {
+  const rows = await prisma.$queryRaw<{ word: string; grade: number; at: Date }[]>`
+    SELECT DISTINCT ON (e."wordId") w."word" AS word, e."grade" AS grade, e."createdAt" AS at
+    FROM "ReviewEvent" e JOIN "Word" w ON w."id" = e."wordId"
+    WHERE e."userId" = ${userId} AND e."source" = 'review' AND e."grade" IS NOT NULL AND w."sourceLang" = 'zh'
+    ORDER BY e."wordId", e."createdAt" ASC`;
+  const out = new Map<string, { at: Date; recalled: boolean }>();
+  for (const r of rows) {
+    const key = normalizeHanzi(r.word);
+    const prev = out.get(key);
+    if (!prev || r.at < prev.at) out.set(key, { at: r.at, recalled: r.grade >= 2 });
+  }
+  return out;
+}
+
+/**
+ * Per-level evidence for one learner — cards, "I know it"s, the check's taps —
+ * and how freely they claim (the check's made-up words).
+ *
+ * Never over: an answer is the learner's word at the time, and a card's first
+ * review after it is better evidence, so it takes the answer's place. That is how
+ * the sample keeps moving after the check: every daily word is an answer too.
+ * "I know it" says known; taking it says nothing yet (`took`) until the first
+ * review says whether it really was new. Counting only the "I know it"s, as the
+ * plan used to, crept towards "knows all of HSK 4" by the end of a week of daily
+ * words. Only answered words count: a word captured from a text was picked
+ * because it wasn't known, and would drag every level's share down.
+ */
+async function levelEvidence(telegramId: string, version: HskVersion): Promise<{ levels: LevelEvidence[]; falseAlarm: number }> {
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return { levels: evidenceFrom(version, new Map(), () => false), falseAlarm: 0 };
+  const [status, answers, firsts] = await Promise.all([
     learnerStatus(telegramId),
     prisma.placementAnswer.findMany({
-      where: { user: { telegramId }, sourceLang: "zh" },
-      select: { word: true, known: true },
+      where: { userId: user.id, sourceLang: "zh" },
+      select: { word: true, known: true, fake: true, took: true, createdAt: true },
     }),
+    firstReviews(user.id),
   ]);
-  return evidenceFrom(version, new Map(answers.map((a) => [normalizeHanzi(a.word), a.known])), (w) => status.has(w));
+  const said = new Map<string, boolean>();
+  let fakes = 0;
+  let claimed = 0;
+  for (const a of answers) {
+    if (a.fake) {
+      fakes++;
+      if (a.known) claimed++;
+      continue;
+    }
+    const word = normalizeHanzi(a.word);
+    const first = firsts.get(word);
+    if (a.took) {
+      if (first) said.set(word, first.recalled);
+      continue;
+    }
+    said.set(word, first && first.at > a.createdAt ? first.recalled : a.known);
+  }
+  return { levels: evidenceFrom(version, said, (w) => status.has(w)), falseAlarm: falseAlarmRate(fakes, claimed) };
 }
 
 export async function planForUser(telegramId: string, today: string): Promise<StudyPlan> {
@@ -225,10 +318,12 @@ export async function planForUser(telegramId: string, today: string): Promise<St
     select: { hskVersion: true, hskTarget: true, examDate: true, dailyGoal: true },
   });
   const version = asHskVersion(user?.hskVersion) ?? "3.0";
+  const { levels, falseAlarm } = await levelEvidence(telegramId, version);
   return buildPlan({
     version,
     level: user?.hskTarget ?? 4,
-    levels: await levelEvidence(telegramId, version),
+    levels,
+    falseAlarm,
     today,
     examDate: user?.examDate ? user.examDate.toISOString().slice(0, 10) : null,
     daily: user?.dailyGoal ?? DEFAULT_DAILY,
@@ -251,18 +346,20 @@ export function guestPlan(input: {
   level: number;
   known: number;
   answers?: { known: string[]; unknown: string[] };
+  fakes?: { shown: number; claimed: number }; // the check's made-up words
   today: string;
   examDate: string | null;
   daily: number;
 }): StudyPlan {
   const { answers } = input;
   if (answers && answers.known.length + answers.unknown.length > 0) {
+    const falseAlarm = falseAlarmRate(input.fakes?.shown ?? 0, input.fakes?.claimed ?? 0);
     const said = new Map<string, boolean>();
     for (const w of answers.known) said.set(normalizeHanzi(w), true);
     for (const w of answers.unknown) said.set(normalizeHanzi(w), false);
     // An "I know it" is a word they have, as in `learnerStatus`: never offered as new.
     const levels = evidenceFrom(input.version, said, (w) => said.get(w) === true);
-    return { ...buildPlan({ ...input, levels }), sweepLevel: null };
+    return { ...buildPlan({ ...input, levels, falseAlarm }), sweepLevel: null };
   }
   const levels: LevelEvidence[] = [];
   for (let n = 1; n <= HSK_MAX_LEVEL[input.version]; n++) {
@@ -271,4 +368,32 @@ export function guestPlan(input: {
     levels.push({ level: n, total, have, toLearn: 0, saidKnown: 0, saidUnknown: 0 });
   }
   return { ...buildPlan({ ...input, levels }), sweepLevel: null };
+}
+
+// --- The mark, measured and estimated ---
+
+export type EstimatedReadiness = Omit<Readiness, "levels"> & {
+  estimate: number; // up to the target: the measured count plus the unasked words the sample prices as known
+  levels: (LevelReadiness & { estimate: number })[];
+};
+
+/**
+ * The readiness mark counts what was measured: cards past learning, and words
+ * the learner said they know. After a 30-word check that is ~30 of an HSK 4
+ * learner's 2,000 — true and useless. So each level also gets an estimate: the
+ * measured count plus the words nobody asked about, priced by the level's own
+ * sample exactly as the plan prices them, so the two never disagree. Coverage,
+ * never a predicted score; the UI labels which part is which.
+ */
+export async function withEstimate(telegramId: string, r: Readiness): Promise<EstimatedReadiness> {
+  const { levels, falseAlarm } = await levelEvidence(telegramId, r.version);
+  const rates = levelRates(levels, falseAlarm);
+  const byLevel = new Map(levels.map((l) => [l.level, l]));
+  const out = r.levels.map((l) => {
+    const e = byLevel.get(l.level);
+    const open = e ? Math.max(0, e.total - e.have - e.toLearn) : 0;
+    return { ...l, estimate: Math.min(l.total, l.recognise + Math.round(open * (rates.get(l.level) ?? 0))) };
+  });
+  const estimate = out.filter((l) => l.level <= r.level).reduce((a, l) => a + l.estimate, 0);
+  return { ...r, estimate, levels: out };
 }

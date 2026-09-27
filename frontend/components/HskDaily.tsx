@@ -83,9 +83,11 @@ export function HskDaily() {
       const level = CEFR_FOR_HSK[data.level];
       // "I know it" first: saved as a placement answer, so the next fetch fills
       // the freed slots with other words and these never come back. A topic word
-      // turned down is the same answer.
-      if (known.size) {
-        await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: [...known], unknown: [] });
+      // turned down is the same answer. The HSK words taken are answers too, if
+      // only once their first review says whether they were really new — without
+      // them, a week of "I know it"s alone read as knowing all of the level.
+      if (known.size || toAdd.length) {
+        await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: [...known], unknown: [], took: toAdd.map((w) => w.word) });
       }
       if (addCount) {
         // Instant capture makes the HSK words reviewable at once; a topic word

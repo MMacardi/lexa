@@ -314,6 +314,9 @@ export interface HskLevelReadiness {
   canUse: number; // of those, produced correctly twice on different days
   learning: number; // a card exists but hasn't survived an interval yet
   gap: number; // no card at all
+  // `recognise`, plus the words nobody asked about priced by the level's sample —
+  // what the plan counts as known. Equal to `recognise` where nothing was sampled.
+  estimate: number;
 }
 
 // Vocabulary coverage of one HSK list — never a predicted exam score.
@@ -321,6 +324,50 @@ export interface HskReadiness extends Omit<HskLevelReadiness, "level"> {
   version: HskVersion;
   level: number; // the target level these totals cover (everything up to it)
   levels: HskLevelReadiness[];
+}
+
+// The adaptive check (backend services/placementCheck.ts): a screen of words from
+// one level at a time, one of them made up. `meaning` is for the question asked
+// back about a claimed word; `senses` are wrong options for it.
+export interface CheckWord {
+  word: string;
+  pinyin: string;
+  meaning: string | null;
+}
+export interface CheckScreen {
+  n: number;
+  of: number;
+  level: number;
+  words: CheckWord[];
+  senses: string[];
+}
+export interface DoneCheckScreen {
+  level: number;
+  answers: { word: string; known: boolean }[];
+  probe?: { word: string; right: boolean } | null;
+}
+export interface CheckResult {
+  asked: number;
+  knew: number;
+  levels: { level: number; asked: number; knew: number }[];
+  fakes: { shown: number; claimed: number };
+  probes: { asked: number; missed: number };
+  falseAlarm: number;
+  known: string[];
+  unknown: string[];
+  fakeKnown: string[];
+  fakeUnknown: string[];
+}
+export interface CheckStep {
+  screen: CheckScreen | null;
+  result: CheckResult | null; // once the screens are over
+}
+export interface CheckRequest {
+  version: HskVersion;
+  target: number;
+  claimed: number; // the self-rated level
+  native?: string;
+  done: DoneCheckScreen[];
 }
 
 // The plan with a date (backend services/studyPlan.ts): the words left to the
@@ -913,13 +960,10 @@ export const api = {
     return http<HskReadiness>(`/api/hsk/readiness${q.toString() ? `?${q}` : ""}`);
   },
   hskPlan: () => http<StudyPlan>(`/api/hsk/plan?today=${localDay()}`),
-  // The onboarding check: a sample of the list to tap through. The taps go back
-  // via savePlacement, so the mark picks them up like any placement run.
-  hskCheck: (version: HskVersion, level: number, size?: number) => {
-    const q = new URLSearchParams({ version, level: String(level) });
-    if (size) q.set("size", String(size));
-    return http<HskWordList>(`/api/hsk/check?${q}`);
-  },
+  // The onboarding check, a screen at a time: send the screens done so far, get
+  // the next or the result. The answers go back via savePlacement, so the mark
+  // picks them up like any placement run.
+  hskCheck: (body: CheckRequest) => http<CheckStep>(`/api/hsk/check`, { method: "POST", body: JSON.stringify(body) }),
   // Words up to the target with neither a card nor an "I know it" — the gap deck.
   hskGap: (version: HskVersion, level: number, limit?: number) => {
     const q = new URLSearchParams({ version, level: String(level) });
@@ -928,16 +972,26 @@ export const api = {
   },
   // Onboarding before sign-in: the check and the first deck with no account yet
   // (read-only HSK list data; backend routes/public.ts).
-  publicHskCheck: (version: HskVersion, level: number, size: number) =>
-    http<HskWordList>(`/api/public/hsk/check?${new URLSearchParams({ version, level: String(level), size: String(size) })}`),
+  publicHskCheck: (body: CheckRequest) => http<CheckStep>(`/api/public/hsk/check`, { method: "POST", body: JSON.stringify(body) }),
   // The plan's paces while the questions are still being asked: an estimate from
   // the level the guest says they have.
-  // `knew`/`missed`: the check's taps, once it has run — the plan is then priced from them.
-  publicHskPlan: (p: { version: HskVersion; level: number; known: number; examDate: string | null; daily: number; knew?: string[]; missed?: string[] }) => {
+  // `knew`/`missed`: the check's taps, once it has run — the plan is then priced from them;
+  // `fakes`: its made-up words, which discount the taps.
+  publicHskPlan: (p: {
+    version: HskVersion;
+    level: number;
+    known: number;
+    examDate: string | null;
+    daily: number;
+    knew?: string[];
+    missed?: string[];
+    fakes?: { shown: number; claimed: number };
+  }) => {
     const q = new URLSearchParams({ version: p.version, level: String(p.level), known: String(p.known), daily: String(p.daily), today: localDay() });
     if (p.examDate) q.set("examDate", p.examDate);
     if (p.knew?.length) q.set("knew", p.knew.join(","));
     if (p.missed?.length) q.set("missed", p.missed.join(","));
+    if (p.fakes?.shown) q.set("fakes", `${p.fakes.claimed}/${p.fakes.shown}`);
     return http<StudyPlan>(`/api/public/hsk/plan?${q}`);
   },
   publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number }) =>
@@ -1093,7 +1147,17 @@ export const api = {
   // Keep the test's verdict: `unknown` are the words they tapped (the starter deck),
   // `known` the ones they left — an explicit "I already know this" that used to be
   // thrown away with the component's state.
-  savePlacement: (payload: { sourceLang: string; targetLang: string; level?: string; known: string[]; unknown: string[] }) =>
+  // `fakes`: the check's made-up words, saved apart — never vocabulary.
+  // `took`: words taken to learn; an existing answer for one is kept.
+  savePlacement: (payload: {
+    sourceLang: string;
+    targetLang: string;
+    level?: string;
+    known: string[];
+    unknown: string[];
+    fakes?: { known: string[]; unknown: string[] };
+    took?: string[]; // taken from the daily words: not a claim until each card's first review
+  }) =>
     http<{ saved: number }>(`/api/words/placement`, { method: "POST", body: JSON.stringify(payload) }),
 
   // Transcribe a recorded voice answer to text (Coach practice).
