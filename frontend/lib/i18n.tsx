@@ -2562,6 +2562,29 @@ const DICT: Record<string, Entry> = {
   },
   "data.exportBtn": { en: "Download", ru: "Скачать", zh: "下载" },
   "data.exportBusy": { en: "Preparing…", ru: "Готовим…", zh: "正在准备…" },
+  "data.importLabel": { en: "Load a copy", ru: "Загрузить копию", zh: "导入副本" },
+  "data.importHint": {
+    en: "Adds the cards, collections and review history from a downloaded file to this account, even a brand-new one. Nothing already here changes.",
+    ru: "Добавляет в этот аккаунт, даже совсем новый, карточки, коллекции и историю повторений из скачанного файла. То, что уже есть, не меняется.",
+    zh: "把下载文件中的单词卡、合集和复习记录添加到这个账号（新账号也可以）。已有的内容不会改变。",
+  },
+  "data.importBtn": { en: "Choose file", ru: "Выбрать файл", zh: "选择文件" },
+  "data.importBusy": { en: "Loading…", ru: "Загружаем…", zh: "正在导入…" },
+  "data.importDone": {
+    en: "Added — cards: {words}, reviews: {reviews}, collections: {collections}.",
+    ru: "Добавлено: карточек — {words}, повторений — {reviews}, коллекций — {collections}.",
+    zh: "已添加：单词卡 {words} 张，复习记录 {reviews} 条，合集 {collections} 个。",
+  },
+  "data.importSkipped": {
+    en: "Already here, left as they were — cards: {n}.",
+    ru: "Уже были и не изменились: карточек — {n}.",
+    zh: "已存在、保持不变的单词卡：{n} 张。",
+  },
+  "data.importBad": {
+    en: "That file isn't an Onomika download.",
+    ru: "Это не файл, скачанный из Onomika.",
+    zh: "这不是从 Onomika 下载的文件。",
+  },
   "data.deleteLabel": { en: "Delete account", ru: "Удалить аккаунт", zh: "删除账号" },
   "data.deleteHint": {
     en: "Deletes your account and every card, review and note with it, 14 days after you confirm. Sign in before then and you can keep it — or erase it at once from there. Download a copy first if you might want it.",

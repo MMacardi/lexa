@@ -1292,7 +1292,47 @@ export const api = {
     }),
   // "Keep my account": the scheduled erase is off.
   restoreAccount: () => http<{ ok: boolean }>(`/api/account/restore`, { method: "POST" }),
+  // A downloaded file, loaded back into the signed-in account. Adds what isn't
+  // there yet and changes nothing that is, so loading it twice is harmless.
+  importAccount: uploadExport,
 };
+
+export type ImportSummary = {
+  words: number;
+  collections: number;
+  reviews: number;
+  uses: number;
+  texts: number;
+  skipped: number;
+};
+
+// The parts of the file the server reads. The rest (activity log, AI usage,
+// friendships) can be most of a long-time learner's file and would only be
+// dropped on arrival, so it isn't sent.
+const IMPORT_KEYS = [
+  "words",
+  "collections",
+  "folders",
+  "readerTexts",
+  "coachMemories",
+  "placementAnswers",
+  "reviewEvents",
+  "productionEvents",
+];
+
+async function uploadExport(file: File): Promise<ImportSummary> {
+  let data: Record<string, unknown> | null = null;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    // Not JSON at all: same answer as JSON that isn't ours.
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.words)) {
+    throw Object.assign(new Error("Not an Onomika export"), { code: "not_an_export" });
+  }
+  const body = Object.fromEntries(IMPORT_KEYS.filter((k) => data[k] !== undefined).map((k) => [k, data[k]]));
+  return http<ImportSummary>(`/api/account/import`, { method: "POST", body: JSON.stringify(body) });
+}
 
 async function downloadExport(): Promise<void> {
   const res = await fetch(`${BASE}/api/account/export`, { credentials: "include" });

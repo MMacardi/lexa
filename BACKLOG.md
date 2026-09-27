@@ -49,12 +49,26 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
 
-1. **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
+1. [x] **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an
    untested backup is not a backup. First because it is the only irreversible risk on the board:
    prod now has a working delete button (see item 14) and F2/F3 made the DB the only copy of the
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
+   - **Closed 2026-09-27 without the server backup:** Railway's Postgres backups are Pro-only and
+     the app is on Hobby; if it scales, it moves to a VPS, and backups get set up there. Until
+     then the learner's own copy is the backup, so it now loads back: Settings → Your data →
+     **Load a copy** (`POST /api/account/import`, `importAccount` in `services/accountData.ts`)
+     adds the cards (FSRS state and "can use" ledger as they were), examples, decks and folders,
+     review and production logs (card ids remapped), placement answers, coach memory and ready
+     Reader texts to the signed-in account, new or not. Adds, never overwrites: rows match by
+     content + createdAt, not by the file's ids (the old account may still hold them during its
+     grace period), so a second load adds nothing. Decks come back private; settings, friends and
+     the activity log don't come back. Checks: `check-account-import.ts` (every field across, ids
+     remapped, second load and load-into-self add nothing, junk ignored). Local run at 390 px:
+     account A → Download → empty account B → Choose file → "cards: 3, reviews: 3, collections:
+     1", the cards in My words; again → "Already here … cards: 3"; a non-export JSON → "That file
+     isn't an Onomika download."
 
 1a. [x] **Test before pace.** One session. The pace screen claimed "For your date" from a
    self-rating ("Around HSK 4"), before the check had run.

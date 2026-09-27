@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { readSession, clearSessionCookie } from "../lib/auth.js";
 import { rateLimit } from "../lib/rateLimit.js";
-import { exportAccount, deleteAccount, scheduleDeletion, cancelDeletion } from "../services/accountData.js";
+import { exportAccount, importAccount, deleteAccount, scheduleDeletion, cancelDeletion } from "../services/accountData.js";
 
 export const accountRouter = Router();
 
-// Both routes read the whole account, so they are cheap to call and expensive to
+// These routes read the whole account, so they are cheap to call and expensive to
 // serve. Nobody needs either more than a few times an hour. Attached per route,
 // never with router.use(): this router is mounted at "/api" alongside the others,
 // so a router-level middleware would run for every API request and spend this
@@ -28,6 +28,27 @@ accountRouter.get("/account/export", accountLimiter, async (req, res) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="onomika-export-${stamp}.json"`);
   res.send(JSON.stringify(data, null, 2));
+});
+
+// POST /api/account/import — that file, loaded back into the caller's account.
+// Adds what the account doesn't have yet; nothing already there is changed.
+accountRouter.post("/account/import", accountLimiter, async (req, res) => {
+  const telegramId = readSession(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const file = req.body;
+  if (!file || typeof file !== "object" || !Array.isArray(file.words)) {
+    res.status(400).json({ error: "Not an Onomika export", code: "not_an_export" });
+    return;
+  }
+  const summary = await importAccount(telegramId, file);
+  if (!summary) {
+    res.status(404).json({ error: "Account not found" });
+    return;
+  }
+  res.json({ ok: true, ...summary });
 });
 
 // POST /api/account/delete — schedule the erase (DELETE_GRACE_DAYS away; signing

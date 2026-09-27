@@ -1,7 +1,10 @@
+import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
 
-// Take-my-data and delete-my-account, kept in one file on purpose: a table added
-// to the export but not to the delete is a privacy promise we quietly break.
+// Take-my-data, load-it-back and delete-my-account, kept in one file on purpose:
+// a table added to the export but not to the delete is a privacy promise we
+// quietly break (and one not added to the import is a copy that won't restore).
 //
 // Ownership in this schema comes in two shapes and only one of them cleans up:
 //   • Rows with a real User relation (collections, folders, reader texts, scenes,
@@ -146,6 +149,303 @@ export async function exportAccount(telegramId: string): Promise<Record<string, 
     deckReports,
     aiUsage: aiUsage.map((r) => ({ feature: r.feature, calls: r._count._all, totalTokens: r._sum.totalTokens ?? 0 })),
   };
+}
+
+// --- Loading a copy back ---
+//
+// The download used to be a file with no way back in: someone who deleted their
+// account and returned, or signed up again with another sign-in, had their
+// history on disk and an empty deck in the app. This reads that same file into
+// the signed-in account.
+//
+// It adds and never overwrites, so a file loaded twice changes nothing the second
+// time. Rows are matched by what they are and when they were made — a card by its
+// spelling, language pair and createdAt, a review or a "can use" attempt by its
+// timestamp and source — never by the ids in the file: those belong to the old
+// account, which may still hold them for its whole grace period. Only the
+// learning data comes back. Settings were just chosen in the new account's
+// onboarding; friendships and deck reports name other people; the activity log
+// and AI spend describe the old account, not what the learner knows.
+
+type Rec = Record<string, unknown>;
+const recs = (v: unknown): Rec[] =>
+  Array.isArray(v) ? v.filter((x): x is Rec => !!x && typeof x === "object" && !Array.isArray(x)) : [];
+const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
+const strN = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+const int = (v: unknown): number => (Number.isInteger(v) ? (v as number) : 0);
+const intN = (v: unknown): number | null => (Number.isInteger(v) ? (v as number) : null);
+const numN = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const json = (v: unknown) => (v === null || v === undefined ? undefined : (v as Prisma.InputJsonValue));
+function date(v: unknown): Date | null {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+// Ids are minted here so a card and its examples go in as two createMany calls
+// instead of a query per card. Same length and alphabet as Prisma's cuid(), so
+// nothing that stores or passes a card id (bot callback data has 64 bytes) sees
+// a difference.
+const newId = () => "c" + randomBytes(16).toString("hex").slice(0, 24);
+
+export type ImportSummary = {
+  words: number;
+  collections: number;
+  reviews: number;
+  uses: number;
+  texts: number;
+  /** Cards the account already had — the file's copy was left out. */
+  skipped: number;
+};
+
+/** Add the learning data from an export file to this account. Null if there's no account. */
+export async function importAccount(telegramId: string, file: Rec): Promise<ImportSummary | null> {
+  const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
+  if (!user) return null;
+  const uid = user.id;
+
+  return prisma.$transaction(
+    async (tx) => {
+      // Folders and decks are unique by name per account; one that already exists
+      // under that name is reused, so cards land back in the deck they came from.
+      const folders = recs(file.folders).filter((x) => str(x.name));
+      await tx.folder.createMany({
+        data: folders.map((x) => ({ userId: uid, name: str(x.name)!, createdAt: date(x.createdAt) ?? undefined })),
+        skipDuplicates: true,
+      });
+      const folderByName = new Map(
+        (await tx.folder.findMany({ where: { userId: uid }, select: { id: true, name: true } })).map((x) => [x.name, x.id]),
+      );
+      const folderId = new Map(folders.map((x) => [str(x.id) ?? "", folderByName.get(str(x.name)!) ?? null]));
+
+      // Decks come back private. A share code is unique across everyone and the
+      // old account may still be using it; sharing again is one tap.
+      const decksBefore = await tx.collection.count({ where: { userId: uid } });
+      await tx.collection.createMany({
+        data: recs(file.collections)
+          .filter((x) => str(x.name))
+          .map((x) => ({
+            userId: uid,
+            name: str(x.name)!,
+            description: strN(x.description),
+            folderId: folderId.get(str(x.folderId) ?? "") ?? null,
+            copiedFromId: strN(x.copiedFromId),
+            createdAt: date(x.createdAt) ?? undefined,
+          })),
+        skipDuplicates: true,
+      });
+      const deckByName = new Map(
+        (await tx.collection.findMany({ where: { userId: uid }, select: { id: true, name: true } })).map((x) => [x.name, x.id]),
+      );
+
+      const cardKey = (w: string, s: string, t: string, at: Date) => `${w}\u0000${s}\u0000${t}\u0000${at.getTime()}`;
+      const have = new Map(
+        (
+          await tx.word.findMany({
+            where: { userId: uid },
+            select: { id: true, word: true, sourceLang: true, targetLang: true, createdAt: true },
+          })
+        ).map((w) => [cardKey(w.word, w.sourceLang, w.targetLang, w.createdAt), w.id]),
+      );
+      const wordId = new Map<string, string>(); // id in the file → id in this account
+      const words: Prisma.WordCreateManyInput[] = [];
+      const examples: Prisma.ExampleCreateManyInput[] = [];
+      const inDeck = new Map<string, string[]>(); // deck id → new card ids
+      let skipped = 0;
+      for (const w of recs(file.words)) {
+        const text = str(w.word);
+        if (!text?.trim()) continue;
+        const sourceLang = str(w.sourceLang) ?? "en";
+        const targetLang = str(w.targetLang) ?? "zh";
+        const createdAt = date(w.createdAt) ?? new Date();
+        const key = cardKey(text, sourceLang, targetLang, createdAt);
+        let id = have.get(key);
+        if (id) {
+          skipped++;
+        } else {
+          id = newId();
+          have.set(key, id);
+          // The schedule and the "can use" ledger come across as they were: they
+          // are the learner model, and the review log below is their history.
+          words.push({
+            id,
+            userId: uid,
+            word: text,
+            sourceLang,
+            targetLang,
+            phonetic: strN(w.phonetic),
+            partOfSpeech: strN(w.partOfSpeech),
+            meaningZh: strN(w.meaningZh),
+            collocations: strs(w.collocations),
+            synonyms: strs(w.synonyms),
+            antonyms: strs(w.antonyms),
+            notes: strN(w.notes),
+            explainCache: strN(w.explainCache),
+            senses: json(w.senses),
+            familyAt: date(w.familyAt),
+            reviewCount: int(w.reviewCount),
+            nextReviewAt: date(w.nextReviewAt),
+            stability: numN(w.stability),
+            difficulty: numN(w.difficulty),
+            due: date(w.due),
+            reps: int(w.reps),
+            lapses: int(w.lapses),
+            state: int(w.state),
+            learningSteps: int(w.learningSteps),
+            lastReview: date(w.lastReview),
+            produceAttempts: int(w.produceAttempts),
+            produceCorrect: int(w.produceCorrect),
+            produceStreak: int(w.produceStreak),
+            lastProducedAt: date(w.lastProducedAt),
+            canUseAt: date(w.canUseAt),
+            createdAt,
+            sharedFrom: strN(w.sharedFrom),
+            sharedDeck: strN(w.sharedDeck),
+            sharedDeckId: strN(w.sharedDeckId),
+          });
+          for (const e of recs(w.examples)) {
+            if (!str(e.sentenceEn) && !str(e.sentenceZh)) continue;
+            examples.push({
+              wordId: id,
+              sentenceEn: str(e.sentenceEn) ?? "",
+              sentenceZh: str(e.sentenceZh) ?? "",
+              sourceName: str(e.sourceName) ?? "",
+              sourceUrl: str(e.sourceUrl) ?? "",
+              register: strN(e.register),
+              level: strN(e.level),
+              createdAt: date(e.createdAt) ?? undefined,
+            });
+          }
+          for (const c of recs(w.collections)) {
+            const deck = deckByName.get(str(c.name) ?? "");
+            if (deck) inDeck.set(deck, [...(inDeck.get(deck) ?? []), id]);
+          }
+        }
+        const fileId = str(w.id);
+        if (fileId) wordId.set(fileId, id);
+      }
+      await tx.word.createMany({ data: words });
+      await tx.example.createMany({ data: examples });
+      for (const [deck, ids] of inDeck) {
+        await tx.collection.update({ where: { id: deck }, data: { words: { connect: ids.map((id) => ({ id })) } } });
+      }
+
+      // A review whose card was deleted before the export still counts for the
+      // streak and the pace, so it comes back with no card, as it was.
+      const seenReview = new Set(
+        (await tx.reviewEvent.findMany({ where: { userId: uid }, select: { createdAt: true, source: true } })).map(
+          (e) => `${e.createdAt.getTime()}|${e.source}`,
+        ),
+      );
+      const reviews: Prisma.ReviewEventCreateManyInput[] = [];
+      for (const e of recs(file.reviewEvents)) {
+        const at = date(e.createdAt);
+        const source = str(e.source) ?? "review";
+        if (!at || seenReview.has(`${at.getTime()}|${source}`)) continue;
+        seenReview.add(`${at.getTime()}|${source}`);
+        reviews.push({
+          userId: uid,
+          wordId: wordId.get(str(e.wordId) ?? "") ?? null,
+          grade: intN(e.grade),
+          source,
+          prev: json(e.prev),
+          createdAt: at,
+        });
+      }
+      await tx.reviewEvent.createMany({ data: reviews });
+
+      const seenUse = new Set(
+        (await tx.productionEvent.findMany({ where: { userId: uid }, select: { createdAt: true, source: true } })).map(
+          (e) => `${e.createdAt.getTime()}|${e.source}`,
+        ),
+      );
+      const uses: Prisma.ProductionEventCreateManyInput[] = [];
+      for (const e of recs(file.productionEvents)) {
+        const at = date(e.createdAt);
+        const verdict = str(e.verdict);
+        const source = str(e.source) ?? "drill";
+        if (!at || !verdict || seenUse.has(`${at.getTime()}|${source}`)) continue;
+        seenUse.add(`${at.getTime()}|${source}`);
+        uses.push({
+          userId: uid,
+          wordId: wordId.get(str(e.wordId) ?? "") ?? null,
+          verdict,
+          source,
+          errorKind: strN(e.errorKind),
+          createdAt: at,
+        });
+      }
+      await tx.productionEvent.createMany({ data: uses });
+
+      await tx.placementAnswer.createMany({
+        data: recs(file.placementAnswers)
+          .filter((x) => str(x.word) && str(x.sourceLang) && str(x.targetLang) && typeof x.known === "boolean")
+          .map((x) => ({
+            userId: uid,
+            word: str(x.word)!,
+            sourceLang: str(x.sourceLang)!,
+            targetLang: str(x.targetLang)!,
+            level: strN(x.level),
+            known: x.known as boolean,
+            createdAt: date(x.createdAt) ?? undefined,
+          })),
+        skipDuplicates: true,
+      });
+      await tx.coachMemory.createMany({
+        data: recs(file.coachMemories)
+          .filter((x) => str(x.lang))
+          .map((x) => ({
+            userId: uid,
+            lang: str(x.lang)!,
+            goal: str(x.goal) ?? "",
+            interests: str(x.interests) ?? "",
+            notes: str(x.notes) ?? "",
+          })),
+        skipDuplicates: true,
+      });
+
+      // Reader texts that were still generating (or failed) have nothing in them.
+      const seenText = new Set(
+        (await tx.readerText.findMany({ where: { userId: uid }, select: { title: true, createdAt: true } })).map(
+          (x) => `${x.title}|${x.createdAt.getTime()}`,
+        ),
+      );
+      const texts: Prisma.ReaderTextCreateManyInput[] = [];
+      for (const x of recs(file.readerTexts)) {
+        const title = str(x.title);
+        const content = str(x.content);
+        const at = date(x.createdAt);
+        if (!title || !content || !at || (x.status !== undefined && x.status !== "ready")) continue;
+        if (seenText.has(`${title}|${at.getTime()}`)) continue;
+        seenText.add(`${title}|${at.getTime()}`);
+        texts.push({
+          userId: uid,
+          title,
+          content,
+          collection: strN(x.collection),
+          translation: strN(x.translation),
+          clickedWords: strs(x.clickedWords),
+          level: strN(x.level),
+          sourceLang: strN(x.sourceLang),
+          targetLang: strN(x.targetLang),
+          createdAt: at,
+          updatedAt: date(x.updatedAt) ?? at,
+        });
+      }
+      await tx.readerText.createMany({ data: texts });
+
+      return {
+        words: words.length,
+        collections: (await tx.collection.count({ where: { userId: uid } })) - decksBefore,
+        reviews: reviews.length,
+        uses: uses.length,
+        texts: texts.length,
+        skipped,
+      };
+    },
+    // A few createMany calls, but on a big file each is thousands of rows.
+    { timeout: 60_000, maxWait: 10_000 },
+  );
 }
 
 // --- The grace period (BACKLOG "A grace period on account deletion") ---

@@ -21,6 +21,7 @@ const CODE_KEYS: Record<string, string> = {
   own_deck: "community.errOwnDeck",
   no_profile: "profile.errClosed",
   deck_delisted: "share.errDelisted",
+  not_an_export: "data.importBad",
 };
 
 export function errText(e: unknown, t: T): string {
