@@ -7,6 +7,8 @@
 //
 // Source: github.com/drkameleon/complete-hsk-vocabulary (MIT) — word, pinyin and
 // level only; its CC BY-SA definitions are deliberately left behind (see F6).
+// The reading is the one a learner means, not upstream's first: see the build
+// script, scripts/hsk-readings.mjs and scripts/check-hsk-readings.ts.
 // Levels: n1=506 n2=750 n3=953 n4=972 n5=1059 n6=1123 n7=5606 o1=150 o2=147 o3=298 o4=598 o5=1298 o6=2500
 //
 // Parsed once, lazily, by services/hsk.ts. Shipped as TypeScript rather than
@@ -18,7 +20,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 一下子	yī xià zi	n5
 一不小心	yī bù xiǎo xīn	n7
 一丝不苟	yī sī bù gǒu	o6
-一个劲儿	yī gè jìn r	n7
+一个劲儿	yī ge jìn r	n7
 一举	yī jǔ	n7
 一举一动	yī jǔ yī dòng	n7
 一举两得	yī jǔ liǎng dé	o6
@@ -70,7 +72,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 一旦	yī dàn	n5,o5
 一早	yī zǎo	n7
 一时	yī shí	n6
-一晃	yī huǎng	n7
+一晃	yī huàng	n7
 一样	yī yàng	n1,o3
 一概	yī gài	n7
 一概而论	yī gài ér lùn	n7
@@ -81,7 +83,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 一点儿	yī diǎn r	n1
 一点点	yī diǎn diǎn	n2
 一生	yī shēng	n2
-一番	yì fān	n6
+一番	yī fān	n6
 一目了然	yī mù liǎo rán	n7,o6
 一直	yī zhí	n2,o3
 一眼	yī yǎn	n7
@@ -99,7 +101,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 一贯	yī guàn	n6,o6
 一起	yī qǐ	n1,o2
 一路	yī lù	n5,o5
-一路上	yī lù shàng	n6
+一路上	yī lù shang	n6
 一路平安	yī lù píng ān	n2
 一路顺风	yī lù shùn fēng	n2
 一身	yī shēn	n5
@@ -115,10 +117,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 一面	yī miàn	n7
 一鼓作气	yī gǔ zuò qì	n7
 一齐	yī qí	n6
-丁	Dīng	n7,o5
+丁	dīng	n7,o5
 七	qī	n1,o1
 七嘴八舌	qī zuǐ bā shé	n7
-万	mò	n2,o3
+万	wàn	n2,o3
 万一	wàn yī	n4,o5
 万万	wàn wàn	n7
 万分	wàn fēn	n7,o6
@@ -126,14 +128,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 万无一失	wàn wú yī shī	n7
 万能	wàn néng	n7
 丈夫	zhàng fu	n4,o2
-三	Sān	n1,o1
+三	sān	n1,o1
 三明治	sān míng zhì	n6
 三番五次	sān fān wǔ cì	n7
 三维	sān wéi	n7
 三角	sān jiǎo	n7,o6
-上	shǎng	n1,o1
+上	shàng	n1,o1
 上下	shàng xià	n5
-上个月	shàng gè yuè	n4
+上个月	shàng ge yuè	n4
 上任	shàng rèn	n7,o6
 上升	shàng shēng	n3
 上午	shàng wǔ	n1,o1
@@ -142,7 +144,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 上司	shàng si	n7
 上周	shàng zhōu	n2
 上场	shàng chǎng	n7
-上头	shàng tóu	n7
+上头	shàng tou	n7
 上学	shàng xué	n1
 上岗	shàng gǎng	n7
 上市	shàng shì	n6
@@ -180,7 +182,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 上面	shàng miàn	n3
 下	xià	n1,o1
 下一代	xià yī dài	n7
-下个月	xià gè yuè	n4
+下个月	xià ge yuè	n4
 下乡	xià xiāng	n7
 下令	xià lìng	n7
 下决心	xià jué xīn	n7
@@ -208,22 +210,22 @@ export const HSK_WORDS = `一	yī	n1,o1
 下级	xià jí	n7
 下落	xià luò	n7
 下课	xià kè	n1
-下调	xià diào	n7
+下调	xià tiáo	n7
 下跌	xià diē	n7
 下车	xià chē	n1
-下载	xià zǎi	n4,o5
+下载	xià zài	n4,o5
 下边	xià bian	n1
 下降	xià jiàng	n4
 下雨	xià yǔ	n1,o1
 下雪	xià xuě	n2
 下面	xià miàn	n3
 不	bù	n1,o1
-不一会儿	bù yīhuǐr5	n2
+不一会儿	bù yī huì r	n2
 不一定	bù yī dìng	n2
 不为人知	bù wéi rén zhī	n7
 不久	bù jiǔ	n2
 不了了之	bù liǎo liǎo zhī	n7
-不予	bùyǔ	n7
+不予	bù yǔ	n7
 不亚于	bù yà yú	n7
 不亦乐乎	bù yì lè hū	n7
 不仅	bù jǐn	n3,o4
@@ -240,7 +242,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 不再	bù zài	n6
 不准	bù zhǔn	n7
 不利	bù lì	n5
-不利于	bù lìyú	n7
+不利于	bù lì yú	n7
 不可思议	bù kě sī yì	n7,o6
 不可避免	bù kě bì miǎn	n7
 不同	bù tóng	n2
@@ -252,7 +254,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 不太	bù tài	n2
 不好意思	bù hǎo yì si	n2,o5
 不如	bù rú	n2,o5
-不如说	bùrú shuō	n7
+不如说	bù rú shuō	n7
 不妨	bù fáng	n7,o6
 不安	bù ān	n3,o5
 不定	bù dìng	n7
@@ -330,14 +332,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 不错	bù cuò	n2
 不难	bù nán	n7
 不顾	bù gù	n5,o6
-与	yú	n6,o4
+与	yǔ	n6,o4
 与众不同	yǔ zhòng bù tóng	n7
 与其	yǔ qí	n7,o5
 与否	yǔ fǒu	n7
 与日俱增	yǔ rì jù zēng	n7,o6
 与时俱进	yǔ shí jù jìn	n7
 与此同时	yǔ cǐ tóng shí	n7
-丑	Chǒu	n5,o5
+丑	chǒu	n5,o5
 丑恶	chǒu è	n7,o6
 丑闻	chǒu wén	n7
 丑陋	chǒu lòu	n7
@@ -362,7 +364,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 专题	zhuān tí	n3,o6
 且	qiě	n7
 世代	shì dài	n7,o6
-世故	shì gù	n7
+世故	shì gu	n7
 世界	shì jiè	n3,o3
 世界杯	Shì jiè bēi	n3
 世界级	shì jiè jí	n7
@@ -371,19 +373,19 @@ export const HSK_WORDS = `一	yī	n1,o1
 世袭	shì xí	n7
 丘陵	qiū líng	n7,o6
 丙	bǐng	n7,o5
-业	Yè	n7
+业	yè	n7
 业余	yè yú	n4,o5
 业务	yè wù	n5,o5
 业绩	yè jì	n7
 丛	cóng	o6
 丛林	cóng lín	n7
-东	Dōng	n1,o3
-东北	Dōng běi	n2
+东	dōng	n1,o3
+东北	dōng běi	n2
 东南	dōng nán	n2
 东奔西走	dōng bēn xī zǒu	n7
 东张西望	dōng zhāng xī wàng	n7,o6
-东方	Dōng fāng	n2
-东西	dōng xī	n1,o1
+东方	dōng fāng	n2
+东西	dōng xi	n1,o1
 东边	dōng bian	n1
 东道主	dōng dào zhǔ	n7,o6
 东部	dōng bù	n3
@@ -404,7 +406,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 两手	liǎng shǒu	n6
 两栖	liǎng qī	n7
 两边	liǎng bian	n4
-严	Yán	n4
+严	yán	n4
 严厉	yán lì	n5,o6
 严密	yán mì	n7,o6
 严寒	yán hán	o6
@@ -416,7 +418,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 严重	yán zhòng	n4,o4
 丧失	sàng shī	n6,o6
 丧生	sàng shēng	n7
-个	gě	n1,o1
+个	gè	n1,o1
 个人	gè rén	n3,o5
 个体	gè tǐ	n4,o6
 个儿	gè r	n5
@@ -426,7 +428,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 个性	gè xìng	n3,o5
 个案	gè àn	n7
 丫头	yā tou	n7
-中	Zhōng	n1
+中	zhōng	n1
 中介	zhōng jiè	n4,o5
 中医	Zhōng yī	n2
 中午	zhōng wǔ	n1,o1
@@ -442,7 +444,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 中学生	zhōng xué shēng	n1
 中小学	zhōng xiǎo xué	n2
 中年	zhōng nián	n2
-中庸	Zhōng yōng	n7
+中庸	zhōng yōng	n7
 中心	zhōng xīn	n2,o5
 中性	zhōng xìng	n7
 中文	Zhōng wén	n1,o4
@@ -464,7 +466,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 丰富	fēng fù	n3,o4
 丰富多彩	fēng fù duō cǎi	n7
 丰收	fēng shōu	n5,o6
-丰满	Fēng mǎn	n7,o6
+丰满	fēng mǎn	n7,o6
 丰盛	fēng shèng	n7,o6
 丰硕	fēng shuò	n7
 串	chuàn	n6,o6
@@ -475,7 +477,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 临街	lín jiē	n7
 临近	lín jìn	n7
 丸	wán	n7,o6
-为	wéi	n2,o2
+为	wèi	n2,o2
 为主	wéi zhǔ	n5
 为了	wèi le	n3,o3
 为人	wéi rén	n7
@@ -550,7 +552,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 之间	zhī jiān	n4
 乌云	wū yún	n6
 乌黑	wū hēi	o6
-乐	Lè	n3
+乐	lè	n3
 乐器	yuè qì	n7
 乐园	lè yuán	n7
 乐意	lè yì	n7,o6
@@ -563,7 +565,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 乔装	qiáo zhuāng	n7
 乖	guāi	n7,o5
 乖巧	guāi qiǎo	n7
-乘	Chéng	n5,o5
+乘	chéng	n5,o5
 乘人之危	chéng rén zhī wēi	n7
 乘务员	chéng wù yuán	o6
 乘坐	chéng zuò	n5,o4
@@ -574,7 +576,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 乞丐	qǐ gài	n7,o6
 乞求	qǐ qiú	n7
 乞讨	qǐ tǎo	n7
-也	Yě	n1,o2
+也	yě	n1,o2
 也好	yě hǎo	n5
 也就是说	yě jiù shì shuō	n7
 也许	yě xǔ	n2,o4
@@ -585,7 +587,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 乡亲	xiāng qīn	n7
 乡村	xiāng cūn	n5
 乡镇	xiāng zhèn	o6
-书	Shū	n1,o1
+书	shū	n1,o1
 书写	shū xiě	n7
 书包	shū bāo	n1
 书店	shū diàn	n1
@@ -600,7 +602,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 书面	shū miàn	n7,o6
 买	mǎi	n1,o1
 买不起	mǎi bu qǐ	n7
-买卖	mǎi mài	n5
+买卖	mǎi mai	n5
 乱	luàn	n3,o4
 乱七八糟	luàn qī bā zāo	n7
 乳制品	rǔ zhì pǐn	n6
@@ -631,7 +633,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 事后	shì hòu	n6
 事宜	shì yí	n7
 事实	shì shí	n3,o5
-事实上	shì shí shàng	n3
+事实上	shì shí shang	n3
 事态	shì tài	n7,o6
 事情	shì qing	n2,o2
 事故	shì gù	n3,o6
@@ -643,7 +645,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 二手车	èr shǒu chē	n7
 二氧化碳	èr yǎng huà tàn	n7,o6
 二维码	èr wéi mǎ	n5
-于	Yú	n6
+于	yú	n6
 于是	yú shì	n4,o4
 亏	kuī	n5
 亏待	kuī dài	o6
@@ -652,7 +654,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 云	yún	n2,o3
 互信	hù xìn	n7
 互动	hù dòng	n6
-互助	Hù zhù	n7
+互助	hù zhù	n7
 互相	hù xiāng	n3,o4
 互联网	Hù lián wǎng	n3,o6
 互补	hù bǔ	n7
@@ -661,7 +663,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 五星级	wǔ xīng jí	n7
 五花八门	wǔ huā bā mén	n7
 五颜六色	wǔ yán liù sè	n4
-井	Jǐng	n6,o6
+井	jǐng	n6,o6
 亚军	yà jūn	n5,o6
 亚洲	Yà zhōu	o4
 亚运会	Yà yùn huì	n4
@@ -740,7 +742,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 人品	rén pǐn	n7
 人均	rén jūn	n7
 人士	rén shì	n5,o6
-人家	rén jiā	n4,o6
+人家	rén jia	n4,o6
 人工	rén gōng	n3,o6
 人工智能	rén gōng zhì néng	n7
 人性	rén xìng	n7,o6
@@ -774,7 +776,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 仅	jǐn	n3
 仅仅	jǐn jǐn	n3
 仅次于	jǐn cì yú	n7
-仇	Qiú	n7
+仇	chóu	n7
 仇人	chóu rén	n7
 仇恨	chóu hèn	n7
 今后	jīn hòu	n2
@@ -812,7 +814,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 他	tā	n1,o1
 他人	tā rén	n7
 他们	tā men	n1
-付	Fù	n3
+付	fù	n3
 付出	fù chū	n4
 付款	fù kuǎn	n7,o5
 付费	fù fèi	n7
@@ -827,7 +829,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 代表	dài biǎo	n3,o4
 代表团	dài biǎo tuán	n3
 代言人	dài yán rén	n7
-令	líng	n5
+令	lìng	n5
 以	yǐ	n7,o4
 以上	yǐ shàng	n2
 以下	yǐ xià	n2
@@ -849,7 +851,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 仪式	yí shì	n6,o6
 仪表	yí biǎo	n7
 们	men	n1
-仰	Yǎng	n6
+仰	yǎng	n6
 仲裁	zhòng cái	n7
 件	jiàn	n2,o2
 价	jià	n5
@@ -858,7 +860,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 价值观	jià zhí guān	n7
 价格	jià gé	n3,o4
 价钱	jià qian	n3
-任	Rén	n3
+任	rèn	n3
 任人宰割	rèn rén zǎi gē	n7
 任何	rèn hé	n3,o4
 任务	rèn wu	n3,o4
@@ -1024,12 +1026,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 何必	hé bì	n7,o5
 何时	hé shí	n7
 何苦	hé kǔ	n7
-余	Yú	n7
+余	yú	n7
 余地	yú dì	n7
 余额	yú é	n7
-佛	Fó	n6
+佛	fó	n6
 佛教	Fó jiào	n6
-作	zuō	n6
+作	zuò	n6
 作业	zuò yè	n2,o3
 作为	zuò wéi	n4,o5
 作出	zuò chū	n4
@@ -1093,12 +1095,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 侵害	qīn hài	n7
 侵权	qīn quán	n7
 侵犯	qīn fàn	n6,o6
-侵略	qīn lu:è	n7,o5
+侵略	qīn lüè	n7,o5
 便	biàn	n6,o5
 便于	biàn yú	n5,o6
 便利	biàn lì	n5,o6
 便利店	biàn lì diàn	n7
-便宜	biàn yí	n2,o2
+便宜	pián yi	n2,o2
 便捷	biàn jié	n7
 便是	biàn shì	n6
 便条	biàn tiáo	n5,o6
@@ -1117,7 +1119,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 俗语	sú yǔ	n7
 俘获	fú huò	n7
 俘虏	fú lǔ	n7,o6
-保	Bǎo	n3
+保	bǎo	n3
 保佑	bǎo yòu	n7
 保修	bǎo xiū	n7
 保健	bǎo jiàn	n6
@@ -1155,7 +1157,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 信贷	xìn dài	n7
 信赖	xìn lài	n7,o6
 俩	liǎ	n4,o4
-修	Xiū	n3,o4
+修	xiū	n3,o4
 修养	xiū yǎng	n5
 修复	xiū fù	n5,o6
 修建	xiū jiàn	n5,o6
@@ -1172,7 +1174,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 俱乐部	jù lè bù	n5,o5
 倍	bèi	n4,o4
 倒	dǎo	n2,o5
-倒下	dǎo xià	n7
+倒下	dǎo xia	n7
 倒卖	dǎo mài	n7
 倒塌	dǎo tā	n7
 倒数	dào shǔ	n7
@@ -1181,7 +1183,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 倒车	dǎo chē	n4
 倒闭	dǎo bì	n4,o6
 倒霉	dǎo méi	n7,o5
-倔	jué	n7
+倔	juè	n7
 倔强	jué jiàng	n7
 倘若	tǎng ruò	n7,o6
 候选	hòu xuǎn	o6
@@ -1208,7 +1210,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 倾斜	qīng xié	n7,o6
 倾诉	qīng sù	n7
 倾销	qīng xiāo	n7
-假	gēi	n2,o4
+假	jiǎ	n2,o4
 假使	jiǎ shǐ	n7,o6
 假冒	jiǎ mào	n7
 假如	jiǎ rú	n4,o5
@@ -1232,11 +1234,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 做客	zuò kè	n3
 做梦	zuò mèng	n4
 做法	zuò fǎ	n2
-做生意	zuò shēng yì	n7,o4
+做生意	zuò shēng yi	n7,o4
 做证	zuò zhèng	n7
 做饭	zuò fàn	n2
 停	tíng	n2
-停下	tíng xià	n4
+停下	tíng xia	n4
 停业	tíng yè	n7
 停放	tíng fàng	n7
 停止	tíng zhǐ	n3,o4
@@ -1289,7 +1291,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 儿科	ér kē	n6
 儿童	ér tóng	n4,o4
 允许	yǔn xǔ	n6,o4
-元	Yuán	n1,o2
+元	yuán	n1,o2
 元宵节	Yuán xiāo jié	n7,o6
 元旦	Yuán dàn	n5,o5
 元素	yuán sù	n6,o6
@@ -1319,7 +1321,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 光彩	guāng cǎi	n7,o6
 光明	guāng míng	n3,o5
 光明磊落	guāng míng lěi luò	n7
-光泽	Guāng zé	n7
+光泽	guāng zé	n7
 光滑	guāng huá	n7,o5
 光环	guāng huán	n7
 光盘	guāng pán	n4,o5
@@ -1330,12 +1332,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 光荣	guāng róng	n5,o5
 光辉	guāng huī	n6,o6
 光顾	guāng gù	n7
-克	Kè	n2,o5
+克	kè	n2,o5
 克制	kè zhì	n7
 克服	kè fú	n3,o5
 克隆	kè lóng	n7
 免	miǎn	n7
-免不了	miǎn bù liǎo	n7
+免不了	miǎn bu liǎo	n7
 免得	miǎn de	n6,o6
 免疫	miǎn yì	n7,o6
 免职	miǎn zhí	n7
@@ -1345,7 +1347,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 兑现	duì xiàn	n7,o6
 兔	tù	n5
 兔子	tù zi	o5
-党	Dǎng	n6,o6
+党	dǎng	n6,o6
 兜	dōu	n7,o6
 兜儿	dōu r	n7
 兜售	dōu shòu	n7
@@ -1360,7 +1362,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 入手	rù shǒu	n7
 入选	rù xuǎn	n7
 入门	rù mén	n5
-全	Quán	n2
+全	quán	n2
 全世界	quán shì jiè	n5
 全体	quán tǐ	n2
 全力	quán lì	n6
@@ -1418,7 +1420,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 公然	gōng rán	n7,o6
 公用	gōng yòng	n7
 公益	gōng yì	n7
-公益性	gōngyì xìng	n7
+公益性	gōng yì xìng	n7
 公示	gōng shì	n7
 公积金	gōng jī jīn	n7
 公立	gōng lì	n7
@@ -1429,7 +1431,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 公费	gōng fèi	n7
 公路	gōng lù	n2
 公车	gōng chē	n7
-公道	gōng dào	n7,o6
+公道	gōng dao	n7,o6
 公里	gōng lǐ	n2,o4
 公顷	gōng qǐng	n7
 公鸡	gōng jī	n6
@@ -1444,8 +1446,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 共计	gòng jì	n5,o6
 共识	gòng shí	n7
 共鸣	gòng míng	n7,o6
-关	Guān	n1,o3
-关上	guān shàng	n1
+关	guān	n1,o3
+关上	guān shang	n1
 关于	guān yú	n4,o3
 关头	guān tóu	n7
 关心	guān xīn	n2,o3
@@ -1469,7 +1471,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 兴致勃勃	xìng zhì bó bó	o6
 兴起	xīng qǐ	n7
 兴趣	xìng qù	n4,o3
-兴隆	Xīng lóng	o6
+兴隆	xīng lóng	o6
 兴高采烈	xìng gāo cǎi liè	n7,o6
 兵	bīng	n4
 其	qí	n5
@@ -1503,7 +1505,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 内	nèi	n3,o4
 内向	nèi xiàng	n7
 内在	nèi zài	n5,o6
-内地	Nèi dì	n6
+内地	nèi dì	n6
 内外	nèi wài	n6
 内存	nèi cún	n7
 内容	nèi róng	n3,o4
@@ -1578,10 +1580,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 决议	jué yì	n7
 决赛	jué sài	n3,o5
 况且	kuàng qiě	n7,o6
-冷	Lěng	n1,o1
+冷	lěng	n1,o1
 冷冻	lěng dòng	n7
 冷却	lěng què	o6
-冷战	Lěng zhàn	n7
+冷战	lěng zhàn	n7
 冷气	lěng qì	n6
 冷水	lěng shuǐ	n6
 冷淡	lěng dàn	n7,o6
@@ -1603,7 +1605,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 准时	zhǔn shí	n4,o4
 准确	zhǔn què	n2,o4
 准许	zhǔn xǔ	n7
-凉	Liáng	n2
+凉	liáng	n2
 凉快	liáng kuai	n2,o4
 凉水	liáng shuǐ	n3
 凉爽	liáng shuǎng	n7
@@ -1623,12 +1625,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 凝固	níng gù	n7,o6
 凝聚	níng jù	n7,o6
 凝视	níng shì	o6
-几	jī	n1,o1
+几	jǐ	n1,o1
 几乎	jī hū	n4,o3
 几率	jī lǜ	n7
 凡	fán	n7
 凡是	fán shì	n6,o5
-凤凰	Fèng huáng	n7
+凤凰	fèng huáng	n7
 凭	píng	n5,o5
 凭借	píng jiè	n7
 凭着	píng zhe	n7
@@ -1675,7 +1677,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 出山	chū shān	n7
 出差	chū chāi	n5,o4
 出席	chū xí	n4,o5
-出息	chū xī	n7,o6
+出息	chū xi	n7,o6
 出手	chū shǒu	n7
 出来	chū lái	n1
 出毛病	chū máo bìng	n7
@@ -1693,7 +1695,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 出租车	chū zū chē	n2,o1
 出自	chū zì	n7
 出色	chū sè	n4,o5
-出血	chū xuè	n7
+出血	chū xiě	n7
 出行	chū xíng	n6
 出访	chū fǎng	n6
 出资	chū zī	n7
@@ -1708,7 +1710,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 出风头	chū fēng tou	n7
 函授	hán shòu	n7
 凿	záo	n7
-刀	Dāo	n3,o4
+刀	dāo	n3,o4
 刁难	diāo nàn	n7
 分	fēn	n1,o3
 分为	fēn wéi	n4
@@ -1741,7 +1743,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 分赃	fēn zāng	n7
 分辨	fēn biàn	n7,o6
 分配	fēn pèi	n3,o5
-分量	fēn liàng	n7,o6
+分量	fèn liang	n7,o6
 分钟	fēn zhōng	n2,o1
 切	qiē	n4,o5
 切割	qiē gē	n7
@@ -1753,7 +1755,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 刊登	kān dēng	n7,o6
 刑事	xíng shì	o6
 刑法	xíng fǎ	n7
-划	huá	n4
+划	huà	n4
 划分	huà fēn	n5,o6
 划时代	huà shí dài	n7
 划算	huá suàn	n7
@@ -1796,8 +1798,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 判处	pàn chǔ	n7
 判定	pàn dìng	n7
 判断	pàn duàn	n3,o4
-刨	bào	n7
-利	Lì	n6
+刨	páo	n7
+利	lì	n6
 利害	lì hài	n7,o6
 利息	lì xī	n4,o5
 利润	lì rùn	n5,o5
@@ -1805,7 +1807,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 利用	lì yòng	n3,o5
 利益	lì yì	n4,o5
 利索	lì suo	n7
-别	Bié	n1,o2
+别	bié	n1,o2
 别人	bié ren	n1,o3
 别具匠心	bié jù jiàng xīn	n7
 别墅	bié shù	n7,o6
@@ -1844,7 +1846,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 券	quàn	n6
 刹车	shā chē	n7,o6
 刹那	chà nà	o6
-刺	cī	n4,o6
+刺	cì	n4,o6
 刺激	cì jī	n4,o5
 刺绣	cì xiù	n7
 刺耳	cì ěr	n7
@@ -1900,9 +1902,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 剧组	jù zǔ	n7
 剧院	jù yuàn	n7
 剩	shèng	n5,o4
-剩下	shèng xià	n5
+剩下	shèng xia	n5
 剩余	shèng yú	n7
-剪	Jiǎn	n5
+剪	jiǎn	n5
 剪刀	jiǎn dāo	n5,o5
 剪子	jiǎn zi	n5
 剪彩	jiǎn cǎi	o6
@@ -1910,7 +1912,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 副作用	fù zuò yòng	n7,o6
 割	gē	n7,o6
 劈	pī	n7,o6
-力	Lì	n3
+力	lì	n3
 力不从心	lì bù cóng xīn	n7
 力争	lì zhēng	n7,o6
 力图	lì tú	o6
@@ -1942,7 +1944,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 功能	gōng néng	n3,o5
 功臣	gōng chén	n7
 功课	gōng kè	n3,o6
-加	Jiā	n2
+加	jiā	n2
 加上	jiā shàng	n5
 加以	jiā yǐ	n5
 加入	jiā rù	n4
@@ -1986,7 +1988,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 动脉	dòng mài	n7,o6
 动荡	dòng dàng	n7,o6
 动身	dòng shēn	n7,o6
-动静	dòng jìng	n7,o6
+动静	dòng jing	n7,o6
 助威	zhù wēi	n7
 助手	zhù shǒu	n5,o6
 助理	zhù lǐ	n5,o6
@@ -2002,7 +2004,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 劳驾	láo jià	o5
 势不可当	shì bù kě dāng	n7
 势力	shì li	n5,o6
-势头	shì tóu	n7
+势头	shì tou	n7
 势必	shì bì	n7,o6
 勇于	yǒng yú	n7,o6
 勇往直前	yǒng wǎng zhí qián	n7
@@ -2011,22 +2013,22 @@ export const HSK_WORDS = `一	yī	n1,o1
 勉励	miǎn lì	o6
 勉强	miǎn qiǎng	n7,o6
 勋章	xūn zhāng	n7
-勒	lè	n7
+勒	lēi	n7
 勘探	kān tàn	n7,o6
 募捐	mù juān	n7
 勤俭	qín jiǎn	o6
 勤劳	qín láo	n7,o5
 勤奋	qín fèn	n5,o5
 勤工俭学	qín gōng jiǎn xué	n7
-勤快	qín kuài	n7
+勤快	qín kuai	n7
 勤恳	qín kěn	o6
 勺	sháo	n6
 勺子	sháo zi	o5
-勾	Gōu	n7
+勾	gōu	n7
 勾画	gōu huà	n7
 勾结	gōu jié	n7,o6
 勿	wù	n7,o6
-包	Bāo	n1,o3
+包	bāo	n1,o3
 包含	bāo hán	n4,o5
 包围	bāo wéi	n5,o6
 包子	bāo zi	n1,o5
@@ -2039,7 +2041,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 包裹	bāo guǒ	n4,o5
 匆匆	cōng cōng	n7
 匆忙	cōng máng	n7,o5
-化	huā	n3
+化	huà	n3
 化妆	huà zhuāng	n7,o6
 化学	huà xué	o5
 化石	huà shí	n5,o6
@@ -2053,12 +2055,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 北京	Běi jīng	n1,o1
 北方	běi fāng	n2,o3
 北极	běi jí	n5,o6
-北边	běi biān	n1
+北边	běi bian	n1
 北部	běi bù	n3
 匪徒	fěi tú	o6
-匹	pī	n5,o5
+匹	pǐ	n5,o5
 匹配	pǐ pèi	n7
-区	Oū	n3
+区	qū	n3
 区分	qū fēn	n6,o6
 区别	qū bié	n3,o4
 区域	qū yù	n5,o6
@@ -2119,7 +2121,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 协调	xié tiáo	n6,o5
 卑鄙	bēi bǐ	n7,o6
 卓越	zhuó yuè	n7,o6
-单	Shàn	n4
+单	dān	n4
 单一	dān yī	n5
 单位	dān wèi	n2,o5
 单元	dān yuán	n3,o5
@@ -2133,7 +2135,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 单边	dān biān	n7
 卖	mài	n2,o2
 卖弄	mài nong	n7
-南	Nán	n1,o3
+南	nán	n1,o3
 南北	nán běi	n5
 南方	nán fāng	n2
 南极	nán jí	n5
@@ -2165,7 +2167,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 卫生	wèi shēng	n3
 卫生间	wèi shēng jiān	n3,o5
 卫视	wèi shì	n7
-印	Yìn	n6
+印	yìn	n6
 印刷	yìn shuā	n5,o6
 印刷术	yìn shuā shù	n7
 印章	yìn zhāng	n7
@@ -2184,11 +2186,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 却	què	n4,o4
 却是	què shì	n6
 卵	luǎn	n7
-卷	juǎn	n4,o5
+卷	juàn	n4,o5
 卷入	juǎn rù	n7
-卷子	juǎn zi	n7
+卷子	juàn zi	n7
 卸	xiè	n7
-厂	hǎn	n3
+厂	chǎng	n3
 厂商	chǎng shāng	n6
 厂家	chǎng jiā	n7
 厂长	chǎng zhǎng	n5
@@ -2219,7 +2221,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 厚	hòu	n4,o4
 厚度	hòu dù	n7
 厚道	hòu dao	n7
-原	Yuán	n6
+原	yuán	n6
 原先	yuán xiān	n5,o6
 原则	yuán zé	n4,o5
 原创	yuán chuàng	n7
@@ -2267,10 +2269,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 及格	jí gé	n4,o5
 友人	yǒu rén	n7
 友善	yǒu shàn	n7
-友好	Yǒu hǎo	n2,o4
+友好	yǒu hǎo	n2,o4
 友情	yǒu qíng	n7
 友谊	yǒu yì	n5,o4
-双	Shuāng	n3,o3
+双	shuāng	n3,o3
 双向	shuāng xiàng	n7
 双手	shuāng shǒu	n5
 双打	shuāng dǎ	n6
@@ -2339,7 +2341,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 发病	fā bìng	n6
 发票	fā piào	n4,o5
 发育	fā yù	n7,o6
-发脾气	fā pí qì	n7
+发脾气	fā pí qi	n7
 发行	fā xíng	n5,o6
 发表	fā biǎo	n3,o5
 发觉	fā jué	n5,o6
@@ -2367,7 +2369,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 取而代之	qǔ ér dài zhī	n7
 取胜	qǔ shèng	n7
 受	shòu	n3
-受不了	shòu bù liǎo	n4,o4
+受不了	shòu bu liǎo	n4,o4
 受伤	shòu shāng	n3,o5
 受到	shòu dào	n2,o4
 受害	shòu hài	n7
@@ -2414,12 +2416,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 口碑	kǒu bēi	n7
 口罩	kǒu zhào	n7
 口腔	kǒu qiāng	n7,o6
-口袋	kǒu dài	n4
+口袋	kǒu dai	n4
 口试	kǒu shì	n6
 口语	kǒu yǔ	n4
 口音	kǒu yīn	n7,o6
 口香糖	kǒu xiāng táng	n7
-古	Gǔ	n3
+古	gǔ	n3
 古人	gǔ rén	n7
 古今中外	gǔ jīn zhōng wài	n7
 古代	gǔ dài	n3,o5
@@ -2429,7 +2431,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 古老	gǔ lǎo	n5,o5
 古董	gǔ dǒng	n7,o6
 古迹	gǔ jì	n7
-句	gōu	n2
+句	jù	n2
 句子	jù zi	n2,o3
 另	lìng	n6
 另一方面	lìng yī fāng miàn	n3
@@ -2478,7 +2480,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 可谓	kě wèi	n7
 可贵	kě guì	n7
 可靠	kě kào	n3,o5
-台	Tái	n3,o4
+台	tái	n3,o4
 台上	tái shàng	n4
 台灯	tái dēng	n6
 台球	tái qiú	n7
@@ -2488,7 +2490,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 右	yòu	n1
 右边	yòu bian	n1,o2
 叶子	yè zi	n4,o4
-号	háo	n1,o2
+号	hào	n1,o2
 号召	hào zhào	n5,o6
 号码	hào mǎ	n4,o4
 号称	hào chēng	n7
@@ -2516,7 +2518,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 各抒己见	gè shū jǐ jiàn	o6
 各种	gè zhǒng	n3
 各自	gè zì	n3,o5
-合	gě	n3
+合	hé	n3
 合乎	hé hū	n7,o6
 合伙	hé huǒ	n7,o6
 合作	hé zuò	n3,o5
@@ -2537,7 +2539,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 合身	hé shēn	o6
 合适	hé shì	n2,o4
 吉他	jí tā	n7
-吉利	Jí lì	n6
+吉利	jí lì	n6
 吉普	Jí pǔ	n7
 吉祥	jí xiáng	n6,o6
 吉祥物	jí xiáng wù	n7
@@ -2574,10 +2576,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 名声	míng shēng	n7
 名字	míng zi	n1,o1
 名次	míng cì	o6
-名气	míng qì	n7
+名气	míng qi	n7
 名片	míng piàn	n4,o5
 名牌	míng pái	o5
-名牌儿	míngpáir5	n4
+名牌儿	míng pái r	n4
 名称	míng chēng	n2
 名胜	míng shèng	n6,o5
 名著	míng zhù	n7
@@ -2585,7 +2587,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 名誉	míng yù	n6,o6
 名贵	míng guì	n7
 名额	míng é	n6,o6
-后	Hòu	n1
+后	hòu	n1
 后人	hòu rén	n7
 后代	hòu dài	n7,o6
 后勤	hòu qín	n7,o6
@@ -2609,17 +2611,17 @@ export const HSK_WORDS = `一	yī	n1,o1
 后面	hòu mian	n3,o1
 后顾之忧	hòu gù zhī yōu	n7,o6
 吐	tǔ	n5,o5
-向	Xiàng	n2,o2
+向	xiàng	n2,o2
 向上	xiàng shàng	n5
 向前	xiàng qián	n5
 向导	xiàng dǎo	n5,o6
 向往	xiàng wǎng	n7,o6
 向来	xiàng lái	n7,o6
 向着	xiàng zhe	n7
-吓	hè	n5,o5
+吓	xià	n5,o5
 吓人	xià rén	n7
 吓唬	xià hu	n7
-吗	má	n1,o1
+吗	ma	n1,o1
 君子	jūn zǐ	n7
 吝啬	lìn sè	o6
 吞	tūn	n6
@@ -2628,7 +2630,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 否则	fǒu zé	n4,o4
 否定	fǒu dìng	n3,o5
 否认	fǒu rèn	n3,o5
-吧	bā	n1,o2
+吧	ba	n1,o2
 吨	dūn	n5,o5
 吩咐	fēn fù	n7,o6
 含	hán	n4
@@ -2637,7 +2639,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 含糊	hán hu	n7,o6
 含蓄	hán xù	n7
 含量	hán liàng	n4
-听	yǐn	n1,o1
+听	tīng	n1,o1
 听从	tīng cóng	n7
 听众	tīng zhòng	n3
 听写	tīng xiě	n1
@@ -2681,7 +2683,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 告状	gào zhuàng	n7
 告知	gào zhī	n7
 告示	gào shi	n7
-告诉	gào sù	n1,o2
+告诉	gào su	n1,o2
 告诫	gào jiè	n7,o6
 告辞	gào cí	n7,o6
 呐喊	nà hǎn	n7
@@ -2691,7 +2693,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 呛	qiāng	n7
 呜咽	wū yè	n7
 呢	ne	n1,o1
-周	Zhōu	n2
+周	zhōu	n2
 周到	zhōu dào	n7,o5
 周围	zhōu wéi	n3,o4
 周密	zhōu mì	n7,o6
@@ -2705,7 +2707,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 味儿	wèi r	n4
 味精	wèi jīng	n7
 味道	wèi dao	n2,o4
-呵	ā	o6
+呵	hē	o6
 呵护	hē hù	n7
 呻吟	shēn yín	o6
 呼吁	hū yù	n7,o6
@@ -2725,7 +2727,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 咋	zǎ	o6
 和	hé	n1,o1
 和尚	hé shang	n7
-和平	Hé píng	n3,o5
+和平	hé píng	n3,o5
 和平共处	hé píng gòng chǔ	n7
 和气	hé qi	n7,o6
 和睦	hé mù	n7,o6
@@ -2739,10 +2741,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 咬牙切齿	yǎo yá qiè chǐ	o6
 咱	zán	n2
 咱们	zán men	n2,o4
-咳	hāi	n5
+咳	ké	n5
 咳嗽	ké sou	n7,o4
-咸	Xián	n4,o4
-咽	yān	n7
+咸	xián	n4,o4
+咽	yàn	n7
 咽喉	yān hóu	n7
 哀求	āi qiú	n7
 品	pǐn	n5
@@ -2753,11 +2755,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 品种	pǐn zhǒng	n5,o5
 品行	pǐn xíng	n7,o6
 品质	pǐn zhì	n4,o6
-哄	hōng	n7,o6
+哄	hǒng	n7,o6
 哄堂大笑	hōng táng dà xiào	n7
 哆嗦	duō suo	n7,o6
-哇	wā	n6,o6
-哈	Hā	o5
+哇	wa	n6,o6
+哈	hā	o5
 哈哈	hā hā	n3
 响	xiǎng	n2,o4
 响亮	xiǎng liàng	n7,o6
@@ -2767,12 +2769,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 哎	āi	n7
 哎呀	āi yā	n7
 哎哟	āi yō	o6
-哑	yā	n7
+哑	yǎ	n7
 哗变	huá biàn	n7
 哗然	huá rán	n7
 哥	gē	n1
 哥哥	gē ge	n1,o2
-哦	é	n7,o6
+哦	ò	n7,o6
 哨	shào	o6
 哪	nǎ	n1,o1
 哪些	nǎ xiē	n1
@@ -2787,7 +2789,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 哺乳	bǔ rǔ	o6
 哺育	bǔ yù	n7
 哼	hēng	n7,o6
-唉	āi	n7,o5
+唉	ài	n7,o5
 唠叨	láo dao	n7,o6
 唤起	huàn qǐ	n7
 售价	shòu jià	n7
@@ -2807,20 +2809,20 @@ export const HSK_WORDS = `一	yī	n1,o1
 商务	shāng wù	n4
 商品	shāng pǐn	n3,o5
 商场	shāng chǎng	n1
-商城	Shāng chéng	n6
+商城	shāng chéng	n6
 商店	shāng diàn	n1,o1
 商标	shāng biāo	n5,o6
 商讨	shāng tǎo	n7
 商贩	shāng fàn	n7
 商贾	shāng gǔ	n7
 商量	shāng liang	n2,o4
-啊	ā	n2,o3
+啊	a	n2,o3
 啤酒	pí jiǔ	n3,o3
 啥	shá	o6
-啦	lā	n6,o6
+啦	la	n6,o6
 啦啦队	lā lā duì	n7
 啰唆	luō suo	o6
-喂	wéi	n2,o1
+喂	wèi	n2,o1
 喂养	wèi yǎng	n7
 善	shàn	n7
 善于	shàn yú	n4,o5
@@ -2855,11 +2857,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 嗓子	sǎng zi	n7,o5
 嗜好	shì hào	n7
 嗨	hāi	o6
-嗯	ēn	o6
+嗯	en	o6
 嘈杂	cáo zá	o6
 嘉宾	jiā bīn	n6,o5
 嘉年华	jiā nián huá	n7
-嘛	má	n6,o6
+嘛	ma	n6,o6
 嘱咐	zhǔ fù	n7,o5
 嘲弄	cháo nòng	n7
 嘲笑	cháo xiào	n7,o6
@@ -2922,7 +2924,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 团聚	tuán jù	n7
 团长	tuán zhǎng	n5
 团队	tuán duì	n6
-园	Yuán	n6
+园	yuán	n6
 园地	yuán dì	n6
 园林	yuán lín	n5,o6
 困	kùn	n3,o4
@@ -2930,16 +2932,16 @@ export const HSK_WORDS = `一	yī	n1,o1
 困惑	kùn huò	n7
 困扰	kùn rǎo	n5
 困难	kùn nan	n3,o4
-围	Wéi	n3
+围	wéi	n3
 围墙	wéi qiáng	n7
 围巾	wéi jīn	n4,o5
 围绕	wéi rào	n5,o5
 固体	gù tǐ	o5
 固定	gù dìng	n4,o5
-固执	gù zhí	n7,o6
+固执	gù zhi	n7,o6
 固有	gù yǒu	o6
 固然	gù rán	n7,o6
-国	Guó	n1
+国	guó	n1
 国产	guó chǎn	n6
 国会	Guó huì	n6
 国内	guó nèi	n3
@@ -2951,7 +2953,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 国家	guó jiā	n1,o3
 国庆	Guó qìng	n3
 国庆节	Guó qìng jié	o5
-国徽	Guó huī	n7
+国徽	guó huī	n7
 国情	guó qíng	n7
 国旗	guó qí	n6
 国有	guó yǒu	n7
@@ -2976,10 +2978,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 圆形	yuán xíng	n7
 圆满	yuán mǎn	n4,o6
 圆珠笔	yuán zhū bǐ	n6
-圈	juān	n4,o5
+圈	quān	n4,o5
 圈套	quān tào	n7,o6
 圈子	quān zi	n7
-土	Tǔ	n3
+土	tǔ	n3
 土匪	tǔ fěi	n7
 土地	tǔ dì	n4,o5
 土壤	tǔ rǎng	n7,o6
@@ -3010,7 +3012,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 地域	dì yù	n7
 地带	dì dài	n5
 地形	dì xíng	n5
-地方	dì fāng	n1,o3
+地方	dì fang	n1,o3
 地板	dì bǎn	n6
 地步	dì bù	n7,o6
 地段	dì duàn	n7
@@ -3025,7 +3027,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 地铁站	dì tiě zhàn	n2
 地震	dì zhèn	n5,o5
 地面	dì miàn	n4
-场	cháng	n2,o4
+场	chǎng	n2,o4
 场合	chǎng hé	n3,o6
 场地	chǎng dì	n6
 场所	chǎng suǒ	n3,o6
@@ -3038,7 +3040,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 坏事	huài shì	n7
 坏人	huài rén	n2
 坏处	huài chu	n2
-坐	Zuò	n1,o1
+坐	zuò	n1,o1
 坐下	zuò xia	n1
 坐落	zuò luò	n7
 坑	kēng	n7,o6
@@ -3089,7 +3091,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 城堡	chéng bǎo	o6
 城墙	chéng qiáng	n7
 城市	chéng shì	n3,o3
-城里	chénglǐ	n5
+城里	chéng lǐ	n5
 城镇	chéng zhèn	n6
 培养	péi yǎng	n4,o5
 培育	péi yù	n4,o6
@@ -3123,7 +3125,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 塑料袋	sù liào dài	n4,o4
 塑造	sù zào	n7,o6
 塔	tǎ	n6,o5
-塞	Sāi	n6
+塞	sāi	n6
 填	tián	n4
 填充	tián chōng	n7
 填写	tián xiě	n7
@@ -3150,13 +3152,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 增添	zēng tiān	n7,o6
 增进	zēng jìn	n6
 增长	zēng zhǎng	n3,o4
-墨	Mò	n7
+墨	mò	n7
 墨水	mò shuǐ	n6
 墨水儿	mò shuǐ r	o6
 壁画	bì huà	n7
 士兵	shì bīng	n4,o5
 士气	shì qì	n7
-壮	Zhuàng	n7
+壮	zhuàng	n7
 壮丽	zhuàng lì	n7,o6
 壮大	zhuàng dà	n7
 壮实	zhuàng shi	n7
@@ -3171,9 +3173,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 声誉	shēng yù	n7,o6
 声调	shēng diào	o5
 声音	shēng yīn	n2,o3
-壳	qiào	n7
+壳	ké	n7
 壶	hú	n6,o5
-处	chǔ	n4
+处	chù	n4
 处于	chǔ yú	n4
 处分	chǔ fèn	n5,o6
 处在	chǔ zài	n5
@@ -3190,7 +3192,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 备用	bèi yòng	n7
 备课	bèi kè	n7
 复习	fù xí	n2,o3
-复兴	Fù xīng	n7,o6
+复兴	fù xīng	n7,o6
 复制	fù zhì	n4,o5
 复印	fù yìn	n3,o4
 复原	fù yuán	n7
@@ -3200,7 +3202,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 复查	fù chá	n7
 复活	fù huó	n7,o6
 复苏	fù sū	n6
-夏	Xià	o3
+夏	xià	o3
 夏令营	xià lìng yíng	n7,o6
 夏天	xià tiān	n2
 夏季	xià jì	n4
@@ -3252,7 +3254,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 多劳多得	duō láo duō dé	n7
 多半	duō bàn	n6
 多媒体	duō méi tǐ	n6
-多少	duō shǎo	n1,o1
+多少	duō shao	n1,o1
 多年	duō nián	n4
 多年来	duō nián lái	n7
 多心	duō xīn	n7
@@ -3278,11 +3280,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 大事	dà shì	n5
 大于	dà yú	n5
 大人	dà ren	n2
-大众	Dà zhòng	n4
+大众	dà zhòng	n4
 大伙儿	dà huǒ r	n5,o6
 大会	dà huì	n4
 大体	dà tǐ	n7,o6
-大体上	dà tǐ shàng	n7
+大体上	dà tǐ shang	n7
 大使	dà shǐ	n6
 大使馆	dà shǐ guǎn	n3,o4
 大公无私	dà gōng wú sī	n7
@@ -3300,12 +3302,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 大多	dà duō	n4
 大多数	dà duō shù	n2
 大大	dà dà	n2
-大大咧咧	dà dà liē liē	n7
-大夫	dà fū	n3,o4
+大大咧咧	dà da liē liē	n7
+大夫	dài fu	n3,o4
 大奖赛	dà jiǎng sài	n5
 大妈	dà mā	n4
 大姐	dà jiě	n4
-大学	Dà xué	n1
+大学	dà xué	n1
 大学生	dà xué shēng	n1
 大宗	dà zōng	n7
 大家	dà jiā	n2,o2
@@ -3319,7 +3321,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 大意	dà yì	n7,o6
 大批	dà pī	n6
 大数据	dà shù jù	n7
-大方	dà fāng	n4,o5
+大方	dà fang	n4,o5
 大有可为	dà yǒu kě wéi	n7
 大棚	dà péng	n7
 大楼	dà lóu	n4
@@ -3329,9 +3331,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 大气	dà qì	n7
 大海	dà hǎi	n2
 大熊猫	dà xióng māo	n5
-大爷	dà yé	n4
+大爷	dà ye	n4
 大片	dà piàn	n7
-大笔	dàbǐ	n7
+大笔	dà bǐ	n7
 大米	dà mǐ	n6
 大约	dà yuē	n3,o4
 大纲	dà gāng	n5
@@ -3351,11 +3353,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 大选	dà xuǎn	n7
 大道	dà dào	n6
 大部分	dà bù fen	n2
-大都	Dà dū	n5
+大都	dà dū	n5
 大量	dà liàng	n2
-大门	Dà mén	n2
+大门	dà mén	n2
 大队	dà duì	n7
-大陆	Dà lù	n4
+大陆	dà lù	n4
 大雁	dà yàn	n7
 大面积	dà miàn jī	n7
 天	tiān	n1
@@ -3371,7 +3373,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 天性	tiān xìng	n7
 天才	tiān cái	n5,o6
 天文	tiān wén	n5,o6
-天桥	Tiān qiáo	n7
+天桥	tiān qiáo	n7
 天气	tiān qì	n1,o1
 天然	tiān rán	n6
 天然气	tiān rán qì	n5,o6
@@ -3385,7 +3387,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 天鹅	tiān é	n7
 太	tài	n1,o1
 太太	tài tai	n2,o5
-太平	Tài píng	n7
+太平	tài píng	n7
 太极	Tài jí	n7
 太极拳	tài jí quán	n7,o5
 太空	tài kōng	n5,o6
@@ -3415,7 +3417,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 头号	tóu hào	n7
 头头是道	tóu tóu shì dào	n7
 头晕	tóu yūn	n7
-头条	Tóu tiáo	n7
+头条	tóu tiáo	n7
 头疼	tóu téng	n6
 头脑	tóu nǎo	n3
 头衔	tóu xián	n7
@@ -3447,11 +3449,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 奏效	zòu xiào	n7
 契机	qì jī	n7
 契约	qì yuē	n7
-奔	bēn	n7
+奔	bèn	n7
 奔波	bēn bō	n7,o6
 奔赴	bēn fù	n7
 奔跑	bēn pǎo	n6
-奔驰	Bēn chí	o6
+奔驰	bēn chí	o6
 奖	jiǎng	n4
 奖励	jiǎng lì	n5,o6
 奖品	jiǎng pǐn	n7
@@ -3467,7 +3469,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 奢侈	shē chǐ	n7,o6
 奢望	shē wàng	n7
 奥秘	ào mì	n7,o6
-奥运会	Aò yùn huì	n7
+奥运会	Ào yùn huì	n7
 女	nǚ	n1
 女人	nǚ rén	n1,o2
 女儿	nǚ ér	n1,o1
@@ -3499,12 +3501,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 好听	hǎo tīng	n1
 好在	hǎo zài	n7
 好坏	hǎo huài	n7
-好处	hǎo chǔ	n2,o4
+好处	hǎo chu	n2,o4
 好多	hǎo duō	n2
 好奇	hào qí	n3,o5
 好奇心	hào qí xīn	n7
 好好	hǎo hǎo	n3
-好学	hǎo xué	n6
+好学	hào xué	n6
 好客	hào kè	n7,o6
 好家伙	hǎo jiā huo	n7
 好容易	hǎo róng yì	n6
@@ -3549,7 +3551,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 妨碍	fáng ài	n7,o5
 妹	mèi	n1
 妹妹	mèi mei	n1,o2
-妻子	qī zǐ	n4,o2
+妻子	qī zi	n4,o2
 始终	shǐ zhōng	n3,o5
 姐	jiě	n1
 姐妹	jiě mèi	n4
@@ -3565,13 +3567,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 委婉	wěi wǎn	n7
 委屈	wěi qu	n7,o5
 委托	wěi tuō	n5,o5
-姜	Jiāng	n7
+姜	jiāng	n7
 姥姥	lǎo lao	n7,o5
 姥爷	lǎo ye	n7
 姨	yí	n7
 姿势	zī shì	n7,o5
 姿态	zī tài	n7,o6
-威信	Wēi xìn	n7,o6
+威信	wēi xìn	n7,o6
 威力	wēi lì	n7,o6
 威慑	wēi shè	n7
 威望	wēi wàng	o6
@@ -3590,7 +3592,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 媒介	méi jiè	o6
 媒体	méi tǐ	n3,o6
 媲美	pì měi	n7
-媳妇	xí fù	n7,o6
+媳妇	xí fu	n7,o6
 嫁	jià	n7,o5
 嫁妆	jià zhuang	n7
 嫂子	sǎo zi	n7,o6
@@ -3606,7 +3608,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 子孙	zǐ sūn	n7
 子弟	zǐ dì	n7
 子弹	zǐ dàn	n5,o6
-孔	Kǒng	o6
+孔	kǒng	o6
 孕妇	yùn fù	n7
 孕育	yùn yù	n7,o6
 字	zì	n1,o1
@@ -3623,10 +3625,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 存放	cún fàng	n7
 存款	cún kuǎn	n5
 孙女	sūn nǚ	n4
-孙子	Sūn zǐ	n4,o4
+孙子	sūn zi	n4,o4
 孝敬	xiào jìng	n7
 孝顺	xiào shùn	n7,o5
-季	Jì	n4
+季	jì	n4
 季军	jì jūn	o6
 季度	jì dù	n4,o6
 季节	jì jié	n4,o3
@@ -3658,7 +3660,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 学艺	xué yì	n7
 学说	xué shuō	n7,o6
 学费	xué fèi	n3
-学问	xué wèn	n4,o5
+学问	xué wen	n4,o5
 学院	xué yuàn	n1
 孩子	hái zi	n1,o2
 孪生	luán shēng	n7
@@ -3675,10 +3677,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 守候	shǒu hòu	n7
 守护	shǒu hù	n7,o6
 守株待兔	shǒu zhū dài tù	n7
-安	Ān	n4
+安	ān	n4
 安全	ān quán	n2,o4
-安宁	Ān níng	n7,o6
-安定	Ān dìng	n7
+安宁	ān níng	n7,o6
+安定	ān dìng	n7
 安居乐业	ān jū lè yè	o6
 安心	ān xīn	n7
 安慰	ān wèi	n5,o5
@@ -3706,10 +3708,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 宏伟	hóng wěi	n7,o6
 宏大	hóng dà	n6
 宏观	hóng guān	n7,o6
-宗	Zōng	n7
+宗	zōng	n7
 宗教	zōng jiào	n6,o5
 宗旨	zōng zhǐ	n7,o6
-官	Guān	n4,o5
+官	guān	n4,o5
 官僚	guān liáo	n7
 官僚主义	guān liáo zhǔ yì	n7
 官兵	guān bīng	n7
@@ -3718,7 +3720,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 官员	guān yuán	n7
 官方	guān fāng	n4,o6
 定	dìng	n4
-定为	dìng wèi	n7
+定为	dìng wéi	n7
 定义	dìng yì	n7,o6
 定价	dìng jià	n6
 定位	dìng wèi	n6
@@ -3789,9 +3791,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 宣言	xuān yán	n7
 宣誓	xuān shì	n7,o6
 宣读	xuān dú	n7
-室	Shì	n3
+室	shì	n3
 宪法	xiàn fǎ	n7,o6
-宫	Gōng	n6
+宫	gōng	n6
 宫廷	gōng tíng	n7
 宫殿	gōng diàn	n7,o6
 宰	zǎi	n7,o6
@@ -3820,7 +3822,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 家用	jiā yòng	n7
 家电	jiā diàn	n6
 家禽	jiā qín	n7
-家里	jiā lǐ	n1
+家里	jiā li	n1
 家长	jiā zhǎng	n2
 容光焕发	róng guāng huàn fā	n7
 容器	róng qì	o6
@@ -3831,7 +3833,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 容貌	róng mào	o6
 容量	róng liàng	n7
 容颜	róng yán	n7
-宽	Kuān	n4,o4
+宽	kuān	n4,o4
 宽厚	kuān hòu	n7
 宽容	kuān róng	n7
 宽广	kuān guǎng	n4
@@ -3847,20 +3849,20 @@ export const HSK_WORDS = `一	yī	n1,o1
 寂静	jì jìng	n7,o6
 寄	jì	n4,o4
 寄托	jì tuō	n7,o6
-密	Mì	n4
+密	mì	n4
 密不可分	mì bù kě fēn	n7
 密切	mì qiè	n4,o5
 密封	mì fēng	n7,o6
 密度	mì dù	n7,o6
 密码	mì mǎ	n4,o4
 密集	mì jí	n7
-富	Fù	n3,o4
+富	fù	n3,o4
 富人	fù rén	n6
 富含	fù hán	n7
 富强	fù qiáng	n7
 富有	fù yǒu	n6
 富翁	fù wēng	n7
-富裕	Fù yù	n7,o6
+富裕	fù yù	n7,o6
 富豪	fù háo	n7
 富足	fù zú	n7
 寒假	hán jià	n4,o4
@@ -3915,7 +3917,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 导航	dǎo háng	n7,o6
 寿司	shòu sī	n5
 寿命	shòu mìng	n7,o5
-封	Fēng	n2
+封	fēng	n2
 封建	fēng jiàn	n7,o6
 封锁	fēng suǒ	n7,o6
 封闭	fēng bì	n4,o6
@@ -3924,7 +3926,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 射	shè	n5
 射击	shè jī	n5,o5
 将	jiāng	n5
-将军	Jiāng jūn	n6,o6
+将军	jiāng jūn	n6,o6
 将来	jiāng lái	n3,o4
 将要	jiāng yào	n5
 将近	jiāng jìn	n3,o6
@@ -3938,7 +3940,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 小人	xiǎo rén	n7
 小伙子	xiǎo huǒ zi	n4,o5
 小偷	xiǎo tōu	o5
-小偷儿	xiǎotōur5	n5
+小偷儿	xiǎo tōu r	n5
 小区	xiǎo qū	n7
 小卒	xiǎo zú	n7
 小吃	xiǎo chī	n4,o5
@@ -3949,7 +3951,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 小学	xiǎo xué	n1
 小学生	xiǎo xué shēng	n1
 小孩儿	xiǎo hái r	n1
-小康	Xiǎo kāng	n7
+小康	xiǎo kāng	n7
 小心	xiǎo xīn	n2,o3
 小心翼翼	xiǎo xīn yì yì	n7,o6
 小提琴	xiǎo tí qín	n7
@@ -3957,7 +3959,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 小时候	xiǎo shí hou	n2
 小曲	xiǎo qǔ	n7
 小朋友	xiǎo péng yǒu	n1
-小气	xiǎo qì	n7,o5
+小气	xiǎo qi	n7,o5
 小溪	xiǎo xī	n7
 小看	xiǎo kàn	n7
 小组	xiǎo zǔ	n2
@@ -3979,7 +3981,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 尖	jiān	n6
 尖端	jiān duān	n7,o6
 尖锐	jiān ruì	n7,o5
-尚	Shàng	n7
+尚	shàng	n7
 尚未	shàng wèi	n7
 尝	cháng	n5,o4
 尝试	cháng shì	n5,o6
@@ -4002,12 +4004,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 就餐	jiù cān	n7
 尴尬	gān gà	n7,o6
 尸体	shī tǐ	n7,o6
-尺	chě	n4
+尺	chǐ	n4
 尺子	chǐ zi	n4,o5
 尺寸	chǐ cun	n4
 尺度	chǐ dù	n7
 尼龙	ní lóng	n7
-尽	jǐn	n6
+尽	jìn	n6
 尽力	jìn lì	n4,o5
 尽可能	jǐn kě néng	n5
 尽头	jìn tóu	n7
@@ -4060,7 +4062,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 屡次	lǚ cì	n7,o6
 履行	lǚ xíng	n7,o6
 屯	tún	n7
-山	Shān	n1
+山	shān	n1
 山冈	shān gāng	n7
 山区	shān qū	n5
 山坡	shān pō	n6
@@ -4085,7 +4087,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 岳母	yuè mǔ	n7
 岳父	yuè fù	n7,o6
 岸	àn	n5,o5
-岸上	àn shàng	n5
+岸上	àn shang	n5
 峡谷	xiá gǔ	n7,o6
 峰会	fēng huì	n6
 峰回路转	fēng huí lù zhuǎn	n7
@@ -4111,7 +4113,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 工商	gōng shāng	n6
 工商界	gōng shāng jiè	n7
 工地	gōng dì	n7
-工夫	gōng fū	n3,o6
+工夫	gōng fu	n3,o6
 工序	gōng xù	n7
 工整	gōng zhěng	n7
 工科	gōng kē	n7
@@ -4120,7 +4122,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 工艺	gōng yì	n5
 工艺品	gōng yì pǐn	n5,o6
 工资	gōng zī	n3,o4
-左	Zuǒ	n1
+左	zuǒ	n1
 左右	zuǒ yòu	n3,o6
 左边	zuǒ bian	n1,o2
 左顾右盼	zuǒ gù yòu pàn	n7
@@ -4136,7 +4138,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 巨额	jù é	n7
 巩固	gǒng gù	n6,o6
 巫婆	wū pó	n7
-差	chā	n1,o3
+差	chà	n1,o3
 差一点儿	chà yī diǎn r	n5
 差不多	chà bu duō	n2,o4
 差别	chā bié	n5,o5
@@ -4162,7 +4164,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 布局	bù jú	n7,o6
 布满	bù mǎn	n6
 布置	bù zhì	n4,o6
-帅	Shuài	n4,o4
+帅	shuài	n4,o4
 帅哥	shuài gē	n4
 帆	fān	n7
 帆船	fān chuán	n7
@@ -4188,13 +4190,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 带路	dài lù	n7
 带队	dài duì	n7
 带领	dài lǐng	n3,o6
-席	Xí	n7
+席	xí	n7
 席位	xí wèi	n7
 帮	bāng	n1
 帮助	bāng zhù	n2,o2
 帮忙	bāng máng	n1,o3
-帮手	bāng shǒu	n7
-常	Cháng	n1
+帮手	bāng shou	n7
+常	cháng	n1
 常人	cháng rén	n7
 常务	cháng wù	o6
 常常	cháng cháng	n1
@@ -4211,7 +4213,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 幅度	fú dù	n5,o6
 幕	mù	n7
 幕后	mù hòu	n7
-幢	chuáng	n7,o6
+幢	zhuàng	n7,o6
 干	gān	n1,o4
 干事	gàn shi	n7
 干什么	gàn shén me	n1
@@ -4228,12 +4230,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 干脆	gān cuì	n5,o5
 干部	gàn bù	n7
 干预	gān yù	n5,o6
-平	Píng	n2,o5
+平	píng	n2,o5
 平价	píng jià	n7
 平凡	píng fán	n6,o6
 平原	píng yuán	n5,o6
 平台	píng tái	n6
-平和	Píng hé	n7
+平和	píng hé	n7
 平均	píng jūn	n4,o5
 平坦	píng tǎn	n5,o6
 平安	píng ān	n2
@@ -4252,7 +4254,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 平衡	píng héng	n6,o5
 平静	píng jìng	n4,o5
 平面	píng miàn	n7,o6
-年	Nián	n1,o1
+年	nián	n1,o1
 年代	nián dài	n3,o5
 年初	nián chū	n3
 年前	nián qián	n5
@@ -4287,7 +4289,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 幼儿园	yòu ér yuán	n4,o5
 幼稚	yòu zhì	n7,o6
 幽默	yōu mò	n5,o4
-广	yǎn	n5
+广	guǎng	n5
 广义	guǎng yì	n7
 广告	guǎng gào	n2,o4
 广场	guǎng chǎng	n2,o5
@@ -4310,7 +4312,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 序幕	xù mù	n7
 序言	xù yán	o6
 库	kù	n5
-应	Yīng	n4
+应	yīng	n4
 应付	yìng fu	n7,o5
 应对	yìng duì	n6
 应当	yīng dāng	n3
@@ -4321,7 +4323,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 应该	yīng gāi	n2,o3
 应邀	yìng yāo	n7,o6
 应酬	yìng chou	n7,o6
-底	de	n4,o4
+底	dǐ	n4,o4
 底下	dǐ xia	n3
 底子	dǐ zi	n7
 底层	dǐ céng	n7
@@ -4352,13 +4354,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 廉政	lián zhèng	n7
 廉正	lián zhèng	n7
 廉洁	lián jié	n7,o6
-延	Yán	n7
+延	yán	n7
 延伸	yán shēn	n5,o6
 延期	yán qī	n4,o6
 延续	yán xù	n4,o6
 延缓	yán huǎn	n7
 延误	yán wu	n7
-延长	Yán cháng	n4,o5
+延长	yán cháng	n4,o5
 建	jiàn	n3
 建交	jiàn jiāo	n7
 建成	jiàn chéng	n3
@@ -4419,12 +4421,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 异性	yì xìng	n7
 异想天开	yì xiǎng tiān kāi	n7
 异议	yì yì	n7
-弄	lòng	n2,o4
+弄	nòng	n2,o4
 弄虚作假	nòng xū zuò jiǎ	n7
 弊病	bì bìng	n7,o6
 弊端	bì duān	n7,o6
 式	shì	n5
-弓	Gōng	n7
+弓	gōng	n7
 引	yǐn	n4
 引人入胜	yǐn rén rù shèng	n7
 引人注目	yǐn rén zhù mù	n7
@@ -4442,8 +4444,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 弟	dì	n1
 弟子	dì zǐ	n7
 弟弟	dì di	n1,o2
-张	Zhāng	n3,o2
-张扬	Zhāng Yáng	n7
+张	zhāng	n3,o2
+张扬	zhāng yáng	n7
 张灯结彩	zhāng dēng jié cǎi	n7
 张贴	zhāng tiē	n7
 弥漫	mí màn	n7,o6
@@ -4454,9 +4456,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 弱	ruò	n4,o5
 弱势	ruò shì	n7
 弱点	ruò diǎn	n7,o6
-弹	dàn	n5,o4
+弹	tán	n5,o4
 弹性	tán xìng	n7,o6
-强	Qiáng	n3
+强	qiáng	n3
 强制	qiáng zhì	n7,o6
 强加	qiáng jiā	n7
 强劲	qiáng jìng	n7
@@ -4473,7 +4475,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 强调	qiáng diào	n3,o5
 强迫	qiǎng pò	n5,o6
 强项	qiáng xiàng	n7
-归	Guī	n4
+归	guī	n4
 归宿	guī sù	n7
 归属	guī shǔ	n7
 归来	guī lái	n7
@@ -4496,13 +4498,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 当即	dāng jí	n7
 当地	dāng dì	n3,o4
 当场	dāng chǎng	n5,o6
-当天	dāng tiān	n6
+当天	dàng tiān	n6
 当年	dāng nián	n5
 当心	dāng xīn	n7,o6
 当成	dàng chéng	n6
 当日	dāng rì	n7
 当时	dāng shí	n2,o4
-当晚	dāng wǎn	n7
+当晚	dàng wǎn	n7
 当然	dāng rán	n3,o3
 当真	dàng zhēn	n7
 当着	dāng zhe	n7
@@ -4559,12 +4561,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 待会儿	dāi huì r	n6
 待遇	dài yù	n4,o5
 很	hěn	n1,o1
-很难说	hěn nánshuō	n6
+很难说	hěn nán shuō	n6
 律师	lǜ shī	n4,o4
 徐徐	xú xú	n7
 徒弟	tú dì	n6,o6
 徒步	tú bù	n7
-得	dé	n2,o2
+得	de	n2,o2
 得不偿失	dé bù cháng shī	n7,o6
 得了	dé le	n5
 得以	dé yǐ	n5
@@ -4594,7 +4596,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 微波炉	wēi bō lú	n6
 微笑	wēi xiào	n4,o5
 微观	wēi guān	n7,o6
-德	Dé	n7
+德	dé	n7
 心	xīn	n3
 心中	xīn zhōng	n2
 心事	xīn shì	n7
@@ -4647,7 +4649,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 志愿者	zhì yuàn zhě	n3
 志气	zhì qì	n7,o6
 忘	wàng	n1
-忘不了	wàng bù liǎo	n7
+忘不了	wàng bu liǎo	n7
 忘掉	wàng diào	n7
 忘记	wàng jì	n1,o3
 忙	máng	n1,o2
@@ -4678,7 +4680,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 念念不忘	niàn niàn bù wàng	n7
 忽悠	hū you	n7
 忽然	hū rán	n2,o4
-忽略	hū lu:è	n6,o6
+忽略	hū lüè	n6,o6
 忽视	hū shì	n4,o5
 忽高忽低	hū gāo hū dī	n7
 怀孕	huái yùn	n7,o6
@@ -4686,14 +4688,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 怀抱	huái bào	n7
 怀旧	huái jiù	n7
 怀疑	huái yí	n4,o4
-怀着	huáizhe	n7
-怀里	huái lǐ	n7
+怀着	huái zhe	n7
+怀里	huái li	n7
 态度	tài du	n2,o4
 怎么	zěn me	n1,o1
 怎么办	zěn me bàn	n2
 怎么样	zěn me yàng	n2,o1
 怎样	zěn yàng	n2
-怕	Pà	n2
+怕	pà	n2
 怜惜	lián xī	n7
 思前想后	sī qián xiǎng hòu	n7
 思念	sī niàn	n7,o6
@@ -4787,10 +4789,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 恰恰相反	qià qià xiāng fǎn	n7
 恳切	kěn qiè	o6
 恳求	kěn qiú	n7
-恶	ě	n7
+恶	è	n7
 恶劣	è liè	n7,o5
 恶化	è huà	n7,o6
-恶心	ě xīn	n4,o6
+恶心	ě xin	n4,o6
 恶性	è xìng	n7
 恶意	è yì	n7
 恼火	nǎo huǒ	o6
@@ -4939,18 +4941,18 @@ export const HSK_WORDS = `一	yī	n1,o1
 懂事	dǒng shì	n7
 懂得	dǒng de	n2
 懒	lǎn	n6,o4
-懒得	lǎn dé	n7
+懒得	lǎn de	n7
 懒惰	lǎn duò	n7,o6
 戈壁	Gē bì	n7
 戏	xì	n5
 戏剧	xì jù	n5,o5
 戏曲	xì qǔ	n6
-成	Chéng	n2
+成	chéng	n2
 成为	chéng wéi	n2,o4
 成交	chéng jiāo	n5,o6
 成人	chéng rén	n4
 成分	chéng fèn	n6,o5
-成功	Chéng gōng	n3,o4
+成功	chéng gōng	n3,o4
 成千上万	chéng qiān shàng wàn	n7
 成员	chéng yuán	n3,o6
 成品	chéng pǐn	n6
@@ -4989,14 +4991,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 战役	zhàn yì	o6
 战斗	zhàn dòu	n4,o6
 战术	zhàn shù	n6,o6
-战略	zhàn lu:è	n6,o6
+战略	zhàn lüè	n6,o6
 战胜	zhàn shèng	n4
 截	jié	n7
 截止	jié zhǐ	n6
 截然不同	jié rán bù tóng	n7
 截至	jié zhì	n6,o6
 戳	chuō	n7
-戴	Dài	n4,o4
+戴	dài	n4,o4
 户	hù	n4
 户外	hù wài	n6
 房东	fáng dōng	n3,o5
@@ -5013,9 +5015,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 所属	suǒ shǔ	n7
 所有	suǒ yǒu	n2,o4
 所谓	suǒ wèi	n7,o5
-所长	suǒ cháng	n3
-扁	Piān	n6,o6
-扇	shān	n5
+所长	suǒ zhǎng	n3
+扁	biǎn	n6,o6
+扇	shàn	n5
 扇子	shàn zi	n5,o5
 手	shǒu	n1
 手册	shǒu cè	n7
@@ -5040,7 +5042,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 手臂	shǒu bì	n7
 手艺	shǒu yì	n7,o6
 手表	shǒu biǎo	n2,o2
-手里	shǒu lǐ	n4
+手里	shǒu li	n4
 才	cái	n2,o3
 才华	cái huá	n7
 才干	cái gàn	o6
@@ -5052,8 +5054,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 扑克	pū kè	n7
 扑面而来	pū miàn ér lái	n7
 扒	bā	n7,o6
-打	dá	n1
-打交道	dǎ jiāo dào	n7,o5
+打	dǎ	n1
+打交道	dǎ jiāo dao	n7,o5
 打仗	dǎ zhàng	n7,o6
 打倒	dǎ dǎo	n7
 打击	dǎ jī	n5,o6
@@ -5097,7 +5099,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 托	tuō	n6
 托付	tuō fù	n7
 托运	tuō yùn	o6
-扛	gāng	n7,o6
+扛	káng	n7,o6
 扣	kòu	n6
 扣人心弦	kòu rén xīn xián	n7
 扣押	kòu yā	n7
@@ -5120,7 +5122,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 扫墓	sǎo mù	n7
 扫描	sǎo miáo	n7
 扫除	sǎo chú	n7
-扬	Yáng	n7
+扬	yáng	n7
 扭	niǔ	n6
 扭头	niǔ tóu	n7
 扭曲	niǔ qū	n7
@@ -5157,7 +5159,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 把	bǎ	n3,o3
 把关	bǎ guān	n7,o6
 把戏	bǎ xì	o6
-把手	bǎ shǒu	n7,o6
+把手	bǎ shou	n7,o6
 把握	bǎ wò	n3,o5
 把柄	bǎ bǐng	n7
 抑制	yì zhì	n7,o6
@@ -5186,7 +5188,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 抗生素	kàng shēng sù	n7
 抗衡	kàng héng	n7
 抗议	kàng yì	n6,o5
-折	shé	n4,o6
+折	zhé	n4,o6
 折叠	zhé dié	n7
 折合	zhé hé	n7
 折射	zhé shè	n7
@@ -5202,7 +5204,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 抛弃	pāo qì	n7,o6
 抠	kōu	n7
 抡	lūn	n7
-抢	qiāng	n5,o5
+抢	qiǎng	n5,o5
 抢劫	qiǎng jié	n7,o6
 抢夺	qiǎng duó	n7
 抢救	qiǎng jiù	n5,o6
@@ -5245,7 +5247,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 抵消	dǐ xiāo	n7
 抵触	dǐ chù	n7
 抵达	dǐ dá	n6,o6
-抹	mā	n7
+抹	mǒ	n7
 抹杀	mǒ shā	o6
 押	yā	n7
 押金	yā jīn	n5,o6
@@ -5324,7 +5326,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 拥挤	yōng jǐ	n7,o5
 拥有	yōng yǒu	n5,o6
 拦	lán	n7,o5
-拧	níng	n7,o6
+拧	nǐng	n7,o6
 拨	bō	n7
 拨打	bō dǎ	n6,o6
 拨款	bō kuǎn	n7
@@ -5339,8 +5341,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 拼	pīn	n5
 拼命	pīn mìng	n7,o6
 拼搏	pīn bó	n7,o6
-拽	yè	n7,o6
-拾	shè	n5,o6
+拽	zhuài	n7,o6
+拾	shí	n5,o6
 拿	ná	n1,o3
 拿出	ná chū	n2
 拿到	ná dào	n2
@@ -5374,7 +5376,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 指标	zhǐ biāo	n5,o6
 指点	zhǐ diǎn	n7
 指甲	zhǐ jia	n5,o6
-指着	zhǐzhe	n6
+指着	zhǐ zhe	n6
 指示	zhǐ shì	n5,o6
 指责	zhǐ zé	n5,o6
 按	àn	n3
@@ -5394,25 +5396,25 @@ export const HSK_WORDS = `一	yī	n1,o1
 挑选	tiāo xuǎn	n4
 挖	wā	n6
 挖掘	wā jué	n7,o6
-挖苦	wā kǔ	n7
+挖苦	wā ku	n7
 挟持	xié chí	n7
 挠	náo	n7
 挡	dǎng	n5,o5
-挣	zhēng	n5
+挣	zhèng	n5
 挣扎	zhēng zhá	n7,o6
 挣钱	zhèng qián	n5,o5
 挤	jǐ	n5
 挤压	jǐ yā	n7
 挥	huī	n7,o5
 挥霍	huī huò	o6
-挨	āi	n6,o6
+挨	ái	n6,o6
 挨家挨户	āi jiā āi hù	n7
 挨打	ái dǎ	n6
 挨着	āi zhe	n6
 挪	nuó	n7,o6
 挫折	cuò zhé	n7,o6
 振作	zhèn zuò	n7
-振兴	Zhèn xīng	n7,o6
+振兴	zhèn xīng	n7,o6
 振动	zhèn dòng	n5,o5
 振奋	zhèn fèn	n7,o6
 挺	tǐng	n2,o4
@@ -5481,7 +5483,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 排行榜	pái háng bǎng	n6
 排队	pái duì	n2,o5
 排除	pái chú	n5,o6
-掠夺	lu:è duó	n7,o6
+掠夺	lüè duó	n7,o6
 探	tàn	n7
 探亲	tàn qīn	n7
 探望	tàn wàng	n7,o6
@@ -5548,7 +5550,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 描写	miáo xiě	n4,o5
 描绘	miáo huì	n7,o6
 描述	miáo shù	n4
-提	dī	n2,o5
+提	tí	n2,o5
 提交	tí jiāo	n6
 提供	tí gōng	n4,o4
 提倡	tí chàng	n5,o5
@@ -5580,7 +5582,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 揣摩	chuǎi mó	n7
 揣测	chuǎi cè	n7
 揪	jiū	n7
-揭	Jiē	n6
+揭	jiē	n6
 揭发	jiē fā	n7,o6
 揭晓	jiē xiǎo	n7
 揭示	jiē shì	n7
@@ -5591,7 +5593,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 搁	gē	n7,o6
 搁浅	gē qiǎn	n7
 搁置	gē zhì	n7
-搂	lōu	n7,o6
+搂	lǒu	n7,o6
 搅	jiǎo	n7
 搅拌	jiǎo bàn	n7,o6
 搏斗	bó dòu	n7,o6
@@ -5627,8 +5629,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 摆平	bǎi píng	n7
 摆放	bǎi fàng	n7
 摆脱	bǎi tuō	n4,o6
-摆设	bǎi shè	n7
-摇	Yáo	n4,o5
+摆设	bǎi she	n7
+摇	yáo	n4,o5
 摇头	yáo tóu	n5
 摇摆	yáo bǎi	n7,o6
 摇摇欲坠	yáo yáo yù zhuì	n7
@@ -5649,7 +5651,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 摩擦	mó cā	n5,o6
 摸	mō	n4,o5
 摸索	mō suo	n7,o6
-撇	piē	n7
+撇	piě	n7
 撑	chēng	n6
 撒	sā	n7
 撒谎	sā huǎng	n7,o6
@@ -5680,8 +5682,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 攀	pān	n7
 攀升	pān shēng	n7
 攀登	pān dēng	o6
-攒	cuán	n7,o6
-支	Zhī	n3,o5
+攒	zǎn	n7,o6
+支	zhī	n3,o5
 支付	zhī fù	n3
 支出	zhī chū	n5,o6
 支持	zhī chí	n3,o4
@@ -5738,7 +5740,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 攻击	gōng jī	n6,o6
 攻读	gōng dú	n7
 放	fàng	n1,o3
-放下	fàng xià	n2
+放下	fàng xia	n2
 放假	fàng jià	n1
 放到	fàng dào	n3
 放大	fàng dà	n5,o6
@@ -5762,7 +5764,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 政策	zhèng cè	n6,o5
 故	gù	n7
 故乡	gù xiāng	n3,o6
-故事	gù shì	n2,o3
+故事	gù shi	n2,o3
 故意	gù yì	n2,o4
 故障	gù zhàng	n6,o6
 效仿	xiào fǎng	n7
@@ -5784,10 +5786,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 救治	jiù zhì	n7
 救济	jiù jì	n7,o6
 救灾	jiù zāi	n5
-教	Jiào	n1,o3
+教	jiāo	n1,o3
 教养	jiào yǎng	n7,o6
 教堂	jiào táng	n6
-教学	jiāo xué	n2
+教学	jiào xué	n2
 教学楼	jiào xué lóu	n1
 教室	jiào shì	n2,o2
 教师	jiào shī	n2
@@ -5847,7 +5849,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 整齐	zhěng qí	n3,o4
 敷	fū	n7
 敷衍	fū yǎn	o6
-文	Wén	n7
+文	wén	n7
 文人	wén rén	n7
 文件	wén jiàn	n3,o5
 文具	wén jù	n7,o5
@@ -5866,7 +5868,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 文雅	wén yǎ	n7,o6
 斑点	bān diǎn	n7
 斑纹	bān wén	o6
-斗	Dǒu	n7
+斗	dòu	n7
 斗争	dòu zhēng	n6,o6
 斗志	dòu zhì	n7
 料	liào	n6
@@ -5885,9 +5887,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 断绝	duàn jué	o6
 断裂	duàn liè	n7
 斯文	sī wén	o6
-新	Xīn	n1,o2
+新	xīn	n1,o2
 新人	xīn rén	n6
-新兴	Xīn xīng	n6
+新兴	xīn xīng	n6
 新型	xīn xíng	n4
 新奇	xīn qí	n7
 新娘	xīn niáng	n4,o6
@@ -5903,7 +5905,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 新陈代谢	xīn chén dài xiè	n7,o6
 新颖	xīn yǐng	n7,o6
 新鲜	xīn xiān	n4,o3
-方	Fāng	n4,o5
+方	fāng	n4,o5
 方位	fāng wèi	o6
 方便	fāng biàn	n2,o3
 方便面	fāng biàn miàn	n2
@@ -5913,7 +5915,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 方方面面	fāng fāng miàn miàn	n7
 方案	fāng àn	n4,o5
 方法	fāng fǎ	n2,o4
-方言	Fāng yán	n7,o6
+方言	fāng yán	n7,o6
 方针	fāng zhēn	n4,o6
 方面	fāng miàn	n2,o4
 施加	shī jiā	n7,o6
@@ -5997,7 +5999,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 无须	wú xū	n7
 既	jì	n4
 既然	jì rán	n4,o4
-日	Rì	n1,o1
+日	rì	n1,o1
 日前	rì qián	n7
 日历	rì lì	n4,o5
 日后	rì hòu	n7
@@ -6023,7 +6025,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 早年	zǎo nián	n7
 早日	zǎo rì	n7
 早晚	zǎo wǎn	n6
-早晨	zǎo chén	n2
+早晨	zǎo chen	n2
 早期	zǎo qī	n5
 早餐	zǎo cān	n2
 早饭	zǎo fàn	n1
@@ -6033,7 +6035,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 时	shí	n3
 时不时	shí bù shí	n7
 时事	shí shì	n5,o6
-时代	Shí dài	n3,o5
+时代	shí dài	n3,o5
 时候	shí hou	n1,o1
 时光	shí guāng	n5,o6
 时刻	shí kè	n3,o5
@@ -6090,7 +6092,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 春节	Chūn jié	n2
 昨天	zuó tiān	n1,o1
 是	shì	n1,o1
-是不是	shì bù shì	n1
+是不是	shì bu shì	n1
 是否	shì fǒu	n4,o5
 是非	shì fēi	n7,o6
 昼夜	zhòu yè	n7,o6
@@ -6105,7 +6107,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 显而易见	xiǎn ér yì jiàn	n7
 显著	xiǎn zhù	n4,o6
 显赫	xiǎn hè	n7
-晃	huǎng	n7
+晃	huàng	n7
 晃荡	huàng dang	n7
 晋升	jìn shēng	n7,o6
 晒	shài	n4,o5
@@ -6130,7 +6132,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 普通人	pǔ tōng rén	n7
 普通话	pǔ tōng huà	n2,o3
 普遍	pǔ biàn	n3,o4
-景	Jǐng	n6
+景	jǐng	n6
 景区	jǐng qū	n7
 景点	jǐng diǎn	n6
 景色	jǐng sè	n3,o5
@@ -6171,11 +6173,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 曙光	shǔ guāng	n7
 曝光	bào guāng	n7,o6
 曰	yuē	n7
-曲	Qū	n7
+曲	qǔ	n7
 曲子	qǔ zi	o6
 曲折	qū zhé	n7,o6
 曲线	qū xiàn	n7
-更	gēng	n2,o3
+更	gèng	n2,o3
 更加	gèng jiā	n3,o5
 更换	gēng huàn	n5
 更改	gēng gǎi	n7
@@ -6183,7 +6185,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 更是	gèng shì	n6
 更正	gēng zhèng	o6
 更衣室	gēng yī shì	n7
-曾	Zēng	n4
+曾	céng	n4
 曾经	céng jīng	n3,o5
 替	tì	n4
 替代	tì dài	n4
@@ -6203,7 +6205,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 月底	yuè dǐ	n4
 月球	yuè qiú	n5
 月票	yuè piào	n7
-月饼	yuè bǐng	n5
+月饼	yuè bing	n5
 有	yǒu	n1,o1
 有一些	yǒu yī xiē	n1
 有一点儿	yǒu yī diǎn r	n2
@@ -6216,7 +6218,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 有利于	yǒu lì yú	n5
 有力	yǒu lì	n5
 有助于	yǒu zhù yú	n7
-有劲儿	yǒujìnr5	n4
+有劲儿	yǒu jìn r	n4
 有口无心	yǒu kǒu wú xīn	n7
 有名	yǒu míng	n1,o3
 有声有色	yǒu shēng yǒu sè	n7
@@ -6245,7 +6247,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 有的是	yǒu de shì	n3
 有益	yǒu yì	n7
 有着	yǒu zhe	n5
-有空儿	yǒukòngr5	n2
+有空儿	yǒu kòng r	n2
 有趣	yǒu qù	n4,o4
 有限	yǒu xiàn	n4
 朋友	péng you	n1,o1
@@ -6263,7 +6265,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 望	wàng	n7
 望见	wàng jiàn	n6
 望远镜	wàng yuǎn jìng	n7
-朝	Cháo	n3,o5
+朝	cháo	n3,o5
 朝三暮四	zhāo sān mù sì	n7
 朝代	cháo dài	n7,o5
 朝夕相处	zhāo xī xiāng chǔ	n7
@@ -6291,9 +6293,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 未知数	wèi zhī shù	n7
 未经	wèi jīng	n7
 末	mò	n4
-末日	Mò rì	n7
+末日	mò rì	n7
 本	běn	n1,o1
-本事	běn shì	n3,o6
+本事	běn shi	n3,o6
 本人	běn rén	n5,o6
 本分	běn fèn	n7
 本土	běn tǔ	n6
@@ -6340,18 +6342,18 @@ export const HSK_WORDS = `一	yī	n1,o1
 杂交	zá jiāo	n7,o6
 杂志	zá zhì	n3,o4
 杂技	zá jì	n7,o6
-权	Quán	n6
+权	quán	n6
 权利	quán lì	n4,o5
 权力	quán lì	n6,o5
 权威	quán wēi	n7,o6
 权益	quán yì	n7,o6
 权衡	quán héng	n7,o6
-杆	gān	n6
+杆	gǎn	n6
 材料	cái liào	n4,o4
 村	cūn	n3
 村庄	cūn zhuāng	n6
 杜绝	dù jué	n7,o6
-束	Shù	n3,o6
+束	shù	n3,o6
 束缚	shù fù	n7,o6
 杠杆	gàng gǎn	o6
 杠铃	gàng líng	n7
@@ -6368,7 +6370,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 来到	lái dào	n1
 来历	lái lì	n7,o6
 来回	lái huí	n7
-来宾	Lái bīn	n7
+来宾	lái bīn	n7
 来年	lái nián	n7
 来往	lái wǎng	n6
 来得及	lái de jí	n4,o4
@@ -6382,7 +6384,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 杯	bēi	n1
 杯子	bēi zi	n1,o1
 杰出	jié chū	n6,o6
-松	Sōng	n4
+松	sōng	n4
 松弛	sōng chí	n7
 松树	sōng shù	n4
 松绑	sōng bǎng	n7
@@ -6403,7 +6405,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 构成	gòu chéng	n4,o5
 构造	gòu zào	n4
 枕头	zhěn tou	n7,o5
-枚	Méi	n7,o6
+枚	méi	n7,o6
 果园	guǒ yuán	n7
 果实	guǒ shí	n4,o5
 果断	guǒ duàn	n7,o6
@@ -6415,7 +6417,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 枝	zhī	n6,o6
 枢纽	shū niǔ	n7
 枣	zǎo	n7
-枪	Qiāng	n5,o5
+枪	qiāng	n5,o5
 枪毙	qiāng bì	n7
 枯燥	kū zào	n7,o6
 枯竭	kū jié	o6
@@ -6429,7 +6431,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 柔软	róu ruǎn	n7
 柜台	guì tái	n7,o5
 柜子	guì zi	n5
-查	Zhā	n2
+查	chá	n2
 查出	chá chū	n6
 查处	chá chǔ	n7
 查找	chá zhǎo	n7
@@ -6449,7 +6451,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 标点	biāo diǎn	o5
 标示	biāo shì	n7
 标签	biāo qiān	n7
-标致	Biāo zhì	n7
+标致	biāo zhi	n7
 标记	biāo jì	o6
 标语	biāo yǔ	n7
 标题	biāo tí	n3,o6
@@ -6461,7 +6463,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 树	shù	n1,o3
 树叶	shù yè	n4
 树木	shù mù	n7
-树林	Shù lín	n4
+树林	shù lín	n4
 树枝	shù zhī	n7
 树梢	shù shāo	n7
 树立	shù lì	n7,o6
@@ -6492,7 +6494,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 格	gé	n7
 格外	gé wài	n4,o5
 格局	gé jú	n7,o6
-格式	gé shì	n7,o6
+格式	gé shi	n7,o6
 格格不入	gé gé bù rù	n7
 栽	zāi	n7
 栽培	zāi péi	n7,o6
@@ -6507,7 +6509,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 桌子	zhuō zi	n1,o1
 桑拿	sāng ná	n7
 桔子	jú zi	o5
-档	dǎng	n6
+档	dàng	n6
 档案	dàng àn	n6,o6
 档次	dàng cì	n7,o6
 桥	qiáo	n3,o4
@@ -6551,7 +6553,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 椭圆	tuǒ yuán	o6
 椰子	yē zi	n7
 楷模	kǎi mó	n7
-楼	Lóu	n1,o3
+楼	lóu	n1,o3
 楼上	lóu shàng	n1
 楼下	lóu xià	n1
 楼房	lóu fáng	n6
@@ -6601,7 +6603,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 欣慰	xīn wèi	n7,o6
 欣欣向荣	xīn xīn xiàng róng	n7,o6
 欣赏	xīn shǎng	n5,o5
-欧洲	Oū zhōu	o6
+欧洲	Ōu zhōu	o6
 欲望	yù wàng	n7,o6
 欺诈	qī zhà	n7
 欺负	qī fu	n6,o6
@@ -6627,7 +6629,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 止咳	zhǐ ké	n7
 止步	zhǐ bù	n7
 止血	zhǐ xuè	n7
-正	zhēng	n1,o5
+正	zhèng	n1,o5
 正义	zhèng yì	n5,o6
 正在	zhèng zài	n1,o2
 正好	zhèng hǎo	n2,o4
@@ -6635,7 +6637,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 正宗	zhèng zōng	n7
 正常	zhèng cháng	n2,o4
 正式	zhèng shì	n3,o4
-正当	zhèng dāng	n6,o6
+正当	zhèng dàng	n6,o6
 正是	zhèng shì	n2
 正月	Zhēng yuè	o6
 正气	zhèng qì	o6
@@ -6659,7 +6661,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 此次	cǐ cì	n6
 此致	cǐ zhì	n6
 此起彼伏	cǐ qǐ bǐ fú	n7
-步	Bù	n3
+步	bù	n3
 步伐	bù fá	n7,o6
 步入	bù rù	n7
 步行	bù xíng	n4
@@ -6687,7 +6689,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 残酷	cán kù	n6,o6
 殖民地	zhí mín dì	o6
 殴打	ōu dǎ	n7,o6
-段	Duàn	n2,o3
+段	duàn	n2,o3
 段落	duàn luò	n7
 殷勤	yīn qín	n7
 殿堂	diàn táng	n7
@@ -6707,8 +6709,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 每逢	měi féng	n7
 毒	dú	n5
 毒品	dú pǐn	n6,o6
-比	Bǐ	n1,o2
-比不上	bǐ bù shàng	n7
+比	bǐ	n1,o2
+比不上	bǐ bu shàng	n7
 比例	bǐ lì	n3,o5
 比分	bǐ fēn	n4
 比喻	bǐ yù	n7,o6
@@ -6716,7 +6718,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 比如说	bǐ rú shuō	n2
 比方	bǐ fang	n5,o6
 比比皆是	bǐ bǐ jiē shì	n7
-比试	bǐ shì	n7
+比试	bǐ shi	n7
 比赛	bǐ sài	n3,o3
 比起	bǐ qǐ	n7
 比较	bǐ jiào	n3,o3
@@ -6724,7 +6726,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 毕业	bì yè	n4,o4
 毕业生	bì yè shēng	n4
 毕竟	bì jìng	n5,o5
-毛	Máo	n1,o5
+毛	máo	n1,o5
 毛巾	máo jīn	n4,o4
 毛病	máo bìng	n3,o5
 毛笔	máo bǐ	n5
@@ -6771,7 +6773,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 氢	qīng	o6
 氧	yǎng	n7
 氧气	yǎng qì	n6,o6
-水	Shuǐ	n1,o1
+水	shuǐ	n1,o1
 水产品	shuǐ chǎn pǐn	n5
 水准	shuǐ zhǔn	n7
 水分	shuǐ fèn	n5
@@ -6818,16 +6820,16 @@ export const HSK_WORDS = `一	yī	n1,o1
 汇集	huì jí	n7
 汉字	hàn zì	n1
 汉语	Hàn yǔ	n1,o1
-汗	hán	n5,o4
+汗	hàn	n5,o4
 汗水	hàn shuǐ	n7
-江	Jiāng	n4
+江	jiāng	n4
 池塘	chí táng	n7,o6
 池子	chí zi	n5,o5
 污染	wū rǎn	n5,o4
 污水	wū shuǐ	n5
 污秽	wū huì	n7
 污蔑	wū miè	o6
-汤	Tāng	n3,o4
+汤	tāng	n3,o4
 汤圆	tāng yuán	n7
 汪洋	wāng yáng	n7
 汹涌	xiōng yǒng	n7
@@ -6866,7 +6868,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 没意思	méi yì si	n7
 没收	mò shōu	n6
 没有	méi yǒu	n1
-没法儿	méifǎr5	n4
+没法儿	méi fǎ r	n4
 没用	méi yòng	n3
 没落	mò luò	n7
 没说的	méi shuō de	n7
@@ -6905,7 +6907,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 泄密	xiè mì	n7
 泄气	xiè qì	n7,o6
 泄漏	xiè lòu	n7
-泄露	xiè lù	n7,o6
+泄露	xiè lòu	n7,o6
 泉	quán	n5
 法	fǎ	n4
 法人	fǎ rén	o6
@@ -6917,7 +6919,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 法语	Fǎ yǔ	n6
 法院	fǎ yuàn	n4,o5
 泛滥	fàn làn	n7,o6
-泡	pāo	n6
+泡	pào	n6
 泡沫	pào mò	n7,o6
 波动	bō dòng	n6
 波及	bō jí	n7
@@ -6996,7 +6998,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 流通	liú tōng	n5,o6
 流量	liú liàng	n7
 流露	liú lù	n7,o6
-浅	jiān	n4,o5
+浅	qiǎn	n4,o5
 浇	jiāo	n7,o5
 测	cè	n4
 测定	cè dìng	n6
@@ -7021,7 +7023,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 浮现	fú xiàn	n7
 浮躁	fú zào	n7
 浴室	yù shì	n7
-海	Hǎi	n2
+海	hǎi	n2
 海关	hǎi guān	n3,o5
 海内外	hǎi nèi wài	n7
 海军	hǎi jūn	n6
@@ -7036,7 +7038,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 海水	hǎi shuǐ	n4
 海洋	hǎi yáng	n6,o4
 海浪	hǎi làng	n6
-海湾	Hǎi wān	n6
+海湾	hǎi wān	n6
 海滨	hǎi bīn	n7,o6
 海滩	hǎi tān	n7
 海盗	hǎi dào	n7
@@ -7066,7 +7068,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 消除	xiāo chú	n5,o6
 涉及	shè jí	n6,o6
 涉嫌	shè xián	n7
-涌	chōng	n7
+涌	yǒng	n7
 涌入	yǒng rù	n7
 涌现	yǒng xiàn	n7,o6
 涝	lào	n7
@@ -7087,7 +7089,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 淡	dàn	n4,o5
 淡化	dàn huà	n7
 淡季	dàn jì	n7,o6
-淡水	Dàn shuǐ	o6
+淡水	dàn shuǐ	o6
 深	shēn	n3,o4
 深信	shēn xìn	n7
 深入	shēn rù	n3
@@ -7107,7 +7109,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 深沉	shēn chén	o6
 深深	shēn shēn	n6
 深远	shēn yuǎn	n7
-混	hún	n6
+混	hùn	n6
 混乱	hùn luàn	n6,o6
 混凝土	hùn níng tǔ	n7
 混合	hùn hé	n6,o6
@@ -7117,11 +7119,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 淹没	yān mò	o6
 添	tiān	n6
 添加	tiān jiā	n7
-清	Qīng	n6
+清	qīng	n6
 清凉	qīng liáng	n7
 清单	qīng dān	n7
-清新	Qīng xīn	n7
-清明	Qīng míng	n7
+清新	qīng xīn	n7
+清明	qīng míng	n7
 清明节	Qīng míng jié	n6
 清晨	qīng chén	n5,o6
 清晰	qīng xī	n7,o6
@@ -7157,14 +7159,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 温度计	wēn dù jì	n7
 温暖	wēn nuǎn	n3,o5
 温柔	wēn róu	n7,o5
-温泉	Wēn quán	n7
+温泉	wēn quán	n7
 温馨	wēn xīn	n7
-港	Gǎng	n7
+港	gǎng	n7
 港口	gǎng kǒu	n6,o6
 港湾	gǎng wān	o6
 渴	kě	n1,o3
 渴望	kě wàng	n5,o6
-游	Yóu	n3
+游	yóu	n3
 游人	yóu rén	n6
 游客	yóu kè	n2
 游戏	yóu xì	n3,o3
@@ -7194,7 +7196,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 滋味	zī wèi	n7,o6
 滋润	zī rùn	n7
 滋长	zī zhǎng	o6
-滑	Huá	n5
+滑	huá	n5
 滑冰	huá bīng	n7,o5
 滑梯	huá tī	n7
 滑稽	huá jī	n7
@@ -7204,12 +7206,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 滚动	gǔn dòng	n7
 滞后	zhì hòu	n7
 滞留	zhì liú	n7,o6
-满	Mǎn	n2,o4
+满	mǎn	n2,o4
 满怀	mǎn huái	n7
 满意	mǎn yì	n2,o3
 满足	mǎn zú	n3,o5
 滥用	làn yòng	n7
-滨海	Bīn hǎi	n7
+滨海	bīn hǎi	n7
 滴	dī	n6,o5
 漂	piāo	n7
 漂亮	piào liang	n2,o1
@@ -7266,7 +7268,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 灌	guàn	n7
 灌溉	guàn gài	n7,o6
 灌输	guàn shū	n7
-火	Huǒ	n3,o4
+火	huǒ	n3,o4
 火候	huǒ hou	n7
 火山	huǒ shān	n7
 火暴	huǒ bào	n7
@@ -7290,7 +7292,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 灯	dēng	n2,o3
 灯光	dēng guāng	n4
 灯泡	dēng pào	n7
-灯笼	dēng lóng	n7,o6
+灯笼	dēng long	n7,o6
 灰	huī	n7,o5
 灰尘	huī chén	n7,o5
 灰心	huī xīn	n7,o5
@@ -7319,8 +7321,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 炖	dùn	n7
 炫耀	xuàn yào	n7
 炭	tàn	n7
-炮	bāo	n6
-炸	zhá	n6
+炮	pào	n6
+炸	zhà	n6
 炸弹	zhà dàn	n6
 炸药	zhà yào	n6
 点	diǎn	n1,o1
@@ -7378,7 +7380,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 焊	hàn	n7
 焕发	huàn fā	n7
 焚烧	fén shāo	n7
-焦	Jiāo	n7
+焦	jiāo	n7
 焦急	jiāo jí	n7,o6
 焦点	jiāo diǎn	n6,o6
 焦虑	jiāo lǜ	n7
@@ -7410,17 +7412,17 @@ export const HSK_WORDS = `一	yī	n1,o1
 煽动	shān dòng	n7
 熄火	xī huǒ	n7
 熄灭	xī miè	o6
-熊	Xióng	n5
+熊	xióng	n5
 熊猫	xióng māo	o3
 熏	xūn	n7
 熏陶	xūn táo	n7,o6
 熙熙攘攘	xī xī rǎng rǎng	n7
 熟	shú	n2
 熟人	shú rén	n3
-熟悉	shú xī	n5,o4
+熟悉	shú xi	n5,o4
 熟练	shú liàn	n4,o5
-熨	yù	o6
-熬	āo	n7,o6
+熨	yùn	o6
+熬	áo	n7,o6
 熬夜	áo yè	n7
 燃放	rán fàng	n7
 燃料	rán liào	n4
@@ -7460,7 +7462,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 爹	diē	n7
 爽	shuǎng	n6
 爽快	shuǎng kuai	n7,o6
-片	piān	n2,o5
+片	piàn	n2,o5
 片刻	piàn kè	o6
 片子	piān zi	n7
 片断	piàn duàn	o6
@@ -7475,10 +7477,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 牙刷	yá shuā	n4
 牙膏	yá gāo	n7,o4
 牙齿	yá chǐ	n7
-牛	Niú	n3
+牛	niú	n3
 牛仔裤	niú zǎi kù	n5,o5
 牛奶	niú nǎi	n1,o2
-牡丹	Mǔ dan	n7
+牡丹	mǔ dan	n7
 牢	láo	n6
 牢固	láo gù	n7,o6
 牢牢	láo láo	n7
@@ -7530,7 +7532,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 犯愁	fàn chóu	n7
 犯罪	fàn zuì	n6
 犯规	fàn guī	n6
-状元	zhuàng yuán	n7
+状元	zhuàng yuan	n7
 状况	zhuàng kuàng	n3,o5
 状态	zhuàng tài	n3,o5
 犹如	yóu rú	n7,o6
@@ -7557,7 +7559,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 狭小	xiá xiǎo	n7
 狭窄	xiá zhǎi	n7,o6
 狭隘	xiá ài	n7,o6
-狮子	Shī zǐ	n7,o4
+狮子	shī zi	n7,o4
 狼	láng	n7,o5
 狼狈	láng bèi	n7,o6
 猎人	liè rén	n7
@@ -7574,17 +7576,17 @@ export const HSK_WORDS = `一	yī	n1,o1
 猪	zhū	n3,o4
 猫	māo	n2,o1
 献	xiàn	n5
-献血	xiàn xuè	n7
+献血	xiàn xiě	n7
 猴	hóu	n5
 猴子	hóu zi	o4
 玄	xuán	n7
 玄机	xuán jī	n7
-率	lǜ	n7
+率	shuài	n7
 率先	shuài xiān	n4
 率领	shuài lǐng	n5,o6
 玉	yù	n4
 玉米	yù mǐ	n4,o5
-王	Wáng	n4
+王	wáng	n4
 王后	wáng hòu	n6
 王国	wáng guó	n7
 王子	wáng zǐ	n6,o5
@@ -7595,14 +7597,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 玩弄	wán nòng	o6
 玩意儿	wán yì r	n7,o6
 玩耍	wán shuǎ	n7
-玫瑰	méi guī	n7
-环	Huán	n3
+玫瑰	méi gui	n7
+环	huán	n3
 环保	huán bǎo	n3
 环境	huán jìng	n3,o3
 环球	huán qiú	n7
 环绕	huán rào	n7
 环节	huán jié	n5,o6
-现代	Xiàn dài	n3,o4
+现代	xiàn dài	n3,o4
 现代化	xiàn dài huà	n3
 现任	xiàn rèn	n7
 现在	xiàn zài	n1,o1
@@ -7623,7 +7625,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 珍贵	zhēn guì	n5,o6
 珍重	zhēn zhòng	n7
 珠宝	zhū bǎo	n6
-班	Bān	n1,o3
+班	bān	n1,o3
 班主任	bān zhǔ rèn	o5
 班级	bān jí	n3
 班长	bān zhǎng	n2
@@ -7651,7 +7653,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 理解	lǐ jiě	n3,o4
 理论	lǐ lùn	n3,o5
 理财	lǐ cái	n6
-琢磨	zhuó mó	n7,o6
+琢磨	zuó mo	n7,o6
 琴	qín	n5
 瑞雪	ruì xuě	n7
 瑰宝	guī bǎo	n7
@@ -7682,7 +7684,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 生平	shēng píng	n7
 生态	shēng tài	n7,o6
 生怕	shēng pà	n7
-生意	shēng yì	n3
+生意	shēng yi	n3
 生成	shēng chéng	n5
 生效	shēng xiào	n7,o6
 生日	shēng rì	n1,o2
@@ -7719,7 +7721,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 用餐	yòng cān	n7
 甩	shuǎi	n7,o5
 甭	béng	o6
-田	Tián	n6
+田	tián	n6
 田径	tián jìng	n6,o6
 田野	tián yě	o5
 由	yóu	n3,o4
@@ -7738,7 +7740,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 电信	diàn xìn	n7
 电力	diàn lì	n6
 电动	diàn dòng	n6
-电动车	diàndòngchē	n4
+电动车	diàn dòng chē	n4
 电台	diàn tái	n3,o5
 电器	diàn qì	n6
 电子	diàn zǐ	o3
@@ -7791,7 +7793,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 畏缩	wèi suō	n7
 畔	pàn	o6
 留	liú	n2,o4
-留下	liú xià	n2
+留下	liú xia	n2
 留学	liú xué	n3,o4
 留学生	liú xué shēng	n2
 留心	liú xīn	n7
@@ -7801,9 +7803,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 留神	liú shén	n7,o6
 留言	liú yán	n6
 畜牧	xù mù	o6
-略	lu:è	n7
-略微	lu:è wēi	n7,o6
-番	Pān	n6,o6
+略	lüè	n7
+略微	lüè wēi	n7,o6
+番	fān	n6,o6
 番茄	fān qié	n6
 畸形	jī xíng	n7
 疏导	shū dǎo	n7
@@ -7865,14 +7867,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 登机牌	dēng jī pái	o5
 登记	dēng jì	n4,o5
 登陆	dēng lù	n7,o6
-白	Bái	n1,o2
+白	bái	n1,o2
 白天	bái tiān	n1
 白白	bái bái	n7
 白色	bái sè	n2
 白菜	bái cài	n3
 白酒	bái jiǔ	n5
 白领	bái lǐng	n6
-百	Bǎi	n1,o2
+百	bǎi	n1,o2
 百分比	bǎi fēn bǐ	n7
 百分点	bǎi fēn diǎn	n6,o6
 百合	bǎi hé	n7
@@ -7887,7 +7889,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 皇室	huáng shì	n7
 皇宫	huáng gōng	n7
 皇帝	huáng dì	n6,o5
-皮	Pí	n3
+皮	pí	n3
 皮包	pí bāo	n3
 皮带	pí dài	n7
 皮球	pí qiú	n6
@@ -7913,7 +7915,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 盒	hé	n5
 盒子	hé zi	n5,o4
 盒饭	hé fàn	n5
-盖	Gě	n4,o5
+盖	gài	n4,o5
 盖子	gài zi	n7
 盖章	gài zhāng	o6
 盗	dào	n7
@@ -7922,8 +7924,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 盘	pán	n4
 盘子	pán zi	n4,o3
 盘旋	pán xuán	o6
-盘算	pán suàn	n7
-盛	Shèng	n7,o6
+盘算	pán suan	n7
+盛	chéng	n7,o6
 盛产	shèng chǎn	o6
 盛会	shèng huì	n7
 盛大	shèng dà	n7
@@ -7945,7 +7947,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 盯	dīng	n7,o6
 盲人	máng rén	n6
 盲目	máng mù	n7,o6
-直	Zhí	n3,o5
+直	zhí	n3,o5
 直到	zhí dào	n3
 直升机	zhí shēng jī	n6
 直奔	zhí bèn	n7
@@ -7993,11 +7995,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 省	shěng	n2,o4
 省事	shěng shì	n7
 省会	shěng huì	o6
-省略	shěng lu:è	n7,o5
+省略	shěng lüè	n7,o5
 省钱	shěng qián	n6
 眉开眼笑	méi kāi yǎn xiào	n7
 眉毛	méi mao	n7,o5
-看	kān	n1,o1
+看	kàn	n1,o1
 看上去	kàn shang qu	n3
 看不起	kàn bu qǐ	n4,o5
 看中	kàn zhòng	n7
@@ -8006,10 +8008,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 看出	kàn chū	n5
 看到	kàn dào	n1
 看台	kàn tái	n7
-看好	kān hǎo	n6
+看好	kàn hǎo	n6
 看待	kàn dài	n5,o6
 看得出	kàn de chū	n7
-看得见	kàn dé jiàn	n6
+看得见	kàn de jiàn	n6
 看得起	kàn de qǐ	n6
 看成	kàn chéng	n5
 看护	kān hù	n7
@@ -8038,7 +8040,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 真诚	zhēn chéng	n5
 眨	zhǎ	o6
 眨眼	zhǎ yǎn	n7
-眯	mí	o6
+眯	mī	o6
 眼	yǎn	n2
 眼下	yǎn xià	n7,o6
 眼光	yǎn guāng	n5,o6
@@ -8050,9 +8052,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 眼神	yǎn shén	n7,o6
 眼红	yǎn hóng	n7
 眼色	yǎn sè	n7,o6
-眼里	yǎnli	n4
+眼里	yǎn li	n4
 眼镜	yǎn jìng	n4,o3
-着	zhāo	n1,o2
+着	zhe	n1,o2
 着凉	zháo liáng	o5
 着力	zhuó lì	n7
 着实	zhuó shí	n7
@@ -8061,7 +8063,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 着手	zhuó shǒu	n7,o6
 着火	zháo huǒ	n4
 着眼	zhuó yǎn	n7
-着眼于	zhuóyǎn yú	n7
+着眼于	zhuó yǎn yú	n7
 着落	zhuó luò	n7
 着迷	zháo mí	n7,o6
 着重	zhuó zhòng	n7,o6
@@ -8077,7 +8079,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 瞎	xiā	n7,o5
 瞒	mán	n7
 瞧	qiáo	n5,o5
-瞧不起	qiáo bù qǐ	n7
+瞧不起	qiáo bu qǐ	n7
 瞩目	zhǔ mù	n7
 瞪	dèng	n7,o6
 瞬间	shùn jiān	n7
@@ -8140,7 +8142,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 硬	yìng	n5,o4
 硬件	yìng jiàn	n5,o5
 硬币	yìng bì	n7,o5
-硬朗	yìng lǎng	n7
+硬朗	yìng lang	n7
 硬盘	yìng pán	n7
 确保	què bǎo	n3,o6
 确信	què xìn	n7,o6
@@ -8158,7 +8160,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 碧玉	bì yù	o6
 碧绿	bì lǜ	n7
 碰	pèng	n2
-碰上	pèng shàng	n7
+碰上	pèng shang	n7
 碰到	pèng dào	n2
 碰巧	pèng qiǎo	n7
 碰撞	pèng zhuàng	n7
@@ -8179,7 +8181,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 示威	shì wēi	n7,o6
 示意	shì yì	n7,o6
 示范	shì fàn	n5,o6
-礼	Lǐ	n5
+礼	lǐ	n5
 礼仪	lǐ yí	n7
 礼品	lǐ pǐn	n7
 礼堂	lǐ táng	n6
@@ -8200,15 +8202,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 祖传	zǔ chuán	n7
 祖先	zǔ xiān	n7,o5
 祖国	zǔ guó	n6,o5
-祖宗	zǔ zōng	n7
+祖宗	zǔ zong	n7
 祖母	zǔ mǔ	n6
 祖父	zǔ fù	n6,o6
 祖籍	zǔ jí	n7
-祝	Zhù	n3,o3
+祝	zhù	n3,o3
 祝愿	zhù yuàn	n6
 祝福	zhù fú	n4,o5
 祝贺	zhù hè	n5,o4
-神	Shén	n5
+神	shén	n5
 神仙	shén xiān	n7,o6
 神圣	shén shèng	n7,o6
 神奇	shén qí	n5,o6
@@ -8223,25 +8225,25 @@ export const HSK_WORDS = `一	yī	n1,o1
 票	piào	n1,o2
 票价	piào jià	n3
 票房	piào fáng	n7
-祭	Zhài	n7
+祭	jì	n7
 祭奠	jì diàn	n7
 祭祀	jì sì	n7
-祸害	huò hài	n7
+祸害	huò hai	n7
 禁不住	jīn bu zhù	n7
 禁区	jìn qū	n7
 禁忌	jìn jì	n7
 禁止	jìn zhǐ	n4,o4
 禅杖	chán zhàng	n7
-福	Fú	n3
+福	fú	n3
 福利	fú lì	n5,o6
 福气	fú qi	n7,o6
-离	chī	n2,o2
+离	lí	n2,o2
 离不开	lí bu kāi	n4
 离奇	lí qí	n7
 离婚	lí hūn	n3,o5
 离开	lí kāi	n2,o3
 离职	lí zhí	n7
-离谱儿	lí pǔr5	n7
+离谱儿	lí pǔ r	n7
 禾苗	hé miáo	n7
 秀丽	xiù lì	n7
 秀美	xiù měi	n7
@@ -8256,7 +8258,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 私营	sī yíng	n7
 秃	tū	n7,o6
 秉承	bǐng chéng	n7
-秋	Qiū	o3
+秋	qiū	o3
 秋天	qiū tiān	n2
 秋季	qiū jì	n4
 种	zhǒng	n3,o3
@@ -8282,7 +8284,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 租	zū	n2,o4
 租赁	zū lìn	n7,o6
 租金	zū jīn	n6
-秤	chēng	n7,o6
+秤	chèng	n7,o6
 秧歌	yāng ge	n7
 秩序	zhì xù	n7,o5
 积	jī	n7
@@ -8291,7 +8293,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 积淀	jī diàn	n7
 积累	jī lěi	n4,o4
 积蓄	jī xù	n7
-称	chèn	n2
+称	chēng	n2
 称为	chēng wéi	n3
 称作	chēng zuò	n7
 称号	chēng hào	n5,o6
@@ -8340,7 +8342,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 空军	kōng jūn	n6
 空前	kōng qián	n7
 空前绝后	kōng qián jué hòu	o6
-空地	kōng dì	n7
+空地	kòng dì	n7
 空想	kōng xiǎng	n7,o6
 空气	kōng qì	n2,o4
 空洞	kōng dòng	o6
@@ -8379,7 +8381,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 窜	cuàn	n7,o6
 窝	wō	n7,o6
 窟窿	kū long	n7
-立	Lì	n5
+立	lì	n5
 立交桥	lì jiāo qiáo	n7,o6
 立体	lì tǐ	n7,o6
 立刻	lì kè	n3,o5
@@ -8402,7 +8404,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 竟	jìng	n7
 竟敢	jìng gǎn	n7
 竟然	jìng rán	n4,o4
-章	Zhāng	n6
+章	zhāng	n6
 章程	zhāng chéng	o6
 竣工	jùn gōng	n7
 童年	tóng nián	n4
@@ -8419,7 +8421,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 笑容	xiào róng	n6
 笑脸	xiào liǎn	n6
 笑话	xiào hua	n2,o4
-笑话儿	xiàohuar5	n2
+笑话儿	xiào hua r	n2
 笔	bǐ	n2
 笔记	bǐ jì	n2
 笔记本	bǐ jì běn	n2,o4
@@ -8447,15 +8449,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 等级	děng jí	n5,o6
 筋	jīn	n7
 筐	kuāng	n7,o6
-筑	Zhù	n7
+筑	zhù	n7
 筒	tǒng	n7
-答	dā	n5
+答	dá	n5
 答复	dá fù	n5,o6
 答应	dā ying	n2,o5
 答案	dá àn	n4,o4
 答辩	dá biàn	n7,o6
 策划	cè huà	n6,o6
-策略	cè lu:è	n6,o6
+策略	cè lüè	n6,o6
 筛	shāi	n7
 筛选	shāi xuǎn	n7,o6
 筷子	kuài zi	n2,o3
@@ -8493,7 +8495,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 算计	suàn ji	n7
 算账	suàn zhàng	n7
 管	guǎn	n3
-管子	Guǎn zǐ	n7,o5
+管子	guǎn zi	n7,o5
 管家	guǎn jiā	n7
 管教	guǎn jiào	n7
 管理	guǎn lǐ	n3,o4
@@ -8509,7 +8511,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 篮球	lán qiú	n2
 簇拥	cù yōng	n7
 籍贯	jí guàn	o6
-米	Mǐ	n2,o3
+米	mǐ	n2,o3
 米饭	mǐ fàn	n1,o1
 类	lèi	n3,o5
 类似	lèi sì	n3,o6
@@ -8525,12 +8527,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 粗心	cū xīn	n4,o4
 粗心大意	cū xīn dà yì	n7
 粗暴	cū bào	n7
-粗略	cū lu:è	n7
+粗略	cū lüè	n7
 粗糙	cū cāo	n7
 粗鲁	cū lǔ	n7,o6
-粘	nián	n7
+粘	zhān	n7
 粘贴	zhān tiē	o5
-粥	yù	n6,o6
+粥	zhōu	n6,o6
 粪	fèn	n7
 粪便	fèn biàn	n7
 粮食	liáng shi	n4,o5
@@ -8570,7 +8572,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 系	xì	n3,o5
 系列	xì liè	n4,o6
 系统	xì tǒng	n4,o5
-系领带	xì lǐng dài	o5
+系领带	jì lǐng dài	o5
 紊乱	wěn luàn	n7
 素	sù	n7
 素不相识	sù bù xiāng shí	n7
@@ -8593,7 +8595,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 紧缺	jǐn quē	n7
 紧迫	jǐn pò	n7,o6
 紫	zǐ	n5,o5
-累	lěi	n1,o2
+累	lèi	n1,o2
 累积	lěi jī	n7
 累计	lěi jì	n7
 絮叨	xù dao	n7
@@ -8606,11 +8608,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 纠正	jiū zhèng	n6,o6
 纠纷	jiū fēn	n6,o6
 纠缠	jiū chán	n7
-红	Hóng	n2,o2
+红	hóng	n2,o2
 红包	hóng bāo	n4,o6
 红扑扑	hóng pū pū	n7
 红润	hóng rùn	n7
-红火	hóng huǒ	n7
+红火	hóng huo	n7
 红灯	hóng dēng	n7
 红眼	hóng yǎn	n7
 红色	hóng sè	n2
@@ -8618,7 +8620,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 红薯	hóng shǔ	n7
 红酒	hóng jiǔ	n3
 纤维	xiān wéi	n7,o6
-约	yāo	n3
+约	yuē	n3
 约会	yuē huì	n4,o4
 约定	yuē dìng	n6
 约定俗成	yuē dìng sú chéng	n7
@@ -8658,14 +8660,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 纺织	fǎng zhī	n7,o6
 纽带	niǔ dài	n7
 纽扣	niǔ kòu	n7
-纽扣儿	niǔ kòu er	o6
+纽扣儿	niǔ kòu r	o6
 线	xiàn	n3
 线条	xiàn tiáo	n7
 线索	xiàn suǒ	n5,o6
 线路	xiàn lù	n6
 练	liàn	n2
 练习	liàn xí	n2,o3
-组	Zǔ	n2,o6
+组	zǔ	n2,o6
 组合	zǔ hé	n3,o5
 组建	zǔ jiàn	n7
 组成	zǔ chéng	n2,o4
@@ -8690,7 +8692,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 终究	zhōng jiū	n7,o6
 终结	zhōng jié	n7
 终身	zhōng shēn	n5,o6
-经	Jīng	n7
+经	jīng	n7
 经久不息	jīng jiǔ bù xī	n7
 经典	jīng diǎn	n4,o5
 经历	jīng lì	n3,o4
@@ -8708,17 +8710,17 @@ export const HSK_WORDS = `一	yī	n1,o1
 经验	jīng yàn	n3,o4
 绑	bǎng	n7
 绑架	bǎng jià	n7,o6
-结	jiē	n4
+结	jié	n4
 结冰	jié bīng	n7
 结合	jié hé	n3,o5
 结婚	jié hūn	n3,o3
-结实	jiē shí	n3,o5
+结实	jiē shi	n3,o5
 结尾	jié wěi	n7
 结局	jié jú	n7,o6
 结晶	jié jīng	n7,o6
 结束	jié shù	n3,o3
 结构	jié gòu	n4,o5
-结果	jiē guǒ	n2,o4
+结果	jié guǒ	n2,o4
 结算	jié suàn	o6
 结论	jié lùn	n4,o5
 结识	jié shí	n7
@@ -8790,7 +8792,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 编造	biān zào	n7
 缘分	yuán fèn	n7
 缘故	yuán gù	n6,o5
-缝	féng	n7
+缝	fèng	n7
 缝合	féng hé	n7
 缠	chán	n7
 缠绕	chán rào	o6
@@ -8815,7 +8817,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 罐	guàn	n7,o6
 罐头	guàn tou	n7,o5
 网	wǎng	n2
-网上	wǎng shàng	n1
+网上	wǎng shang	n1
 网友	wǎng yǒu	n1
 网吧	wǎng bā	n6
 网址	wǎng zhǐ	n4
@@ -8823,10 +8825,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 网点	wǎng diǎn	n7
 网球	wǎng qiú	n2,o4
 网站	wǎng zhàn	n2,o4
-网络	Wǎng luò	n4,o6
+网络	wǎng luò	n4,o6
 网页	wǎng yè	n6
 罕见	hǎn jiàn	n7,o6
-罗	Luó	n7
+罗	luó	n7
 罚	fá	n5
 罚款	fá kuǎn	n5,o5
 罢了	bà le	n6
@@ -8839,9 +8841,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 罪犯	zuì fàn	n7,o5
 罪魁祸首	zuì kuí huò shǒu	n7
 置	zhì	n7
-羊	Yáng	n3
+羊	yáng	n3
 羊肉	yáng ròu	o2
-美	Měi	n3
+美	měi	n3
 美中不足	měi zhōng bù zú	n7
 美丽	měi lì	n3,o4
 美人	měi rén	n7
@@ -8852,7 +8854,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 美好	měi hǎo	n3
 美妙	měi miào	n7,o6
 美容	měi róng	n6
-美德	Měi Dé	n7
+美德	měi dé	n7
 美景	měi jǐng	n7
 美术	měi shù	n3,o5
 美滋滋	měi zī zī	n7
@@ -8869,29 +8871,29 @@ export const HSK_WORDS = `一	yī	n1,o1
 羽毛球	yǔ máo qiú	n5,o4
 羽绒服	yǔ róng fú	n5,o6
 翅膀	chì bǎng	n7,o5
-翘	qiáo	n7,o6
+翘	qiào	n7,o6
 翠绿	cuì lǜ	n7
 翻	fān	n4,o5
 翻天覆地	fān tiān fù dì	n7
 翻来覆去	fān lái fù qù	n7
 翻番	fān fān	n7
 翻译	fān yì	n4,o4
-翼	Yì	o6
+翼	yì	o6
 耀眼	yào yǎn	n7,o6
 老	lǎo	n1,o3
 老乡	lǎo xiāng	n6
 老人	lǎo rén	n1
-老人家	lǎo rén jiā	n7
+老人家	lǎo ren jia	n7
 老伴儿	lǎo bàn r	n7
 老公	lǎo gōng	n4
 老化	lǎo huà	n7
 老大	lǎo dà	n7
 老太太	lǎo tài tai	n3
 老头儿	lǎo tóu r	n3
-老婆	lǎo pó	n4
-老字号	lǎo zì hào	n7
+老婆	lǎo po	n4
+老字号	lǎo zì hao	n7
 老实	lǎo shi	n4,o5
-老实说	lǎo shí shuō	n7
+老实说	lǎo shi shuō	n7
 老家	lǎo jiā	n4
 老师	lǎo shī	n1,o1
 老年	lǎo nián	n2
@@ -8919,7 +8921,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 而且	ér qiě	n2,o3
 而已	ér yǐ	n7,o6
 而是	ér shì	n4
-耍	Shuǎ	n7,o6
+耍	shuǎ	n7,o6
 耍赖	shuǎ lài	n7
 耐	nài	n7
 耐人寻味	nài rén xún wèi	n7
@@ -8961,7 +8963,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 职责	zhí zé	n6
 联合	lián hé	n3,o5
 联合国	Lián hé guó	n3
-联想	Lián xiǎng	n5,o6
+联想	lián xiǎng	n5,o6
 联手	lián shǒu	n6
 联欢	lián huān	n7,o6
 联盟	lián méng	n6,o6
@@ -9018,18 +9020,18 @@ export const HSK_WORDS = `一	yī	n1,o1
 胆小	dǎn xiǎo	n5
 胆小鬼	dǎn xiǎo guǐ	o5
 胆怯	dǎn qiè	n7,o6
-背	bēi	n2,o5
+背	bèi	n2,o5
 背包	bēi bāo	n5
 背叛	bèi pàn	n7,o6
 背后	bèi hòu	n3
 背心	bèi xīn	n6
 背景	bèi jǐng	n4,o5
-背着	bēi zhe	n6
+背着	bèi zhe	n6
 背诵	bèi sòng	n7,o6
 背面	bèi miàn	n7
 胎	tāi	n7
 胎儿	tāi ér	n7
-胖	pán	n3,o3
+胖	pàng	n3,o3
 胖子	pàng zi	n4
 胚胎	pēi tāi	n7
 胜	shèng	n3
@@ -9039,7 +9041,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 胜负	shèng fù	n5,o6
 胡乱	hú luàn	o6
 胡同	hú tòng	o5
-胡同儿	hútòngr5	n5
+胡同儿	hú tòng r	n5
 胡子	hú zi	n5
 胡思乱想	hú sī luàn xiǎng	n7
 胡说	hú shuō	n7,o5
@@ -9055,15 +9057,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 胸有成竹	xiōng yǒu chéng zhú	n7
 胸膛	xiōng táng	n7,o6
 胸部	xiōng bù	n4
-能	Néng	n1,o1
-能不能	néng bùnéng	n3
+能	néng	n1,o1
+能不能	néng bu néng	n3
 能人	néng rén	n7
 能力	néng lì	n3,o4
 能否	néng fǒu	n6
 能够	néng gòu	n2
 能干	néng gàn	n4,o5
 能源	néng yuán	n7,o5
-能耐	néng nài	n7
+能耐	néng nai	n7
 能耗	néng hào	n7
 能量	néng liàng	n5,o6
 脂肪	zhī fáng	n7,o6
@@ -9072,7 +9074,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 脉搏	mài bó	n7,o6
 脉络	mài luò	n7
 脊梁	jǐ liáng	n7
-脏	zàng	n2,o4
+脏	zāng	n2,o4
 脑子	nǎo zi	n5
 脑海	nǎo hǎi	n7
 脑筋	nǎo jīn	n7
@@ -9168,7 +9170,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 至此	zhì cǐ	n7
 致	zhì	n7
 致使	zhì shǐ	n7,o6
-致力于	zhìlìyú	n7,o6
+致力于	zhì lì yú	n7,o6
 致命	zhì mìng	n7
 致富	zhì fù	n7
 致敬	zhì jìng	n7
@@ -9220,7 +9222,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 艺人	yì rén	n6
 艺术	yì shù	n3,o4
 艾滋病	ài zī bìng	n7
-节	jiē	n2,o5
+节	jié	n2,o5
 节俭	jié jiǎn	n7
 节假日	jié jià rì	n6
 节奏	jié zòu	n6,o6
@@ -9238,7 +9240,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 芬芳	fēn fāng	n7
 芭蕾	bā lěi	n7
 芯片	xīn piàn	n7
-花	Huā	n1,o3
+花	huā	n1,o3
 花卉	huā huì	n7
 花园	huā yuán	n2,o3
 花样	huā yàng	n7
@@ -9251,7 +9253,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 苍白	cāng bái	o6
 苍蝇	cāng ying	n7
 苏醒	sū xǐng	n7,o6
-苗	Miáo	n7
+苗	miáo	n7
 苗头	miáo tou	n7
 苗条	miáo tiao	n7,o5
 苛刻	kē kè	n7
@@ -9310,7 +9312,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 药店	yào diàn	n2
 药方	yào fāng	n7
 药材	yào cái	n7
-药水	Yào shuǐ	n2
+药水	yào shuǐ	n2
 药片	yào piàn	n2
 药物	yào wù	n4
 荷花	hé huā	n7
@@ -9339,8 +9341,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 营救	yíng jiù	n7
 营造	yíng zào	n7
 萧条	xiāo tiáo	n7
-落	là	n4
-落下	luò xià	n7
+落	luò	n4
+落下	luò xia	n7
 落后	luò hòu	n3,o5
 落地	luò dì	n7
 落实	luò shí	n5,o6
@@ -9361,7 +9363,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 蒜	suàn	n7
 蒸	zhēng	n7
 蒸发	zhēng fā	o6
-蓝	Lán	n2,o3
+蓝	lán	n2,o3
 蓝图	lán tú	n7
 蓝天	lán tiān	n6
 蓝色	lán sè	n2
@@ -9372,12 +9374,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 蔬菜	shū cài	n5,o5
 蕴涵	yùn hán	n7
 蕴藏	yùn cáng	n7,o6
-薄	Bó	n4,o5
+薄	báo	n4,o5
 薄弱	bó ruò	n5,o6
-薪水	xīn shuǐ	n6,o6
+薪水	xīn shui	n6,o6
 薯条	shǔ tiáo	n6
 薯片	shǔ piàn	n6
-藏	Zàng	n6
+藏	cáng	n6
 藏匿	cáng nì	n7
 藏品	cáng pǐn	n7
 藏身	cáng shēn	n7
@@ -9385,7 +9387,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 蘑菇	mó gu	n7
 蘸	zhàn	n7
 虎	hǔ	n5
-虐待	nu:è dài	n7,o6
+虐待	nüè dài	n7,o6
 虔诚	qián chéng	n7
 虚	xū	n7
 虚伪	xū wěi	n7,o6
@@ -9400,11 +9402,11 @@ export const HSK_WORDS = `一	yī	n1,o1
 虽	suī	n6
 虽然	suī rán	n2,o3
 虽说	suī shuō	n7
-虾	há	n7
+虾	xiā	n7
 蚊子	wén zi	n7
 蚊帐	wén zhàng	n7
 蛇	shé	n5,o5
-蛋	Dàn	n2
+蛋	dàn	n2
 蛋白质	dàn bái zhì	n7,o6
 蛋糕	dàn gāo	n5,o3
 蛮	mán	n7
@@ -9423,21 +9425,21 @@ export const HSK_WORDS = `一	yī	n1,o1
 螺丝	luó sī	n7
 螺丝钉	luó sī dīng	o6
 蠢	chǔn	n7
-血	xuè	n3,o4
+血	xiě	n3,o4
 血压	xuè yā	n7,o6
 血栓	xuè shuān	n7
 血液	xuè yè	n6
 血管	xuè guǎn	n6
 血缘	xuè yuán	n7
 血脉	xuè mài	n7
-行	háng	n1,o4
+行	xíng	n1,o4
 行业	háng yè	n4,o5
 行为	xíng wéi	n2,o5
 行人	xíng rén	n2,o5
 行使	xíng shǐ	n7
 行列	háng liè	n7,o6
 行动	xíng dòng	n2,o5
-行家	háng jiā	n7
+行家	háng jia	n7
 行情	háng qíng	n7
 行政	xíng zhèng	n7,o6
 行李	xíng li	n3
@@ -9507,7 +9509,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 裁判	cái pàn	n5,o6
 裁员	cái yuán	o6
 裁定	cái dìng	n7
-裁缝	cái féng	o6
+裁缝	cái feng	o6
 裂	liè	n6
 裂痕	liè hén	n7
 裂缝	liè fèng	n7
@@ -9523,8 +9525,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 裸	luǒ	n7
 裸露	luǒ lù	n7
 裹	guǒ	n7
-西	Xī	n1,o3
-西北	Xī běi	n2
+西	xī	n1,o3
+西北	xī běi	n2
 西医	xī yī	n2
 西南	xī nán	n2
 西方	Xī fāng	n2
@@ -9532,10 +9534,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 西瓜	xī guā	n4,o2
 西红柿	xī hóng shì	n5,o4
 西装	xī zhuāng	n5
-西边	xī biān	n1
+西边	xī bian	n1
 西部	xī bù	n3
 西餐	xī cān	n2
-要	yāo	n1,o2
+要	yào	n1,o2
 要不	yào bù	n7,o5
 要不是	yào bu shì	n7
 要不然	yào bù rán	n6,o6
@@ -9561,7 +9563,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 见解	jiàn jiě	n7,o6
 见证	jiàn zhèng	n7
 见识	jiàn shi	n7
-见过	jiànguò	n2
+见过	jiàn guo	n2
 见钱眼开	jiàn qián yǎn kāi	n7
 见闻	jiàn wén	o6
 见面	jiàn miàn	n1,o3
@@ -9597,12 +9599,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 觉得	jué de	n1,o2
 觉悟	jué wù	n6,o6
 觉醒	jué xǐng	n7,o6
-角	Jué	n2,o3
+角	jiǎo	n2,o3
 角度	jiǎo dù	n2,o5
 角色	jué sè	n4,o5
 角落	jiǎo luò	n7,o6
 角逐	jué zhú	n7
-解	Xiè	n6
+解	jiě	n6
 解体	jiě tǐ	n7,o6
 解决	jiě jué	n3,o3
 解剖	jiě pōu	n7,o6
@@ -9637,7 +9639,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 警钟	jǐng zhōng	n7
 譬如	pì rú	n7,o6
 譬如说	pì rú shuō	n7
-计	Jì	n7
+计	jì	n7
 计划	jì huà	n2,o4
 计时	jì shí	n7
 计策	jì cè	n7
@@ -9697,7 +9699,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 讲话	jiǎng huà	n2
 讲课	jiǎng kè	n6
 讲述	jiǎng shù	n7
-许	Xǔ	n7
+许	xǔ	n7
 许可	xǔ kě	n5,o6
 许可证	xǔ kě zhèng	n7
 许多	xǔ duō	n2,o4
@@ -9755,14 +9757,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 试	shì	n1,o4
 试卷	shì juàn	n4,o5
 试图	shì tú	n5,o6
-试探	shì tàn	n7
+试探	shì tan	n7
 试点	shì diǎn	n6
 试用	shì yòng	n7
 试用期	shì yòng qī	n7
 试行	shì xíng	n7
 试题	shì tí	n3
 试验	shì yàn	n3,o6
-诗	Shī	n4,o5
+诗	shī	n4,o5
 诗人	shī rén	n4
 诗歌	shī gē	n5
 诚信	chéng xìn	n4
@@ -9799,7 +9801,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 诱发	yòu fā	n7
 诱惑	yòu huò	n7,o6
 诱饵	yòu ěr	n7
-说	shuì	n1
+说	shuō	n1
 说不上	shuō bu shàng	n7
 说不定	shuō bu dìng	n4,o5
 说到底	shuō dào dǐ	n7
@@ -9815,8 +9817,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 说老实话	shuō lǎo shi huà	n7
 说话	shuō huà	n1,o1
 说谎	shuō huǎng	n7
-说起来	shuō qǐlái	n7
-说道	shuō dào	n7
+说起来	shuō qǐ lái	n7
+说道	shuō dao	n7
 说闲话	shuō xián huà	n7
 请	qǐng	n1,o1
 请假	qǐng jià	n1,o4
@@ -9833,7 +9835,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 诸多	zhū duō	n7
 诸如此类	zhū rú cǐ lèi	n7
 诺言	nuò yán	n7
-读	dòu	n1,o1
+读	dú	n1,o1
 读书	dú shū	n1
 读者	dú zhě	n3
 读音	dú yīn	n2
@@ -9846,7 +9848,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 课题	kè tí	n5,o6
 谁	shéi	n1,o1
 谁知道	shéi zhī dào	n7
-调	diào	n3
+调	tiáo	n3
 调侃	tiáo kǎn	n7
 调剂	tiáo jì	o6
 调动	diào dòng	n5,o6
@@ -9862,7 +9864,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 调解	tiáo jiě	n5,o6
 调试	tiáo shì	n7
 谅解	liàng jiě	n7,o6
-谈	Tán	n3,o4
+谈	tán	n3,o4
 谈不上	tán bu shàng	n7
 谈判	tán pàn	n3,o5
 谈到	tán dào	n7
@@ -9874,7 +9876,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 谋生	móu shēng	n7
 谎言	huǎng yán	n7
 谎话	huǎng huà	n7
-谜	mèi	n7
+谜	mí	n7
 谜团	mí tuán	n7
 谜底	mí dǐ	n7
 谜语	mí yǔ	n7,o5
@@ -9886,7 +9888,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 谨慎	jǐn shèn	n7,o5
 谱	pǔ	n7
 谴责	qiǎn zé	n7,o6
-豁	huá	n7
+豁	huō	n7
 豁出去	huō chu qu	n7
 豁达	huò dá	n7
 豆制品	dòu zhì pǐn	n5
@@ -9938,7 +9940,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 贪	tān	n7
 贪婪	tān lán	n7,o6
 贪污	tān wū	n7,o6
-贪玩儿	tān wánr5	n7
+贪玩儿	tān wán r	n7
 贫乏	pín fá	o6
 贫困	pín kùn	n6,o6
 贫富	pín fù	n7
@@ -9963,9 +9965,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 贵重	guì zhòng	n7
 贷款	dài kuǎn	n5,o5
 贸易	mào yì	n5,o5
-费	Fèi	n3
+费	fèi	n3
 费劲	fèi jìn	n7
-费用	fèi yòng	n3,o5
+费用	fèi yong	n3,o5
 贺信	hè xìn	n7
 贺卡	hè kǎ	n5
 贺电	hè diàn	n7
@@ -9979,7 +9981,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 资本主义	zī běn zhǔ yì	n7
 资格	zī gé	n3,o5
 资深	zī shēn	n7,o6
-资源	Zī yuán	n4,o5
+资源	zī yuán	n4,o5
 资讯	zī xùn	n7
 资金	zī jīn	n3,o5
 赋予	fù yǔ	n7,o6
@@ -9992,7 +9994,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 赔	péi	n5
 赔偿	péi cháng	n5,o5
 赔钱	péi qián	n7
-赖	Lài	n6
+赖	lài	n6
 赚	zhuàn	n6,o4
 赚钱	zhuàn qián	n6
 赛	sài	n6
@@ -10034,7 +10036,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 赴	fù	n7
 赶	gǎn	n3
 赶上	gǎn shàng	n6
-赶不上	gǎn bù shàng	n6
+赶不上	gǎn bu shàng	n6
 赶到	gǎn dào	n3
 赶往	gǎn wǎng	n7
 赶忙	gǎn máng	n6
@@ -10062,7 +10064,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 趁	chèn	n7,o5
 趁早	chèn zǎo	n7
 趁机	chèn jī	n7
-趁着	chènzhe	n7
+趁着	chèn zhe	n7
 超	chāo	n6
 超出	chāo chū	n6
 超前	chāo qián	n7
@@ -10073,15 +10075,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 超车	chāo chē	n7
 超过	chāo guò	n2,o4
 超速	chāo sù	n7
-越	Yuè	n2,o3
+越	yuè	n2,o3
 越发	yuè fā	n7
 越来越	yuè lái yuè	n2
 越过	yuè guò	n7
 趋于	qū yú	n7
 趋势	qū shì	n4,o5
-趟	tāng	n6,o4
+趟	tàng	n6,o4
 趣味	qù wèi	n7,o6
-足	jù	n6
+足	zú	n6
 足以	zú yǐ	n6,o6
 足够	zú gòu	n3
 足智多谋	zú zhì duō móu	n7
@@ -10089,7 +10091,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 足迹	zú jì	n7
 趴	pā	n7,o6
 跌	diē	n6,o6
-跑	páo	n1
+跑	pǎo	n1
 跑步	pǎo bù	n3,o2
 跑车	pǎo chē	n7
 跑道	pǎo dào	n7
@@ -10097,7 +10099,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 距	jù	n7
 距离	jù lí	n4,o4
 跟	gēn	n1,o3
-跟上	gēn shàng	n7
+跟上	gēn shang	n7
 跟不上	gēn bu shàng	n7
 跟前	gēn qián	n5,o6
 跟踪	gēn zōng	n7,o6
@@ -10106,7 +10108,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 跨国	kuà guó	n7
 跨越	kuà yuè	n7
 跪	guì	n6,o6
-路	Lù	n1,o2
+路	lù	n1,o2
 路上	lù shang	n1
 路人	lù rén	n7
 路况	lù kuàng	n7
@@ -10132,8 +10134,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 践踏	jiàn tà	o6
 踊跃	yǒng yuè	n7,o6
 踌躇	chóu chú	o6
-踏	tā	n6
-踏上	tà shàng	n7
+踏	tà	n6
+踏上	tà shang	n7
 踏实	tā shi	n6,o6
 踢	tī	n6,o2
 踩	cǎi	n6,o5
@@ -10160,8 +10162,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 躲藏	duǒ cáng	n7,o5
 躲避	duǒ bì	n7
 躺	tǎng	n4,o4
-车	Chē	n1
-车上	chē shàng	n1
+车	chē	n1
+车上	chē shang	n1
 车主	chē zhǔ	n5
 车位	chē wèi	n7
 车厢	chē xiāng	n7,o5
@@ -10181,7 +10183,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 车间	chē jiān	n7
 轨迹	guǐ jì	n7
 轨道	guǐ dào	n6,o6
-转	zhuǎi	n3
+转	zhuǎn	n3
 转交	zhuǎn jiāo	n7
 转动	zhuǎn dòng	n4
 转化	zhuǎn huà	n5
@@ -10281,7 +10283,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 迄今	qì jīn	n7
 迄今为止	qì jīn wéi zhǐ	n7,o6
 迅速	xùn sù	n4,o5
-过	Guō	n1,o4
+过	guò	n1,o4
 过不去	guò bu qù	n7
 过于	guò yú	n5,o6
 过关	guò guān	n7
@@ -10343,7 +10345,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 近视	jìn shì	n6,o6
 返回	fǎn huí	n5
 返还	fǎn huán	n7
-还	Huán	n1,o2
+还	hái	n1,o2
 还原	huán yuán	n7,o6
 还是	hái shi	n1,o3
 还有	hái yǒu	n1
@@ -10355,7 +10357,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 这儿	zhè r	n1
 这就是说	zhè jiù shì shuō	n6
 这时	zhè shí	n2
-这时候	zhè shíhòu	n2
+这时候	zhè shí hòu	n2
 这样	zhè yàng	n2
 这样一来	zhè yàng yī lái	n7
 这边	zhè biān	n1
@@ -10392,7 +10394,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 违约	wéi yuē	n7
 违背	wéi bèi	n7,o6
 违规	wéi guī	n5
-连	Lián	n3,o4
+连	lián	n3,o4
 连任	lián rèn	n7
 连同	lián tóng	o6
 连夜	lián yè	n7
@@ -10405,7 +10407,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 连绵	lián mián	n7
 连锁	lián suǒ	n7,o6
 连锁店	lián suǒ diàn	n7
-迟	Chí	n5
+迟	chí	n5
 迟到	chí dào	n4,o3
 迟早	chí zǎo	n7
 迟疑	chí yí	n7,o6
@@ -10426,7 +10428,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 迷路	mí lù	n7,o5
 迸发	bèng fā	o6
 迹象	jì xiàng	n7,o6
-追	duī	n3
+追	zhuī	n3
 追尾	zhuī wěi	n7
 追悼	zhuī dào	o6
 追悼会	zhuī dào huì	n7
@@ -10520,7 +10522,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 通车	tōng chē	n7
 通过	tōng guò	n2,o4
 通通	tōng tōng	n7
-通道	Tōng dào	n6
+通道	tōng dào	n6
 通顺	tōng shùn	n7
 通风	tōng fēng	n7
 逛	guàng	n4,o4
@@ -10547,8 +10549,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 逼迫	bī pò	n7,o6
 逾期	yú qī	n7
 遂心	suì xīn	n7
-遇	Yù	n4
-遇上	yù shàng	n7
+遇	yù	n4
+遇上	yù shang	n7
 遇到	yù dào	n4,o3
 遇见	yù jiàn	n4
 遇险	yù xiǎn	n7
@@ -10595,7 +10597,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 避难	bì nàn	n7
 邀	yāo	n7
 邀请	yāo qǐng	n5,o4
-那	Nā	n1,o1
+那	nà	n1,o1
 那么	nà me	n2
 那些	nà xiē	n1
 那会儿	nà huì r	n2
@@ -10627,7 +10629,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 部长	bù zhǎng	n3
 部门	bù mén	n3,o5
 部队	bù duì	n6
-都	Dū	n1,o1
+都	dōu	n1,o1
 都会	dū huì	n7
 都市	dū shì	n6,o6
 鄙视	bǐ shì	n7
@@ -10666,7 +10668,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 醋	cù	n6,o5
 醒	xǐng	n4,o4
 醒悟	xǐng wù	n7
-醒来	xǐng lái	n7
+醒来	xǐng lai	n7
 醒目	xǐng mù	n7
 采	cǎi	n7
 采取	cǎi qǔ	n3,o5
@@ -10682,7 +10684,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 里程碑	lǐ chéng bēi	n7,o6
 里边	lǐ bian	n1
 里面	lǐ miàn	n3
-重	chóng	n1,o5
+重	zhòng	n1,o5
 重中之重	zhòng zhōng zhī zhòng	n7
 重任	zhòng rèn	n7
 重伤	zhòng shāng	n7
@@ -10696,7 +10698,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 重心	zhòng xīn	n7,o6
 重播	chóng bō	n7
 重新	chóng xīn	n2,o4
-重点	chóng diǎn	n2,o4
+重点	zhòng diǎn	n2,o4
 重现	chóng xiàn	n7
 重申	chóng shēn	n7
 重组	chóng zǔ	n6
@@ -10716,8 +10718,8 @@ export const HSK_WORDS = `一	yī	n1,o1
 野蛮	yě mán	n7,o6
 野餐	yě cān	n7
 量	liáng	n4
-金	Jīn	n3
-金子	Jīn zǐ	n7
+金	jīn	n3
+金子	jīn zi	n7
 金字塔	jīn zì tǎ	n7
 金属	jīn shǔ	n7,o5
 金牌	jīn pái	n3
@@ -10732,13 +10734,13 @@ export const HSK_WORDS = `一	yī	n1,o1
 针对	zhēn duì	n4,o5
 针灸	zhēn jiǔ	n7
 针锋相对	zhēn fēng xiāng duì	n7
-钉	dīng	n7
+钉	dìng	n7
 钉子	dīng zi	n7
 钓	diào	o5
 钓鱼	diào yú	n7
 钙	gài	n7
 钞票	chāo piào	n7,o6
-钟	Zhōng	n3,o5
+钟	zhōng	n3,o5
 钟头	zhōng tóu	n6
 钢	gāng	n7
 钢琴	gāng qín	n5
@@ -10748,15 +10750,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 钦佩	qīn pèi	n7,o6
 钩	gōu	n7
 钩子	gōu zi	n7,o6
-钱	Qián	n1,o1
+钱	qián	n1,o1
 钱包	qián bāo	n1
 钱财	qián cái	n7
 钳子	qián zi	n7
-钻	zuàn	n6
+钻	zuān	n6
 钻石	zuàn shí	n7,o6
 钻研	zuān yán	n7,o6
 钻空子	zuān kòng zi	n7
-铁	Tiě	n3
+铁	tiě	n3
 铁路	tiě lù	n3
 铃	líng	n5,o5
 铃声	líng shēng	n5
@@ -10775,7 +10777,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 银行	yín háng	n2,o3
 银行卡	yín háng kǎ	n2
 铸造	zhù zào	n7,o6
-铺	pù	n6,o6
+铺	pū	n6,o6
 铺路	pū lù	n7
 销	xiāo	n7
 销售	xiāo shòu	n4,o5
@@ -10786,7 +10788,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 锅	guō	n5,o5
 锈	xiù	n7
 锋利	fēng lì	o6
-错	Cuò	n1,o2
+错	cuò	n1,o2
 错位	cuò wèi	n7
 错别字	cuò bié zì	n7
 错综复杂	cuò zōng fù zá	n7
@@ -10800,7 +10802,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 锦绣前程	jǐn xiù qián chéng	o6
 键	jiàn	n5
 键盘	jiàn pán	n5,o5
-锯	jū	n7
+锯	jù	n7
 锲而不舍	qiè ér bù shě	o6
 锻炼	duàn liàn	n4,o3
 镇	zhèn	n6
@@ -10817,9 +10819,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 长城	Cháng chéng	n3,o4
 长处	cháng chù	n3
 长大	zhǎng dà	n2
-长寿	Cháng shòu	n5
+长寿	cháng shòu	n5
 长度	cháng dù	n5
-长征	Cháng zhēng	n7
+长征	cháng zhēng	n7
 长效	cháng xiào	n7
 长期	cháng qī	n3
 长期以来	cháng qī yǐ lái	n7
@@ -10832,15 +10834,15 @@ export const HSK_WORDS = `一	yī	n1,o1
 长达	cháng dá	n7
 长远	cháng yuǎn	n6
 长途	cháng tú	n4,o5
-门	Mén	n1,o2
+门	mén	n1,o2
 门口	mén kǒu	n1
 门当户对	mén dāng hù duì	n7
 门槛	mén kǎn	n7
 门票	mén piào	n1
 门诊	mén zhěn	n5,o6
-门路	mén lù	n7
+门路	mén lu	n7
 门铃	mén líng	n7
-闪	Shǎn	n4
+闪	shǎn	n4
 闪烁	shǎn shuò	n7,o6
 闪电	shǎn diàn	n4,o5
 闭	bì	n6
@@ -10868,19 +10870,19 @@ export const HSK_WORDS = `一	yī	n1,o1
 闹事	nào shì	n7
 闹着玩儿	nào zhe wán r	n7
 闹钟	nào zhōng	n4
-闺女	guī ˙nu:	n7
-闻	Wén	n2,o5
+闺女	guī nü	n7
+闻	wén	n2,o5
 闻名	wén míng	n7
 阀门	fá mén	n7
 阅历	yuè lì	n7
 阅览室	yuè lǎn shì	n5
 阅读	yuè dú	n4,o4
-阎王	Yán wáng	n7
+阎王	Yán wang	n7
 阐述	chǎn shù	n7,o6
 阔	kuò	n6
 阔绰	kuò chuò	n7
 队	duì	n2
-队伍	duì wǔ	n6,o6
+队伍	duì wu	n6,o6
 队员	duì yuán	n3
 队形	duì xíng	n7
 队长	duì zhǎng	n2
@@ -10900,7 +10902,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 阳光	yáng guāng	n3,o4
 阳台	yáng tái	n4,o5
 阳性	yáng xìng	n7
-阴	Yīn	n2,o2
+阴	yīn	n2,o2
 阴天	yīn tiān	n2
 阴影	yīn yǐng	n6
 阴性	yīn xìng	n7
@@ -10974,7 +10976,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 陷害	xiàn hài	o6
 陷阱	xiàn jǐng	n7
 隆重	lóng zhòng	n7,o6
-随	Suí	n3
+随	suí	n3
 随便	suí biàn	n2,o4
 随即	suí jí	n7,o6
 随后	suí hòu	n5
@@ -11008,7 +11010,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 难	nán	n1,o3
 难为情	nán wéi qíng	n7
 难以	nán yǐ	n5
-难以想象	nányǐxiǎngxiàng	n7
+难以想象	nán yǐ xiǎng xiàng	n7
 难以置信	nán yǐ zhì xìn	n7
 难免	nán miǎn	n4,o6
 难关	nán guān	n7
@@ -11049,9 +11051,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 雕刻	diāo kè	n7,o6
 雕塑	diāo sù	n7,o6
 雨	yǔ	n1
-雨水	Yǔ shuǐ	n5
+雨水	yǔ shuǐ	n5
 雨衣	yǔ yī	n6
-雪	Xuě	n2,o2
+雪	xuě	n2,o2
 雪上加霜	xuě shàng jiā shuāng	n7,o6
 雪山	xuě shān	n7
 零	líng	n1,o1
@@ -11062,7 +11064,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 零花钱	líng huā qián	n7
 零钱	líng qián	n7,o5
 零食	líng shí	n4,o5
-雷	Léi	o5
+雷	léi	o5
 雷同	léi tóng	n7
 雷达	léi dá	o6
 雾	wù	n7,o5
@@ -11076,12 +11078,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 霍乱	huò luàn	n7
 霜	shuāng	n7
 霞	xiá	o6
-露	Lù	n6,o5
+露	lù	n6,o5
 露天	lù tiān	n7
 露面	lòu miàn	n7
 霸占	bà zhàn	n7
 霸道	bà dào	o6
-青	Qīng	n5,o5
+青	qīng	n5,o5
 青少年	qīng shào nián	n2,o5
 青年	qīng nián	n2
 青春	qīng chūn	n4,o5
@@ -11089,7 +11091,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 青蛙	qīng wā	n7
 静	jìng	n3
 静止	jìng zhǐ	n7
-非	Fēi	n4,o5
+非	fēi	n4,o5
 非凡	fēi fán	n7
 非常	fēi cháng	n1,o2
 非得	fēi děi	n7
@@ -11132,12 +11134,12 @@ export const HSK_WORDS = `一	yī	n1,o1
 音节	yīn jié	n2
 音量	yīn liàng	n6
 韵味	yùn wèi	n7
-页	xié	n1,o4
+页	yè	n1,o4
 顶	dǐng	n4,o5
 顶多	dǐng duō	n7
 顶尖	dǐng jiān	n7
 顶级	dǐng jí	n7
-项	Xiàng	n4,o5
+项	xiàng	n4,o5
 项目	xiàng mù	n4,o5
 项链	xiàng liàn	n7,o5
 顺	shùn	n6
@@ -11160,7 +11162,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 顽固	wán gù	n7,o6
 顽强	wán qiáng	n6,o6
 顽皮	wán pí	n6
-顾	Gù	n6
+顾	gù	n6
 顾不上	gù bu shàng	n7
 顾不得	gù bu de	n7
 顾全大局	gù quán dà jú	n7
@@ -11207,10 +11209,10 @@ export const HSK_WORDS = `一	yī	n1,o1
 领导	lǐng dǎo	n3,o5
 领带	lǐng dài	n5
 领悟	lǐng wù	n7,o6
-领略	lǐng lu:è	n7
+领略	lǐng lüè	n7
 领袖	lǐng xiù	n6,o6
 领队	lǐng duì	n7
-颇	Pō	n7,o6
+颇	pō	n7,o6
 颈椎	jǐng zhuī	o6
 颈部	jǐng bù	n7
 频率	pín lǜ	n7,o6
@@ -11220,7 +11222,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 颓废	tuí fèi	n7
 颗	kē	n5,o5
 颗粒	kē lì	o6
-题	Tí	n2,o2
+题	tí	n2,o2
 题材	tí cái	n5,o6
 题目	tí mù	n3,o5
 颜色	yán sè	n2,o2
@@ -11249,7 +11251,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 风波	fēng bō	n7
 风流	fēng liú	n7
 风浪	fēng làng	n7
-风筝	fēng zhēng	n7
+风筝	fēng zheng	n7
 风范	fēng fàn	n7
 风貌	fēng mào	n7
 风趣	fēng qù	n7,o6
@@ -11297,7 +11299,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 饱经沧桑	bǎo jīng cāng sāng	o6
 饲养	sì yǎng	n7,o6
 饲料	sì liào	n7
-饶	Ráo	n7
+饶	ráo	n7
 饶恕	ráo shù	n7,o6
 饺子	jiǎo zi	n2,o4
 饼	bǐng	n5
@@ -11326,7 +11328,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 香烟	xiāng yān	n7
 香肠	xiāng cháng	n5
 香蕉	xiāng jiāo	n3,o3
-马	Mǎ	n3,o3
+马	mǎ	n3,o3
 马上	mǎ shàng	n1,o3
 马力	mǎ lì	n7
 马后炮	mǎ hòu pào	n7
@@ -11343,7 +11345,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 驳回	bó huí	n7
 驻	zhù	n6
 驻扎	zhù zhā	o6
-驾	Jià	n7
+驾	jià	n7
 驾照	jià zhào	n5
 驾车	jià chē	n7
 驾驭	jià yù	n7
@@ -11355,7 +11357,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 验收	yàn shōu	n7,o6
 验证	yàn zhèng	n7,o6
 骏马	jùn mǎ	n7
-骑	jì	n2,o3
+骑	qí	n2,o3
 骑车	qí chē	n2
 骗	piàn	n5,o4
 骗人	piàn rén	n7
@@ -11367,7 +11369,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 骨干	gǔ gàn	n7,o6
 骨折	gǔ zhé	n7
 骨气	gǔ qì	n7
-高	Gāo	n1,o2
+高	gāo	n1,o2
 高中	gāo zhōng	n2
 高于	gāo yú	n5
 高价	gāo jià	n4
@@ -11388,7 +11390,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 高效	gāo xiào	n7
 高新技术	gāo xīn jì shù	n7
 高昂	gāo áng	n7
-高明	Gāo míng	n7,o6
+高明	gāo míng	n7,o6
 高档	gāo dàng	n6,o5
 高涨	gāo zhǎng	n7,o6
 高温	gāo wēn	n5
@@ -11415,9 +11417,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 魅力	mèi lì	n7,o5
 魔术	mó shù	n7,o6
 魔鬼	mó guǐ	n7,o6
-鱼	Yú	n2,o2
+鱼	yú	n2,o2
 鲁莽	lǔ mǎng	n7
-鲜	xiǎn	n4
+鲜	xiān	n4
 鲜明	xiān míng	n4,o6
 鲜活	xiān huó	n7
 鲜美	xiān měi	n7
@@ -11426,7 +11428,7 @@ export const HSK_WORDS = `一	yī	n1,o1
 鲜血	xiān xuè	n7
 鲨鱼	shā yú	n7
 鳄鱼	è yú	n7
-鸟	diǎo	n2,o3
+鸟	niǎo	n2,o3
 鸟巢	niǎo cháo	n7
 鸡	jī	n2
 鸡蛋	jī dàn	n1,o2
@@ -11446,14 +11448,14 @@ export const HSK_WORDS = `一	yī	n1,o1
 麻痹	má bì	n7,o6
 麻辣	má là	n7
 麻醉	má zuì	n7,o6
-黄	Huáng	n2,o3
+黄	huáng	n2,o3
 黄昏	huáng hūn	n7,o6
 黄瓜	huáng guā	n4,o5
 黄色	huáng sè	n2
 黄金	huáng jīn	n4,o5
 黎明	lí míng	n7,o6
 黏	nián	n7
-黑	Hēi	n2,o2
+黑	hēi	n2,o2
 黑夜	hēi yè	n6
 黑客	hēi kè	n7
 黑心	hēi xīn	n7
@@ -11476,9 +11478,9 @@ export const HSK_WORDS = `一	yī	n1,o1
 鼠标	shǔ biāo	n5,o5
 鼻子	bí zi	n5,o3
 鼻涕	bí tì	n7,o6
-齐	Qí	n3
+齐	qí	n3
 齐全	qí quán	n5,o6
 齐心协力	qí xīn xié lì	n7,o6
-龙	Lóng	n3,o5
+龙	lóng	n3,o5
 龙舟	lóng zhōu	n7
 龟	guī	n7`;

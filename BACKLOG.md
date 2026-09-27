@@ -85,7 +85,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      skip → no tag → ready; from zero; signed in (dev login, throwaway account deleted) through to
      the deck with the tapped words first and none of the known ones.
 
-1b. **Wrong readings on HSK words.** Found running 1a: the check showed 听 as "yǐn". The list's
+1b. [x] **Wrong readings on HSK words.** Found running 1a: the check showed 听 as "yǐn". The list's
    pinyin (`src/data/hskWords.ts`) looks like it took the first CC-CEDICT reading for many
    characters: 说 shuì, 读 dòu, 行 háng, 都 Dū, 还 Huán, 页 xié, 万 mò, 句 gōu, 提 dī, 离 chī,
    骑 jì, 鸟 diǎo, 厂 hǎn, 胖 pán, 追 duī, 便宜 biàn yí — HSK 1–3 words a learner meets on day
@@ -94,6 +94,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    only (mostly 一/不 sandhi, neutral tones). Some list readings are right and pinyin-pro wrong
    (了 le, 地 de), so it needs a pass by hand over the syllable differences, not a blind
    overwrite; stray tone numbers too ("yīhuǐr5", "yǒukòngr5"). Keep the scan as `check-*.ts`.
+   - **Done 2026-09-27.** Upstream lists every CC-CEDICT reading alphabetically, so "first" was
+     often the archaic one or a surname. `build-hsk-lists.mjs` now picks as cards already do
+     (`mainReading`): pinyin-pro's reading if upstream has it, else a lowercase one with a real
+     meaning. It also fixes the spelling (u: → ü, stray digits, run-together syllables, erhua as
+     " r"). 572 of 11,470 readings changed. Hand pass in `scripts/hsk-readings.mjs` (146 words),
+     checked against the official HSK 3.0 site's pinyin (ivankra/hsk30) and the 2.0 list: senses
+     pinyin-pro gets wrong alone (教 jiāo, 切 qiē, 觉 jiào, 应 yīng, 地/得 de), and neutral tones
+     that change the word (东西 dōng xi, 地方 dì fang, 生意 shēng yi). Cards were never affected:
+     their pinyin comes from CC-CEDICT via `mainReading`, not from the list.
+   - `check-hsk-readings.ts`: 29 pinned readings, format (no digits/u:, marks on the right vowel,
+     a space per syllable), and every word that differs from pinyin-pro (109) must be hand-checked;
+     the old list fails it with 184 unreviewed.
 
 1c. **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
    "A placement that finds your level, and a mark that isn't a lie".
