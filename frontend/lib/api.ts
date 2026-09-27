@@ -721,7 +721,7 @@ export interface AddAuto {
   targetLang: string;
   level?: string; // learner CEFR level for example difficulty
   synonymLevel?: string; // target CEFR level for the card's synonyms (exam prep)
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "internet" | "none";
   exampleSource?: "ai" | "web";
   exampleCount?: number; // how many examples to generate (1–2)
   meaningPrompt?: string; // learner override for how the meaning is written
@@ -762,7 +762,7 @@ export interface ImportOptions {
   generateDetails: boolean;
   generateExamples: boolean;
   level?: string;
-  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
+  exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "internet" | "none";
   exampleSource?: "ai" | "web";
 }
 
@@ -858,7 +858,7 @@ export const api = {
   ) => http<Word>(`/api/words/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   addExample: (
     id: string,
-    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
+    payload: { exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "internet" | "none"; exampleSource?: "ai" | "web"; level?: string; replace?: boolean } = {},
   ) => http<Word>(`/api/words/${id}/example`, { method: "POST", body: JSON.stringify(payload) }),
   // `credit` comes back only for senses the dictionary grounded (Chinese words
   // CC-CEDICT covers); its licence asks for attribution wherever the data shows.
@@ -941,7 +941,7 @@ export const api = {
     items?: { word: string; sentence?: string; meaning?: string; exampleTr?: string }[];
     source?: string; // attribution for the provided example
     level?: string;
-    exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "none";
+    exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "internet" | "none";
     exampleSource?: "ai" | "web";
     collectionIds?: string[];
     enrich?: boolean;

@@ -5,6 +5,7 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { langName } from "../lib/langs.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
+import { MAX_UNKNOWN, addPoolExample, exampleBrief, holdToLevel, isPoolSentence, pickPoolSentence, poolRegister, writtenLabel } from "./sentences.js";
 
 /**
  * Instant capture: the dictionary makes the card, the model comes second.
@@ -109,6 +110,11 @@ export type UpgradeOptions = {
  * Fill in what a card is missing with one grounded model call: the meaning when
  * it is empty or still the dictionary's English, the details it has none of,
  * and an example when it has none. Never overwrites what the learner wrote.
+ * Examples are one step above the learner (services/sentences.ts). An HSK word
+ * has the pool's checked sentence at their level the moment it is added; this
+ * writes their own on top — their interests, their register, their level —
+ * which goes first. It is held to one unknown like the pool; one that stays
+ * over the line gives way to the pool sentence rather than join it.
  * Shared by the add path (in the background), the import worker, and the word
  * page's "fill this in" (`POST /api/words/:id/enrich`).
  */
@@ -121,17 +127,22 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // The sentence the learner met the word in: a Reader, import or hand-typed
   // example, never one the model wrote for it.
   const met = card.examples.find((e) => e.sourceName !== AI_SOURCE)?.sentenceEn;
-  const withExample = opts.withExample !== false && opts.exampleStyle !== "none" && card.examples.length === 0;
-  const known = withExample
-    ? (
-        await prisma.word.findMany({
-          where: { userId: card.userId, sourceLang: card.sourceLang, NOT: { id: card.id } },
-          orderBy: [{ reps: "desc" }, { createdAt: "desc" }],
-          take: 40,
-          select: { word: true },
-        })
-      ).map((w) => w.word)
-    : [];
+  // Only the pool's sentence on it (placed at add) still counts as "no example of its own".
+  const pooled = card.examples.filter((e) => isPoolSentence(card.word, card.targetLang, e.sentenceEn)).length;
+  const withExample = opts.withExample !== false && opts.exampleStyle !== "none" && card.examples.length === pooled;
+  const brief = withExample ? await exampleBrief(card.userId, card.sourceLang, card.id) : null;
+  // The pool's sentence first, when the add path didn't place one (the import
+  // worker, "fill this in"). A typed sense asks for that sense, which the pool's
+  // everyday one may not be.
+  const pool =
+    brief?.reading && !pooled && poolRegister(opts.exampleStyle) && !opts.sense
+      ? pickPoolSentence(card.word, brief.reading.knows, card.targetLang)
+      : null;
+  const placed = Boolean(pool && pool.unknown <= MAX_UNKNOWN);
+  if (placed) await addPoolExample(card.id, card.word, pool!.s);
+  const hasPool = pooled > 0 || placed;
+  // Their own on top of it only when there is something to make it theirs with.
+  const personal = withExample && (!hasPool || Boolean(brief?.themes || brief?.reading?.checked));
 
   const entry = await enrichWordEntry({
     word: card.word,
@@ -140,11 +151,13 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     level: opts.level,
     synonymLevel: opts.synonymLevel,
     exampleStyle: opts.exampleStyle,
-    withExample,
+    withExample: personal,
     meaningInstruction: opts.meaningInstruction,
     sense: opts.sense,
     context: met,
-    knownWords: known,
+    knownWords: brief?.knownWords ?? [],
+    hskLevel: brief?.reading?.checked ? (brief.reading.level ?? 1) : null,
+    themes: brief?.themes,
   });
 
   // Compare-and-set on the meaning we read: a learner who edited it while the
@@ -158,6 +171,36 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       data: { meaningZh: entry.meaningZh.trim() },
     });
   }
+  // The example before the details: the pages poll until the part of speech lands,
+  // so their own sentence has to be there by then to be seen without a reload.
+  if (personal && entry.example && brief) {
+    const held = await holdToLevel({
+      word: card.word,
+      sentence: entry.example,
+      translation: entry.exampleTranslation,
+      targetLang: card.targetLang,
+      brief,
+    });
+    if (hasPool && held.unknown > MAX_UNKNOWN) {
+      // Too hard to sit beside a checked one they can read: the pool's stays alone.
+    } else if (!hasPool && pool && pool.unknown < held.unknown) {
+      // Over the line either way: the pool's best still wins if they read more of it.
+      await addPoolExample(card.id, card.word, pool.s);
+    } else {
+      // Newest first on every page, so their own leads.
+      await prisma.example.create({
+        data: {
+          wordId: card.id,
+          sentenceEn: held.sentence,
+          sentenceZh: held.translation,
+          sourceName: AI_SOURCE,
+          sourceUrl: "",
+          register: opts.exampleStyle ?? "casual",
+          level: writtenLabel(brief, opts.level ?? null),
+        },
+      });
+    }
+  }
   await prisma.word.update({
     where: { id: card.id },
     data: {
@@ -168,17 +211,4 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       ...(card.antonyms.length ? {} : { antonyms: entry.antonyms }),
     },
   });
-  if (withExample && entry.example) {
-    await prisma.example.create({
-      data: {
-        wordId: card.id,
-        sentenceEn: entry.example,
-        sentenceZh: entry.exampleTranslation,
-        sourceName: AI_SOURCE,
-        sourceUrl: "",
-        register: opts.exampleStyle ?? "casual",
-        level: opts.level ?? null,
-      },
-    });
-  }
 }

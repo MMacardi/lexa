@@ -9,7 +9,17 @@ import { useI18n } from "@/lib/i18n";
 import { FOCUS } from "@/lib/focus";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { setLevel as setPrefLevel, pushRecentPair, setNativeLang, setDailyGoal, setNewPerDay, type CefrLevel } from "@/lib/learnPrefs";
+import {
+  setLevel as setPrefLevel,
+  pushRecentPair,
+  setNativeLang,
+  setDailyGoal,
+  setNewPerDay,
+  setExampleStyle,
+  useExampleStyle,
+  type CefrLevel,
+  type ExampleStyle,
+} from "@/lib/learnPrefs";
 import { LangSelect } from "@/components/LangSelect";
 import { langFlag, langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
@@ -120,6 +130,10 @@ export const INTERESTS: { id: string; Icon: Icon }[] = [
   { id: "nature", Icon: Leaf },
   { id: "fashion", Icon: Shirt },
 ];
+
+// The registers a learner picks beside their interests (BACKLOG "Sentences one step
+// above you"): everyday, formal (news, work, exam) and internet slang, labelled.
+const REGISTERS: ExampleStyle[] = ["casual", "news", "internet"];
 
 // The pace, in minutes a day (BACKLOG "A plan with a date"): what a person plans a
 // day around. The words it holds come from the plan (backend services/studyPlan.ts,
@@ -293,6 +307,7 @@ export function HskFirstRun({
   const [target, setTarget] = useState(saved?.target ?? 4);
   const [examDate, setExamDate] = useState<string | null>(saved?.examDate ?? null);
   const [interests, setInterests] = useState<Set<string>>(new Set(saved?.interests ?? []));
+  const exampleStyle = useExampleStyle();
   const [daily, setDaily] = useState(saved?.daily ?? wordsFor(15));
 
   const [step, setStep] = useState<Step>(saved ? "plan" : "lang");
@@ -749,6 +764,30 @@ export function HskFirstRun({
                 );
               })}
             </div>
+            {/* The register beside the themes: the examples' tone, the same setting as in Settings. */}
+            <div className="mt-5 text-[13px] font-semibold text-ink-muted">{t("onb.registerTitle")}</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {REGISTERS.map((reg) => {
+                const on = exampleStyle === reg;
+                return (
+                  <button
+                    key={reg}
+                    type="button"
+                    onClick={() => setExampleStyle(reg)}
+                    aria-pressed={on}
+                    className={cn(
+                      "rounded-full border px-3.5 py-2 text-[14px] font-medium transition-colors",
+                      on ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink hover:bg-black/[0.03]",
+                    )}
+                  >
+                    {t(`style.${reg}`)}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[13px] leading-snug text-ink-faint">
+              {t(REGISTERS.includes(exampleStyle) ? `style.desc.${exampleStyle}` : "style.desc.casual")}
+            </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Button className="w-full sm:w-auto" onClick={startCheck}>
                 {interests.size ? t("onb.continue") : t("onb.skip")}

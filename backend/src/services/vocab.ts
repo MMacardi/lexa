@@ -15,6 +15,7 @@ import { FOCUS } from "../lib/env.js";
 import { cedictInventory, isChinese } from "./cedict.js";
 import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
+import { exampleBrief, isPoolSentence, placePoolExamples, poolRegister } from "./sentences.js";
 import { track } from "./analytics.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -106,8 +107,13 @@ export async function addWordForUser(params: {
         antonyms: [],
         notes,
       },
-      select: { id: true },
+      select: { id: true, word: true },
     });
+    // An HSK word's example is on the card now too, the pool sentence this learner
+    // reads best (services/sentences.ts); the upgrade writes one only if none fits.
+    if (withExample && sourceLang === "zh" && poolRegister(params.exampleStyle) && !params.sense) {
+      await placePoolExamples(user.id, [{ ...created, targetLang }]);
+    }
     const upgrade = { level: params.level, exampleStyle: params.exampleStyle };
     void upgradeCard(created.id, {
       ...upgrade,
@@ -342,9 +348,17 @@ export async function addProvidedExample(id: string, sentenceEn: string, sentenc
   return getWord(id);
 }
 
-/** How many AI-generated examples a card holds (the cap is two, second is Pro). */
+/**
+ * How many AI-generated examples a card holds (the cap is two, second is Pro).
+ * The pool's sentence (services/sentences.ts) doesn't count: every HSK card comes
+ * with one, and it mustn't use up the examples a learner asks for.
+ */
 export async function countAiExamples(id: string): Promise<number> {
-  return prisma.example.count({ where: { wordId: id, sourceName: "Onomika AI" } });
+  const card = await prisma.word.findUnique({
+    where: { id },
+    select: { word: true, targetLang: true, examples: { where: { sourceName: "Onomika AI" }, select: { sentenceEn: true } } },
+  });
+  return card ? card.examples.filter((e) => !isPoolSentence(card.word, card.targetLang, e.sentenceEn)).length : 0;
 }
 
 /** Delete a word (its examples cascade via the schema's onDelete: Cascade). */
@@ -388,6 +402,7 @@ export async function addExampleToWord(
     level: opts.level,
     // Adding another (not replacing) → avoid duplicating the current example(s).
     avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),
+    brief: await exampleBrief(word.userId, word.sourceLang, word.id),
   });
 
   return prisma.word.findUniqueOrThrow({

@@ -12,10 +12,12 @@ import { cedictInventory, isChinese } from "../services/cedict.js";
 // separate Example Search agent (the sentence comes from a real search).
 
 const REGISTER: Record<string, string> = {
-  news: "news / journalistic",
+  news: "formal written — news, work, exam-style",
   casual: "everyday, casual real-life",
   dialogue: "a short spoken dialogue (2-3 turns)",
   literary: "literary prose",
+  // Labelled as slang on the card (style.internet), so nobody puts it in an exam essay.
+  internet: "internet slang as people really write it on Douyin, Weibo and Bilibili",
 };
 
 // The default guidance for the meaning; the learner can override it (see the
@@ -57,6 +59,8 @@ export async function enrichWordEntry(params: {
   sense?: string; // target-language word the learner typed to reach this one (add-by-translation)
   context?: string; // the sentence the learner met the word in (Reader): the meaning is that sentence's sense
   knownWords?: string[]; // the learner's own words: the example is built from these
+  hskLevel?: number | null; // besides those, nothing above this HSK level (the check's "mostly known")
+  themes?: string; // what the learner picked as their interests: the example's situation
   ground?: boolean; // default true; scripts/eval-senses.ts turns it off for its control arm
 }): Promise<EnrichResult> {
   const word = params.word.trim();
@@ -103,9 +107,19 @@ export async function enrichWordEntry(params: {
   // An example made of words the learner already has is one they can read
   // without looking anything else up — the new word is the only unknown in it.
   const known = (params.knownWords ?? []).map((w) => w.trim()).filter((w) => w && w !== word).slice(0, 40);
-  const knownLine = known.length
-    ? `Build the example mostly from words the learner already knows: ${known.join(", ")}. ` +
-      `Any other word in it must be simpler and more common than "${word}". `
+  // Only for a card of the learner's own (the upgrade passes their words, maybe none).
+  const knownLine = !params.knownWords
+    ? ""
+    : (known.length ? `Build the example mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
+      (params.hskLevel
+        ? `Besides "${word}", use only words of HSK ${params.hskLevel} and below. `
+        : `Any other word in it must be simpler and more common than "${word}". `);
+  const themes = params.themes?.trim().slice(0, 200) ?? "";
+  // The level wins: "IT" at HSK 2 wrote 软件 and 运行, and the sentence was too hard to keep.
+  const themeLine = themes
+    ? `Set it in something the learner cares about (${themes}) when the word fits there — but only through words ` +
+      `that meet the vocabulary rule above, which comes first (tech at HSK 2 is 手机, 电脑, 上网, not 软件, 运行); ` +
+      `if the theme needs harder words, use an everyday situation instead. `
     : "";
 
   // Chinese headwords are grounded in CC-CEDICT: the dictionary states which
@@ -138,13 +152,15 @@ export async function enrichWordEntry(params: {
         `"exampleTranslation": that dialogue translated to ${targetName} (keep the line breaks). ` +
         avoidLine +
         levelLine +
-        knownLine
+        knownLine +
+        themeLine
       : `"example": ONE natural, correct ${sourceName} sentence (about 8-14 words, a ${register} tone) that ` +
         `uses "${word}"${inSense} in a concrete context so its meaning is clear on its own — never a bare "It's small."; ` +
         `"exampleTranslation": that sentence translated to ${targetName}. ` +
         avoidLine +
         levelLine +
-        knownLine;
+        knownLine +
+        themeLine;
 
   const result = await chatJson({
     system:

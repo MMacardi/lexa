@@ -41,7 +41,7 @@ bare numbers) are noted in brackets only so older commits and `IDEAS.md` heading
 don't invent new ones.
 
 **Where the line is.** Items 1a–1f are the algorithms (2026-09-27): test before any claim, the
-list's own data right (1b, 1d), then the next word. 1g is the first five minutes, built from their output. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+list's own data right (1b, 1d), then the next word. 1g is the author's field without asking again (their own use), 1h the first five minutes, built from their output. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1c. 19–22 make
@@ -190,6 +190,10 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **Not in it:** words outside the list (Reader captures, topic words) keep the per-card path.
      Made on first open and kept for everyone is item 27. HSK pages no longer follow the custom
      meaning style.
+   - **Found in 1f:** the one-line defaults in `hsk-ru` lead with the wrong sense for some common
+     words — 被 «одеяло; частица страдательного залога», 行 «идти; поведение» with no «ладно,
+     можно» — so the card itself shows the rare sense first. 1f's sentence pass grounds in
+     CC-CEDICT to get past it; the cards still say it.
    - **Proof:** a fresh HSK card's page has its meanings and word family on first paint, and no
      model call for them in the log.
 
@@ -224,7 +228,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      new; kept = first review ≥ 7 days after adding not Again; minutes from `ReviewEvent` gaps
      (no duration column; cap each gap). Needs a week of the author's reviews on the new order.
 
-1f. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
+1f. [x] **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
    one new word, on the themes they picked (the onboarding interests) or the HSK topic list. Qwen
    writes them — nothing is copied. Strong in Chinese, not error-free, hence the check below.
    - **For HSK words, a pool written once** (moved here from 1d): a sentence that suits HSK 5 is
@@ -240,8 +244,61 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - Instant capture (item 2) already asks for "one example built from words the learner already
      has"; this makes it the rule everywhere examples are made, and checks it (segment the
      sentence, count the words not on the learner's cards).
+   - **Shipped 2026-09-27.** Decided with the author mid-session: the sentence that is theirs
+     leads, the pool's is the instant one and stays second — not the pool alone with a per-card
+     fallback, which in the first run served 96% of HSK 4 words and so never showed an interest.
+     - **The pool:** `scripts/build-hsk-sentences.ts` → `data/hsk-sentences.jsonl` (8 MB), all
+       11,470 list words, 34,148 sentences, qwen-plus (qwen3.5-plus thought 3 min a batch and timed
+       out), ~¥12. Given the list reading, the `hsk-ru` meaning and CC-CEDICT's senses; each
+       sentence checked — the Reader's segmentation within the ceiling, the headword a word of its
+       own (上 in 上班 is not; the list's phrase 打篮球 as 打 + 篮球 is), read the list's way (the
+       model states the reading: pinyin-pro reads 长得 as cháng), 5+ characters, not a repeat —
+       and rewritten with the problem named, twice at most. Ceiling 1 passes 86.7%, 2 96.3%; the
+       1,924 still over are kept, flagged (a learner is scored on their own words anyway); 262
+       failing anything else dropped. Hand-read, 40 random: 1 wrong (这个的特点是大。), 2 stilted,
+       all under ceilings 1–2.
+     - **Reading it as this learner** (`services/sentences.ts`): known = a card past learning or an
+       "I know it" (adding is not knowing, as the mark says); any other list word is priced at its
+       level's share from the check (`learnerRates`), off-list 0. The pool sentence with the
+       fewest expected unknowns wins, to half a word, then the higher ceiling; written onto the
+       card at add (single and batch, everyday register) when ≤ 1, and moved up on open once a
+       strictly better one fits. `scripts/check-sentences.ts`: an HSK 2 and an HSK 5 account get
+       different sentences for 514 of 971 HSK 4 words (53%; where they match, the middle one
+       reads at HSK 2 and the natural one is past HSK 5 too), HSK 2 reads 96% within one unknown.
+     - **Their own:** the background upgrade writes it on their interests (coach memory from
+       onboarding), register and level — the highest level they know ≥ 90% of, since at 80% an
+       eight-word sentence carried 1.4 unknowns and every one was thrown out — then segments it,
+       counts, and rewrites once naming the words to lose (the situation may change: "keep the
+       situation" kept 软件). Kept beside a pool sentence only if ≤ 1; labelled "HSK 1–N", not
+       the add form's CEFR. The level beats the theme ("IT" at HSK 2 is 手机, 上网, not 软件):
+       6 of 6 kept for the test learner after that, 0 before. The "another example" path takes
+       the same brief and check.
+     - **Register:** "Internet slang" beside Casual / Formal (now news, work, exam-style), in
+       onboarding under the interests and in every style picker, labelled on the example; the pool
+       serves only the everyday one. The pool's sentence doesn't count toward the examples cap.
+     - Local run at 390 px: onboarding (HSK 4 target, Tech & IT) → check → the 20-word deck, 13
+       with a sentence at once → add 经验: the pool's 做饭要多练习，经验慢慢就多了。 on the tap, then
+       their own 他有三年教中文的经验，所以讲课很清楚。 on top. The run caught the 80% bar, the theme
+       winning over the level, and 造型 "很些" (fresh cards used as known words).
+   - **Left:** a naturalness pass over ceilings 1–2 (a judge call per sentence, `--redo` the
+     flagged) — the hand-read rate above is the reason; and the `hsk-ru` wrong-first senses (1d).
 
-1g. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
+1g. **Your field without asking again.** From the author's own use (2026-09-27, prod, 390 px): the
+   words from a field were expected to come from the interest picked in onboarding (ИИ), yet Today
+   still shows a picker — a topic box, the five preset chips with ИИ already lit, "Подобрать слова",
+   and "Добавить текст по теме (необязательно) — сначала будут его слова", which reads as a chore
+   and isn't understood. A learner who said "AI" once shouldn't pick it again, and a list of words
+   is a dull way to learn a field.
+   - **The interest is the topic:** onboarding's interests (`CoachMemory.interests`, zh) seed the
+     topic pool on the first Today, no editor and no button; the row just says "ИИ · 3 today".
+     Changing it lives behind a small edit, not up front.
+   - **The text box goes:** "make this my topic" from the Reader (13b's "not done") is where a
+     pasted text belongs; Today doesn't ask for one.
+   - **Learn the field, not a list:** the field's words come with sentences on the field built
+     from what the learner knows (1f's per-learner path, on their interests), or a short read in
+     the Reader at their level — rethink the card around that, don't restyle the picker.
+
+1h. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
    same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and
    20 words, then sign-in and the invite code — and has learned nothing yet. After 1c–1f because
    the hook is made of their output and there is no traffic to convert before the beta; the
@@ -754,6 +811,10 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 28. **Payments.** `[9]` DELAYED until retention exists. Then ONE Pro tier (~499 ₽) — no Pro Plus.
     Vercel Hobby forbids commercial use, so upgrade before charging. IDEAS: "Payment".
+    - **Not examples** (from the author, 2026-09-27): the add form's "how many examples" picker and
+      the second example as Pro (`multi_example`, `POST /words/:id/example`) read as an odd
+      paywall. Since 1f an HSK card comes with two (the learner's own + the pool's, which doesn't
+      count toward the cap). Drop the picker; don't make the paywall about example count.
 
 29. [x] **The Reader cuts Chinese into wrong words.** Found while testing instant capture: 他打了三个小时
     篮球 renders a tappable "了三", so the learner can't tap 了 on its own. The bot already has a

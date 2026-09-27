@@ -4,6 +4,7 @@ import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { FOCUS } from "../lib/env.js";
+import { holdToLevel, writtenLabel, type ExampleBrief } from "../services/sentences.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -61,10 +62,12 @@ function sourceNameFromUrl(url: string): string {
 // Register hints per example style: `query` nudges the web search, `register`
 // describes the tone the model should prefer when picking a sentence.
 const STYLE_HINTS: Record<string, { query: string; register: string }> = {
-  news: { query: "", register: "news / journalistic" },
+  news: { query: "", register: "formal written — news, work, exam-style" },
   casual: { query: "everyday conversation", register: "everyday, casual real-life" },
   dialogue: { query: "dialogue conversation spoken", register: "a short spoken dialogue (2-3 turns)" },
   literary: { query: "novel book literature", register: "literary (fiction or non-fiction prose)" },
+  // Labelled as slang on the card (style.internet), so nobody puts it in an exam essay.
+  internet: { query: "网络用语", register: "internet slang as people really write it on Douyin, Weibo and Bilibili" },
 };
 
 // Applied to every example: forbids bare, context-free one-liners so the learner
@@ -90,6 +93,9 @@ export async function runExampleSearch(params: {
   // When set, attach the example to this existing card (import enrichment).
   // When absent, create a new card (single-word add — duplicates allowed).
   wordId?: string;
+  // The learner's words, level and interests (services/sentences.ts): a composed
+  // example is built from them and held to one unknown besides the word.
+  brief?: ExampleBrief;
 }): Promise<ExampleSearchResult> {
   const word = params.word.trim().toLowerCase();
   const sourceLang = params.sourceLang ?? "en";
@@ -117,6 +123,18 @@ export async function runExampleSearch(params: {
     ? `Write a DIFFERENT example from the ones the learner already has — a new situation and wording, not similar to any of these: ${avoidList
         .map((s) => `"${s}"`)
         .join("; ")}. `
+    : "";
+
+  const known = (params.brief?.knownWords ?? []).filter((w) => w !== word).slice(0, 40);
+  const level = params.brief?.reading?.checked ? (params.brief.reading.level ?? 1) : null;
+  const knownLine = !params.brief
+    ? ""
+    : (known.length ? `Build it mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
+      (level ? `Besides "${word}", use only words of HSK ${level} and below. ` : `Any other word must be simpler and more common than "${word}". `);
+  const themes = params.brief?.themes.slice(0, 200) ?? "";
+  const themeLine = themes
+    ? `Set it in something the learner cares about (${themes}) when the word fits there — but only through words ` +
+      `that meet the vocabulary rule above, which comes first; if the theme needs harder words, use an everyday situation. `
     : "";
 
   // Default to AI-composed examples: cheaper, always on the learner's level, and
@@ -186,6 +204,8 @@ export async function runExampleSearch(params: {
           `question-and-answer). ` +
           avoidLine +
           (levelLine || "") +
+          knownLine +
+          themeLine +
           `It MUST be written in ${sourceName} and contain "${word}".` +
           scriptNote(sourceLang) +
           ` Then translate the whole dialogue into natural ${targetName}, keeping each turn on its own line.` +
@@ -197,6 +217,8 @@ export async function runExampleSearch(params: {
           RICHNESS_RULE +
           avoidLine +
           (levelLine || "") +
+          knownLine +
+          themeLine +
           `The sentence MUST be written in ${sourceName} and contain "${word}".` +
           scriptNote(sourceLang) +
           ` Then translate that sentence into natural ${targetName}.` +
@@ -212,6 +234,11 @@ export async function runExampleSearch(params: {
     sentence = written.sentence.trim();
     translation = written.translation.trim();
     source = null;
+    if (params.brief) {
+      const held = await holdToLevel({ word, sentence, translation, targetLang, brief: params.brief });
+      sentence = held.sentence;
+      translation = held.translation;
+    }
   } else {
     // A web-mined sentence is a real excerpt we picked, so it still needs its own
     // translate call (the compose+translate merge above only covers AI-written ones).
@@ -245,7 +272,7 @@ export async function runExampleSearch(params: {
       // Record the register + level only for AI-composed examples (a web-mined
       // one carries its publication as the source, not a chosen register).
       register: source ? null : style,
-      level: source ? null : params.level ?? null,
+      level: source ? null : writtenLabel(params.brief, params.level ?? null),
     },
   });
 

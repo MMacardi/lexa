@@ -312,6 +312,12 @@ async function levelEvidence(telegramId: string, version: HskVersion): Promise<{
   return { levels: evidenceFrom(version, said, (w) => status.has(w)), falseAlarm: falseAlarmRate(fakes, claimed) };
 }
 
+/** This learner's share known per level, the same numbers the plan prices the unasked words with. */
+export async function learnerRates(telegramId: string, version: HskVersion): Promise<Map<number, number | null>> {
+  const { levels, falseAlarm } = await levelEvidence(telegramId, version);
+  return levelRates(levels, falseAlarm);
+}
+
 export async function planForUser(telegramId: string, today: string): Promise<StudyPlan> {
   const user = await prisma.user.findUnique({
     where: { telegramId },

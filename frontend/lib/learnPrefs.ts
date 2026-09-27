@@ -619,12 +619,12 @@ export function useSynonymLevel(): CefrLevel | "" {
   return lv;
 }
 
-export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "none"] as const;
+export const EXAMPLE_STYLES = ["news", "casual", "dialogue", "literary", "internet", "none"] as const;
 export type ExampleStyle = (typeof EXAMPLE_STYLES)[number];
 // Everyday sentences suit most learners; the backend defaults to the same.
 export const DEFAULT_EXAMPLE_STYLE: ExampleStyle = "casual";
 // Order the pickers show the registers in (most common first).
-export const STYLE_ORDER: ExampleStyle[] = ["casual", "dialogue", "news", "literary"];
+export const STYLE_ORDER: ExampleStyle[] = ["casual", "dialogue", "news", "literary", "internet"];
 
 export function getExampleStyle(): ExampleStyle {
   if (typeof window === "undefined") return DEFAULT_EXAMPLE_STYLE;

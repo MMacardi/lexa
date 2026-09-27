@@ -26,6 +26,7 @@ import { checkBodySchema, checkResult, nextCheckScreen } from "../services/place
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
+import { refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
 import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
@@ -483,6 +484,8 @@ wordsRouter.delete("/collections/:id/words/:wordId", async (req, res) => {
 // GET /api/words/:id  -> one word with examples
 wordsRouter.get("/words/:id", async (req, res) => {
   if (!(await guardWord(req, res))) return;
+  // The pool sentence moves with the learner: the one they read best now (i+1).
+  await refreshPoolExample(req.params.id).catch((err) => console.error("[sentences] refresh failed", err));
   const word = await getWord(req.params.id);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
@@ -500,7 +503,7 @@ const addBody = z.object({
   // auto-mode example tuning (ignored in manual mode)
   level: z.string().max(4).optional(),
   synonymLevel: z.string().max(4).optional(), // tune synonyms to a CEFR level (exam prep)
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "internet", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   exampleCount: z.number().int().min(1).max(2).optional(),
   meaningPrompt: z.string().max(400).optional(), // learner override for meaning style
@@ -544,7 +547,7 @@ const importCommitBody = z.object({
   generateDetails: z.boolean().default(false),
   generateExamples: z.boolean().default(false),
   level: z.string().max(4).optional(),
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "internet", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
 });
 
@@ -771,7 +774,7 @@ wordsRouter.post("/words/:id/production", async (req, res) => {
 
 // POST /api/words/:id/example -> fetch a fresh AI example (add or regenerate).
 const exampleBody = z.object({
-  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
+  exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "internet", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
   level: z.string().max(4).optional(),
   replace: z.boolean().default(false),
@@ -933,7 +936,7 @@ const batchBody = z
       .optional(),
     source: z.string().max(120).optional(), // attribution for the provided example
     level: z.string().max(4).optional(),
-    exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "none"]).optional(),
+    exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "internet", "none"]).optional(),
     exampleSource: z.enum(["ai", "web"]).optional(),
     collectionIds: z.array(z.string()).optional(),
     enrich: z.boolean().default(true),

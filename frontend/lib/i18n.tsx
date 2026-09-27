@@ -1141,10 +1141,16 @@ const DICT: Record<string, Entry> = {
   "style.casual": { en: "Casual", ru: "Бытовой", zh: "日常" },
   "style.dialogue": { en: "Dialogue", ru: "Диалог", zh: "对话" },
   "style.literary": { en: "Literary", ru: "Литературный", zh: "文学" },
+  "style.internet": { en: "Internet slang", ru: "Интернет-сленг", zh: "网络用语" },
   "style.desc.news": {
-    en: "A formal, news-style sentence.",
-    ru: "Формальное предложение в новостном тоне.",
-    zh: "正式的新闻风格句子。",
+    en: "A formal sentence — news, work, exam-style.",
+    ru: "Формальное предложение — новости, работа, как на экзамене.",
+    zh: "正式的句子——新闻、工作、考试风格。",
+  },
+  "style.desc.internet": {
+    en: "How people write on Douyin and Weibo. Marked as slang — not for an exam essay.",
+    ru: "Как пишут в Douyin и Weibo. Помечено как сленг — не для экзаменационного эссе.",
+    zh: "抖音、微博上的说法。标注为网络用语——别写进考试作文。",
   },
   "style.desc.casual": {
     en: "One simple everyday sentence.",
@@ -1168,10 +1174,11 @@ const DICT: Record<string, Entry> = {
     zh: "添加卡片但不生成例句——不消耗额度。",
   },
   // short one-liners shown under each option inside the dropdown
-  "style.hint.news": { en: "Formal, news tone", ru: "Формальный, новостной тон", zh: "正式、新闻语气" },
+  "style.hint.news": { en: "News, work, exam-style", ru: "Новости, работа, экзамен", zh: "新闻、工作、考试" },
   "style.hint.casual": { en: "One everyday phrase", ru: "Одна фраза из жизни", zh: "一句日常口语" },
   "style.hint.dialogue": { en: "Mini-dialogue, 2–3 lines", ru: "Мини-диалог, 2–3 реплики", zh: "迷你对话，2–3 句" },
   "style.hint.literary": { en: "Like in books", ru: "Как в книгах", zh: "如书中一般" },
+  "style.hint.internet": { en: "Douyin/Weibo slang, labelled", ru: "Сленг Douyin/Weibo, с пометкой", zh: "抖音/微博用语，有标注" },
   "style.hint.none": { en: "Fastest, no tokens", ru: "Быстрее всего, без токенов", zh: "最快，不耗额度" },
 
   // --- learner level (CEFR) ---
@@ -1495,6 +1502,7 @@ const DICT: Record<string, Entry> = {
   "onb.exam.none": { en: "No date yet", ru: "Пока без даты", zh: "还没定" },
   "onb.interestsTitle": { en: "What are you into?", ru: "Что тебе интересно?", zh: "你对什么感兴趣？" },
   "onb.interestsSub": { en: "Examples and suggested words will lean this way.", ru: "Примеры и подборки слов будут в эту сторону.", zh: "例句和推荐词会偏向这些。" },
+  "onb.registerTitle": { en: "And the examples sound", ru: "А примеры звучат", zh: "例句的语气" },
   "onb.int.food": { en: "Food & cooking", ru: "Еда и кулинария", zh: "美食烹饪" },
   "onb.int.travel": { en: "Travel", ru: "Путешествия", zh: "旅行" },
   "onb.int.tech": { en: "Tech & IT", ru: "Технологии и IT", zh: "科技与 IT" },

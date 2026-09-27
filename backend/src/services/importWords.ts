@@ -4,6 +4,7 @@ import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
 import { dictCardFields, translateDictMeanings } from "./capture.js";
+import { placePoolExamples, poolRegister } from "./sentences.js";
 
 const MAX_CARDS = 100;
 
@@ -167,6 +168,13 @@ export async function importWordsForUser(params: {
       if (error && typeof error === "object" && (error as { code?: string }).code === "P2002") continue;
       throw error;
     }
+  }
+
+  // i+1 with no model call: each HSK card gets the pool sentence this learner reads
+  // best (services/sentences.ts), so the day's words arrive with an example; the
+  // queued upgrade writes one from their own words only where none fits.
+  if (created.length && params.generateExamples && params.exampleSource !== "web" && params.sourceLang === "zh" && poolRegister(params.exampleStyle)) {
+    await placePoolExamples(user.id, created.map((c) => ({ ...c, targetLang: params.targetLang })));
   }
 
   if (params.meaningsFirst && created.length) {
