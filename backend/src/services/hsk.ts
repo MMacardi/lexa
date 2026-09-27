@@ -1,5 +1,6 @@
 import { prisma } from "./db.js";
 import { HSK_WORDS } from "../data/hskWords.js";
+import { HSK_FREQ } from "../data/hskFreq.js";
 
 // The official HSK word lists, and the readiness mark built on top of them.
 //
@@ -84,6 +85,20 @@ export function hskTagFor(word: string): HskTag | null {
 export function hskLevelWords(version: HskVersion, level: number): Entry[] {
   if (!byLevel) build();
   return byLevel!.get(`${version}:${level}`) ?? [];
+}
+
+let freq: Map<string, number> | null = null;
+
+/** How often a word is used: its count in jieba's dictionary (data/hskFreq.ts), 0 off the lists. */
+export function hskFrequency(word: string): number {
+  if (!freq) {
+    freq = new Map();
+    for (const line of HSK_FREQ.split("\n")) {
+      const [w, n] = line.split("\t");
+      if (w) freq.set(w, Number(n));
+    }
+  }
+  return freq.get(normalizeHanzi(word)) ?? 0;
 }
 
 // --- The readiness mark ---
@@ -274,28 +289,6 @@ export function hskCheckWords(version: HskVersion, level: number, size = 24): Hs
   return out.slice(0, size);
 }
 
-// Seeded, so the shuffle within a level is fixed for one learner on one day: the
-// day's offer doesn't reshuffle on every reload, and tomorrow's is a new draw.
-function seededRandom(seed: string): () => number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
-  return () => {
-    h = (h + 0x6d2b79f5) | 0;
-    let t = Math.imul(h ^ (h >>> 15), 1 | h);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffled<T>(items: T[], rand: () => number): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
 // The server's calendar day, the same boundary getStats counts "today" by.
 export function dayStart(): Date {
   const d = new Date();
@@ -303,60 +296,101 @@ export function dayStart(): Date {
   return d;
 }
 
+const below = new Map<string, Set<string>>(); // key: `${version}:${level}`
+
+/**
+ * Every character of the list below `level`. Someone at HSK 4 reads HSK 1–3's
+ * characters, card or not — the same assumption topic.ts makes for topic words.
+ */
+function charsBelow(version: HskVersion, level: number): Set<string> {
+  const key = `${version}:${level}`;
+  let chars = below.get(key);
+  if (!chars) {
+    chars = new Set();
+    for (let n = 1; n < level; n++) for (const e of hskLevelWords(version, n)) for (const ch of e.word) chars.add(ch);
+    below.set(key, chars);
+  }
+  return chars;
+}
+
+/**
+ * What a word is worth learning next: how often it is used, over what it costs.
+ * A word costs one unit for itself plus one for every character in it the learner
+ * hasn't met — 地图 is nearly free to someone with 地 and 图, and a word with two
+ * new characters has to be three times as common to come first. In logs, since
+ * counts inside one level span four orders of magnitude.
+ */
+export function nextWordValue(word: string, met: (ch: string) => boolean): number {
+  const unmet = Array.from(word).filter((ch) => !met(ch)).length;
+  return Math.log(1 + hskFrequency(word)) - Math.log(1 + unmet);
+}
+
 /**
  * The list in the order a learner aiming at `target` should meet it: words they
  * tapped as unknown in the check first (they told us), then the target level,
  * then one level down at a time — HSK 1 only once everything above is used up.
- * Shuffled within a level. The old walk went 1→target in file order, which is
- * alphabetical by pinyin, so an HSK 4 learner was handed 一下儿, 一些, 七, 三 …:
- * HSK 1's unproven words filled every deck before level 2 was ever reached.
+ * The old walk went 1→target in file order, which is alphabetical by pinyin, so
+ * an HSK 4 learner was handed 一下儿, 一些, 七, 三 …: HSK 1's unproven words
+ * filled every deck before level 2 was ever reached.
+ *
+ * Inside a level, the most useful first (`nextWordValue`): frequent words, and
+ * words built from characters the learner has met — those of `have` and of every
+ * level below. It replaced a shuffle, which gave a rare word the odds of a common one.
+ * The order is a pure function of `have`, so a word skipped mid-day only lets the
+ * next one up; `have` itself must not change during the day (frontierInputs).
  */
 function frontierOrder(
   version: HskVersion,
   target: number,
   skip: (word: string) => boolean,
   tapped: Set<string>,
-  seed: string,
+  have: Iterable<string>,
 ): HskWord[] {
-  const rand = seededRandom(seed);
+  const own = new Set<string>();
+  for (const w of have) for (const ch of w) own.add(ch);
   const first: HskWord[] = [];
   const rest: HskWord[] = [];
   for (let n = target; n >= 1; n--) {
-    // Shuffle the whole level, then skip: filtering first would reshuffle every
-    // word each time one is rejected or added, and today's offer would jump.
-    for (const w of shuffled(hskLevelWords(version, n), rand)) {
-      if (skip(w.word)) continue;
-      (tapped.has(w.word) ? first : rest).push({ word: w.word, pinyin: w.pinyin, level: n });
-    }
+    const lower = charsBelow(version, n);
+    const met = (ch: string) => own.has(ch) || lower.has(ch);
+    const ranked = hskLevelWords(version, n)
+      .filter((w) => !skip(w.word))
+      .map((w) => ({ w, value: nextWordValue(w.word, met) }))
+      .sort((a, b) => b.value - a.value || (a.w.word < b.w.word ? -1 : 1));
+    for (const { w } of ranked) (tapped.has(w.word) ? first : rest).push({ word: w.word, pinyin: w.pinyin, level: n });
   }
   return [...first, ...rest];
 }
 
-/** What the ordering needs beyond the status map: who, what they tapped, what they added today. */
+/** What the ordering needs beyond the status map: who, what they tapped, what they added today, what they had before. */
 async function frontierInputs(telegramId: string) {
   const user = await prisma.user.findUnique({
     where: { telegramId },
     select: { id: true, hskVersion: true, hskTarget: true, dailyGoal: true },
   });
   if (!user) return null;
-  const [status, tapped, today] = await Promise.all([
+  const [status, answers, cards] = await Promise.all([
     learnerStatus(telegramId),
     prisma.placementAnswer.findMany({
-      // "Don't know" said, not a daily word merely taken (`took`).
-      where: { userId: user.id, sourceLang: "zh", known: false, took: false },
-      select: { word: true },
+      where: { userId: user.id, sourceLang: "zh", fake: false },
+      select: { word: true, known: true, took: true, createdAt: true },
     }),
-    prisma.word.findMany({
-      where: { userId: user.id, sourceLang: "zh", createdAt: { gte: dayStart() } },
-      select: { word: true },
-    }),
+    prisma.word.findMany({ where: { userId: user.id, sourceLang: "zh" }, select: { word: true, createdAt: true } }),
   ]);
+  const today = dayStart();
+  // The characters the order counts as met come from words the learner had before
+  // today. Today's cards and "I know it"s count from tomorrow: otherwise every word
+  // taken would re-rank the rest, and today's offer would change under their thumb.
+  const have = new Set<string>();
+  for (const c of cards) if (c.createdAt < today) have.add(normalizeHanzi(c.word));
+  for (const a of answers) if (a.known && a.createdAt < today) have.add(normalizeHanzi(a.word));
   return {
     user,
     status,
-    tapped: new Set(tapped.map((p) => normalizeHanzi(p.word))),
-    addedToday: new Set(today.map((w) => normalizeHanzi(w.word))),
-    seed: `${user.id}:${dayStart().toISOString().slice(0, 10)}`,
+    // "Don't know" said, not a daily word merely taken (`took`).
+    tapped: new Set(answers.filter((a) => !a.known && !a.took).map((a) => normalizeHanzi(a.word))),
+    addedToday: new Set(cards.filter((c) => c.createdAt >= today).map((c) => normalizeHanzi(c.word))),
+    have,
   };
 }
 
@@ -373,19 +407,21 @@ export async function hskGapWords(
   const input = await frontierInputs(telegramId);
   if (!input) return [];
   const target = clampLevel(version, level);
-  return frontierOrder(version, target, (w) => input.status.has(w), input.tapped, input.seed).slice(0, limit);
+  return frontierOrder(version, target, (w) => input.status.has(w), input.tapped, input.have).slice(0, limit);
 }
 
 /**
  * The first deck for a guest who hasn't made an account yet (onboarding before
  * sign-in): the same frontier order, fed by the check's taps instead of the
- * database. A fresh shuffle each time — there is no learner to seed it by.
+ * database. The "I know it"s are skipped but, as for an account, their
+ * characters count from tomorrow — this deck becomes the account's cards on
+ * sign-in, and Today's words that day must agree with it.
  */
 export function hskGuestDeck(version: HskVersion, level: number, known: string[], unknown: string[], limit = 20): HskWord[] {
   const target = clampLevel(version, level);
   const knew = new Set(known.map(normalizeHanzi));
   const tapped = new Set(unknown.map(normalizeHanzi));
-  return frontierOrder(version, target, (w) => knew.has(w), tapped, `guest:${Math.random()}`).slice(0, limit);
+  return frontierOrder(version, target, (w) => knew.has(w), tapped, []).slice(0, limit);
 }
 
 // The daily goal the web app starts from (lib/learnPrefs DEFAULT_GOAL) when the
@@ -411,7 +447,7 @@ export async function hskDailyWords(
   const size = Math.min(Math.max(input?.user.dailyGoal ?? DEFAULT_DAILY, 1), 50);
   if (!input) return { version, level, size, words: [] };
   const { status, addedToday } = input;
-  const order = frontierOrder(version, level, (w) => status.has(w) && !addedToday.has(w), input.tapped, input.seed);
+  const order = frontierOrder(version, level, (w) => status.has(w) && !addedToday.has(w), input.tapped, input.have);
   return { version, level, size, words: order.slice(0, size).map((w) => ({ ...w, added: addedToday.has(w.word) })) };
 }
 

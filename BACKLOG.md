@@ -169,6 +169,27 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **One situation, not one category:** words met in one scene (护照, 登机, 行李) help; ten colours
      at once cause mix-ups. Group by situation, keep near-synonyms apart.
    - **Proof:** new words kept after 7 days per 10 minutes, old order vs new, on the author first.
+   - **Session 1 done 2026-09-27: frequent, built from what you know.** SUBTLEX-CH's own terms are
+     "free for research" (only wordfreq's derivative of it was cleared for any use, CC BY-SA), so the
+     counts are jieba's (MIT, notice in the file): `scripts/build-hsk-freq.mjs` → `data/hskFreq.ts`,
+     the 11,470 HSK words only; 49 phrases jieba lacks (不客气, 能不能) take their rarest part's
+     count. `frontierOrder` ranks each level by `nextWordValue` = log(1 + count) − log(1 + characters
+     not met), met = the characters of the learner's words and of every level below; tapped first
+     and target → down as before. The shuffle is gone. Characters count from the day *after* a word
+     is taken or said known, so today's offer never re-ranks mid-day; the guest deck follows the
+     same rule, since it becomes the account's cards (guest = account deck, checked).
+     `scripts/check-next-word.ts`: HSK 3.0 L4, the first 100 words cover 45.9% of the level's usage
+     vs 10.5% shuffled, 0.38 vs 0.68 new characters per word; 分之 moves 17 → 2 once 之一 is a card;
+     the day holds still; `check-gap-deck` and `check-sweep` still pass.
+   - **Left for session 2:** one situation at a time (no data yet: every HSK word needs a situation,
+     likely one offline Qwen pass shipped as data; near-synonyms kept apart, e.g. by shared CEDICT
+     glosses). And weigh what the first half surfaced: jieba's corpus is written, so a level now
+     opens with abstract connectors (HSK 3.0 L4: 而 此 自 以及 却 曾; 2.0 L4: 对 而 以 等 过), and a
+     single character's count spans senses the learner may know from a lower level. Situation days
+     would cap them (they have no situation). **The 7-day proof:** a read-only script like
+     `check-placement-holdout.ts` — cards created before 2026-09-27 are the old order, after it the
+     new; kept = first review ≥ 7 days after adding not Again; minutes from `ReviewEvent` gaps
+     (no duration column; cap each gap). Needs a week of the author's reviews on the new order.
 
 1e. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
    one new word, on the themes they picked (the onboarding interests) or the HSK topic list. Qwen
