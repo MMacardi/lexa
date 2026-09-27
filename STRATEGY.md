@@ -793,6 +793,19 @@ by design. More features before item 5 would repeat the breadth-first pattern §
 
 ---
 
+## The algorithms are the product (2026-09-27)
+
+Not a pivot: still HSK prep for Russian speakers. What changed is what the product is judged on. The
+author's own use showed the pace screen promising "HSK 4 by Oct 5" to an untested learner, and a word
+order that gives 地图, 有用 and 入乡随俗 on one day, which is the same failure as an Anki deck read top to
+bottom or Duolingo's sentences with no real-life use. So the order of work is: a test before any
+claim (adaptive, checked against overclaiming, never finished), then the choice of the next word
+(frequency, known characters, one situation at a time), then example sentences made only of words
+the learner has plus one. Unlike a feed algorithm, this one starts with no data about the learner,
+so it has to be right from rules on day one (HSK level, frequency, characters, the check) and then
+learn from that learner's reviews. It is proven by numbers, not by feel: how well the check predicts
+words it never asked, and new words kept after 7 days per 10 minutes of study. BACKLOG items 1a–1d.
+
 ## Verification: how we'll know if this strategy is right
 **Step 0: you.** Use it yourself daily for your next HSK level for 2–3 weeks before recruiting anyone. If you skip days, find out why first.
 

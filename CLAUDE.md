@@ -11,6 +11,9 @@ hidden behind a focus flag, not deleted (`onomika_old` holds the full build).
 **Re-centred 2026-09-23:** capture comes first — a word you meet becomes a review card instantly
 (CEDICT first, the LLM only for what a dictionary can't do), plus HSK-level words as a daily drip.
 Scenes/coach/readiness mark get no new work until the two-week self-test in `BACKLOG.md` passes.
+**2026-09-27:** the algorithms are the product: test before any claim, then choose the next word well
+(frequency, known characters, one situation at a time, sentences one step above the learner).
+`STRATEGY.md` §"The algorithms are the product", BACKLOG items 1a–1d.
 
 ## Layout
 - `backend/` Express + Prisma (Postgres) + TypeScript, ESM. Entry `src/index.ts`.

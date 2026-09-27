@@ -20,6 +20,17 @@ author's original problem: **a word you meet becomes a review card instantly, wi
 meaning, an example at your level). HSK stays as the source of daily words, not the headline.
 Scenes, the coach and the readiness mark get no new work until the two-week test (item 5) passes.
 
+**Re-centred again 2026-09-27: the algorithms are the product.** From the author's own use: the pace
+screen said "HSK 4 by Oct 5" to an HSK 4 learner nobody had tested, and a deck that hands out 地图,
+有用 and 入乡随俗 on the same day is the Anki problem the app exists to fix. Two things decide
+whether the words feel right: **knowing what the learner knows** (a test before any claim, adaptive,
+checked against overclaiming, and never really over), and **choosing the next word** (frequent
+first, built from characters they know, one situation at a time, with example sentences they can
+fully read). Users never see "the algorithm"; they see a test that told them the truth and words
+that feel like the right next ones. Items 1a–1d do this; the two-week test (item 5) is how it is
+judged, and a number proves it: how well the check predicts words it never asked, and new words
+kept after 7 days per 10 minutes.
+
 ## Open — one list, in order
 
 **Top item is the next session.** Position *is* the priority; the numbers shift when the order
@@ -27,10 +38,11 @@ does, so commits and notes name the **title**, never the number. The old prefixe
 bare numbers) are noted in brackets only so older commits and `IDEAS.md` headings still resolve —
 don't invent new ones.
 
-**Where the line is.** Items 2–4 are the re-centred core; item 5 is the two-week test that decides
+**Where the line is.** Items 1a–1d are the algorithms (2026-09-27): test before any claim, then
+the next word. Items 2–4 are the re-centred core; item 5 is the two-week test that decides
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
-kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 waits on the test. 19–22 make
+kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1b. 19–22 make
 it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
@@ -41,6 +53,45 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    prod now has a working delete button (see item 14) and F2/F3 made the DB the only copy of the
    learner model. The review log and production ledger exist nowhere else and cannot be regenerated.
    Needs you in the Railway dashboard.
+
+1a. **Test before pace.** One session. The pace screen claimed "For your date" from a self-rating
+   ("Around HSK 4"), before the check had run. Move the check ahead of "How much time a day?" in
+   both flows (guest and signed-in); after it, the plan is priced from the taps, with the same
+   per-level evidence as Today's plan card, so the label and the "needs ~X min" warning mean
+   something. The check can be skipped: then the rows say minutes and words, and nothing about a
+   date.
+
+1b. **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
+   "A placement that finds your level, and a mark that isn't a lie".
+   - **Quick (~2 min, ~30 words), adaptive:** start at the claimed level, go up or down with the
+     answers (≥70% known → up, ≤30% → down), so an HSK 3 who says "HSK 4" and a real HSK 4 end up
+     apart. 24 evenly spread taps are ~6 per level; one tap moves a level's estimate ~17 points.
+   - **Overclaiming:** a few fake words built from real characters (LexTALE-style) discount the
+     "I know it"s, and some of them get a 4-option meaning question.
+   - **Thorough:** the level sweep (13d) is the long form; offer it from the check.
+   - **Never over:** "I know it" taps and first-review grades keep moving the estimate.
+   - **The mark:** `recognise` counts cards plus ticks, so a real HSK 4 learner saw ~30 of 1200.
+     Extrapolate per level from the sample and label measured vs estimated — coverage, never a
+     predicted exam score (F4's rule).
+   - **Proof:** hold some words out of the check and score how often it predicts them right.
+
+1c. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
+   The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
+   carry a level and nothing else. So 入乡随俗 can come on the same day as 地图.
+   - **Frequency data:** jieba's dictionary ships word frequencies under MIT; SUBTLEX-CH is better,
+     check its licence first. Most frequent first inside the learner's frontier.
+   - **Characters you know make a word cheaper:** 地图 is nearly free with 地 and 图. `topic.ts`
+     already scores this for topic picks; the daily words don't use it.
+   - **One situation, not one category:** words met in one scene (护照, 登机, 行李) help; ten colours
+     at once cause mix-ups. Group by situation, keep near-synonyms apart.
+   - **Proof:** new words kept after 7 days per 10 minutes, old order vs new, on the author first.
+
+1d. **Sentences one step above you (i+1).** Every example uses only words the learner has plus the
+   one new word, on the themes they picked (the onboarding interests) or the official HSK topic
+   list. Exam-style sentences written by us — copying real HSK papers is a licensing problem.
+   Instant capture (item 2) already asks for "one example built from words the learner already
+   has"; this makes it the rule everywhere examples are made, and checks it (segment the sentence,
+   count the words not on the learner's cards).
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
@@ -124,6 +175,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    stop and keep the project as a portfolio piece. If you skip a day, write down why; that reason
    outranks any feature idea. **Nothing after item 17 starts before this passes.** It has already
    paid for itself once: one hour of real use found the fault behind item 3.
+   **Two kinds of use, both worth doing (2026-09-27).** Looking at screens and reporting what's wrong
+   is product testing: it found the "HSK 4 by Oct 5" bug and the random-word problem. This item is
+   the other kind — whether the app earns a place in the day without being looked at as a project:
+   studying your own Chinese in it daily, adding words from what you actually read. The review log
+   and the streak record the days on their own; only a skipped day needs a line here, with the reason.
 
 6. [x] **Reader: HSK colours, pinyin only where you need it, how much of a text you know.** From the
    competitor pass (2026-09-25: Du Chinese, Migaku, Pleco). One session. Placed during the test on
@@ -474,17 +530,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       Pickers remain where they are the question: onboarding, Settings, the add form's "which
       language did you type" prompt. Checked on words / reader / coach / import in the local app.
 
-18. **A placement that finds your level, and a mark that isn't a lie.** `[F12]` **On hold until
-    item 5 passes.** The readiness mark is framing, not the reason anyone switches, and the daily
-    words plus rejections (item 3) may locate the frontier well enough on their own. If still needed:
-   - **The test:** 24 evenly-spread taps measure nothing. The same budget spent as a ladder locates a
-     frontier — ~8 words at the target, ≥70% known go up, ≤30% go down, otherwise stop. Three rounds,
-     same 24 taps, an actual answer. Store `frontierLevel` on the User beside `hskTarget`.
-   - **The mark:** `recognise` counts cards plus ticks, so a real HSK 4 learner sees ~30 of 1200 and
-     concludes the app can't see them. Extrapolate per level from the sample rate and label measured
-     vs estimated. F4's rule still holds — vocabulary coverage, never a predicted exam score — but a
-     number that reads 30/1200 to someone who knows a thousand of them is wrong, not conservative,
-     and it is the first thing they see.
+18. **(Moved up to 1b, 2026-09-27.)** "A placement that finds your level, and a mark that isn't a
+    lie" is now part of "An adaptive check that catches overclaiming".
 
 19. **AI prompt-injection hardening.** `[5]` IDEAS: "AI prompt-injection hardening". F7 switched off
     the Tavily web-example path, which removed the worst untrusted-text surface. Left: OCR/photo
