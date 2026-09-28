@@ -6,6 +6,7 @@ import { langName } from "../lib/langs.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
 import { MAX_UNKNOWN, addPoolExample, exampleBrief, holdToLevel, isPoolSentence, pickPoolSentence, poolRegister, writtenLabel } from "./sentences.js";
+import { hskPage } from "./wordPages.js";
 
 /**
  * Instant capture: the dictionary makes the card, the model comes second.
@@ -201,14 +202,17 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       });
     }
   }
+  // An HSK word's part of speech and family are its page's, the same for everyone
+  // (services/wordPages.ts); the model's stand in for the words off the lists.
+  const page = isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang) : null;
   await prisma.word.update({
     where: { id: card.id },
     data: {
       ...(card.phonetic ? {} : { phonetic: entry.phonetic || null }),
-      ...(card.partOfSpeech ? {} : { partOfSpeech: entry.partOfSpeech || null }),
+      ...(card.partOfSpeech ? {} : { partOfSpeech: page?.pos || entry.partOfSpeech || null }),
       ...(card.collocations.length ? {} : { collocations: entry.collocations }),
-      ...(card.synonyms.length ? {} : { synonyms: entry.synonyms }),
-      ...(card.antonyms.length ? {} : { antonyms: entry.antonyms }),
+      ...(card.synonyms.length ? {} : { synonyms: page ? page.syn : entry.synonyms }),
+      ...(card.antonyms.length ? {} : { antonyms: page ? page.ant : entry.antonyms }),
     },
   });
 }

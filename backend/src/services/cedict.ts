@@ -211,7 +211,7 @@ function readingGloss(r: CedictReading): string {
 
 // CC-CEDICT's numbered pinyin ("lu:4 se4") in the tone-mark form cards use ("lǜ sè").
 const MARKS: Record<string, string> = { a: "āáǎà", e: "ēéěè", i: "īíǐì", o: "ōóǒò", u: "ūúǔù", ü: "ǖǘǚǜ" };
-function toneMarked(numbered: string): string {
+export function toneMarked(numbered: string): string {
   return numbered
     .toLowerCase()
     .split(" ")

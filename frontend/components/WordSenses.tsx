@@ -74,6 +74,7 @@ export function WordSenses({ word }: { word: Word }) {
   const q = useQuery({
     queryKey: sensesKey,
     queryFn: () => api.wordSenses(word.id),
+    initialData: word.sensesNow ?? undefined,
     staleTime: Infinity,
     retry: 1,
   });
@@ -172,6 +173,7 @@ export function WordSenses({ word }: { word: Word }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <p className="min-w-0 leading-snug">
+                    {showTr && s.reading && <span className="mr-2 text-[13px] font-semibold text-sage-deep">{s.reading}</span>}
                     {s.pos && <span className="mr-2 text-[13px] italic text-ink-faint">{s.pos}</span>}
                     <span className={cn("text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>{s.meaning}</span>
                   </p>

@@ -65,6 +65,9 @@ export interface Word {
   // The meaning is the shared default for this HSK word (written once for every
   // learner, not per card); the example and details may still be on their way.
   dictDefault?: boolean;
+  // The word page's Meanings list when it needed no model call (an HSK word's
+  // page, a cached list) — only on a single word's fetch, so it's there on first paint.
+  sensesNow?: { senses: WordSense[]; credit?: DictCredit } | null;
 }
 
 // A tapped Chinese word as the dictionary has it: the reading, CC-CEDICT's English,
@@ -93,6 +96,7 @@ export interface WordSense {
   meaning: string;
   onCard: boolean; // the sense the card's meaning was written for
   phrases: { text: string; reading: string; translation: string }[];
+  reading?: string; // only when the sense is read otherwise than the card (还 hái → huán)
 }
 
 // The dictionary a grounded sense list came from, shown as a credit under it.

@@ -185,6 +185,7 @@ export type WordSense = {
   meaning: string;
   onCard: boolean; // the sense the card's meaningZh was written for (at generation time)
   phrases: { text: string; reading: string; translation: string }[];
+  reading?: string; // set when the sense is read otherwise than the card (还 hái → huán)
 };
 
 // Spell-check / "did you mean" for the AI add flow: the most likely intended

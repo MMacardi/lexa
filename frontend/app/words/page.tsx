@@ -1,7 +1,7 @@
 "use client";
 
 import { HskBadge } from "@/components/HskBadge";
-import { DictMeaningLabel, pollWhileUpgrading, shownMeaning } from "@/components/DictMeaningLabel";
+import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -364,7 +364,7 @@ export default function WordsPage() {
                     <DictMeaningLabel word={w} className="block truncate" />
                   </span>
                   <span className="hidden text-sm font-medium text-ink-soft sm:block">
-                    {w.examples[0]?.sourceName ?? "—"}
+                    {w.examples[0]?.sourceName ?? (upgradePending(w) ? t("words.exampleComing") : "—")}
                   </span>
                   <div className="flex items-center justify-end gap-3">
                     <MasteryDots count={w.reviewCount} />

@@ -1891,6 +1891,7 @@ const DICT: Record<string, Entry> = {
   "words.col.word": { en: "Word", ru: "Слово", zh: "单词" },
   "words.col.meaning": { en: "Meaning", ru: "Значение", zh: "释义" },
   "words.col.source": { en: "Source", ru: "Источник", zh: "来源" },
+  "words.exampleComing": { en: "Writing an example…", ru: "Пишем пример…", zh: "正在写例句…" },
   "words.col.mastery": { en: "Mastery", ru: "Прогресс", zh: "掌握度" },
   "words.deleteConfirm": { en: "Delete \"{word}\"?", ru: "Удалить «{word}»?", zh: "删除“{word}”？" },
   "import.open": { en: "Import words", ru: "Импорт слов", zh: "导入单词" },

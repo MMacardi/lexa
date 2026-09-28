@@ -12,11 +12,12 @@ import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
-import { cedictInventory, isChinese } from "./cedict.js";
+import { cedictCredit, cedictInventory, isChinese } from "./cedict.js";
 import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, placePoolExamples, poolRegister } from "./sentences.js";
 import { track } from "./analytics.js";
+import { headGloss, hskPage, pageSenses } from "./wordPages.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -335,7 +336,11 @@ export async function getWord(id: string) {
       collections: { select: { id: true, name: true } },
     },
   });
-  return word ? withDerived(word) : null;
+  if (!word) return null;
+  // The Meanings list when it needs no model call (an HSK page, a cached list):
+  // sent with the word, so the page has it on first paint.
+  const at = sensesAtHand(word);
+  return { ...withDerived(word), sensesNow: at ? { senses: at.senses, ...(at.grounded ? { credit: cedictCredit() } : {}) } : null };
 }
 
 /** Append a ready-made example (e.g. one the tutor produced in chat) to a card. */
@@ -478,17 +483,24 @@ export async function updateWord(
   // came out ticked, so the picks are written down instead — together with the
   // meaning they were made for, which tells a later read whether they still hold.
   if (!("senses" in data) && (fields.senseIndexes !== undefined || "meaningZh" in data)) {
-    const cur = await prisma.word.findUnique({ where: { id }, select: { meaningZh: true, senses: true } });
+    const cur = await prisma.word.findUnique({
+      where: { id },
+      select: { word: true, sourceLang: true, targetLang: true, phonetic: true, meaningZh: true, senses: true },
+    });
     const stored = cur?.senses as StoredSenses | null;
-    if (stored?.list?.length) {
-      if (fields.senseIndexes !== undefined) {
-        const picked = new Set(fields.senseIndexes);
-        data.senses = {
-          ...stored,
-          list: stored.list.map((s, i) => ({ ...s, onCard: picked.has(i) })),
-          for: ("meaningZh" in data ? (data.meaningZh as string | null) : cur?.meaningZh) ?? "",
-        } as unknown as Prisma.InputJsonValue;
-      } else if ((data.meaningZh ?? "") !== (cur?.meaningZh ?? "")) {
+    // The indexes point into the list the page showed — an HSK word's page, which
+    // isn't stored on the card until a pick is.
+    const shown = cur ? sensesAtHand(cur) : null;
+    if (fields.senseIndexes !== undefined && shown?.senses.length) {
+      const picked = new Set(fields.senseIndexes);
+      data.senses = {
+        v: SENSES_VERSION,
+        list: shown.senses.map((s, i) => ({ ...s, onCard: picked.has(i) })),
+        grounded: shown.grounded,
+        for: ("meaningZh" in data ? (data.meaningZh as string | null) : cur?.meaningZh) ?? "",
+      } as unknown as Prisma.InputJsonValue;
+    } else if (stored?.list?.length && fields.senseIndexes === undefined) {
+      if ((data.meaningZh ?? "") !== (cur?.meaningZh ?? "")) {
         // The meaning was rewritten by hand: whatever was ticked described the old
         // wording, so drop the picks rather than show a stale tick.
         const { for: _stale, ...rest } = stored;
@@ -754,11 +766,6 @@ type StoredSenses = { v?: number; list?: WordSense[]; for?: string; grounded?: b
 /** A sense list plus whether CC-CEDICT stated the inventory (the word page credits it). */
 export type SenseList = { senses: WordSense[]; grounded: boolean };
 
-// The leading gloss of a sense or of one segment of a card's meaning:
-// "指明，指出（位置、方向、人或物）" -> "指明", "показать, продемонстрировать" -> "показать".
-const headGloss = (s: string) =>
-  (s.replace(/\s*[(（][^)）]*[)）]/g, " ").split(/[;；,，、/]/)[0] ?? "").trim().toLowerCase();
-
 /**
  * Which senses a card tests, worked out from its meaning — for cards the learner
  * has never picked by hand. The meaning is a list of glosses ("указать, отметить;
@@ -836,6 +843,32 @@ function mergePosVariants(list: WordSense[]): WordSense[] {
 }
 
 /**
+ * The sense list when no model call is needed, or null. In order: a pick the
+ * learner made by hand, which stands as long as the meaning it was made for does;
+ * an HSK word's page, the same for everyone (services/wordPages.ts) — it replaces
+ * a list the model wrote for this card before the pages existed; this card's own
+ * cached list. Stored as { v, list }; a cache from an older prompt version is
+ * regenerated. Outside a hand pick, the ticks follow the card's meaning.
+ */
+function sensesAtHand(word: {
+  word: string;
+  sourceLang: string;
+  targetLang: string;
+  phonetic: string | null;
+  meaningZh: string | null;
+  senses: Prisma.JsonValue;
+}): SenseList | null {
+  const meaning = word.meaningZh ?? "";
+  const stored = word.senses as StoredSenses | null;
+  const cached = stored?.v === SENSES_VERSION && stored.list?.length ? stored.list : null;
+  if (cached && stored?.for === meaning) return { senses: cached, grounded: stored.grounded === true };
+  const page = isChinese(word.sourceLang) ? hskPage(word.word, word.targetLang) : null;
+  if (page) return { senses: flagByMeaning(pageSenses(page, word.phonetic), meaning), grounded: true };
+  if (cached) return { senses: flagByMeaning(cached, meaning), grounded: stored?.grounded === true };
+  return null;
+}
+
+/**
  * Pleco-style sense list for the word page: 1–4 common senses, each with a part
  * of speech, a short gloss in the learner's language and 1–2 short phrases.
  * Generated lazily on the first word-page open and cached on the card, so most
@@ -844,18 +877,11 @@ function mergePosVariants(list: WordSense[]): WordSense[] {
 export async function wordSenses(id: string): Promise<SenseList> {
   const word = await prisma.word.findUnique({
     where: { id },
-    select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, senses: true },
+    select: { word: true, sourceLang: true, targetLang: true, phonetic: true, meaningZh: true, partOfSpeech: true, senses: true },
   });
   if (!word) throw new Error("Word not found");
-  // Stored as { v, list }; a cache from an older prompt version is regenerated.
-  const stored = word.senses as StoredSenses | null;
-  // A pick the learner made by hand is kept with the meaning it was made for and
-  // stands as long as that meaning does; otherwise the ticks follow the card.
-  if (stored?.v === SENSES_VERSION && stored.list?.length)
-    return {
-      senses: stored.for === (word.meaningZh ?? "") ? stored.list : flagByMeaning(stored.list, word.meaningZh ?? ""),
-      grounded: stored.grounded === true,
-    };
+  const at = sensesAtHand(word);
+  if (at) return at;
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
@@ -950,6 +976,14 @@ export async function wordFamily(id: string): Promise<{ synonyms: string[]; anto
   if (!word) throw new Error("Word not found");
   const have = { synonyms: word.synonyms, antonyms: word.antonyms };
   if (word.familyAt || have.synonyms.length || have.antonyms.length) return have;
+  // An HSK word's family is on its page, the same for everyone; an empty one there
+  // means the pass found none, so no model is asked either.
+  const page = isChinese(word.sourceLang) ? hskPage(word.word, word.targetLang) : null;
+  if (page) {
+    const out = { synonyms: page.syn, antonyms: page.ant };
+    await prisma.word.update({ where: { id }, data: { ...out, familyAt: new Date() } }).catch(() => {});
+    return out;
+  }
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);

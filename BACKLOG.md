@@ -165,7 +165,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      purpose: the proof above found discounting by them made things worse. **Found on the way:** the Docker `next dev` on Windows misses file edits (webpack
      cache on the bind mount): `rm -rf /app/.next` + restart, or add `WATCHPACK_POLLING`.
 
-1d. **HSK word pages, written once.** One session. From the author (2026-09-27): a fresh HSK card's
+1d. [x] **HSK word pages, written once.** One session. From the author (2026-09-27): a fresh HSK card's
    page says "Ищем значения…" on its first open. The Meanings list (`wordSenses`), the example and
    the part of speech are each a Qwen call per card, made after the fact and kept on that card only,
    so the next learner waits for the same word again. Meanwhile the list shows "—" under Источник
@@ -196,6 +196,66 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      CC-CEDICT to get past it; the cards still say it.
    - **Proof:** a fresh HSK card's page has its meanings and word family on first paint, and no
      model call for them in the log.
+   - **Session 1, 2026-09-27: written, not run** (the model pass waited for the author, at the
+     screen). Decided with the author: situation tags in a
+     **separate cheap pass and file** (`build-hsk-situations.ts` → `data/hsk-situations.jsonl`,
+     ~47 scene keys in `SITUATIONS`, 0–2 per word, connectors/general words get none) so 1e can
+     change the set in minutes; cards already opened **switch to the page** unless the learner
+     picked senses by hand; **Russian only** (other languages keep the per-card call); **up to 5
+     senses**, a sense under another reading labelled (还 hái → huán); the `hsk-ru` wrong-first words
+     are **listed, not rewritten** (the check prints them; they are in 1f's "Left").
+     - Built: `services/wordPages.ts` (loader, readings compared the way speech bends them,
+       `pageSenses`), `scripts/word-pages-rules.ts` (inventory numbered across readings, the
+       check, pruning), `scripts/build-hsk-pages.ts` (resumable, `--pick` = the 50 hard words,
+       prints problem counts per model, writes nothing), `scripts/check-word-pages.ts` (rules
+       self-test, the shipped file through the same rules, serving with the model switched off,
+       `--sample` = the hand-read set). Served: `wordSenses`/`wordFamily` read the page first,
+       `getWord` sends `sensesNow` (first paint), a hand pick is stored on the page's list, the
+       upgrade takes the page's part of speech and family; the words list says "Пишем пример…"
+       instead of "—" while the example is on its way.
+     - Checked without the model: the rules self-test (20 checks), and serving on a one-word
+       fixture — 3.5 ms, the card's two meanings ticked, huán labelled, first paint, family, hand
+       pick, an English card still asks the model. `tsc`, `next build` pass.
+   - **Session 2, 2026-09-28: run, read, fixed; shipped for HSK 1–6.**
+     - **Model: qwen3.5-plus, thinking off** (`chatJson` now sends `enable_thinking: false` to Qwen3.x,
+       as the chat calls already did). On the 50 hard words: 0.29 hard problems a word on the first
+       draft against qwen-plus's 0.82, 113 s against 186 s, and it kept 会 «вероятно» and 得 dé/děi,
+       which qwen-plus dropped. Thinking on: ~11k tokens and 3–4 min a batch, and no better (种
+       «хороший вид», a Czech word in a translation).
+     - **Rules the pick and the read added:** a phrase is never the bare word — "a word of its own"
+       flagged 上课 and 打电话 as one jieba word, so the rewrite fled to 打 «бить»; that rule is gone
+       for phrases. One gloss, one sense; one phrase, one sense; a part of speech from the list; no
+       English left in the Russian (~80 pages, «редко, seldom»); "(Taiwan pr. …)" is a pronunciation,
+       not a rare sense (it had dropped 和 «и» and 多 «насколько»). A family word is a list word in
+       the same register, never a member of the same set: from the author's 我 → 本人 鄙人 在下 小人
+       (小人 opened as «подлый человек»), 他 → 她 它, 大 → 巨 宏. Entries with only proper-noun
+       readings count now (中国 汉语 春节 英语: 67 more words have a page).
+     - **HSK 1–6 only, decided with the author on cost:** the account went ~¥30 negative (a restart
+       for the family rule, the thinking pick, a second tag pass). 8,113 pages; 7,382/7,386 HSK 1–6
+       words in CC-CEDICT (幢 犬 获 佛: Bailian's content filter refuses them even alone; a refused
+       batch now goes again word by word). 1.57 senses a word. HSK 7–9 (3,295) keep the per-card
+       path: `build-hsk-pages.ts` without `--max-level 6` goes on from the file, ~¥8.
+     - **Situation tags on qwen3.5-plus too:** qwen-plus tagged 74% of the list (问题 → doctor,
+       今天 → weather, 写 → office) and invented 1,685 tags; qwen3.5-plus tags 50%, 33 invented,
+       all 47 scenes used (airport: 机场 护照 签证 航班 海关).
+     - **Hand read** (`check-word-pages.ts --sample`): 200 at random — 10 wrong (5%: a phrase that
+       doesn't hold the word, 深秋季节 for 秋季, 出租车 for 出租; a phrase under another sense;
+       «куррировать»; a Taiwan-only sense) and ~25 with a minor fault (12%: an awkward phrase, two
+       near-identical senses, a weak family word). All 500 of the most polysemous — ~34 wrong (7%:
+       和 without «и», 连 without «даже», 毛 without 0.1 юаня, 为难 as «из-за», 时时 «каждый час»).
+       Fixed with `--fix notes.tsv` (the page and the reader's note back through the build's own
+       rewrite) and `--fix-flagged` (every page a rule flags): 100 pages rewritten for ¥0.25 and
+       read again; 20 English leftovers and two slips (曾参 read céng, 金属属性) corrected by hand.
+     - **Proof:** local Docker at 390 px, a fresh account adds 还 → the page's three senses on first
+       paint (never "Ищем значения…"), huán labelled, credit, part of speech and family; one model
+       call in the log since the add, the example (`enrich(+example)`), none for senses or family.
+       `check-word-pages.ts` passes: 28 rule checks, the file, serving at 2.4 ms. (The "On the
+       card" chip crowds a long first line at 390 px — cosmetic, left.)
+     - **Follow-ups, in 1f's "Left":** the 221 cards whose `hsk-ru` meaning leads with a rarer
+       sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
+       ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's
+       conjunction is "(literary)" in CC-CEDICT and 牛 «классный» is slang, so their pages leave
+       them out while the cards still say them.
 
 1e. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
@@ -282,6 +342,12 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        winning over the level, and 造型 "很些" (fresh cards used as known words).
    - **Left:** a naturalness pass over ceilings 1–2 (a judge call per sentence, `--redo` the
      flagged) — the hand-read rate above is the reason; and the `hsk-ru` wrong-first senses (1d).
+     - **From the author, 2026-09-28 (以, HSK 7–9):** the pool's ceiling-1 sentence 他以笔写字 and
+       their own 我每天以手机上网查旅游地方 — both 用 in real Chinese, as the coach itself said when
+       asked. A formal word has no natural HSK 1–2 context, so the ceiling bent the Chinese:
+       naturalness has to beat the ceiling (go up a ceiling, don't force it), and the judge pass is
+       how to find the rest. The chip "HSK 1–2" beside an HSK 7–9 badge read as the sentence's level
+       — say what it measures («слова вокруг — HSK 1–2») or drop it.
 
 1g. **Your field without asking again.** From the author's own use (2026-09-27, prod, 390 px): the
    words from a field were expected to come from the interest picked in onboarding (ИИ), yet Today
