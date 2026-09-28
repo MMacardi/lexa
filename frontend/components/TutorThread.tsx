@@ -217,16 +217,21 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                 ))}
               </div>
             )}
-            <div className="flex max-w-full items-end justify-end gap-1">
+            {/* Full width, so the bubble's 85% cap is of the thread and not of a row
+                that shrinks to the bubble itself (that wrapped "Explain “由于”" after
+                one character). The pencil sits level with the bubble's middle. */}
+            <div className="flex w-full items-center justify-end gap-1">
               {i === lastUser && !busy && (
                 <MsgAction label={t("tutor.edit")} onClick={editLast} className="text-ink-faint">
                   <Pencil className="h-3.5 w-3.5" />
                 </MsgAction>
               )}
               {m.content && (
+                // 7/9 rather than 8/8: the font sits its lowercase a pixel low, and
+                // most messages are lowercase ("привет").
                 <span
                   className={cn(
-                    "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 py-2 font-medium text-white",
+                    "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 pt-[7px] pb-[9px] font-medium text-white",
                     large ? "text-[15px]" : "text-[13px]",
                   )}
                 >

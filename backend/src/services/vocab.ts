@@ -1049,8 +1049,8 @@ export async function askAboutWord(
     addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addWords: (result.addWords ?? []).filter((s) => s.trim() && s.trim().toLowerCase() !== self),
     addExamples: (result.addExamples ?? [])
-      .filter((e) => e.sentence.trim())
-      .map((e) => ({ sentence: e.sentence, translation: e.translation ?? "" })),
+      .map((e) => ({ sentence: (e.sentence ?? "").trim(), translation: e.translation ?? "" }))
+      .filter((e) => e.sentence),
   };
 }
 

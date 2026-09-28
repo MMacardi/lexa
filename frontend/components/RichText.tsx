@@ -38,7 +38,9 @@ function closeMarkers(text: string): string {
 }
 
 export function RichText({ text, className, streaming = false }: { text: string; className?: string; streaming?: boolean }) {
-  const lines = text.split("\n");
+  // A literal "\n" is a line break the model escaped twice: the backend fixes final
+  // answers, this covers text still streaming in and chats saved before that.
+  const lines = text.split(/\r?\n|\\r?\\n/);
   return (
     <div className={cn("space-y-1.5", className)}>
       {lines.map((line, i) => {

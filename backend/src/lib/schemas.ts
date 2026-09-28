@@ -139,21 +139,23 @@ export type CoachSceneTurn = z.infer<typeof coachSceneTurnSchema>;
 
 // Actionable tutor chat: a prose reply plus optional suggested edits to the card
 // (synonyms/antonyms to add), which the UI offers as one-tap actions.
+// The model sometimes writes null for "none", or an empty example; either used to
+// fail the whole answer (a 502 the learner sees as "couldn't get an answer").
+// Empty lists and blank entries are dropped by askAboutWord instead.
+const optList = <T extends z.ZodTypeAny>(item: T) => z.array(item).nullish().transform((v) => v ?? []);
 export const wordChatSchema = z.object({
   answer: z.string().min(1),
-  addSynonyms: z.array(z.string()).default([]),
-  addAntonyms: z.array(z.string()).default([]),
+  addSynonyms: optList(z.string()),
+  addAntonyms: optList(z.string()),
   // Brand-new vocabulary the learner asked to save as its own card(s).
-  addWords: z.array(z.string()).default([]),
+  addWords: optList(z.string()),
   // Example sentences the learner asked to save onto this card.
-  addExamples: z
-    .array(
-      z.object({
-        sentence: z.string().min(1).max(600),
-        translation: z.string().max(600).nullish().transform((v) => v ?? ""),
-      }),
-    )
-    .default([]),
+  addExamples: optList(
+    z.object({
+      sentence: z.string().max(600).nullish().transform((v) => v ?? ""),
+      translation: z.string().max(600).nullish().transform((v) => v ?? ""),
+    }),
+  ),
 });
 export type WordChatResult = z.infer<typeof wordChatSchema>;
 

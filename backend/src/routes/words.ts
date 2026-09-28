@@ -889,16 +889,19 @@ wordsRouter.post("/words/:id/family", async (req, res) => {
 
 // POST /api/words/:id/ask -> follow-up mini-chat about the word. Body carries the
 // visible conversation so far ({ role, content }[]); we reply with the next turn.
+// The client sends the whole chat and askAboutWord keeps the last 12 turns, each
+// clipped, so the caps here only bound the payload — at 20 messages / 4000 chars a
+// long card chat or one long answer failed every follow-up after it.
 const askBody = z.object({
   messages: z
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().min(1).max(4000),
+        content: z.string().min(1).max(20000),
       }),
     )
     .min(1)
-    .max(20),
+    .max(200),
 });
 wordsRouter.post("/words/:id/ask", async (req, res) => {
   if (!(await guardWord(req, res))) return;

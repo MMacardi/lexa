@@ -61,9 +61,14 @@ export function fixMixedScript(text: string): string {
   return text.replace(WORD, fixWord);
 }
 
+// Qwen sometimes escapes a line break twice inside its JSON ("\\n"), which parses
+// to a literal backslash-n that the learner then sees in the answer. No string a
+// vocabulary reply carries means a real backslash-n, so it becomes a line break.
+const LITERAL_BREAK = /\\r?\\n/g;
+
 // Every string inside a parsed JSON reply, keys untouched.
 export function fixMixedScriptDeep<T>(value: T): T {
-  if (typeof value === "string") return fixMixedScript(value) as T;
+  if (typeof value === "string") return fixMixedScript(value.replace(LITERAL_BREAK, "\n")) as T;
   if (Array.isArray(value)) return value.map(fixMixedScriptDeep) as T;
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useClosing } from "@/lib/motion";
 import { getLevel } from "@/lib/learnPrefs";
-import { useTutorChat, type TutorCardCtx } from "@/lib/useTutorChat";
+import { type TutorCardCtx } from "@/lib/useTutorChat";
+import { useSharedTutorChat, useReportPanelOpen } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
@@ -25,7 +26,8 @@ export function GlobalTutor() {
   // its corner before either unmounts.
   const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
   useLockScroll(open && mobile);
-  const chat = useTutorChat({ active: open });
+  useReportPanelOpen(open);
+  const chat = useSharedTutorChat();
   const { pair, changePair, messages, send, reset, busy, unfinished, card, startCard } = chat;
   const drop = useImageDrop(chat);
   // The word page opens Mika on a card ("Explain with Onomika"); the tab bar opens
@@ -36,9 +38,7 @@ export function GlobalTutor() {
     const on = (e: Event) => {
       const ctx = (e as CustomEvent<{ card?: TutorCardCtx }>).detail?.card;
       setOpen(true);
-      // Opening re-reads the stored chat (the other Mika surface may have moved
-      // it on), so seed the card chat after that has happened, not into it.
-      if (ctx) window.setTimeout(() => startRef.current(ctx), 0);
+      if (ctx) startRef.current(ctx);
     };
     window.addEventListener(OPEN_MIKA, on);
     return () => window.removeEventListener(OPEN_MIKA, on);

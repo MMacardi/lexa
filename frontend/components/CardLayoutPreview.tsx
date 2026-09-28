@@ -8,15 +8,30 @@ import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
 
 // An inline preview of how the flashcard will look with the current front/back
-// layout, using a sample English word translated into the interface language.
+// layout, using a sample word in the language being reviewed (Chinese or English),
+// explained in the interface language.
 // The button toggles it open/closed (in the page flow, so it never spills out of
 // its container); it auto-flips (toggleable) and can be flipped by hand.
 
 type Sample = Record<CardField, React.ReactNode>;
 
-function sampleWord(locale: string): Sample {
+function sampleWord(locale: string, learning?: string): Sample {
   const ru = locale === "ru";
   const zh = locale === "zh";
+  if (learning === "zh") {
+    return {
+      word: <span className="font-zh">坚持</span>,
+      phonetic: "jiānchí",
+      pos: ru ? "гл." : zh ? "动词" : "v.",
+      meaning: ru ? "упорно продолжать, не сдаваться" : zh ? "一直做下去，不放弃" : "to keep at it, persist",
+      example: <span className="font-zh not-italic">他每天坚持跑步。</span>,
+      exampleTr: ru ? "Он бегает каждый день, не пропуская." : zh ? "他每天都跑步，从不间断。" : "He keeps up his running every day.",
+      synonyms: <span className="font-zh">坚守, 保持</span>,
+      antonyms: <span className="font-zh">放弃</span>,
+      collocations: <span className="font-zh">坚持下去, 坚持到底</span>,
+      notes: ru ? "坚 «твёрдый» + 持 «держать»" : zh ? "坚＝坚固，持＝拿住" : "坚 firm + 持 hold",
+    };
+  }
   const meaning = ru ? "устойчивый, стойкий" : zh ? "有韧性的，坚强的" : "quick to recover";
   const exampleTr = ru
     ? "Город оказался удивительно стойким после наводнения."
@@ -69,9 +84,9 @@ function Face({ fields, w, t, back }: { fields: CardField[]; w: Sample; t: (k: s
   );
 }
 
-export function CardLayoutPreview({ layout }: { layout: CardLayout }) {
+export function CardLayoutPreview({ layout, learning }: { layout: CardLayout; learning?: string }) {
   const { t, locale } = useI18n();
-  const w = sampleWord(locale);
+  const w = sampleWord(locale, learning);
   const [open, setOpen] = useState(false);
   const menu = usePresence(open);
   const [flipped, setFlipped] = useState(false);

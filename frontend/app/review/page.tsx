@@ -645,7 +645,7 @@ export default function FlashcardsPage() {
             </div>
 
             {/* hover/pin preview of the card with these settings */}
-            <CardLayoutPreview layout={layout} />
+            <CardLayoutPreview layout={layout} learning={sel[0]?.split(">")[0]} />
         </Disclosure>
       </div>
     );

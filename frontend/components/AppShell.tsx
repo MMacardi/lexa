@@ -10,6 +10,7 @@ import { InviteGate } from "@/components/InviteGate";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { DeletionPending } from "@/components/DeletionPending";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
+import { TutorChatProvider } from "@/components/TutorChatProvider";
 import { useViewportVars } from "@/lib/mobileNav";
 
 // Routes that render without the auth gate (session-establishing or public legal).
@@ -52,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <OnboardingGate>
+    <TutorChatProvider>
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
       <main className="min-w-0 flex-1 bg-paper">
@@ -66,6 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SyncStatus />
       <BugReport />
     </div>
+    </TutorChatProvider>
     </OnboardingGate>
   );
 }

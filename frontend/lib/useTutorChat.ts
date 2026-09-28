@@ -32,8 +32,8 @@ export type TutorChatEntry = { id: string; at: number; title: string; photo: boo
 export type TutorCardCtx = { id: string; word: string; sourceLang: string; targetLang: string };
 
 const PAIR_KEY = "lexa.wordPair"; // shared with Add/Reader
-// The conversation lives in sessionStorage so the floating widget and the /mika
-// page continue the same chat ("open full page" doesn't lose it).
+// The conversation lives in sessionStorage so it outlives a reload of the tab.
+// The floating widget and the /mika page share one live copy (TutorChatProvider).
 const CHAT_KEY = "lexa.tutorChat";
 const CHAT_ID_KEY = "lexa.tutorChatId";
 // Past conversations, in localStorage so they outlive the tab. Deliberately small:
@@ -217,8 +217,9 @@ function termLang(card: TutorCard | undefined, word: string, source: string): st
 }
 
 /**
- * Chat state + actions for Mika (the global AI tutor), shared by the floating
- * widget (GlobalTutor) and the full /mika page.
+ * Chat state + actions for Mika (the global AI tutor). Mounted once, in
+ * TutorChatProvider, and read by the floating widget (GlobalTutor) and the full
+ * /mika page alike.
  */
 export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const { t } = useI18n();
@@ -271,20 +272,15 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     setHistory(summarize(readChats()));
   }, [messages, chatId]);
 
-  // Refresh the pair + chat whenever the surface becomes active (they may have
-  // changed elsewhere — another page, or the other Mika surface).
-  const chatIdRef = useRef(chatId);
-  chatIdRef.current = chatId;
+  // Refresh the pair whenever Mika comes into view: Add and the Reader share it and
+  // may have moved it. The conversation needs no re-read — both surfaces share this
+  // one copy, and re-reading storage would drop an answer still coming in — and a
+  // chat about a card stays in that card's pair.
+  const cardRef = useRef(card);
+  cardRef.current = card;
   useEffect(() => {
     if (!active) return;
-    setPair(readPair());
-    setMessages(readChat());
-    const id = readChatId();
-    // A card chip belongs to the conversation it was opened for: if the other Mika
-    // surface moved on to a different one while this was closed, the chat coming
-    // back isn't about that card any more.
-    if (id !== chatIdRef.current) setCard(null);
-    setChatId(id);
+    if (!cardRef.current) setPair(readPair());
     setHistory(summarize(readChats()));
   }, [active]);
 

@@ -500,6 +500,7 @@ const DICT: Record<string, Entry> = {
   // --- common ---
   "common.cancel": { en: "Cancel", ru: "Отмена", zh: "取消" },
   "common.close": { en: "Close", ru: "Закрыть", zh: "关闭" },
+  "common.back": { en: "Back", ru: "Назад", zh: "返回" },
   "common.drag": { en: "Drag to move", ru: "Перетащить", zh: "拖动移动" },
   "common.error": { en: "Something went wrong — try again", ru: "Что-то пошло не так — попробуйте ещё раз", zh: "出错了——请重试" },
   "errState.title": { en: "Something went wrong", ru: "Что-то пошло не так", zh: "出错了" },

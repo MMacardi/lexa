@@ -7,13 +7,13 @@ import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { getLevel } from "@/lib/learnPrefs";
-import { useTutorChat } from "@/lib/useTutorChat";
+import { useSharedTutorChat, useTutorLastPath } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, Camera, type LucideIcon } from "lucide-react";
+import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
 
 // Welcome-screen presets. Each fills the input (editable, not sent) and doubles as
 // a tour: the blurb says which part of the app it relates to, `href` links there.
@@ -33,8 +33,9 @@ const PRESETS: { key: string; Icon: LucideIcon; href?: string; nav?: string; ope
 export default function MikaPage() {
   const { t } = useI18n();
   const { accountId } = useAccount();
-  const chat = useTutorChat();
-  const { pair, changePair, messages, setInput, reset, busy, unfinished } = chat;
+  const chat = useSharedTutorChat();
+  const { pair, changePair, messages, setInput, reset, busy, unfinished, card } = chat;
+  const lastPath = useTutorLastPath();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -101,7 +102,31 @@ export default function MikaPage() {
             )}
           </div>
         </div>
-        <ChatPairPicker pair={pair} onChange={changePair} className="mt-3 inline-block" />
+        {/* The way back: a chat about a card returns to that card (expanded from
+            Explain on a word page), anything else to the page Mika was opened on. */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {card ? (
+            <Link
+              href={`/word/${card.id}`}
+              title={t("tutor.aboutCard", { word: card.word })}
+              className="inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-sage/40 bg-sage-tint/60 px-2.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{card.word}</span>
+            </Link>
+          ) : lastPath ? (
+            <Link
+              href={lastPath}
+              aria-label={t("common.back")}
+              title={t("common.back")}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] px-2.5 text-[12px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {t("common.back")}
+            </Link>
+          ) : null}
+          <ChatPairPicker pair={pair} onChange={changePair} className="inline-block" />
+        </div>
       </div>
 
       {/* the conversation (or the welcome presets) — the only scrolling part */}

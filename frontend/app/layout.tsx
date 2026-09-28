@@ -4,6 +4,7 @@ import { Providers } from "./providers";
 import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
 import { FlagEmojiPolyfill } from "@/components/FlagEmojiPolyfill";
+import { TitleTips } from "@/components/TitleTips";
 import { themeBootScript } from "@/lib/theme";
 
 // metadataBase makes the og:image absolute — Telegram and Google need a full URL.
@@ -74,6 +75,7 @@ export default function RootLayout({
         </Providers>
         <PwaRegister />
         <FlagEmojiPolyfill />
+        <TitleTips />
       </body>
     </html>
   );
