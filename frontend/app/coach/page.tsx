@@ -10,7 +10,6 @@ import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
 import { CoachPicks, readPair } from "@/components/CoachPicks";
 import { cn } from "@/lib/utils";
-import { FOCUS } from "@/lib/focus";
 import { Compass, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
 
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
@@ -249,9 +248,8 @@ export default function CoachPage() {
         </section>
       )}
 
-      {/* Practice options — scene and chat as equal, side-by-side cards. The
-          free chat is hidden by the focus pass (lib/focus.ts), so its card goes too. */}
-      <div className={cn("grid grid-cols-1 gap-4", !FOCUS && "sm:grid-cols-2")}>
+      {/* Practice options — scene and chat as equal, side-by-side cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link
           href="/coach/scene"
           className="group flex h-full flex-col rounded-[20px] border border-sage/25 bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
@@ -266,21 +264,19 @@ export default function CoachPage() {
           </span>
         </Link>
 
-        {!FOCUS && (
-          <Link
-            href="/coach/chat"
-            className="group flex h-full flex-col rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sage-tint text-sage-deep">
-              <MessageCircle className="h-5 w-5" />
-            </span>
-            <h2 className="mt-3 font-serif text-[19px] font-semibold text-ink">{t("chat.title")}</h2>
-            <p className="mt-1 flex-1 text-[13px] leading-snug text-ink-soft">{t("chat.card")}</p>
-            <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full border border-sage/50 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint">
-              <MessageCircle className="h-4 w-4" /> {t("chat.start")}
-            </span>
-          </Link>
-        )}
+        <Link
+          href="/coach/chat"
+          className="group flex h-full flex-col rounded-[20px] border border-black/[0.07] bg-surface p-5 transition-shadow hover:shadow-[0_14px_36px_rgba(46,42,38,0.09)]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sage-tint text-sage-deep">
+            <MessageCircle className="h-5 w-5" />
+          </span>
+          <h2 className="mt-3 font-serif text-[19px] font-semibold text-ink">{t("chat.title")}</h2>
+          <p className="mt-1 flex-1 text-[13px] leading-snug text-ink-soft">{t("chat.card")}</p>
+          <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full border border-sage/50 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint">
+            <MessageCircle className="h-4 w-4" /> {t("chat.start")}
+          </span>
+        </Link>
       </div>
 
     </div>

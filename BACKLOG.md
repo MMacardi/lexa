@@ -1174,7 +1174,8 @@ still gate the invites, and nothing should be sent to a stranger before F13–F1
       - Shipped as `frontend/lib/focus.ts` (`FOCUS`, on unless `NEXT_PUBLIC_FOCUS_MODE=off`)
         and `FOCUS` in `backend/src/lib/env.ts` (`FOCUS_MODE`). Nav is Today · Words · Reader,
         the rest under "More" on both the sidebar and the phone bar. Community, friends,
-        public profiles and `/coach/chat` return 404; the deck-publish button, the word-family
+        public profiles and `/coach/chat` return 404 (the chat came back on 2026-09-28, the
+        author's call, to test it); the deck-publish button, the word-family
         graph, the Today charts, the cloze/mixed quiz modes and the AI/web example picker are
         hidden. The backend ignores `exampleSource: "web"` while focused, so no stale client
         reaches Tavily.
