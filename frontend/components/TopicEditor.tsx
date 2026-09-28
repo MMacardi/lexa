@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -10,32 +10,35 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PasteButton } from "@/components/PasteButton";
+import { INTERESTS } from "@/components/HskFirstRun";
 import { cn } from "@/lib/utils";
 
-const PRESETS = ["ai", "business", "travel", "medicine", "games"] as const;
-
-// Name the field whose words should come beside the exam ones (BACKLOG "Topic
-// words beside the exam words"), inside Today's words rather than on a card of its
-// own — Today already had two places offering new words. A text is optional: a
-// talk or an article on the topic puts the words that really occur in it first.
-export function TopicEditor({ current, onDone }: { current: string | null; onDone: () => void }) {
+// Switch the field whose words come beside the exam ones, inside Today's words.
+// The first interest from onboarding is already the topic (BACKLOG "Your field
+// without asking again"), so this is only the small edit behind it: the learner's
+// interests as chips, one tap to switch (onboarding's list if they picked none),
+// and a name of their own behind "Other". No text box — a text on the topic
+// belongs in the Reader.
+export function TopicEditor({ current, interests, onDone }: { current: string | null; interests: string[]; onDone: () => void }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
-  const [topic, setTopic] = useState(current ?? "");
-  const [text, setText] = useState("");
-  const [withText, setWithText] = useState(false);
-  const [saving, setSaving] = useState<"save" | "remove" | null>(null);
+  const [own, setOwn] = useState(false);
+  const [name, setName] = useState("");
+  // The topic being picked, or "" while the topic is being dropped.
+  const [saving, setSaving] = useState<string | null>(null);
 
-  async function save() {
-    const name = topic.trim();
-    if (!name || saving) return;
-    setSaving("save");
+  const listed = interests.length ? interests : INTERESTS.map((i) => t(`onb.int.${i.id}`));
+  const choices = current && !listed.includes(current) ? [current, ...listed] : listed;
+
+  async function pick(topic: string) {
+    topic = topic.trim();
+    if (!topic || saving !== null) return;
+    if (topic === current) return onDone();
+    setSaving(topic);
     try {
-      const day = await api.setTopic(name, withText ? text : undefined);
-      qc.setQueryData(["topicDaily", accountId], day);
+      qc.setQueryData(["topicDaily", accountId], await api.setTopic(topic));
       onDone();
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -45,11 +48,11 @@ export function TopicEditor({ current, onDone }: { current: string | null; onDon
   }
 
   async function remove() {
-    if (saving) return;
-    setSaving("remove");
+    if (saving !== null) return;
+    setSaving("");
     try {
       await api.clearTopic();
-      qc.setQueryData(["topicDaily", accountId], { topic: null, words: [], left: 0 });
+      qc.setQueryData(["topicDaily", accountId], { topic: null, words: [], left: 0, interests });
       onDone();
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -71,68 +74,59 @@ export function TopicEditor({ current, onDone }: { current: string | null; onDon
           <X className="h-4 w-4" />
         </button>
       </div>
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <Input
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder={t("topic.placeholder")}
-          maxLength={60}
-          disabled={!!saving}
-          className="h-10"
-        />
-        <Button type="submit" size="sm" className="h-10 shrink-0" disabled={!topic.trim() || !!saving}>
-          {saving === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : t("topic.pick")}
-        </Button>
-      </form>
       <div className="flex flex-wrap gap-1.5">
-        {PRESETS.map((p) => {
-          const label = t(`topic.preset.${p}`);
-          return (
-            <button
-              key={p}
-              type="button"
-              disabled={!!saving}
-              onClick={() => setTopic(label)}
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                topic === label ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
-              )}
-            >
-              {label}
-            </button>
-          );
-        })}
+        {choices.map((c) => (
+          <button
+            key={c}
+            type="button"
+            disabled={saving !== null}
+            onClick={() => pick(c)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors disabled:opacity-60",
+              c === current ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+            )}
+          >
+            {saving === c && <Loader2 className="h-3 w-3 animate-spin" />}
+            {c}
+          </button>
+        ))}
+        {!own && (
+          <button
+            type="button"
+            disabled={saving !== null}
+            onClick={() => setOwn(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-black/[0.12] px-2.5 py-1 text-[12px] font-medium text-ink-faint transition-colors hover:border-sage/60 hover:text-ink disabled:opacity-60"
+          >
+            <Plus className="h-3 w-3" /> {t("topic.own")}
+          </button>
+        )}
       </div>
 
-      {withText ? (
-        <div className="space-y-1.5">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t("topic.textPlaceholder")}
-            disabled={!!saving}
-            className="font-zh min-h-[96px] w-full resize-y rounded-[12px] border border-black/[0.08] bg-surface p-3 text-[14px] leading-relaxed text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
-          />
-          {!text.trim() && <PasteButton onPaste={setText} disabled={!!saving} />}
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setWithText(true)}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sage-deep hover:text-sage"
+      {own && (
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void pick(name);
+          }}
         >
-          <FileText className="h-3.5 w-3.5" /> {t("topic.addText")}
-        </button>
+          <Input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("topic.placeholder")}
+            maxLength={60}
+            disabled={saving !== null}
+            className="h-10"
+          />
+          <Button type="submit" size="sm" className="h-10 shrink-0" disabled={!name.trim() || saving !== null}>
+            {saving === name.trim() ? <Loader2 className="h-4 w-4 animate-spin" /> : t("topic.pick")}
+          </Button>
+        </form>
       )}
 
-      {saving === "save" && <p className="text-[12px] text-ink-faint">{t("topic.picking", { topic: topic.trim() })}</p>}
-      {current && !saving && (
+      {saving && <p className="text-[12px] text-ink-faint">{t("topic.picking", { topic: saving })}</p>}
+      {current && saving === null && (
         <button type="button" onClick={remove} className="text-[12px] font-medium text-ink-faint hover:text-warn-text">
           {t("topic.remove")}
         </button>

@@ -24,9 +24,11 @@ import { CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
 // set (hskDailyWords): target level first, the words tapped as unknown before
 // that, `dailyGoal` of them, stable through the day.
 //
-// Beside them, a few words of a field the learner follows ("AI"), when they've
-// named one (BACKLOG "Topic words beside the exam words"): the same card, the same
-// taps, one "Add" — not a third place on Today that offers new words.
+// Beside them, a few words of a field the learner follows (BACKLOG "Topic words
+// beside the exam words"): the same card, the same taps, one "Add" — not a third
+// place on Today that offers new words. The field is the first interest they
+// picked in onboarding, without asking again ("Your field without asking again");
+// the pencil switches it.
 export function HskDaily() {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
@@ -42,7 +44,7 @@ export function HskDaily() {
     queryKey: ["hskDaily", accountId],
     queryFn: () => api.hskDaily(),
   });
-  const { data: topicDay } = useQuery({
+  const { data: topicDay, isLoading: topicLoading } = useQuery({
     queryKey: ["topicDaily", accountId],
     queryFn: () => api.topicDaily(),
   });
@@ -128,7 +130,13 @@ export function HskDaily() {
   }
 
   const topicBlock = editingTopic ? (
-    <TopicEditor current={topic} onDone={() => setEditingTopic(false)} />
+    <TopicEditor current={topic} interests={topicDay?.interests ?? []} onDone={() => setEditingTopic(false)} />
+  ) : topicLoading ? (
+    // Still loading once the exam words are in: the first interest is being turned
+    // into a pool (one model call, a few seconds, once).
+    <p className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-ink-faint">
+      <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("topic.seeding")}
+    </p>
   ) : topic ? (
     <div className="mt-4">
       <div className="flex items-center gap-2">

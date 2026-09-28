@@ -5,13 +5,17 @@
 //      know; nothing they have, nothing the exam track already brings;
 //   2. the day — three a day, a word taken today stays in the offer as "added",
 //      a word they had or said they knew never shows;
-//   3. (--live) a real model call on a real AI paragraph gives an HSK 4 learner
+//   3. the interest is the topic (BACKLOG "Your field without asking again"):
+//      onboarding's interests split into topics; a topic turned off stays off;
+//      (--live) a learner who never named one gets their first interest's words;
+//   4. (--live) a real model call on a real AI paragraph gives an HSK 4 learner
 //      field words, not HSK words, most of them from known characters.
 //
 // Run against a DEV database — it creates a throwaway user and deletes it:
 //   cd backend && npx tsx scripts/check-topic.ts [--live]
+import { Prisma } from "@prisma/client";
 import { prisma } from "../src/services/db.js";
-import { rankTopicWords, setTopic, topicDaily, type TopicWord } from "../src/services/topic.js";
+import { clearTopic, rankTopicWords, setTopic, splitInterests, topicDaily, type TopicWord } from "../src/services/topic.js";
 import { hskTagFor } from "../src/services/hsk.js";
 import { deleteAccount } from "../src/services/accountData.js";
 
@@ -60,6 +64,35 @@ async function checkDay() {
   if (day.left !== 2) fails.push(`after: left ${day.left}, want 2`);
 }
 
+async function checkInterests() {
+  const split = splitInterests(" Технологии и IT, Игры и аниме，旅行、технологии и it\n\n");
+  if (split.join("|") !== "Технологии и IT|Игры и аниме|旅行") fails.push(`split: ${split.join("|")}`);
+
+  // Turned off stays off, even with interests on the account — no model call.
+  const user = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG } });
+  await prisma.coachMemory.create({ data: { userId: user.id, lang: "zh", interests: "Технологии и IT, Игры и аниме" } });
+  await clearTopic(TG);
+  const off = await topicDaily(TG);
+  if (off.topic !== null || off.words.length) fails.push(`off: topic ${off.topic}, ${off.words.length} words`);
+  if (off.interests.join("|") !== "Технологии и IT|Игры и аниме") fails.push(`off: interests ${off.interests.join("|")}`);
+}
+
+// Never named one: the first Today makes the first interest the topic.
+async function checkSeedLive() {
+  await prisma.user.update({ where: { telegramId: TG }, data: { topic: null, topicPool: Prisma.DbNull } });
+  const t0 = Date.now();
+  const day = await topicDaily(TG);
+  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(`seeded "${day.topic}" in ${secs}s: ${day.words.map((w) => `${w.word} ${w.meaning}`).join(" · ")}`);
+  if (day.topic !== "Технологии и IT") fails.push(`seed: topic ${day.topic}, want Технологии и IT`);
+  if (day.words.length !== 3) fails.push(`seed: ${day.words.length} words today, want 3`);
+  // The next load reads the saved pool: no second model call.
+  const t1 = Date.now();
+  const again = await topicDaily(TG);
+  if (Date.now() - t1 > 1500) fails.push(`seed: second load took ${Date.now() - t1} ms — seeded again?`);
+  if (again.words.map((w) => w.word).join() !== day.words.map((w) => w.word).join()) fails.push("seed: the day changed on reload");
+}
+
 async function checkLive() {
   const text =
     "今天我们讨论大模型的训练。训练一个大模型需要大量数据和很强的算力。模型的参数越多，推理的成本就越高。" +
@@ -81,13 +114,17 @@ async function checkLive() {
 async function main() {
   checkRanking();
   await checkDay();
+  await checkInterests();
+  if (LIVE) await checkSeedLive();
   if (LIVE) await checkLive();
   await deleteAccount(TG);
   if (fails.length) {
     console.error("FAIL\n- " + fails.join("\n- "));
     process.exitCode = 1;
   } else {
-    console.log(`PASS — ranking, the day's three and what they already have${LIVE ? ", and a live pool" : ""}`);
+    console.log(
+      `PASS — ranking, the day's three, what they already have, interests as topics${LIVE ? ", a seeded and a live pool" : ""}`,
+    );
   }
 }
 

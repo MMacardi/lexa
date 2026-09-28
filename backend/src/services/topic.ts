@@ -8,9 +8,15 @@ import { asHskVersion, dayStart, hskLevelWords, hskTagFor, normalizeHanzi, HSK_M
 // TOPIC_DAILY of them a day, next to the HSK ones. The pool is kept on the account
 // (User.topicPool), so a day costs no model call — only naming a topic, or asking
 // for more once the pool runs dry, does.
+//
+// The learner doesn't name it on Today (BACKLOG "Your field without asking again"):
+// the first interest picked in onboarding becomes the topic on the first load, and
+// the others are one tap away. User.topic null = never had one (seed it), "" =
+// turned off (leave it off).
 
 export const TOPIC_DAILY = 3;
 const POOL_MAX = 40;
+const OFF = "";
 
 export type TopicWord = {
   word: string;
@@ -119,7 +125,39 @@ export async function setTopic(telegramId: string, topic: string, text?: string)
 }
 
 export async function clearTopic(telegramId: string): Promise<void> {
-  await prisma.user.update({ where: { telegramId }, data: { topic: null, topicPool: Prisma.DbNull } });
+  await prisma.user.update({ where: { telegramId }, data: { topic: OFF, topicPool: Prisma.DbNull } });
+}
+
+/**
+ * The interests picked in onboarding (coach memory, zh), one topic each. Onboarding
+ * writes them as "Технологии и IT, Игры и аниме"; Settings lets the learner type
+ * anything, so any list separator splits them.
+ */
+export function splitInterests(text: string): string[] {
+  const out: string[] = [];
+  for (const part of text.split(/[,，、;；\n]+/)) {
+    const s = part.trim().slice(0, 60);
+    if (s && !out.some((o) => o.toLowerCase() === s.toLowerCase())) out.push(s);
+  }
+  return out.slice(0, 8);
+}
+
+async function interestsOf(userId: string): Promise<string[]> {
+  const m = await prisma.coachMemory.findUnique({ where: { userId_lang: { userId, lang: "zh" } }, select: { interests: true } });
+  return splitInterests(m?.interests ?? "");
+}
+
+// One model call per learner at a time, and a failed one isn't retried on every
+// load for a while (the model being down shouldn't make each Today wait 45 s).
+const seeding = new Map<string, Promise<unknown>>();
+async function seedTopic(telegramId: string, topic: string): Promise<void> {
+  let p = seeding.get(telegramId);
+  if (!p) {
+    p = setTopic(telegramId, topic);
+    seeding.set(telegramId, p);
+    p.catch(() => {}).finally(() => setTimeout(() => seeding.delete(telegramId), 10 * 60_000).unref());
+  }
+  await p;
 }
 
 /**
@@ -127,13 +165,24 @@ export async function clearTopic(telegramId: string): Promise<void> {
  * a card for nor said they know — except words added today, which stay in the
  * offer (marked added), so the card reads "done" until tomorrow instead of
  * refilling the moment they're taken. `left` counts what the pool still holds
- * beyond today's; near zero, the card offers more.
+ * beyond today's; near zero, the card offers more. `interests` are the other
+ * topics one tap away.
  */
 export async function topicDaily(
   telegramId: string,
-): Promise<{ topic: string | null; words: (TopicWord & { added: boolean })[]; left: number }> {
-  const user = await userFor(telegramId);
-  if (!user?.topic) return { topic: null, words: [], left: 0 };
+): Promise<{ topic: string | null; words: (TopicWord & { added: boolean })[]; left: number; interests: string[] }> {
+  let user = await userFor(telegramId);
+  if (!user) return { topic: null, words: [], left: 0, interests: [] };
+  const interests = await interestsOf(user.id);
+  if (user.topic === null && interests.length) {
+    try {
+      await seedTopic(telegramId, interests[0]);
+      user = (await userFor(telegramId))!;
+    } catch (err) {
+      console.error("topic seed failed:", (err as Error).message);
+    }
+  }
+  if (!user.topic) return { topic: null, words: [], left: 0, interests };
   const version = asHskVersion(user.hskVersion) ?? "3.0";
   const target = Math.min(Math.max(user.hskTarget ?? 4, 1), HSK_MAX_LEVEL[version]);
   const { have, addedToday } = await learnerWords(user.id, version, target);
@@ -146,5 +195,5 @@ export async function topicDaily(
     if (words.length < TOPIC_DAILY) words.push({ ...w, added });
     else if (!added) left++;
   }
-  return { topic: user.topic, words, left };
+  return { topic: user.topic, words, left, interests };
 }

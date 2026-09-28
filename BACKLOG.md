@@ -297,6 +297,17 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **Learn the field, not a list:** the field's words come with sentences on the field built
      from what the learner knows (1f's per-learner path, on their interests), or a short read in
      the Reader at their level — rethink the card around that, don't restyle the picker.
+   - **First two bullets done 2026-09-28** (asked by the author mid-1d, from the same screen):
+     `topicDaily` makes the first onboarding interest (coach memory zh, split on any list
+     separator, `splitInterests`) the topic on the first load, one model call, deduped per learner
+     and not retried for 10 min after a failure; `User.topic` "" = turned off (stays off), null =
+     never had one (seeded). The response carries `interests`; the editor behind the pencil is now
+     those interests as chips, one tap switches (onboarding's 12 if they picked none), a name of
+     their own behind "Другая". The text box and the five fixed presets are gone; the backend
+     still takes `text` for the Reader's "make this my topic". Situation tags stay out of it: they
+     are for grouping the HSK words (1e session 2), not off-list fields. `check-topic.ts`: split,
+     off stays off, `--live` seeds "Технологии и IT" and the reload makes no second call.
+     **Left:** the third bullet.
 
 1h. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
    same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and

@@ -426,11 +426,13 @@ export interface TopicWord {
   hsk: number | null;
   added: boolean;
 }
-// Today's topic words: `left` = what the pool still holds beyond today's.
+// Today's topic words: `left` = what the pool still holds beyond today's;
+// `interests` = the onboarding interests, each a topic one tap away.
 export interface TopicDaily {
   topic: string | null;
   words: TopicWord[];
   left: number;
+  interests: string[];
 }
 
 // A word of a browsed official list, with where the learner stands on it:
@@ -1005,8 +1007,9 @@ export const api = {
   // day; `added` marks the ones already in review, `size` is the daily goal.
   hskDaily: () =>
     http<{ version: HskVersion; level: number; size: number; words: (HskWord & { added: boolean })[] }>(`/api/hsk/daily`),
-  // Topic words beside the exam ones: today's few, naming a topic (one model call,
-  // `text` = real material on it, whose words come first), dropping it.
+  // Topic words beside the exam ones: today's few (the first interest becomes the
+  // topic on the first load), naming a topic (one model call, `text` = real
+  // material on it, whose words come first), dropping it.
   topicDaily: () => http<TopicDaily>(`/api/topic/daily`),
   setTopic: (topic: string, text?: string) =>
     http<TopicDaily>(`/api/topic`, { method: "PUT", body: JSON.stringify({ topic, text: text?.trim() || undefined }) }),
