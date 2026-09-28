@@ -410,7 +410,8 @@ async function replyToday(ctx: Context): Promise<void> {
   const line = (w: { word: string; pinyin: string }, meaning: string | null) =>
     `• <b>${esc(w.word)}</b> ${esc(w.pinyin)}${meaning ? " — " + esc(meaning) : ""}`;
   const lines = [`✨ <b>Слова на сегодня · HSK ${levelName}</b>`, ...hskLeft.map((w) => line(w, defaultMeaning(w.word, native)))];
-  if (topicLeft.length) lines.push("", `<b>${esc(topic.topic ?? "")}</b>`, ...topicLeft.map((w) => line(w, w.meaning)));
+  const fields = [...new Set(topicLeft.map((w) => w.topic))].join(", ");
+  if (topicLeft.length) lines.push("", `<b>${esc(fields)}</b>`, ...topicLeft.map((w) => line(w, w.meaning)));
   const today = [
     ...hskLeft.map((w) => ({ word: w.word, meaning: null, topic: false })),
     ...topicLeft.map((w) => ({ word: w.word, meaning: w.meaning, topic: true })),

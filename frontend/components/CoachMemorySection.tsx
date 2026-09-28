@@ -36,13 +36,14 @@ function parseChips(text: string, options: ChipOption[]) {
   return { on, extra };
 }
 
-function ChipField({
+// Also Today's field picker (TopicEditor): the interests are the topic words' fields.
+export function ChipField({
   label,
   options,
   text,
   onChange,
 }: {
-  label: string;
+  label?: string;
   options: ChipOption[];
   text: string;
   onChange: (text: string) => void;
@@ -59,8 +60,8 @@ function ChipField({
   };
   return (
     <div>
-      <label className="text-[13px] font-semibold text-ink">{label}</label>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {label && <label className="mb-1.5 block text-[13px] font-semibold text-ink">{label}</label>}
+      <div className="flex flex-wrap gap-1.5">
         {options.map(({ id, key, Icon }) => (
           <button
             key={id}
@@ -93,7 +94,7 @@ function ChipField({
 }
 
 const WHY: ChipOption[] = GOALS.map((g) => ({ id: g.id, key: `onb.goal.${g.id}`, Icon: g.Icon }));
-const LIKES: ChipOption[] = INTERESTS.map((i) => ({ id: i.id, key: `onb.int.${i.id}`, Icon: i.Icon }));
+export const LIKES: ChipOption[] = INTERESTS.map((i) => ({ id: i.id, key: `onb.int.${i.id}`, Icon: i.Icon }));
 
 // "What your coach knows about you" — the learner-visible view of the coach memory
 // (goal + interests they set, plus the model-maintained notes). Editable + clearable,

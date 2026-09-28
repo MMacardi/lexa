@@ -2,43 +2,41 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { INTERESTS } from "@/components/HskFirstRun";
-import { cn } from "@/lib/utils";
+import { ChipField, LIKES } from "@/components/CoachMemorySection";
 
-// Switch the field whose words come beside the exam ones, inside Today's words.
-// The first interest from onboarding is already the topic (BACKLOG "Your field
-// without asking again"), so this is only the small edit behind it: the learner's
-// interests as chips, one tap to switch (onboarding's list if they picked none),
-// and a name of their own behind "Other". No text box — a text on the topic
-// belongs in the Reader.
-export function TopicEditor({ current, interests, onDone }: { current: string | null; interests: string[]; onDone: () => void }) {
+// The fields whose words come beside the exam ones, inside Today's words (BACKLOG
+// "Your field without asking again"). The fields are the interests — onboarding's
+// twelve, the same chips as Settings, as many as the learner likes; the day's
+// words go round them. A fixed list, not a free-text topic: a field the model
+// knows well gives the words a newcomer to it really hears, and a text on some
+// topic belongs in the Reader.
+export function TopicEditor({ topics, on, onDone }: { topics: string[]; on: boolean; onDone: () => void }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
-  const [own, setOwn] = useState(false);
-  const [name, setName] = useState("");
-  // The topic being picked, or "" while the topic is being dropped.
-  const [saving, setSaving] = useState<string | null>(null);
+  const [text, setText] = useState(topics.join(", "));
+  const [saving, setSaving] = useState<"save" | "remove" | null>(null);
 
-  const listed = interests.length ? interests : INTERESTS.map((i) => t(`onb.int.${i.id}`));
-  const choices = current && !listed.includes(current) ? [current, ...listed] : listed;
+  const picked = text
+    .split(/\s*[,，、;；]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-  async function pick(topic: string) {
-    topic = topic.trim();
-    if (!topic || saving !== null) return;
-    if (topic === current) return onDone();
-    setSaving(topic);
+  async function save() {
+    if (saving) return;
+    if (on && picked.join(", ") === topics.join(", ")) return onDone();
+    setSaving("save");
     try {
-      qc.setQueryData(["topicDaily", accountId], await api.setTopic(topic));
+      qc.setQueryData(["topicDaily", accountId], await api.setTopics(picked));
+      qc.invalidateQueries({ queryKey: ["coach-profile"] });
       onDone();
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -48,11 +46,11 @@ export function TopicEditor({ current, interests, onDone }: { current: string | 
   }
 
   async function remove() {
-    if (saving !== null) return;
-    setSaving("");
+    if (saving) return;
+    setSaving("remove");
     try {
       await api.clearTopic();
-      qc.setQueryData(["topicDaily", accountId], { topic: null, words: [], left: 0, interests });
+      qc.setQueryData(["topicDaily", accountId], { on: false, topics, words: [], left: 0 });
       onDone();
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -74,63 +72,19 @@ export function TopicEditor({ current, interests, onDone }: { current: string | 
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {choices.map((c) => (
-          <button
-            key={c}
-            type="button"
-            disabled={saving !== null}
-            onClick={() => pick(c)}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors disabled:opacity-60",
-              c === current ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
-            )}
-          >
-            {saving === c && <Loader2 className="h-3 w-3 animate-spin" />}
-            {c}
-          </button>
-        ))}
-        {!own && (
-          <button
-            type="button"
-            disabled={saving !== null}
-            onClick={() => setOwn(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-black/[0.12] px-2.5 py-1 text-[12px] font-medium text-ink-faint transition-colors hover:border-sage/60 hover:text-ink disabled:opacity-60"
-          >
-            <Plus className="h-3 w-3" /> {t("topic.own")}
+      <ChipField options={LIKES} text={text} onChange={setText} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="sm" onClick={save} disabled={!!saving}>
+          {saving === "save" && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+          {t("topic.done")}
+        </Button>
+        {on && topics.length > 0 && !saving && (
+          <button type="button" onClick={remove} className="text-[12px] font-medium text-ink-faint hover:text-warn-text">
+            {t("topic.remove")}
           </button>
         )}
       </div>
-
-      {own && (
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void pick(name);
-          }}
-        >
-          <Input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t("topic.placeholder")}
-            maxLength={60}
-            disabled={saving !== null}
-            className="h-10"
-          />
-          <Button type="submit" size="sm" className="h-10 shrink-0" disabled={!name.trim() || saving !== null}>
-            {saving === name.trim() ? <Loader2 className="h-4 w-4 animate-spin" /> : t("topic.pick")}
-          </Button>
-        </form>
-      )}
-
-      {saving && <p className="text-[12px] text-ink-faint">{t("topic.picking", { topic: saving })}</p>}
-      {current && saving === null && (
-        <button type="button" onClick={remove} className="text-[12px] font-medium text-ink-faint hover:text-warn-text">
-          {t("topic.remove")}
-        </button>
-      )}
+      {saving === "save" && <p className="text-[12px] text-ink-faint">{t("topic.seeding")}</p>}
     </div>
   );
 }

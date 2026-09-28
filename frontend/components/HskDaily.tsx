@@ -26,9 +26,9 @@ import { CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
 //
 // Beside them, a few words of a field the learner follows (BACKLOG "Topic words
 // beside the exam words"): the same card, the same taps, one "Add" — not a third
-// place on Today that offers new words. The field is the first interest they
-// picked in onboarding, without asking again ("Your field without asking again");
-// the pencil switches it.
+// place on Today that offers new words. The fields are the interests they picked
+// in onboarding, without asking again ("Your field without asking again"), the
+// day's three going round them; the pencil picks others.
 export function HskDaily() {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
@@ -59,8 +59,10 @@ export function HskDaily() {
   if (!data) return null;
 
   const levelName = data.level === 7 ? "7–9" : String(data.level);
-  const topic = topicDay?.topic ?? null;
-  const topicWords = topicDay?.words ?? [];
+  const topicsOn = !!topicDay?.on && topicDay.topics.length > 0;
+  const topicWords = topicsOn ? topicDay!.words : [];
+  // The row is named after the fields today's words come from, not all of them.
+  const topic = topicsOn ? [...new Set(topicWords.map((w) => w.topic))].join(", ") || topicDay!.topics.join(", ") : null;
   const pending = data.words.filter((w) => !w.added);
   const topicPending = topicWords.filter((w) => !w.added);
   const toAdd = pending.filter((w) => !known.has(w.word));
@@ -116,12 +118,12 @@ export function HskDaily() {
     }
   }
 
-  // The pool is used up: ask the model for the next words on the same topic.
+  // The day's fields are used up: ask the model for their next words.
   async function refill() {
     if (!topic || refilling) return;
     setRefilling(true);
     try {
-      qc.setQueryData(["topicDaily", accountId], await api.setTopic(topic));
+      qc.setQueryData(["topicDaily", accountId], await api.moreTopicWords());
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -130,10 +132,10 @@ export function HskDaily() {
   }
 
   const topicBlock = editingTopic ? (
-    <TopicEditor current={topic} interests={topicDay?.interests ?? []} onDone={() => setEditingTopic(false)} />
+    <TopicEditor topics={topicDay?.topics ?? []} on={topicDay?.on ?? true} onDone={() => setEditingTopic(false)} />
   ) : topicLoading ? (
-    // Still loading once the exam words are in: the first interest is being turned
-    // into a pool (one model call, a few seconds, once).
+    // Still loading once the exam words are in: the day's fields are being listed
+    // (one model call each, in parallel, a few seconds, once per field).
     <p className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-ink-faint">
       <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("topic.seeding")}
     </p>

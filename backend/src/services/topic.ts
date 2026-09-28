@@ -1,22 +1,30 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
 import { suggestTopicWords, type TopicCandidate } from "../agents/topicWords.js";
+import { updateProfile } from "./coachMemory.js";
 import { asHskVersion, dayStart, hskLevelWords, hskTagFor, normalizeHanzi, HSK_MAX_LEVEL, type HskVersion } from "./hsk.js";
 
-// Topic words beside the exam words (BACKLOG item of that name). A learner names a
-// field ("AI"); the model lists its everyday terms once; Today's words then take
-// TOPIC_DAILY of them a day, next to the HSK ones. The pool is kept on the account
-// (User.topicPool), so a day costs no model call — only naming a topic, or asking
-// for more once the pool runs dry, does.
+// Topic words beside the exam words (BACKLOG item of that name): the words of a
+// field the learner follows (服务器, 算法 for IT), off the HSK lists or far above
+// them, TOPIC_DAILY a day next to the HSK ones.
 //
-// The learner doesn't name it on Today (BACKLOG "Your field without asking again"):
-// the first interest picked in onboarding becomes the topic on the first load, and
-// the others are one tap away. User.topic null = never had one (seed it), "" =
-// turned off (leave it off).
+// The fields are the learner's interests — picked in onboarding, the same chips as
+// Settings (BACKLOG "Your field without asking again"). Nobody names a topic on
+// Today, and there is no free-text one: a fixed field is one the model knows well.
+// Each interest has its own pool, listed by the model once and kept on the account
+// (User.topicPool = { [interest]: words }), so a day costs no model call. The day's
+// words go round the interests — with two of them 2 + 1, then 1 + 2 the next day —
+// so every field turns up every day or two. Words of different fields don't get
+// mixed up the way near-synonyms do, so one day may hold several.
+//
+// User.topic is only a switch now: "" = topic words turned off (the interests stay,
+// for the coach and the examples), anything else = on. It used to hold the one
+// topic's name, and topicPool that topic's list.
 
 export const TOPIC_DAILY = 3;
 const POOL_MAX = 40;
 const OFF = "";
+const RETRY_MS = 10 * 60_000;
 
 export type TopicWord = {
   word: string;
@@ -25,6 +33,14 @@ export type TopicWord = {
   fromText: boolean; // occurs in the text the learner gave
   known: number; // share of its characters the learner already has (0–1)
   hsk: number | null; // its level on the learner's list, if it is on one at all
+};
+type Pools = Record<string, TopicWord[]>;
+
+export type TopicDay = {
+  on: boolean;
+  topics: string[]; // the learner's interests, each a field
+  words: (TopicWord & { added: boolean; topic: string })[];
+  left: number;
 };
 
 /**
@@ -97,41 +113,22 @@ async function userFor(telegramId: string) {
   });
 }
 
-/**
- * Name a topic (or ask for more words on the current one): one model call, the
- * pool ranked and saved. `text` is real material the learner pasted; only which
- * of its words occur and how often is kept, never the text itself.
- */
-export async function setTopic(telegramId: string, topic: string, text?: string): Promise<TopicWord[]> {
-  const user = await userFor(telegramId);
-  if (!user) throw new Error("No such learner");
+function levelOf(user: { hskVersion: string | null; hskTarget: number | null }) {
   const version = asHskVersion(user.hskVersion) ?? "3.0";
-  const target = Math.min(Math.max(user.hskTarget ?? 4, 1), HSK_MAX_LEVEL[version]);
-  const { have, knownChars } = await learnerWords(user.id, version, target);
-  const candidates = await suggestTopicWords({ topic, level: target, targetLang: user.nativeLang ?? "ru", text });
-  const ranked = rankTopicWords(candidates, {
-    have,
-    knownChars,
-    text,
-    hskLevelOf: (w) => hskTagFor(w)?.[version] ?? null,
-    target,
-  });
-  // The reading comes from pinyin-pro, not the model: it knows the field's
-  // compounds (算法 suàn fǎ, 参数 cān shù) and doesn't invent tones.
-  const { pinyin } = await import("pinyin-pro");
-  const pool = ranked.map((w) => ({ ...w, pinyin: pinyin(w.word, { toneType: "symbol", type: "string" }) }));
-  await prisma.user.update({ where: { id: user.id }, data: { topic, topicPool: pool } });
-  return pool;
+  return { version, target: Math.min(Math.max(user.hskTarget ?? 4, 1), HSK_MAX_LEVEL[version]) };
 }
 
-export async function clearTopic(telegramId: string): Promise<void> {
-  await prisma.user.update({ where: { telegramId }, data: { topic: OFF, topicPool: Prisma.DbNull } });
+/** The pools by interest; the one-topic list of before counts as that topic's. */
+function poolsOf(user: { topic: string | null; topicPool: Prisma.JsonValue }): Pools {
+  const p = user.topicPool;
+  if (Array.isArray(p)) return user.topic ? { [user.topic]: p as unknown as TopicWord[] } : {};
+  return p && typeof p === "object" ? (p as unknown as Pools) : {};
 }
 
 /**
- * The interests picked in onboarding (coach memory, zh), one topic each. Onboarding
- * writes them as "Технологии и IT, Игры и аниме"; Settings lets the learner type
- * anything, so any list separator splits them.
+ * The interests (coach memory, zh), one field each. Onboarding and the chips write
+ * them as "Технологии и IT, Игры и аниме"; an older free-text entry may use any
+ * list separator.
  */
 export function splitInterests(text: string): string[] {
   const out: string[] = [];
@@ -139,7 +136,7 @@ export function splitInterests(text: string): string[] {
     const s = part.trim().slice(0, 60);
     if (s && !out.some((o) => o.toLowerCase() === s.toLowerCase())) out.push(s);
   }
-  return out.slice(0, 8);
+  return out.slice(0, 16);
 }
 
 async function interestsOf(userId: string): Promise<string[]> {
@@ -147,53 +144,134 @@ async function interestsOf(userId: string): Promise<string[]> {
   return splitInterests(m?.interests ?? "");
 }
 
-// One model call per learner at a time, and a failed one isn't retried on every
-// load for a while (the model being down shouldn't make each Today wait 45 s).
-const seeding = new Map<string, Promise<unknown>>();
-async function seedTopic(telegramId: string, topic: string): Promise<void> {
-  let p = seeding.get(telegramId);
-  if (!p) {
-    p = setTopic(telegramId, topic);
-    seeding.set(telegramId, p);
-    p.catch(() => {}).finally(() => setTimeout(() => seeding.delete(telegramId), 10 * 60_000).unref());
-  }
-  await p;
+/** Which field each of the day's TOPIC_DAILY words comes from: round the list, a day at a time. */
+export function slotTopics(topics: string[], day: number): string[] {
+  if (!topics.length) return [];
+  return Array.from({ length: TOPIC_DAILY }, (_, i) => topics[(day * TOPIC_DAILY + i) % topics.length]);
+}
+
+export const dayNumber = () => Math.round(dayStart().getTime() / 86_400_000);
+
+// A field whose list failed isn't asked for again on every load for a while (the
+// model being down shouldn't make each Today wait 45 s).
+const failed = new Map<string, number>();
+const failKey = (telegramId: string, topic: string) => `${telegramId}\n${topic}`;
+
+/**
+ * List fields' words (one model call each, in parallel) and keep each as that
+ * field's pool: ranked, what the learner has dropped, the reading from pinyin-pro
+ * (it knows the field's compounds — 算法 suàn fǎ — and doesn't invent tones).
+ * `more` adds words the pool doesn't hold yet ("More words"); otherwise only a
+ * field with no pool is listed.
+ */
+async function fillPools(telegramId: string, topics: string[], more: boolean): Promise<void> {
+  const user = await userFor(telegramId);
+  if (!user) throw new Error("No such learner");
+  const pools = poolsOf(user);
+  const todo = more ? topics : topics.filter((t) => !pools[t] && Date.now() - (failed.get(failKey(telegramId, t)) ?? 0) > RETRY_MS);
+  if (!todo.length) return;
+  const { version, target } = levelOf(user);
+  const { have, knownChars } = await learnerWords(user.id, version, target);
+  const { pinyin } = await import("pinyin-pro");
+  const results = await Promise.allSettled(
+    todo.map(async (topic) => {
+      const old = pools[topic] ?? [];
+      const candidates = await suggestTopicWords({
+        topic,
+        level: target,
+        targetLang: user.nativeLang ?? "ru",
+        avoid: more ? old.map((w) => w.word) : undefined,
+      });
+      const had = new Set([...have, ...old.map((w) => w.word)]);
+      const ranked = rankTopicWords(candidates, { have: had, knownChars, hskLevelOf: (w) => hskTagFor(w)?.[version] ?? null, target });
+      return [...old, ...ranked.map((w) => ({ ...w, pinyin: pinyin(w.word, { toneType: "symbol", type: "string" }) }))];
+    }),
+  );
+  let changed = false;
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") {
+      pools[todo[i]] = r.value;
+      failed.delete(failKey(telegramId, todo[i]));
+      changed = true;
+    } else {
+      failed.set(failKey(telegramId, todo[i]), Date.now());
+      console.error(`topic words for "${todo[i]}" failed:`, (r.reason as Error).message);
+    }
+  });
+  if (changed) await prisma.user.update({ where: { id: user.id }, data: { topicPool: pools as unknown as Prisma.InputJsonValue } });
+  if (!changed) throw new Error("Couldn't list the field's words");
+}
+
+// One fill at a time per learner: two of them writing the pool map at once would
+// lose one's words, and two loads of Today would list the same field twice.
+const queue = new Map<string, Promise<void>>();
+function fill(telegramId: string, topics: string[], more = false): Promise<void> {
+  const run = (queue.get(telegramId) ?? Promise.resolve()).catch(() => {}).then(() => fillPools(telegramId, topics, more));
+  queue.set(telegramId, run);
+  void run.catch(() => {}).finally(() => queue.get(telegramId) === run && queue.delete(telegramId));
+  return run;
+}
+
+/** The chips on Today: the learner's fields are their interests, and picking them turns topic words on. */
+export async function setTopics(telegramId: string, topics: string[]): Promise<void> {
+  await updateProfile(telegramId, "zh", { interests: topics.join(", ") });
+  await prisma.user.update({ where: { telegramId }, data: { topic: null } });
+}
+
+/** Off, pools kept: turning it back on costs no model call. */
+export async function clearTopic(telegramId: string): Promise<void> {
+  await prisma.user.update({ where: { telegramId }, data: { topic: OFF } });
+}
+
+/** Every field of the day has run dry: ask for words the pools don't hold yet. */
+export async function moreTopicWords(telegramId: string): Promise<void> {
+  const user = await userFor(telegramId);
+  if (!user) throw new Error("No such learner");
+  await fill(telegramId, [...new Set(slotTopics(await interestsOf(user.id), dayNumber()))], true);
 }
 
 /**
- * Today's topic words: the first TOPIC_DAILY of the pool the learner has neither
- * a card for nor said they know — except words added today, which stay in the
- * offer (marked added), so the card reads "done" until tomorrow instead of
- * refilling the moment they're taken. `left` counts what the pool still holds
- * beyond today's; near zero, the card offers more. `interests` are the other
- * topics one tap away.
+ * Today's topic words: TOPIC_DAILY slots round the learner's fields, each taking
+ * the first word of its field's pool the learner has neither a card for nor said
+ * they know (a field run dry lends its slot to the others) — except words added
+ * today, which stay in the offer (marked added), so the card reads "done" until
+ * tomorrow instead of refilling the moment they're taken. A field of the day with
+ * no pool yet is listed first: that is how the interests from onboarding become
+ * words on the first Today, unasked. `left` counts what the pools still hold
+ * beyond today's; at zero, the card offers more.
  */
-export async function topicDaily(
-  telegramId: string,
-): Promise<{ topic: string | null; words: (TopicWord & { added: boolean })[]; left: number; interests: string[] }> {
-  let user = await userFor(telegramId);
-  if (!user) return { topic: null, words: [], left: 0, interests: [] };
-  const interests = await interestsOf(user.id);
-  if (user.topic === null && interests.length) {
+export async function topicDaily(telegramId: string): Promise<TopicDay> {
+  const user = await userFor(telegramId);
+  if (!user) return { on: false, topics: [], words: [], left: 0 };
+  const topics = await interestsOf(user.id);
+  const on = user.topic !== OFF;
+  if (!on || !topics.length) return { on, topics, words: [], left: 0 };
+  const slots = slotTopics(topics, dayNumber());
+  let pools = poolsOf(user);
+  if (slots.some((t) => !pools[t])) {
     try {
-      await seedTopic(telegramId, interests[0]);
-      user = (await userFor(telegramId))!;
+      await fill(telegramId, [...new Set(slots)]);
     } catch (err) {
-      console.error("topic seed failed:", (err as Error).message);
+      console.error("topic pools failed:", (err as Error).message);
+    }
+    const fresh = await userFor(telegramId);
+    if (fresh) pools = poolsOf(fresh);
+  }
+  const { version, target } = levelOf(user);
+  const { have, addedToday } = await learnerWords(user.id, version, target);
+  const taken = new Set<string>();
+  const open = (w: TopicWord) => !taken.has(w.word) && (!have.has(w.word) || addedToday.has(w.word));
+  const words: TopicDay["words"] = [];
+  for (const slot of slots) {
+    for (const topic of [slot, ...topics.filter((t) => t !== slot)]) {
+      const w = pools[topic]?.find(open);
+      if (!w) continue;
+      taken.add(w.word);
+      words.push({ ...w, added: addedToday.has(w.word), topic });
+      break;
     }
   }
-  if (!user.topic) return { topic: null, words: [], left: 0, interests };
-  const version = asHskVersion(user.hskVersion) ?? "3.0";
-  const target = Math.min(Math.max(user.hskTarget ?? 4, 1), HSK_MAX_LEVEL[version]);
-  const { have, addedToday } = await learnerWords(user.id, version, target);
-  const pool = Array.isArray(user.topicPool) ? (user.topicPool as TopicWord[]) : [];
-  const words: (TopicWord & { added: boolean })[] = [];
-  let left = 0;
-  for (const w of pool) {
-    const added = addedToday.has(w.word);
-    if (have.has(w.word) && !added) continue;
-    if (words.length < TOPIC_DAILY) words.push({ ...w, added });
-    else if (!added) left++;
-  }
-  return { topic: user.topic, words, left, interests };
+  const rest = new Set<string>();
+  for (const t of topics) for (const w of pools[t] ?? []) if (open(w) && !addedToday.has(w.word)) rest.add(w.word);
+  return { on, topics, words, left: rest.size };
 }

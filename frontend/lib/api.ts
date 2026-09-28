@@ -425,14 +425,16 @@ export interface TopicWord {
   known: number; // share of its characters they already have
   hsk: number | null;
   added: boolean;
+  topic: string; // the field (interest) it comes from
 }
-// Today's topic words: `left` = what the pool still holds beyond today's;
-// `interests` = the onboarding interests, each a topic one tap away.
+// Today's topic words, round the learner's fields: `topics` = their interests,
+// `on` = false once they turned topic words off, `left` = what the pools still
+// hold beyond today's.
 export interface TopicDaily {
-  topic: string | null;
+  on: boolean;
+  topics: string[];
   words: TopicWord[];
   left: number;
-  interests: string[];
 }
 
 // A word of a browsed official list, with where the learner stands on it:
@@ -1007,12 +1009,12 @@ export const api = {
   // day; `added` marks the ones already in review, `size` is the daily goal.
   hskDaily: () =>
     http<{ version: HskVersion; level: number; size: number; words: (HskWord & { added: boolean })[] }>(`/api/hsk/daily`),
-  // Topic words beside the exam ones: today's few (the first interest becomes the
-  // topic on the first load), naming a topic (one model call, `text` = real
-  // material on it, whose words come first), dropping it.
+  // Topic words beside the exam ones: today's few (a field with no words yet is
+  // listed on the way — one model call), picking the fields (= the interests, and
+  // on), more words once the day's fields run dry, off.
   topicDaily: () => http<TopicDaily>(`/api/topic/daily`),
-  setTopic: (topic: string, text?: string) =>
-    http<TopicDaily>(`/api/topic`, { method: "PUT", body: JSON.stringify({ topic, text: text?.trim() || undefined }) }),
+  setTopics: (topics: string[]) => http<TopicDaily>(`/api/topic`, { method: "PUT", body: JSON.stringify({ topics }) }),
+  moreTopicWords: () => http<TopicDaily>(`/api/topic/more`, { method: "POST" }),
   clearTopic: () => http<{ ok: true }>(`/api/topic`, { method: "DELETE" }),
 
   // --- collections ---

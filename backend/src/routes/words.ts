@@ -29,7 +29,7 @@ import { upgradeCard } from "../services/capture.js";
 import { refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
-import { clearTopic, setTopic, topicDaily } from "../services/topic.js";
+import { clearTopic, moreTopicWords, setTopics, topicDaily } from "../services/topic.js";
 import { isoDay, planForUser, withEstimate } from "../services/studyPlan.js";
 import {
   addWordForUser,
@@ -289,16 +289,15 @@ wordsRouter.get("/hsk/daily", async (req, res) => {
   res.json(await hskDailyWords(telegramId));
 });
 
-// Topic words beside the exam words: GET today's few, PUT names a topic (or asks
-// for more on it — one model call), DELETE drops it. Like Mika's picks, naming a
-// topic isn't charged to the daily AI pool: it's rare and a day costs nothing.
+// Topic words beside the exam words: GET today's few (a field with no words yet is
+// listed first — one model call), PUT picks the fields (the interests) and turns
+// them on, POST /more asks for words past the used-up ones, DELETE turns them off.
+// Like Mika's picks, listing a field isn't charged to the daily AI pool: it's rare
+// and a day costs nothing.
 wordsRouter.get("/topic/daily", async (req, res) => {
   res.json(await topicDaily(readSession(req)!));
 });
-const topicBody = z.object({
-  topic: z.string().trim().min(1).max(60),
-  text: z.string().max(20_000).optional(),
-});
+const topicBody = z.object({ topics: z.array(z.string().trim().min(1).max(60)).max(16) });
 wordsRouter.put("/topic", async (req, res) => {
   const parsed = topicBody.safeParse(req.body);
   if (!parsed.success) {
@@ -306,8 +305,13 @@ wordsRouter.put("/topic", async (req, res) => {
     return;
   }
   const telegramId = readSession(req)!;
+  await setTopics(telegramId, parsed.data.topics);
+  res.json(await topicDaily(telegramId));
+});
+wordsRouter.post("/topic/more", async (req, res) => {
+  const telegramId = readSession(req)!;
   try {
-    await setTopic(telegramId, parsed.data.topic, parsed.data.text);
+    await moreTopicWords(telegramId);
     res.json(await topicDaily(telegramId));
   } catch (err) {
     console.error(err);

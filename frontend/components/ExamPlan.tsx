@@ -220,7 +220,9 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
                 >
                   <span className="flex items-center justify-between gap-1">
                     <span className="font-serif text-[18px] font-semibold text-ink">{t("plan.min", { m: p.minutes })}</span>
-                    {p.fits && <Check className="h-4 w-4 text-sage-deep" aria-label={t("plan.onTime")} />}
+                    {/* The pace chosen, only: a tick on every pace that fits read as four
+                        choices made. A pace that misses the exam says so in its date. */}
+                    {on && <Check className="h-4 w-4 text-sage-deep" />}
                   </span>
                   <span className="block text-[12px] text-ink-soft">{t("plan.words", { n: p.words })}</span>
                   <span className={cn("block text-[12px]", p.fits === false ? "text-warn-text" : "text-ink-faint")}>

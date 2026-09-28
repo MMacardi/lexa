@@ -1,21 +1,33 @@
-// Proves topic words behave (BACKLOG "Topic words beside the exam words").
+// Proves topic words behave (BACKLOG "Topic words beside the exam words", "Your
+// field without asking again").
 //
-// Three claims, each easy to break quietly:
+// Claims, each easy to break quietly:
 //   1. ranking — the learner's own text first, then words made of characters they
 //      know; nothing they have, nothing the exam track already brings;
 //   2. the day — three a day, a word taken today stays in the offer as "added",
 //      a word they had or said they knew never shows;
-//   3. the interest is the topic (BACKLOG "Your field without asking again"):
-//      onboarding's interests split into topics; a topic turned off stays off;
-//      (--live) a learner who never named one gets their first interest's words;
-//   4. (--live) a real model call on a real AI paragraph gives an HSK 4 learner
-//      field words, not HSK words, most of them from known characters.
+//   3. the fields are the interests: split from the coach memory; the day goes
+//      round them (2 + 1, then 1 + 2); a field run dry lends its slot; turned off
+//      stays off, with no model call;
+//   4. (--live) interests with no words yet become words on the first load, both
+//      fields, and the reload makes no second call; "More words" brings words the
+//      pool didn't hold, none of them HSK ≤ target.
 //
 // Run against a DEV database — it creates a throwaway user and deletes it:
 //   cd backend && npx tsx scripts/check-topic.ts [--live]
 import { Prisma } from "@prisma/client";
 import { prisma } from "../src/services/db.js";
-import { clearTopic, rankTopicWords, setTopic, splitInterests, topicDaily, type TopicWord } from "../src/services/topic.js";
+import {
+  clearTopic,
+  dayNumber,
+  moreTopicWords,
+  rankTopicWords,
+  setTopics,
+  slotTopics,
+  splitInterests,
+  topicDaily,
+  type TopicWord,
+} from "../src/services/topic.js";
 import { hskTagFor } from "../src/services/hsk.js";
 import { deleteAccount } from "../src/services/accountData.js";
 
@@ -23,6 +35,9 @@ const TG = `test-topic-${Date.now()}`;
 const LIVE = process.argv.includes("--live");
 const fails: string[] = [];
 const c = (word: string) => ({ word, pinyin: "", meaning: "m" });
+const pool = (words: string) =>
+  Array.from(words.split(",")).map((word): TopicWord => ({ word, pinyin: "", meaning: "m", fromText: false, known: 1, hsk: null }));
+const show = (day: Awaited<ReturnType<typeof topicDaily>>) => day.words.map((w) => `${w.word}${w.added ? "+" : ""}`).join(",");
 
 function checkRanking() {
   const text = "我们用算法训练模型。模型越大，算法越重要。参数很多。";
@@ -42,15 +57,22 @@ function checkRanking() {
   if (ranked.join(",") !== want.join(",")) fails.push(`ranking: got ${ranked.join(",")}, want ${want.join(",")}`);
 }
 
+function checkPure() {
+  const split = splitInterests(" Технологии и IT, Игры и аниме，旅行、технологии и it\n\n");
+  if (split.join("|") !== "Технологии и IT|Игры и аниме|旅行") fails.push(`split: ${split.join("|")}`);
+  const rot = (n: number, day: number) => slotTopics("ABCDE".slice(0, n).split(""), day).join("");
+  const want: [number, number, string][] = [[1, 0, "AAA"], [2, 0, "ABA"], [2, 1, "BAB"], [3, 5, "ABC"], [5, 0, "ABC"], [5, 1, "DEA"], [5, 2, "BCD"]];
+  for (const [n, day, s] of want) if (rot(n, day) !== s) fails.push(`slots ${n} fields day ${day}: ${rot(n, day)}, want ${s}`);
+}
+
 async function checkDay() {
   const user = await prisma.user.create({ data: { telegramId: TG, firstName: "Topic", hskVersion: "3.0", hskTarget: 4, nativeLang: "ru" } });
-  const pool: TopicWord[] = ["算法", "模型", "参数", "芯片", "算力", "推理", "训练"].map((word) => ({
-    word, pinyin: "", meaning: "m", fromText: false, known: 1, hsk: null,
-  }));
-  await prisma.user.update({ where: { id: user.id }, data: { topic: "AI", topicPool: pool } });
+  await prisma.coachMemory.create({ data: { userId: user.id, lang: "zh", interests: "AI" } });
+  await prisma.user.update({ where: { id: user.id }, data: { topicPool: { AI: pool("算法,模型,参数,芯片,算力,推理,训练") } } });
   let day = await topicDaily(TG);
-  if (day.words.map((w) => w.word).join(",") !== "算法,模型,参数") fails.push(`day 1: ${day.words.map((w) => w.word).join(",")}`);
+  if (show(day) !== "算法,模型,参数") fails.push(`day 1: ${show(day)}`);
   if (day.left !== 4) fails.push(`day 1 left ${day.left}, want 4`);
+  if (!day.words.every((w) => w.topic === "AI")) fails.push("day 1: words not labelled with their field");
 
   // Take 算法 today, said-known 模型, and an old card for 参数 from last week.
   await prisma.word.create({ data: { userId: user.id, word: "算法", sourceLang: "zh", targetLang: "ru", meaningZh: "алгоритм" } });
@@ -59,72 +81,87 @@ async function checkDay() {
     data: { userId: user.id, word: "参数", sourceLang: "zh", targetLang: "ru", meaningZh: "параметр", createdAt: new Date(Date.now() - 7 * 86400_000) },
   });
   day = await topicDaily(TG);
-  const got = day.words.map((w) => `${w.word}${w.added ? "+" : ""}`).join(",");
-  if (got !== "算法+,芯片,算力") fails.push(`after taking/knowing: ${got}, want 算法+,芯片,算力`);
+  if (show(day) !== "算法+,芯片,算力") fails.push(`after taking/knowing: ${show(day)}, want 算法+,芯片,算力`);
   if (day.left !== 2) fails.push(`after: left ${day.left}, want 2`);
 }
 
-async function checkInterests() {
-  const split = splitInterests(" Технологии и IT, Игры и аниме，旅行、технологии и it\n\n");
-  if (split.join("|") !== "Технологии и IT|Игры и аниме|旅行") fails.push(`split: ${split.join("|")}`);
+async function checkFields() {
+  // Two fields: today's slots go round them; a field run dry lends its slot.
+  await setTopics(TG, ["AI", "Travel"]);
+  await prisma.user.update({
+    where: { telegramId: TG },
+    data: { topicPool: { AI: pool("算法,芯片,算力,推理"), Travel: pool("签证,行李,登机") } },
+  });
+  const slots = slotTopics(["AI", "Travel"], dayNumber());
+  const day = await topicDaily(TG);
+  const byField = day.words.map((w) => w.topic).join(",");
+  if (byField !== slots.join(",")) fails.push(`two fields: ${show(day)} from ${byField}, want slots ${slots.join(",")}`);
+  const ai = day.words.filter((w) => w.topic === "AI").map((w) => w.word);
+  if (ai[0] !== "算法" || (ai[1] && ai[1] !== "芯片")) fails.push(`two fields: AI words ${ai.join(",")}`);
 
-  // Turned off stays off, even with interests on the account — no model call.
-  const user = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG } });
-  await prisma.coachMemory.create({ data: { userId: user.id, lang: "zh", interests: "Технологии и IT, Игры и аниме" } });
+  await prisma.user.update({ where: { telegramId: TG }, data: { topicPool: { AI: pool("算法,芯片,算力,推理"), Travel: [] } } });
+  const dry = await topicDaily(TG);
+  if (show(dry) !== "算法+,芯片,算力") fails.push(`a dry field doesn't lend its slot: ${show(dry)} (${dry.words.map((w) => w.topic).join(",")})`);
+
+  // Turned off stays off, interests kept — no model call (the pools are there anyway).
   await clearTopic(TG);
   const off = await topicDaily(TG);
-  if (off.topic !== null || off.words.length) fails.push(`off: topic ${off.topic}, ${off.words.length} words`);
-  if (off.interests.join("|") !== "Технологии и IT|Игры и аниме") fails.push(`off: interests ${off.interests.join("|")}`);
+  if (off.on || off.words.length) fails.push(`off: on=${off.on}, ${off.words.length} words`);
+  if (off.topics.join("|") !== "AI|Travel") fails.push(`off: topics ${off.topics.join("|")}`);
+  await setTopics(TG, ["AI", "Travel"]);
+  if (!(await topicDaily(TG)).on) fails.push("picking fields didn't turn it back on");
 }
 
-// Never named one: the first Today makes the first interest the topic.
+// Never had words: the first Today lists the day's fields — both of them.
 async function checkSeedLive() {
-  await prisma.user.update({ where: { telegramId: TG }, data: { topic: null, topicPool: Prisma.DbNull } });
+  await setTopics(TG, ["Технологии и IT", "Игры и аниме"]);
+  await prisma.user.update({ where: { telegramId: TG }, data: { topicPool: Prisma.DbNull } });
   const t0 = Date.now();
   const day = await topicDaily(TG);
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`seeded "${day.topic}" in ${secs}s: ${day.words.map((w) => `${w.word} ${w.meaning}`).join(" · ")}`);
-  if (day.topic !== "Технологии и IT") fails.push(`seed: topic ${day.topic}, want Технологии и IT`);
-  if (day.words.length !== 3) fails.push(`seed: ${day.words.length} words today, want 3`);
-  // The next load reads the saved pool: no second model call.
+  console.log(`seeded in ${secs}s: ${day.words.map((w) => `${w.word} ${w.meaning} [${w.topic}]`).join(" · ")}`);
+  const fields = new Set(day.words.map((w) => w.topic));
+  if (day.words.length !== 3 || fields.size !== 2) fails.push(`seed: ${day.words.length} words from ${[...fields].join(",")}`);
+  // The next load reads the saved pools: no second model call.
   const t1 = Date.now();
   const again = await topicDaily(TG);
-  if (Date.now() - t1 > 1500) fails.push(`seed: second load took ${Date.now() - t1} ms — seeded again?`);
-  if (again.words.map((w) => w.word).join() !== day.words.map((w) => w.word).join()) fails.push("seed: the day changed on reload");
+  if (Date.now() - t1 > 1500) fails.push(`seed: second load took ${Date.now() - t1} ms — listed again?`);
+  if (show(again) !== show(day)) fails.push("seed: the day changed on reload");
 }
 
-async function checkLive() {
-  const text =
-    "今天我们讨论大模型的训练。训练一个大模型需要大量数据和很强的算力。模型的参数越多，推理的成本就越高。" +
-    "我们用新的算法优化了推理速度，延迟降低了一半。开源模型让更多开发者可以微调自己的模型。";
+// "More words": the pools grow by words they didn't hold.
+async function checkMoreLive() {
+  const before = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG }, select: { topicPool: true } });
+  const old = before.topicPool as Record<string, TopicWord[]>;
   const t0 = Date.now();
-  const pool = await setTopic(TG, "AI, large language models", text);
-  const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`live pool (${pool.length} words, ${secs}s):`);
-  for (const w of pool.slice(0, 15)) console.log(`  ${w.word}\t${w.pinyin}\t${w.meaning}\ttext:${w.fromText ? "y" : "-"} known:${w.known.toFixed(2)} hsk:${w.hsk ?? "-"}`);
-  if (pool.length < 10) fails.push(`live: only ${pool.length} words`);
-  const onListLow = pool.filter((w) => (hskTagFor(w.word)?.["3.0"] ?? 99) <= 4);
-  if (onListLow.length) fails.push(`live: HSK ≤ 4 words slipped in: ${onListLow.map((w) => w.word).join(",")}`);
-  const top3 = (await topicDaily(TG)).words;
-  if (!top3.every((w) => w.fromText)) fails.push(`live: today's 3 aren't from the text: ${top3.map((w) => w.word).join(",")}`);
-  const mostlyKnown = pool.filter((w) => w.known >= 0.5).length / pool.length;
-  console.log(`  ${Math.round(mostlyKnown * 100)}% of the pool is at least half known characters`);
+  await moreTopicWords(TG);
+  const after = (await prisma.user.findUniqueOrThrow({ where: { telegramId: TG }, select: { topicPool: true } })).topicPool as Record<string, TopicWord[]>;
+  for (const [field, words] of Object.entries(after)) {
+    const had = new Set((old[field] ?? []).map((w) => w.word));
+    const fresh = words.filter((w) => !had.has(w.word));
+    console.log(`more "${field}" (${((Date.now() - t0) / 1000).toFixed(1)}s): +${fresh.length} — ${fresh.slice(0, 10).map((w) => w.word).join(" ")}`);
+    // A field's everyday words are often HSK ≤ target (dropped: the exam track brings
+    // them), so a second list may keep only a handful — games kept 7 of 30.
+    if (fresh.length < 5) fails.push(`more: only ${fresh.length} new words for ${field}`);
+    if (new Set(words.map((w) => w.word)).size !== words.length) fails.push(`more: duplicates in ${field}`);
+    const low = words.filter((w) => (hskTagFor(w.word)?.["3.0"] ?? 99) <= 4);
+    if (low.length) fails.push(`more: HSK ≤ 4 words slipped into ${field}: ${low.map((w) => w.word).join(",")}`);
+  }
 }
 
 async function main() {
   checkRanking();
+  checkPure();
   await checkDay();
-  await checkInterests();
+  await checkFields();
   if (LIVE) await checkSeedLive();
-  if (LIVE) await checkLive();
+  if (LIVE) await checkMoreLive();
   await deleteAccount(TG);
   if (fails.length) {
     console.error("FAIL\n- " + fails.join("\n- "));
     process.exitCode = 1;
   } else {
-    console.log(
-      `PASS — ranking, the day's three, what they already have, interests as topics${LIVE ? ", a seeded and a live pool" : ""}`,
-    );
+    console.log(`PASS — ranking, the day's three, fields round the interests, off stays off${LIVE ? ", a seeded day and more words" : ""}`);
   }
 }
 
