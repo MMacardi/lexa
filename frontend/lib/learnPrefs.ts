@@ -888,19 +888,20 @@ export function useNewPerDay(): number {
 }
 
 // --- Review audio: say the word when the card turns over ---
-// On unless switched off: for Chinese it's free listening and tones on every
-// card, which HSK listening needs (Anki and Pleco both do it).
+// Off unless switched on: a word spoken on every flip startles someone reviewing
+// in public. Only an explicit "1" turns it on, so a learner who never touched the
+// chip is silent and one who chose it keeps it.
 const PLAY_ON_FLIP_KEY = "lexa.playOnFlip";
 export function getPlayOnFlip(): boolean {
-  if (typeof window === "undefined") return true;
-  return localStorage.getItem(PLAY_ON_FLIP_KEY) !== "0";
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(PLAY_ON_FLIP_KEY) === "1";
 }
 export function setPlayOnFlip(on: boolean) {
   localStorage.setItem(PLAY_ON_FLIP_KEY, on ? "1" : "0");
   window.dispatchEvent(new Event(EVT));
 }
 export function usePlayOnFlip(): boolean {
-  const [on, setOn] = useState(true);
+  const [on, setOn] = useState(false);
   useEffect(() => {
     const sync = () => setOn(getPlayOnFlip());
     sync();

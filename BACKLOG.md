@@ -493,6 +493,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
       gesture). A "Say the word on flip" chip beside the up/down swipe chip, on by default
       (`lexa.playOnFlip`), hidden where the browser has no speech. Local run with `speak` wrapped:
       a flip says 网络@zh-CN once, flipping back says nothing, chip off → silent.
+    - **2026-09-28: off by default** (author's call — speech on every flip is unwelcome in public).
+      Only a stored `"1"` turns it on, so anyone who never touched the chip goes silent.
 
 11. [x] **A "Paste" button in the Reader and Add word.** One tap reads the clipboard
     (`navigator.clipboard.readText`), Pleco's clipboard reader: text copied from WeChat or a site
