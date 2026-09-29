@@ -196,10 +196,8 @@ const itemSchema = z.object({
   antonyms: z.array(z.string()).nullish(),
 });
 // A thinking model sometimes answers with the bare list: take that as the items.
-const pagesSchema = z.preprocess(
-  (v) => (Array.isArray(v) ? { items: v } : v),
-  z.object({ items: z.array(itemSchema).default([]) }),
-);
+const pagesObject = z.object({ items: z.array(itemSchema).default([]) });
+const pagesSchema = z.preprocess((v) => (Array.isArray(v) ? { items: v } : v), pagesObject) as unknown as z.ZodType<z.output<typeof pagesObject>>;
 // What chatJson hands back is the schema's input: the defaults may not be applied yet.
 type Item = z.input<typeof itemSchema>;
 

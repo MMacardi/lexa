@@ -9,8 +9,7 @@ import { normalizeHanzi } from "./hsk.js";
  * The word page's Meanings list and word family used to be a model call per card,
  * made on its first open and kept on that card only — so every learner waited for
  * the same word, and in a beta of five nearly every open is a first open. For the
- * HSK headwords they are now data — HSK 1–6 so far, 7–9 keep the per-card path until
- * the build goes on (`scripts/build-hsk-pages.ts` →
+ * 11.4k HSK headwords (1–9) they are now data (`scripts/build-hsk-pages.ts` →
  * `data/hsk-pages.jsonl`), checked before anyone sees them
  * (`scripts/check-word-pages.ts`): each sense grounded in CC-CEDICT's inventory and
  * under one of its readings, two phrases per sense read that way, the card's own
