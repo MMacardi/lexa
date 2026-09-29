@@ -118,7 +118,8 @@ export function ceilingLabel(c: Ceiling, headword: string): string | null {
   return cap === null ? null : levelLabel(cap);
 }
 
-export const levelLabel = (level: number) => (level <= 1 ? "HSK 1" : `HSK 1–${level}`);
+// 7 is the HSK 7–9 band: its words are "HSK 1–9", not "1–7".
+export const levelLabel = (level: number) => (level <= 1 ? "HSK 1" : `HSK 1–${level >= 7 ? 9 : level}`);
 
 /**
  * The label for a sentence written for this learner: the HSK range it was held to
@@ -136,6 +137,11 @@ export function writtenLabel(brief: ExampleBrief | null | undefined, fallback: s
 export type PoolSentence = { c: Ceiling; zh: string; ru: string; t: string };
 
 let pool: Map<string, PoolSentence[]> | null = null;
+// From the naturalness pass (scripts/build-hsk-sentences.ts --judge): words formal
+// by nature (以, 之所以, 颇), whose sentences are formal too, and the sentences it
+// replaced — a card may still carry one, and it gives way on open.
+const formal = new Set<string>();
+const retired = new Map<string, Set<string>>();
 
 function poolIndex(): Map<string, PoolSentence[]> {
   if (pool) return pool;
@@ -152,23 +158,41 @@ function poolIndex(): Map<string, PoolSentence[]> {
   for (const raw of text.split("\n")) {
     const line = raw.trim(); // CRLF on a Windows checkout
     if (!line) continue;
-    const row = JSON.parse(line) as { w?: string; s?: PoolSentence[] };
-    if (row.w && row.s?.length) pool.set(row.w, row.s);
+    const row = JSON.parse(line) as { w?: string; s?: PoolSentence[]; f?: number; o?: string[] };
+    if (!row.w) continue;
+    if (row.s?.length) pool.set(row.w, row.s);
+    if (row.f) formal.add(row.w);
+    if (row.o?.length) retired.set(row.w, new Set(row.o));
   }
   return pool;
+}
+
+// The pool keeps an 儿 word under its base, as a card does (一下儿 → 一下).
+function poolKey(word: string): string {
+  const head = normalizeHanzi(word);
+  poolIndex();
+  return !pool!.has(head) && head.length > 1 && head.endsWith("儿") ? head.slice(0, -1) : head;
+}
+
+/** Is this HSK word formal by nature (以, 之所以, 颇)? Its examples are written and labelled so. */
+export function isFormalWord(word: string): boolean {
+  return formal.has(poolKey(word));
+}
+
+/** A sentence the naturalness pass took out of the pool: a card carrying it gets another on open. */
+function isRetired(word: string, zh: string): boolean {
+  return retired.get(poolKey(word))?.has(zh) ?? false;
 }
 
 /** The pool's sentences for an HSK word (none off the lists). They are in Russian: other learners get none. */
 export function poolSentences(word: string, targetLang = "ru"): PoolSentence[] {
   if (targetLang !== "ru") return [];
-  const head = normalizeHanzi(word);
-  // The pool keeps an 儿 word under its base, as a card does (一下儿 → 一下).
-  return poolIndex().get(head) ?? (head.length > 1 && head.endsWith("儿") ? poolIndex().get(head.slice(0, -1)) : undefined) ?? [];
+  return poolIndex().get(poolKey(word)) ?? [];
 }
 
-/** Is this example one of the pool's? (Derived by text: nothing on the row says so.) */
+/** Is this example one of the pool's, now or before the naturalness pass? (Derived by text: nothing on the row says so.) */
 export function isPoolSentence(word: string, targetLang: string, zh: string): boolean {
-  return poolSentences(word, targetLang).some((s) => s.zh === zh);
+  return poolSentences(word, targetLang).some((s) => s.zh === zh) || (targetLang === "ru" && isRetired(word, zh));
 }
 
 // --- Reading it as this learner ---
@@ -247,8 +271,9 @@ const AI_SOURCE = "Onomika AI";
 /** The pool is everyday language; a learner who picked another register gets theirs written per card. */
 export const poolRegister = (style?: string | null) => !style || style === "casual";
 
+// A formal word's sentences are formal ("news" reads «Формальный» on the page).
 function poolExample(word: string, s: PoolSentence) {
-  return { sentenceEn: s.zh, sentenceZh: s.ru, sourceName: AI_SOURCE, sourceUrl: "", register: null, level: ceilingLabel(s.c, word) };
+  return { sentenceEn: s.zh, sentenceZh: s.ru, sourceName: AI_SOURCE, sourceUrl: "", register: isFormalWord(word) ? "news" : null, level: ceilingLabel(s.c, word) };
 }
 
 /**
@@ -288,6 +313,17 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
   });
   if (!card) return false;
   const pool = poolSentences(card.word, card.targetLang);
+  // One the naturalness pass took out goes whatever it takes: the best pick now, even
+  // past their level, or nothing — an unnatural sentence is never kept for being easy.
+  const stale = card.examples.find((e) => isRetired(card.word, e.sentenceEn));
+  if (stale && card.targetLang === "ru") {
+    const { knows } = await learnerReading(card.userId);
+    const pick = pickPoolSentence(card.word, knows, card.targetLang);
+    if (pick && !card.examples.some((e) => e.sentenceEn === pick.s.zh))
+      await prisma.example.update({ where: { id: stale.id }, data: poolExample(card.word, pick.s) });
+    else await prisma.example.delete({ where: { id: stale.id } });
+    return true;
+  }
   const current = card.examples.find((e) => pool.some((s) => s.zh === e.sentenceEn));
   if (!current) return false;
   const { knows } = await learnerReading(card.userId);
@@ -300,6 +336,18 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
 }
 
 // --- Per-card examples ---
+
+/**
+ * The level is a wish, naturalness is the rule: held to HSK 1–2, 以 came out as
+ * 他以笔写字 where anyone says 用笔 (the author, 2026-09-28). Said in every prompt
+ * that writes a Chinese example under a vocabulary limit.
+ */
+export const NATURAL_FIRST = (word: string) =>
+  `The sentence must be one a native speaker would really say or write — natural, idiomatic, with "${word}" used ` +
+  `the way natives use it, as a word of its own (never only inside a longer word: 之 inside 之前, 上 inside 晚上). ` +
+  `If "${word}" can't be used naturally within that vocabulary (a formal word such as 以 or 之所以 has no everyday ` +
+  `context), use the words it needs and the register it lives in — modern formal Chinese, never a pseudo-classical ` +
+  `line like 此乃…之…: a natural sentence always beats an easy one, and the Chinese is never bent to fit the level. `;
 
 /** What a per-card example is written from: the learner's own words, how far past them it may go, their themes. */
 export type ExampleBrief = { reading: Reading | null; knownWords: string[]; themes: string };
@@ -327,6 +375,64 @@ export async function exampleBrief(userId: string, sourceLang: string, exceptWor
 }
 
 const rewriteSchema = z.object({ sentence: z.string().default(""), translation: z.string().default("") });
+
+const verdictSchema = z.object({
+  natural: z.boolean().default(false),
+  why: z.string().default(""),
+  better: z.string().default(""),
+  translation: z.string().default(""),
+});
+
+/**
+ * A native editor's read of a per-card Chinese example — the one the pool had
+ * (build-hsk-sentences.ts --judge), which the per-card path never got: the author's
+ * 之 card showed 这本书是孩子之最爱 beside one written for them. Natural as it is,
+ * or the editor's natural rewrite (the word still a word of its own), or null — an
+ * unnatural sentence is not shown. With the model down it is kept, as before.
+ */
+export async function keepIfNatural(p: {
+  word: string;
+  sentence: string;
+  translation: string;
+  targetLang: string;
+}): Promise<{ sentence: string; translation: string } | null> {
+  const lang = langName(p.targetLang);
+  // One read; the rewrite it offers is read again before it is kept — unread, the
+  // editor's own fix came back worse (孩子之最爱 → 此书乃孩子之最爱, 以笔写字 → 以笔代口).
+  const read = (sentence: string, translation: string, rewrite: boolean) =>
+    chatJson({
+      system:
+        `You are a native Mandarin editor for a Chinese–${lang} learner's dictionary, judging as the editor of a ` +
+        `modern textbook. Is this example sentence for "${p.word}" natural, idiomatic, correct modern Chinese that a ` +
+        `native speaker would really say or write — "${p.word}" used as natives use it, as a word of its own; not ` +
+        `stilted, not bent to use easy words, not pseudo-classical (此乃…之…, 孩子之最爱 where one says 孩子最喜爱的, ` +
+        `以笔代口), not odd in logic — and is the translation right? If so: {"natural": true}. If not: ` +
+        (rewrite
+          ? `{"natural": false, "why": a few words, "better": a sentence of similar length and difficulty that a ` +
+            `modern textbook would print, using "${p.word}" as a word of its own in the same sense — modern Chinese, ` +
+            `formal only if the word is, never classical — "translation": its natural ${lang} translation}.`
+          : `{"natural": false, "why": a few words}.`) +
+        scriptNote("zh") +
+        " Respond as JSON.",
+      user: JSON.stringify({ word: p.word, sentence, translation }),
+      schema: verdictSchema,
+      label: "example.judge",
+      model: "qwen3.5-plus",
+    });
+  try {
+    const r = await read(p.sentence, p.translation, true);
+    if (r.natural) return { sentence: p.sentence, translation: p.translation };
+    const better = (r.better ?? "").trim();
+    const translation = (r.translation ?? "").trim();
+    if (better && translation && sentenceWords(better, p.word).own && (await read(better, translation, false)).natural)
+      return { sentence: better, translation };
+    console.log(`[sentences] ${p.word}: dropped an unnatural example (${r.why}): ${p.sentence}`);
+    return null;
+  } catch (err) {
+    console.error(`[sentences] judge failed for ${p.word}`, (err as Error).message);
+    return { sentence: p.sentence, translation: p.translation };
+  }
+}
 
 /**
  * Hold a model-written Chinese example to i+1, the check "one example built from
@@ -358,6 +464,7 @@ export async function holdToLevel(p: {
         // "Keep the situation" kept 软件 — the situation itself was the hard word.
         `Change the situation if it needs them — a simpler everyday one is fine. Write it as a native speaker ` +
         `would say it at that level, natural and grammatical; never swap in a word that doesn't fit. ` +
+        NATURAL_FIRST(p.word) +
         `Then translate it into natural ${langName(p.targetLang)}.` +
         scriptNote("zh") +
         scriptNote(p.targetLang) +

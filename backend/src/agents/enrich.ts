@@ -3,6 +3,7 @@ import { enrichEntrySchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
 import { cedictInventory, isChinese } from "../services/cedict.js";
+import { NATURAL_FIRST } from "../services/sentences.js";
 
 // Combined enrichment agent: ONE model call returns the full dictionary entry
 // (phonetic, part of speech, meaning, collocations, synonyms, antonyms) AND a
@@ -113,7 +114,8 @@ export async function enrichWordEntry(params: {
     : (known.length ? `Build the example mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
       (params.hskLevel
         ? `Besides "${word}", use only words of HSK ${params.hskLevel} and below. `
-        : `Any other word in it must be simpler and more common than "${word}". `);
+        : `Any other word in it must be simpler and more common than "${word}". `) +
+      NATURAL_FIRST(word);
   const themes = params.themes?.trim().slice(0, 200) ?? "";
   // The level wins: "IT" at HSK 2 wrote 软件 and 运行, and the sentence was too hard to keep.
   const themeLine = themes

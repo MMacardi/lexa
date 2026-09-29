@@ -361,9 +361,14 @@ export default function WordDetailPage() {
                   {t(`style.${ex.register}`)}
                 </span>
               )}
+              {/* "HSK 1–2" is the rest of the sentence, not the word: beside an HSK 7–9
+                  badge the bare range read as a claim about the word. */}
               {ex.level && (
-                <span className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[11px] font-semibold text-ink-faint">
-                  {ex.level}
+                <span
+                  title={/^HSK/.test(ex.level) ? t("example.aroundHint", { level: ex.level }) : undefined}
+                  className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[11px] font-semibold text-ink-faint"
+                >
+                  {/^HSK/.test(ex.level) ? t("example.around", { level: ex.level }) : ex.level}
                 </span>
               )}
               <button

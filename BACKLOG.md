@@ -233,8 +233,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      - **HSK 1–6 only, decided with the author on cost:** the account went ~¥30 negative (a restart
        for the family rule, the thinking pick, a second tag pass). 8,113 pages; 7,382/7,386 HSK 1–6
        words in CC-CEDICT (幢 犬 获 佛: Bailian's content filter refuses them even alone; a refused
-       batch now goes again word by word). 1.57 senses a word. HSK 7–9 (3,295) keep the per-card
-       path: `build-hsk-pages.ts` without `--max-level 6` goes on from the file, ~¥8.
+       batch now goes again word by word). 1.57 senses a word. HSK 7–9 (3,295) kept the per-card
+       path until the same day's second run.
+     - **HSK 7–9, the same day** (asked by the author once the balance allowed): 3,291 more pages
+       for ¥7.13, with every rule above from the start — one page of 11,404 had English left.
+       11,404/11,412 list words in CC-CEDICT have a page (犬 获 佛 勇往直前 勤工俭学 学堂 滑稽 鹤立鸡群
+       missing: the content filter, or a sense that never passed). A random 100 read: 5 wrong
+       (听得目不转睛, 截然不同观点 without 的, 茅台 «ликёр», 窑 «килн», 起到画龙点睛 cut short), ~10
+       minor (野外野营, 暂时稍候); the five fixed through `--fix`.
      - **Situation tags on qwen3.5-plus too:** qwen-plus tagged 74% of the list (问题 → doctor,
        今天 → weather, 写 → office) and invented 1,685 tags; qwen3.5-plus tags 50%, 33 invented,
        all 47 scenes used (airport: 机场 护照 签证 航班 海关).
@@ -251,7 +257,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        call in the log since the add, the example (`enrich(+example)`), none for senses or family.
        `check-word-pages.ts` passes: 28 rule checks, the file, serving at 2.4 ms. (The "On the
        card" chip crowds a long first line at 390 px — cosmetic, left.)
-     - **Follow-ups, in 1f's "Left":** the 221 cards whose `hsk-ru` meaning leads with a rarer
+     - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's
        conjunction is "(literary)" in CC-CEDICT and 牛 «классный» is slang, so their pages leave
@@ -348,6 +354,29 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        naturalness has to beat the ceiling (go up a ceiling, don't force it), and the judge pass is
        how to find the rest. The chip "HSK 1–2" beside an HSK 7–9 badge read as the sentence's level
        — say what it measures («слова вокруг — HSK 1–2») or drop it.
+     - **Done 2026-09-28/29, asked by the author ("I don't want to see any unnatural sentences"):**
+       `build-hsk-sentences.ts --judge` — a native editor's read of all 34,148 pool sentences
+       (qwen3.5-plus, thinking off): 8,081 (24%) rejected, 5,258 written again natural first (the
+       ceiling only where the word keeps it naturally; the label then says the level it really has)
+       and kept after a second read, 2,823 dropped rather than shown; 1,052 words marked formal (日 for
+       天, 相同, 购买, 母亲, 以, 之 — 教授 心中 度 unmarked by hand). The author's 之 then showed the read
+       passing pseudo-classical lines as "formal" (这本书是孩子之最爱): `--strict --formal-only` read
+       those words again — 267 more out (此乃…之…), 之 now 成功之道在于坚持努力 / 北京之行让我很难忘.
+       31,187 sentences left; 83 words have none (the per-card path writes theirs). ¥13.80 + ¥0.65
+       (estimated ¥5–8: the reject rate was 24%, not ~10%). Ceiling-1 sentences fell 11,313 → 7,631,
+       so HSK 2 and HSK 5 get different sentences for 47% of HSK 4 words, not 53% — the check's bar
+       is 40% now, with the reason.
+     - **Served:** a replaced sentence stays on its row (`o`), and a card that carries one gets the
+       best pool sentence on open, even past the learner's level, or none (`refreshPoolExample`); a
+       formal word's sentences say «Формальный» (`news`), and its per-card example is written in that
+       register; the chip reads «слова вокруг: HSK 1–4» with a tooltip; HSK 7–9 is "HSK 1–9", not
+       "1–7". Per-card examples (the first one on a card and "Add example"): the prompt says natural
+       beats the level and the word stands alone (出发之前 taught 之前, not 之); the example must hold
+       the word as a word of its own, then `keepIfNatural` reads it — natural, or the editor's rewrite
+       read again, or not saved (a first rewrite came back worse: 孩子之最爱 → 此书乃孩子之最爱).
+     - **Proof:** `check-sentences.ts` (他以笔写字 out of the pool, a card carrying it gets
+       他以第一名的成绩毕业 labelled formal on open) and a local run at 390 px: a 之 card carrying
+       这本书是孩子之最爱 opens with 成功之道在于坚持努力, "Formal", «other words: HSK 1–4».
 
 1g. **Your field without asking again.** From the author's own use (2026-09-27, prod, 390 px): the
    words from a field were expected to come from the interest picked in onboarding (ИИ), yet Today

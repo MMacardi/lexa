@@ -10,6 +10,8 @@
 //      the moment it returns, the day's batch too. A fresh learner with nothing
 //      to go on gets none — the per-card call writes theirs.
 //   4. On open, a pool sentence the learner has outgrown moves up.
+//   5. One the naturalness pass took out (他以笔写字) gives way on open, and a formal
+//      word's sentence says it is formal.
 //   `--live`: the learner's own sentence — on their interests, at their level —
 //   lands first with the pool's second; one over the line is rewritten to fewer
 //   unknowns; a card the pool can't serve gets one from the learner's words.
@@ -93,7 +95,10 @@ async function main() {
   }
   const pct = (n: number) => `${Math.round((n / level4.length) * 100)}%`;
   // Where they match, the middle one reads at HSK 2 and the natural one is past HSK 5 too.
-  check(differ / level4.length > 0.5, `different sentences for ${differ} of ${level4.length} HSK 4 words (${pct(differ)})`);
+  // 53% before the naturalness pass (2026-09-28), 47% after: it took out the easy
+  // sentences that bent the Chinese (他以笔写字), and a natural one beats an easy one —
+  // so an HSK 2 learner more often gets their own per-card sentence than an easy pool one.
+  check(differ / level4.length > 0.4, `different sentences for ${differ} of ${level4.length} HSK 4 words (${pct(differ)})`);
   console.log(`     ceilings picked, HSK 2: c1 ${byCeiling[2][1]} c2 ${byCeiling[2][2]} c3 ${byCeiling[2][3]}; HSK 5: c1 ${byCeiling[5][1]} c2 ${byCeiling[5][2]} c3 ${byCeiling[5][3]}`);
   check(byCeiling[2][1] > byCeiling[2][3] && byCeiling[5][3] + byCeiling[5][2] > byCeiling[5][1], "HSK 2 mostly gets the simple one, HSK 5 the richer ones");
   console.log(`     within one unknown: HSK 2 ${fits2} (${pct(fits2)}), HSK 5 ${fits5} (${pct(fits5)}) — the rest go to the per-card call`);
@@ -143,6 +148,29 @@ async function main() {
   const after = (await getWord(card2.id))?.examples[0]?.sentenceEn;
   check(moved && after !== before, `after a check at HSK 6, ${word} moves up: ${before} → ${after}`);
   check(!(await S.refreshPoolExample(card2.id)), "and stays put on the next open");
+
+  // --- 5. The naturalness pass: a sentence it took out gives way on open ---
+  check(S.levelLabel(7) === "HSK 1–9", `the HSK 7–9 band reads "${S.levelLabel(7)}", not "HSK 1–7"`);
+  const bent = "他以笔写字。";
+  check(S.isFormalWord("以"), "以 is marked formal");
+  check(!S.poolSentences("以").some((s) => s.zh === bent), `${bent} is out of the pool: ${S.poolSentences("以").map((s) => s.zh).join(" / ")}`);
+  check(S.isPoolSentence("以", "ru", bent), "…yet still known as the pool's, so a card carrying it is found");
+  const yi = await prisma.word.create({
+    data: {
+      userId: u5.id,
+      word: "以",
+      phonetic: "yǐ",
+      sourceLang: "zh",
+      targetLang: "ru",
+      examples: { create: { sentenceEn: bent, sentenceZh: "Он пишет ручкой.", sourceName: "Onomika AI", sourceUrl: "" } },
+    },
+  });
+  await S.refreshPoolExample(yi.id);
+  const yiEx = (await getWord(yi.id))?.examples ?? [];
+  check(
+    !yiEx.some((e) => e.sentenceEn === bent) && yiEx.every((e) => e.register === "news"),
+    `on open it gives way, labelled formal: ${yiEx.map((e) => `${e.sentenceEn} (${e.register}, ${e.level ?? "natural"})`).join(" | ") || "none left"}`,
+  );
 
   if (LIVE) {
     // The batch add queues its upgrade for the worker (not running here), so the

@@ -5,7 +5,20 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { langName } from "../lib/langs.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
-import { MAX_UNKNOWN, addPoolExample, exampleBrief, holdToLevel, isPoolSentence, pickPoolSentence, poolRegister, writtenLabel } from "./sentences.js";
+import {
+  MAX_UNKNOWN,
+  addPoolExample,
+  exampleBrief,
+  holdToLevel,
+  isFormalWord,
+  isPoolSentence,
+  keepIfNatural,
+  pickPoolSentence,
+  poolRegister,
+  sentenceWords,
+  unknownIn,
+  writtenLabel,
+} from "./sentences.js";
 import { hskPage } from "./wordPages.js";
 
 /**
@@ -144,6 +157,9 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   const hasPool = pooled > 0 || placed;
   // Their own on top of it only when there is something to make it theirs with.
   const personal = withExample && (!hasPool || Boolean(brief?.themes || brief?.reading?.checked));
+  // A formal word (以, 之所以) has no natural everyday sentence: theirs is written, and
+  // labelled, in the register the word lives in — unless they asked for another.
+  const style = isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
 
   const entry = await enrichWordEntry({
     word: card.word,
@@ -151,7 +167,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     targetLang: card.targetLang,
     level: opts.level,
     synonymLevel: opts.synonymLevel,
-    exampleStyle: opts.exampleStyle,
+    exampleStyle: style,
     withExample: personal,
     meaningInstruction: opts.meaningInstruction,
     sense: opts.sense,
@@ -175,14 +191,29 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // The example before the details: the pages poll until the part of speech lands,
   // so their own sentence has to be there by then to be seen without a reload.
   if (personal && entry.example && brief) {
-    const held = await holdToLevel({
+    let held = await holdToLevel({
       word: card.word,
       sentence: entry.example,
       translation: entry.exampleTranslation,
       targetLang: card.targetLang,
       brief,
     });
-    if (hasPool && held.unknown > MAX_UNKNOWN) {
+    // The word must be in it as a word, as the pool's are: 出发之前 has 之 only inside
+    // 之前, and teaches 之前 (the author's 之 card, 2026-09-29). Then the editor's read.
+    const chinese = isChinese(card.sourceLang);
+    let ownWord = !chinese || sentenceWords(held.sentence, card.word).own;
+    if (ownWord && chinese) {
+      const kept = await keepIfNatural({ word: card.word, sentence: held.sentence, translation: held.translation, targetLang: card.targetLang });
+      if (!kept) ownWord = false;
+      else if (kept.sentence !== held.sentence) {
+        const reading = brief.reading;
+        const unknown = reading?.checked ? unknownIn(sentenceWords(kept.sentence, card.word).words, reading.knows) : 0;
+        held = { ...kept, unknown };
+      }
+    }
+    if (!ownWord) {
+      // Not saved: the pool's sentence stays alone, or "add example" writes another.
+    } else if (hasPool && held.unknown > MAX_UNKNOWN) {
       // Too hard to sit beside a checked one they can read: the pool's stays alone.
     } else if (!hasPool && pool && pool.unknown < held.unknown) {
       // Over the line either way: the pool's best still wins if they read more of it.
@@ -196,7 +227,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
           sentenceZh: held.translation,
           sourceName: AI_SOURCE,
           sourceUrl: "",
-          register: opts.exampleStyle ?? "casual",
+          register: style ?? "casual",
           level: writtenLabel(brief, opts.level ?? null),
         },
       });

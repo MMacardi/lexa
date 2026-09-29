@@ -4,7 +4,7 @@ import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { FOCUS } from "../lib/env.js";
-import { holdToLevel, writtenLabel, type ExampleBrief } from "../services/sentences.js";
+import { NATURAL_FIRST, holdToLevel, keepIfNatural, writtenLabel, type ExampleBrief } from "../services/sentences.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -130,7 +130,8 @@ export async function runExampleSearch(params: {
   const knownLine = !params.brief
     ? ""
     : (known.length ? `Build it mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
-      (level ? `Besides "${word}", use only words of HSK ${level} and below. ` : `Any other word must be simpler and more common than "${word}". `);
+      (level ? `Besides "${word}", use only words of HSK ${level} and below. ` : `Any other word must be simpler and more common than "${word}". `) +
+      NATURAL_FIRST(word);
   const themes = params.brief?.themes.slice(0, 200) ?? "";
   const themeLine = themes
     ? `Set it in something the learner cares about (${themes}) when the word fits there — but only through words ` +
@@ -238,6 +239,14 @@ export async function runExampleSearch(params: {
       const held = await holdToLevel({ word, sentence, translation, targetLang, brief: params.brief });
       sentence = held.sentence;
       translation = held.translation;
+    }
+    // The editor's read, as the pool and the card's first example get: an unnatural
+    // sentence is rewritten, or not added at all.
+    if (sourceLang === "zh") {
+      const kept = await keepIfNatural({ word, sentence, translation, targetLang });
+      if (!kept) throw new Error("Couldn't write a natural example this time — try again");
+      sentence = kept.sentence;
+      translation = kept.translation;
     }
   } else {
     // A web-mined sentence is a real excerpt we picked, so it still needs its own

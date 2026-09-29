@@ -1139,6 +1139,12 @@ const DICT: Record<string, Entry> = {
     zh: "从新闻/文章（Reuters、BBC…）中挖掘的真实句子，并标注来源。",
   },
   "style.news": { en: "Formal", ru: "Формальный", zh: "正式" },
+  "example.around": { en: "other words: {level}", ru: "слова вокруг: {level}", zh: "其余词：{level}" },
+  "example.aroundHint": {
+    en: "Every word in this sentence besides the one you're learning is from {level}",
+    ru: "Все слова в примере, кроме изучаемого, — из {level}",
+    zh: "例句中除了这个词，其余的词都在 {level} 范围内",
+  },
   "style.casual": { en: "Casual", ru: "Бытовой", zh: "日常" },
   "style.dialogue": { en: "Dialogue", ru: "Диалог", zh: "对话" },
   "style.literary": { en: "Literary", ru: "Литературный", zh: "文学" },
