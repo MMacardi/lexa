@@ -448,6 +448,9 @@ model Example {
   register   String?
   level      String?
   createdAt  DateTime @default(now())
+  // When a native editor's read (services/sentences.ts, keepIfNatural) passed this
+  // AI-written Chinese example; null = written before that read existed, read on open.
+  checkedAt  DateTime?
 }
 
 // Persistent usage counters for the free-tier quotas (daily AI pool + monthly

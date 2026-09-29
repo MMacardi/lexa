@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading } from "./cedict.js";
 import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
+import { prisma } from "./db.js";
+import type { Prisma } from "@prisma/client";
 
 /**
  * The learner's dictionary: a default meaning in Russian for every HSK headword,
@@ -21,6 +23,9 @@ import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
  */
 
 let ru: Map<string, string> | null = null;
+// Meanings a default used to be (scripts/reorder-hsk-ru.ts keeps them on the row, "o"):
+// a card that still carries one is moved to the current default.
+const oldRu = new Map<string, Set<string>>();
 
 function ruIndex(): Map<string, string> {
   if (ru) return ru;
@@ -37,10 +42,39 @@ function ruIndex(): Map<string, string> {
   for (const raw of text.split("\n")) {
     const line = raw.trim(); // CRLF on a Windows checkout, as with cedict.jsonl
     if (!line) continue;
-    const row = JSON.parse(line) as { s?: string; m?: string };
+    const row = JSON.parse(line) as { s?: string; m?: string; o?: string[] };
     if (row.s && row.m) ru.set(row.s, row.m);
+    if (row.s && row.o?.length) oldRu.set(row.s, new Set(row.o));
   }
   return ru;
+}
+
+/**
+ * Cards still carrying a default the list has since corrected (热 «нагревать; горячий»
+ * → «горячий; нагревать», 之所以 «поэтому» → «причина того, что») move to the current
+ * one; a hand pick of senses made for the old wording goes along. A meaning the
+ * learner wrote is never an old default, so it stays. Called before a card or the
+ * list is read.
+ */
+export async function refreshDefaultMeanings(where: Prisma.WordWhereInput): Promise<number> {
+  ruIndex();
+  if (!oldRu.size) return 0;
+  const cards = await prisma.word.findMany({
+    where: { ...where, targetLang: "ru", word: { in: [...oldRu.keys()] } },
+    select: { id: true, word: true, sourceLang: true, meaningZh: true, senses: true },
+  });
+  let n = 0;
+  for (const c of cards) {
+    const m = c.meaningZh?.trim();
+    if (!m || !isChinese(c.sourceLang) || !oldRu.get(c.word)?.has(m)) continue;
+    const next = defaultMeaning(c.word, "ru");
+    if (!next || next === m) continue;
+    const senses = c.senses as { for?: string } | null;
+    const carried = senses && typeof senses === "object" && senses.for === m ? { senses: { ...senses, for: next } as Prisma.InputJsonValue } : {};
+    // Compare-and-set on the meaning read: an edit made meanwhile wins.
+    n += (await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: next, ...carried } })).count;
+  }
+  return n;
 }
 
 /** The shared default meaning of a Chinese headword in the learner's language, or null. */

@@ -24,9 +24,9 @@ import { placementAnswersSchema, savePlacementAnswers } from "../services/learne
 import { asHskVersion, hskDailyWords, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
-import { defaultIsSettled, defaultMeaning, lookup } from "../services/lookup.js";
+import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings } from "../services/lookup.js";
 import { upgradeCard } from "../services/capture.js";
-import { refreshPoolExample } from "../services/sentences.js";
+import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
 import { clearTopic, moreTopicWords, setTopics, topicDaily } from "../services/topic.js";
@@ -209,6 +209,8 @@ wordsRouter.get("/words", async (req, res) => {
   }
   // Prefer the logged-in session; fall back to the query param (used by the bot).
   const telegramId = readSession(req) ?? parsed.data.telegramId;
+  // A default meaning the list has since corrected is corrected on the cards too.
+  await refreshDefaultMeanings({ user: { telegramId } }).catch((err) => console.error("[lookup] refresh failed", err));
   const words = await listWordsForUser(telegramId);
   res.json(words);
 });
@@ -490,6 +492,9 @@ wordsRouter.get("/words/:id", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   // The pool sentence moves with the learner: the one they read best now (i+1).
   await refreshPoolExample(req.params.id).catch((err) => console.error("[sentences] refresh failed", err));
+  await refreshDefaultMeanings({ id: req.params.id }).catch((err) => console.error("[lookup] refresh failed", err));
+  // An example written before the editor's read existed gets it now, once.
+  await checkOldExamples(req.params.id).catch((err) => console.error("[sentences] old examples failed", err));
   const word = await getWord(req.params.id);
   if (!word) {
     res.status(404).json({ error: "Word not found" });

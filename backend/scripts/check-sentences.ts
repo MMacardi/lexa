@@ -12,6 +12,8 @@
 //   4. On open, a pool sentence the learner has outgrown moves up.
 //   5. One the naturalness pass took out (他以笔写字) gives way on open, and a formal
 //      word's sentence says it is formal.
+//   6. A card still carrying a corrected default meaning gets the new one; an old
+//      example that holds the word only inside a longer word is removed on open.
 //   `--live`: the learner's own sentence — on their interests, at their level —
 //   lands first with the pool's second; one over the line is rewritten to fewer
 //   unknowns; a card the pool can't serve gets one from the learner's words.
@@ -30,6 +32,7 @@ const { importWordsForUser } = await import("../src/services/importWords.js");
 const { upgradeCard } = await import("../src/services/capture.js");
 const { deleteAccount } = await import("../src/services/accountData.js");
 const S = await import("../src/services/sentences.js");
+const { defaultMeaning, refreshDefaultMeanings } = await import("../src/services/lookup.js");
 
 const STAMP = Date.now();
 const TG2 = `test-sent2-${STAMP}`;
@@ -171,6 +174,27 @@ async function main() {
     !yiEx.some((e) => e.sentenceEn === bent) && yiEx.every((e) => e.register === "news"),
     `on open it gives way, labelled formal: ${yiEx.map((e) => `${e.sentenceEn} (${e.register}, ${e.level ?? "natural"})`).join(" | ") || "none left"}`,
   );
+
+  // --- 6. Old defaults and old examples, fixed on open ---
+  const was = "нагревать; горячий; жар";
+  const re = await prisma.word.create({ data: { userId: u5.id, word: "热", phonetic: "rè", sourceLang: "zh", targetLang: "ru", meaningZh: was } });
+  const own = await prisma.word.create({ data: { userId: u5.id, word: "休息", phonetic: "xiū xi", sourceLang: "zh", targetLang: "ru", meaningZh: "отдых (моё)" } });
+  await refreshDefaultMeanings({ user: { telegramId: TG5 } });
+  const reNow = (await prisma.word.findUniqueOrThrow({ where: { id: re.id } })).meaningZh;
+  check(reNow === defaultMeaning("热", "ru") && reNow !== was, `热's old default «${was}» becomes «${reNow}»`);
+  check((await prisma.word.findUniqueOrThrow({ where: { id: own.id } })).meaningZh === "отдых (моё)", "a meaning the learner wrote stays");
+  const zhi = await prisma.word.create({
+    data: {
+      userId: u5.id,
+      word: "之",
+      phonetic: "zhī",
+      sourceLang: "zh",
+      targetLang: "ru",
+      examples: { create: { sentenceEn: "出发之前，我们要检查手机和电脑。", sentenceZh: "Перед выездом проверим телефон и компьютер.", sourceName: "Onomika AI", sourceUrl: "" } },
+    },
+  });
+  await S.checkOldExamples(zhi.id);
+  check((await prisma.example.count({ where: { wordId: zhi.id } })) === 0, "an old example with 之 only inside 之前 is gone on open, without a model call");
 
   if (LIVE) {
     // The batch add queues its upgrade for the worker (not running here), so the

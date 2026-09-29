@@ -148,6 +148,7 @@ export async function runExampleSearch(params: {
   let translation = "";
   let composed = avoidList.length > 0 || preferAi; // AI mode / "add another" → compose fresh
   let source: { url: string } | null = null;
+  let checkedAt: Date | null = null; // the editor's read passed it (Chinese, composed)
 
   if (avoidList.length === 0 && !preferAi) {
     // 1. External tool call — the part that makes this a real agent, not a chat loop.
@@ -247,6 +248,7 @@ export async function runExampleSearch(params: {
       if (!kept) throw new Error("Couldn't write a natural example this time — try again");
       sentence = kept.sentence;
       translation = kept.translation;
+      checkedAt = kept.unread ? null : new Date();
     }
   } else {
     // A web-mined sentence is a real excerpt we picked, so it still needs its own
@@ -282,6 +284,7 @@ export async function runExampleSearch(params: {
       // one carries its publication as the source, not a chosen register).
       register: source ? null : style,
       level: source ? null : writtenLabel(params.brief, params.level ?? null),
+      checkedAt,
     },
   });
 

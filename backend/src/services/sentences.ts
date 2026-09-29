@@ -272,8 +272,17 @@ const AI_SOURCE = "Onomika AI";
 export const poolRegister = (style?: string | null) => !style || style === "casual";
 
 // A formal word's sentences are formal ("news" reads «Формальный» on the page).
+// The pool was read by the editor (build-hsk-sentences.ts --judge): stamped as read.
 function poolExample(word: string, s: PoolSentence) {
-  return { sentenceEn: s.zh, sentenceZh: s.ru, sourceName: AI_SOURCE, sourceUrl: "", register: isFormalWord(word) ? "news" : null, level: ceilingLabel(s.c, word) };
+  return {
+    sentenceEn: s.zh,
+    sentenceZh: s.ru,
+    sourceName: AI_SOURCE,
+    sourceUrl: "",
+    register: isFormalWord(word) ? "news" : null,
+    level: ceilingLabel(s.c, word),
+    checkedAt: new Date(),
+  };
 }
 
 /**
@@ -395,7 +404,7 @@ export async function keepIfNatural(p: {
   sentence: string;
   translation: string;
   targetLang: string;
-}): Promise<{ sentence: string; translation: string } | null> {
+}): Promise<{ sentence: string; translation: string; unread?: true } | null> {
   const lang = langName(p.targetLang);
   // One read; the rewrite it offers is read again before it is kept — unread, the
   // editor's own fix came back worse (孩子之最爱 → 此书乃孩子之最爱, 以笔写字 → 以笔代口).
@@ -430,8 +439,54 @@ export async function keepIfNatural(p: {
     return null;
   } catch (err) {
     console.error(`[sentences] judge failed for ${p.word}`, (err as Error).message);
-    return { sentence: p.sentence, translation: p.translation };
+    return { sentence: p.sentence, translation: p.translation, unread: true };
   }
+}
+
+/**
+ * Examples written for a card before the editor's read existed (`checkedAt` null)
+ * get it on the card's next open — once: kept and stamped, replaced by the read
+ * rewrite, or removed; one that holds the word only inside a longer word (出发之前
+ * for 之) goes without a call. Only the ones the model wrote: a sentence met in the
+ * Reader or typed by the learner is theirs. A pool sentence was read in the pool.
+ */
+export async function checkOldExamples(wordId: string): Promise<number> {
+  const card = await prisma.word.findUnique({
+    where: { id: wordId },
+    select: {
+      word: true,
+      sourceLang: true,
+      targetLang: true,
+      examples: { where: { checkedAt: null, sourceName: AI_SOURCE }, select: { id: true, sentenceEn: true, sentenceZh: true } },
+    },
+  });
+  if (!card || card.sourceLang !== "zh" || !card.examples.length) return 0;
+  let changed = 0;
+  for (const e of card.examples) {
+    // A replaced pool sentence is refreshPoolExample's to swap.
+    if (isRetired(card.word, e.sentenceEn)) continue;
+    if (isPoolSentence(card.word, card.targetLang, e.sentenceEn)) {
+      await prisma.example.update({ where: { id: e.id }, data: { checkedAt: new Date() } });
+      continue;
+    }
+    if (!sentenceWords(e.sentenceEn, card.word).own) {
+      await prisma.example.delete({ where: { id: e.id } });
+      changed++;
+      continue;
+    }
+    const kept = await keepIfNatural({ word: card.word, sentence: e.sentenceEn, translation: e.sentenceZh, targetLang: card.targetLang });
+    if (!kept) {
+      await prisma.example.delete({ where: { id: e.id } });
+      changed++;
+    } else if (!kept.unread) {
+      await prisma.example.update({
+        where: { id: e.id },
+        data: { sentenceEn: kept.sentence, sentenceZh: kept.translation, checkedAt: new Date() },
+      });
+      if (kept.sentence !== e.sentenceEn) changed++;
+    }
+  }
+  return changed;
 }
 
 /**

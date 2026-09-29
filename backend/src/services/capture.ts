@@ -202,10 +202,12 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     // 之前, and teaches 之前 (the author's 之 card, 2026-09-29). Then the editor's read.
     const chinese = isChinese(card.sourceLang);
     let ownWord = !chinese || sentenceWords(held.sentence, card.word).own;
+    let checked = false;
     if (ownWord && chinese) {
       const kept = await keepIfNatural({ word: card.word, sentence: held.sentence, translation: held.translation, targetLang: card.targetLang });
       if (!kept) ownWord = false;
-      else if (kept.sentence !== held.sentence) {
+      else checked = !kept.unread;
+      if (kept && kept.sentence !== held.sentence) {
         const reading = brief.reading;
         const unknown = reading?.checked ? unknownIn(sentenceWords(kept.sentence, card.word).words, reading.knows) : 0;
         held = { ...kept, unknown };
@@ -229,6 +231,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
           sourceUrl: "",
           register: style ?? "casual",
           level: writtenLabel(brief, opts.level ?? null),
+          ...(checked ? { checkedAt: new Date() } : {}),
         },
       });
     }

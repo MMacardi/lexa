@@ -257,6 +257,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        call in the log since the add, the example (`enrich(+example)`), none for senses or family.
        `check-word-pages.ts` passes: 28 rule checks, the file, serving at 2.4 ms. (The "On the
        card" chip crowds a long first line at 390 px — cosmetic, left.)
+     - **Follow-ups done 2026-09-29** (asked by the author): `scripts/reorder-hsk-ru.ts` puts the
+       card's one-line meaning in its page's order — 258 of the 280 read and changed (热 «горячий;
+       нагревать; жар», 被 «частица страдательного залога; одеяло», a comma list that named two page
+       senses split into two: 挣 «зарабатывать; вырываться»), 9 plain wrong ones written by hand
+       (之所以 «причина того, что», 炮 «пушка; петарда», 球, 合, 西, 行, 会, 令, 刀), and 33 read the
+       other way round: the card was right, the page's order moves to it (海 «море», 钟 «часы», 不仅
+       «не только», 大妈 «тётя»). 2 left, both on base pages (一块, 摊) no card carries. The old
+       meanings stay on the row (`o`): a card still holding one gets the new one on open and in the
+       list (`refreshDefaultMeanings`; a meaning the learner wrote stays, a hand pick of senses goes
+       along). Examples written before the editor's read existed get it on the card's next open,
+       once (`Example.checkedAt`, `checkOldExamples`): kept, rewritten and read again, or removed —
+       出发之前 for 之 goes without a call. `check-sentences.ts` §6 covers both.
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's
