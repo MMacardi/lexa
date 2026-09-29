@@ -1,6 +1,7 @@
 import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
+import { answerFormat } from "../lib/answerFormat.js";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
 const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
@@ -61,7 +62,7 @@ export async function tutorChat(params: {
         (params.profileNote ?? "") +
         `You are a friendly, encouraging ${source} tutor for a learner whose language is ${target}.` +
         levelLine +
-        ` Answer in the "answer" field ENTIRELY in ${target}, concise and practical. Help them learn ` +
+        ` Answer in the "answer" field in ${target} (the ${source} examples aside), concise and practical. Help them learn ` +
         `${source}: meanings, usage, grammar, example sentences, and picking vocabulary. ` +
         `Stay on language learning — questions about words in OTHER languages are fine too; politely ` +
         `decline unrelated general-knowledge questions. ` +
@@ -104,8 +105,10 @@ export async function tutorChat(params: {
         `${OFFERABLE_LANGS.join(", ")}. Leave "lang" empty for ${source} words; its "meaning" ` +
         `and "exampleTr" stay in ${target} and its "example" is a sentence in the word's own language.` +
         scriptNote(params.sourceLang ?? "en") +
-        ` (This applies to example sentences, vocabulary, and every ${source} word you write.) ` +
-        'Respond as JSON: {"answer": string, "addWords": string[], "addCards": [{"word": string, "meaning": string, "example": string, "exampleTr": string, "lang": string}]}.',
+        ` (This applies to example sentences, vocabulary, and every ${source} word you write.)` +
+        // Last before the JSON line, so the layout is fresh and the JSON is the final word.
+        answerFormat(params.sourceLang ?? "en", params.targetLang ?? "zh", "answer") +
+        ' Respond as JSON: {"answer": string, "addWords": string[], "addCards": [{"word": string, "meaning": string, "example": string, "exampleTr": string, "lang": string}]}.',
     },
     ...clipped,
   ];

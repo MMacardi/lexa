@@ -299,7 +299,7 @@ export function Sidebar() {
       )}
 
       {/* ---------- Mobile bottom tab bar: 2 tabs · Mika · 1 tab · More ---------- */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.08] bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav data-tabbar className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.08] bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-[520px] items-stretch">
           {slotItems.slice(0, 2).map((n) => (
             <TabLink key={n.href} item={n} active={isActive(n.href, pathname)} label={t(n.key)} onClick={closeSheet} />

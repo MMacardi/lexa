@@ -113,6 +113,7 @@ export async function chatJson<T>(opts: {
   timeoutMs?: number;
   label?: string; // for token-usage logging
   model?: string; // override MODEL (e.g. FAST_MODEL for trivial calls)
+  retried?: boolean; // internal: the one retry after a reply that wasn't an object
 }): Promise<T> {
   let completion;
   const t0 = Date.now();
@@ -142,7 +143,17 @@ export async function chatJson<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
+  if (notObject(parsed) && !opts.retried) return chatJson({ ...opts, retried: true });
   return opts.schema.parse(fixMixedScriptDeep(parsed));
+}
+
+// JSON mode holds the reply to a JSON *value*, not an object: a model that starts
+// its answer the way the text is laid out — a "- " bullet, a "1." — is steered into
+// a number ("-1.0000000000000002e-15"). Seen on Mika and card answers once they were
+// asked for bullets. Such a reply never carries the answer's field, so nothing of it
+// reached the learner and one fresh try is safe (streaming included).
+function notObject(v: unknown): boolean {
+  return typeof v !== "object" || v === null || Array.isArray(v);
 }
 
 // Qwen-VL (vision) model for OCR. Configurable per deployment/region.
@@ -266,6 +277,7 @@ export async function chatJsonConversation<T>(opts: {
   timeoutMs?: number;
   label?: string;
   model?: string; // override MODEL (e.g. FAST_MODEL for trivial calls)
+  retried?: boolean; // internal: see notObject
 }): Promise<T> {
   let completion;
   const t0 = Date.now();
@@ -291,6 +303,7 @@ export async function chatJsonConversation<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
+  if (notObject(parsed) && !opts.retried) return chatJsonConversation({ ...opts, retried: true });
   return opts.schema.parse(fixMixedScriptDeep(parsed));
 }
 
@@ -314,6 +327,7 @@ export async function chatJsonConversationStream<T>(opts: {
   timeoutMs?: number;
   label?: string;
   model?: string;
+  retried?: boolean; // internal: see notObject
 }): Promise<T> {
   const extractor = createFieldExtractor(opts.onDelta, opts.field);
   const promptText = opts.messages.map(messageText).join("\n");
@@ -388,6 +402,7 @@ export async function chatJsonConversationStream<T>(opts: {
   } catch {
     throw new Error(`LLM did not return valid JSON: ${raw.slice(0, 200)}`);
   }
+  if (notObject(parsed) && !opts.retried) return chatJsonConversationStream({ ...opts, retried: true });
   return opts.schema.parse(fixMixedScriptDeep(parsed));
 }
 

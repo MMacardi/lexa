@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
@@ -166,6 +166,28 @@ export default function FlashcardsPage() {
   const startY = useRef(0);
   const axis = useRef<"" | "x" | "y">(""); // direction lock, decided on the first few px
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const gradesRef = useRef<HTMLDivElement | null>(null);
+  // Phones: the card gives up height so the four grades are on screen without a
+  // scroll — on a 390×844 iPhone the 348px card put them under the tab bar. Measured
+  // rather than a fixed offset, so whatever sits above the card, the grades end just
+  // above the tab bar; never below 180px, where the word itself stops fitting.
+  const [fitH, setFitH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const card = cardRef.current;
+      const grades = gradesRef.current;
+      if (!card || !grades) return;
+      if (window.matchMedia("(min-width: 640px)").matches) return setFitH(null);
+      const view = window.visualViewport?.height ?? window.innerHeight;
+      const bar = document.querySelector("[data-tabbar]")?.getBoundingClientRect().height ?? 0;
+      const over = grades.getBoundingClientRect().bottom + window.scrollY - (view - bar - 12);
+      // offsetHeight, not the rect: a card mid-swipe is transformed.
+      setFitH(Math.round(Math.min(360, Math.max(180, card.offsetHeight - over))));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [started, index]);
   const stampAgain = useRef<HTMLDivElement | null>(null);
   const stampGood = useRef<HTMLDivElement | null>(null);
   const stampHard = useRef<HTMLDivElement | null>(null);
@@ -736,6 +758,8 @@ export default function FlashcardsPage() {
 
   const word = deck[index];
   const iv = previewMinutes(word); // FSRS "next due" for each grade
+  // Phones: both faces take the fitted height (see fitH); the back scrolls inside it.
+  const faceFit = fitH ? { height: fitH, minHeight: 0 } : undefined;
 
   // Render one card field. `primary` = the big hero field on the front.
   const chips = (items: string[], tone: "syn" | "ant" | "muted") =>
@@ -1072,7 +1096,7 @@ export default function FlashcardsPage() {
           <div key={index} className="flip-scene anim-card-in">
             <div className={cn("flip-card", flipped && "is-flipped")}>
               {/* FRONT — the layout's front fields, first one as the hero */}
-              <div className="flip-face relative flex min-h-[300px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 sm:p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+              <div style={faceFit} className="flip-face relative flex min-h-[300px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 sm:p-8 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 {/* on-card mic: stopPropagation or the tap would swipe/flip the card */}
                 <span
                   className="absolute right-4 top-4"
@@ -1085,14 +1109,15 @@ export default function FlashcardsPage() {
                   {frontFields.map((f, i) => (
                     <div key={f} className="max-w-full">{fieldNode(f, i === 0, frontTr)}</div>
                   ))}
-                  <div className="mt-6 text-sm font-medium text-ink-faint">{t("review.reveal")}</div>
+                  {/* A short phone's fitted card keeps its room for the word itself. */}
+                  {!(fitH && fitH < 240) && <div className="mt-6 text-sm font-medium text-ink-faint">{t("review.reveal")}</div>}
                 </div>
               </div>
 
               {/* BACK — the layout's back fields; scrollable so long content fits */}
-              <div className="flip-face flip-back flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
+              <div style={faceFit} className="flip-face flip-back flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 <div
-                  className="flex max-h-[300px] flex-col gap-3 overflow-y-auto px-2 py-1"
+                  className="flex max-h-[300px] min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-1"
                   // Keep the pointer for scrolling (so a drag here scrolls instead of
                   // starting a swipe), but DON'T swallow the click — a tap on the back
                   // must still flip the card back to the front.
@@ -1118,7 +1143,7 @@ export default function FlashcardsPage() {
       {/* All four grades from the moment the card lands, on either face: a word you
           already know shouldn't need a reveal before Easy, and behind the button the
           grades cost a tap on every single card. */}
-      <div className="grid w-full max-w-[560px] grid-cols-4 gap-2">
+      <div ref={gradesRef} className="grid w-full max-w-[560px] grid-cols-4 gap-2">
         {GRADES.map(({ g, name, tone, dim }) => (
           <button
             key={g}

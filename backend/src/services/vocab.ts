@@ -6,6 +6,7 @@ import { enrichWordEntry } from "../agents/enrich.js";
 import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { answerFormat } from "../lib/answerFormat.js";
 import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
@@ -724,23 +725,28 @@ export async function recordCram(id: string, correct: boolean): Promise<boolean>
  * own language (the card's target language). Cached on the card: the first call
  * generates + stores it, later opens return it for free (cleared on edits).
  */
+// Cached explanations carry the prompt version they were written for; one from an
+// older prompt is written again on its next open. v2 (2026-09-28): the answer layout.
+const EXPLAIN_TAG = "explain-v2\n";
+
 export async function explainWord(id: string): Promise<string> {
   const word = await prisma.word.findUnique({
     where: { id },
     select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, explainCache: true },
   });
   if (!word) throw new Error("Word not found");
-  if (word.explainCache?.trim()) return word.explainCache.trim();
+  if (word.explainCache?.startsWith(EXPLAIN_TAG)) return word.explainCache.slice(EXPLAIN_TAG.length).trim();
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
   const { explanation } = await chatJson({
     system:
       `You are a friendly ${sourceName} teacher. Explain the ${sourceName} word or phrase to a learner ` +
-      `whose language is ${targetName}. Write ENTIRELY in ${targetName}, concise and practical (about 4-7 short sentences). ` +
-      `Cover: what it really means and its nuance; when and how it's used; how it differs from close synonyms; ` +
-      `register (formal/casual/slang); and one common mistake learners make. ` +
-      `Do not just repeat the dictionary gloss.` +
+      `whose language is ${targetName}. Write in ${targetName} (the ${sourceName} examples aside), concise and practical. ` +
+      `The first line is the word in bold and what it really means. Then a bullet each for: when and how it's ` +
+      `used; how it differs from close synonyms; register (formal/casual/slang); one common mistake learners ` +
+      `make. Then one or two example sentences. Do not just repeat the dictionary gloss.` +
+      answerFormat(word.sourceLang, word.targetLang, "explanation") +
       scriptNote(word.sourceLang) +
       scriptNote(word.targetLang) +
       ` Respond as JSON: {"explanation": string}.`,
@@ -751,7 +757,7 @@ export async function explainWord(id: string): Promise<string> {
   });
   const text = explanation.trim();
   // Cache it on the card so re-opening the word is free.
-  await prisma.word.update({ where: { id }, data: { explainCache: text } }).catch(() => {});
+  await prisma.word.update({ where: { id }, data: { explainCache: EXPLAIN_TAG + text } }).catch(() => {});
   return text;
 }
 
@@ -1033,9 +1039,12 @@ export async function askAboutWord(
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
+  // Past answers go back in the JSON they came out as, as Mika's do: as bare text
+  // opening on "- " lines they had the model open its reply the same way, which
+  // JSON mode turns into a number.
   const clipped = history.slice(-12).map((m) => ({
     role: m.role,
-    content: m.content.slice(0, 2000),
+    content: m.role === "assistant" ? JSON.stringify({ answer: m.content.slice(0, 2000) }) : m.content.slice(0, 2000),
   })) as ChatMessage[];
 
   const messages: ChatMessage[] = [
@@ -1044,7 +1053,7 @@ export async function askAboutWord(
       content:
         `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
         `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
-        `Answer in the "answer" field ENTIRELY in ${targetName}, concise and practical (a few short sentences). ` +
+        `Answer in the "answer" field in ${targetName} (the ${sourceName} examples aside), concise and practical. ` +
         `Give ${sourceName} examples where helpful. ` +
         `STAY STRICTLY ON TOPIC: only discuss this word/phrase and ${sourceName} language learning ` +
         `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
@@ -1062,6 +1071,7 @@ export async function askAboutWord(
         `If the learner asks to SAVE/ADD an example sentence to this card (e.g. "add this example", ` +
         `"save that sentence"), put it in "addExamples" as {sentence: the ${sourceName} sentence, ` +
         `translation: its ${targetName} translation}. Otherwise leave the arrays empty.` +
+        answerFormat(word.sourceLang, word.targetLang, "answer") +
         scriptNote(word.sourceLang) +
         scriptNote(word.targetLang) +
         ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[], "addExamples": {"sentence": string, "translation": string}[]}.\n\n' +

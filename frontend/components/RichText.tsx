@@ -40,12 +40,32 @@ function closeMarkers(text: string): string {
 export function RichText({ text, className, streaming = false }: { text: string; className?: string; streaming?: boolean }) {
   // A literal "\n" is a line break the model escaped twice: the backend fixes final
   // answers, this covers text still streaming in and chats saved before that.
-  const lines = text.split(/\r?\n|\\r?\\n/);
+  const lines = text.split(/\r?\n|(?:\\r)?\\n/);
+  // A line indented under a list item belongs to it — the pinyin and translation
+  // under an example sentence, the "→ usage" under a word — so it sits in the item's
+  // column, quieter than the item itself.
+  // `mark[i]` is the list marker a line hangs from: its own ("1.", "•"), or for an
+  // indented line the item's above it, drawn invisibly to line the text up.
+  const mark: (string | null)[] = [];
+  const under: boolean[] = [];
+  lines.forEach((l, i) => {
+    const m = l.match(/^\s*(?:(\d+)[.)]|[-*•])\s+/);
+    under[i] = !m && /^(\s{2,}|\t)\S/.test(l) && i > 0 && mark[i - 1] !== null;
+    mark[i] = m ? (m[1] ? `${m[1]}.` : "•") : under[i] ? mark[i - 1] : null;
+  });
   return (
     <div className={cn("space-y-1.5", className)}>
       {lines.map((line, i) => {
         // Only the line being written right now can hold an unclosed marker.
         const fix = (v: string) => (streaming && i === lines.length - 1 ? closeMarkers(v) : v);
+        if (under[i]) {
+          return (
+            <div key={i} className="-mt-1 flex gap-2 text-ink-soft">
+              <span aria-hidden className={cn("invisible shrink-0", mark[i] !== "•" && "font-semibold")}>{mark[i]}</span>
+              <span className="min-w-0 leading-relaxed">{inline(fix(line.trim()))}</span>
+            </div>
+          );
+        }
         const num = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
         if (num) {
           return (
