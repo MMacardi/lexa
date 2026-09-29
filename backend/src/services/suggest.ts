@@ -1,7 +1,7 @@
 import { chatJson, FAST_MODEL } from "./llm.js";
 import { suggestSchema, type SuggestResult } from "../lib/schemas.js";
 import { langName } from "../lib/langs.js";
-import { cedictHas, isChinese } from "./cedict.js";
+import { cedictKnows, isChinese } from "./cedict.js";
 
 // Detect a language from the word's script when it's unambiguous. This is far
 // more reliable than asking the LLM (which sometimes omits detectedLang), so we
@@ -38,10 +38,11 @@ export async function suggestWord(
   const autoDetect = sourceLang === "auto";
   // Instant capture: a Chinese word CC-CEDICT lists is spelled right by
   // definition, so the add doesn't wait on a model to say so.
-  if (isChinese(sourceLang) && cedictHas(word.trim())) {
+  if (isChinese(sourceLang) && cedictKnows(word.trim())) {
     const w = word.trim();
     return { corrected: w, suggestions: [w], detectedLang: sourceLang, ambiguousHan: false };
   }
+  if (isChinese(sourceLang)) return suggestChinese(word.trim(), sourceLang);
   const lang = autoDetect ? "the language of the word the user typed" : langName(sourceLang);
   const result = await chatJson({
     system:
@@ -78,4 +79,44 @@ export async function suggestWord(
     ? script.lang || result.detectedLang?.trim().toLowerCase() || "en"
     : sourceLang;
   return { corrected, suggestions: suggestions.slice(0, 5), detectedLang, ambiguousHan: script.ambiguousHan };
+}
+
+/**
+ * A Chinese word neither CC-CEDICT file has. That is normal for a phrase (喝咖啡)
+ * and it is what a slip looks like: asked only "is this spelled right", the model
+ * passed 今使, then wrote it the meaning 今 + 使 "сейчас заставить" and a sentence
+ * the editor's read deleted on the card's first open (the author, 2026-09-29). So
+ * it is told the dictionary has no entry, and what it offers instead must be one
+ * the dictionary has. The form shows those as "Did you mean…" beside "add as typed".
+ */
+async function suggestChinese(w: string, sourceLang: string): Promise<SuggestResult & { ambiguousHan: boolean }> {
+  const asTyped = { corrected: w, suggestions: [w], detectedLang: sourceLang, ambiguousHan: false };
+  const result = await chatJson({
+    system:
+      `A learner typed this to add as a Chinese flashcard. CC-CEDICT (120,000 headwords) has no entry for it. ` +
+      `That is normal for a phrase built of words (喝咖啡, 很好吃), a name, or new slang — those are real. It is ` +
+      `also what a slip looks like: a wrong homophone from the input method, a lookalike character (令 for 今), a ` +
+      `missing or doubled character, or characters glued into something natives never say. Is it something a ` +
+      `native speaker really says or writes in modern Chinese? Respond as JSON: {"corrected": string, ` +
+      `"suggestions": string[]}. If it is: "corrected" is the input unchanged. If not: "corrected" is what they ` +
+      `most likely meant and "suggestions" up to 4 real Chinese dictionary words they might have meant, most ` +
+      `likely first — never the input. Simplified characters only, no pinyin, no definitions.`,
+    user: w,
+    schema: suggestSchema,
+    label: "suggest.zh",
+    // qwen-flash passed every glued pair (今使, 令使, 已使, 明使) even told the
+    // dictionary has none; the editor's model caught all, ~2 s. Only words off
+    // CC-CEDICT pay it, and a slow one is added as typed (the route's catch).
+    model: "qwen3.5-plus",
+    timeoutMs: 5000,
+  });
+  const corrected = (result.corrected ?? "").trim();
+  if (!corrected || corrected === w) return asTyped;
+  const seen = new Set<string>();
+  const known = [corrected, ...(result.suggestions ?? []).map((s) => s.trim())].filter(
+    (s) => s && s !== w && cedictKnows(s) && !seen.has(s) && seen.add(s),
+  );
+  // Nothing it offers is in the dictionary either: add it as typed, as on a hiccup.
+  if (!known.length) return asTyped;
+  return { corrected: known[0], suggestions: known.slice(0, 5), detectedLang: sourceLang, ambiguousHan: false };
 }

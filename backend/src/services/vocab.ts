@@ -16,7 +16,7 @@ import { FOCUS } from "../lib/env.js";
 import { cedictCredit, cedictInventory, isChinese } from "./cedict.js";
 import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
-import { exampleBrief, isPoolSentence, placePoolExamples, poolRegister } from "./sentences.js";
+import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords } from "./sentences.js";
 import { track } from "./analytics.js";
 import { headGloss, hskPage, pageSenses } from "./wordPages.js";
 
@@ -169,6 +169,16 @@ export async function addWordForUser(params: {
       meaningInstruction: params.meaningPrompt,
       sense: params.sense,
     });
+    // The editor's read now, as every other example gets it (services/sentences.ts).
+    // Saved unread, the card's first open read it and deleted it: 今使's came and
+    // went before the learner saw it (2026-09-29).
+    let example = withExample && entry.example ? { sentence: entry.example, translation: entry.exampleTranslation, checked: false } : null;
+    if (example && isChinese(sourceLang)) {
+      const kept = sentenceWords(example.sentence, params.word.trim()).own
+        ? await keepIfNatural({ word: params.word.trim(), sentence: example.sentence, translation: example.translation, targetLang })
+        : null;
+      example = kept && { sentence: kept.sentence, translation: kept.translation, checked: !kept.unread };
+    }
     const created = await prisma.word.create({
       data: {
         userId: user.id,
@@ -182,19 +192,19 @@ export async function addWordForUser(params: {
         synonyms: entry.synonyms,
         antonyms: entry.antonyms,
         notes,
-        examples:
-          withExample && entry.example
-            ? {
-                create: {
-                  sentenceEn: entry.example,
-                  sentenceZh: entry.exampleTranslation,
-                  sourceName: "Onomika AI",
-                  sourceUrl: "",
-                  register: params.exampleStyle ?? "casual",
-                  level: params.level ?? null,
-                },
-              }
-            : undefined,
+        examples: example
+          ? {
+              create: {
+                sentenceEn: example.sentence,
+                sentenceZh: example.translation,
+                sourceName: "Onomika AI",
+                sourceUrl: "",
+                register: params.exampleStyle ?? "casual",
+                level: params.level ?? null,
+                ...(example.checked ? { checkedAt: new Date() } : {}),
+              },
+            }
+          : undefined,
       },
       select: { id: true },
     });

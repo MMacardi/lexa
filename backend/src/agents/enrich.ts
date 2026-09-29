@@ -146,12 +146,18 @@ export async function enrichWordEntry(params: {
       `"collocations" must use the word in the sense you picked. `
     : "";
 
+  // Every path keeps an example only with the word in it as written (sentenceWords):
+  // 喝咖啡 came back as 喝一杯咖啡 and the card was left with none (2026-09-29).
+  const verbatim = isChinese(sourceLang)
+    ? `"${word}" must appear in it exactly as written, its characters side by side (打篮球, never 打了一场篮球). `
+    : "";
   const examplePart = !params.withExample
     ? `Leave "example" and "exampleTranslation" as empty strings "". `
     : style === "dialogue"
       ? `"example": a short natural ${sourceName} DIALOGUE of 2-3 turns using "${word}"${inSense}, EACH turn on its own ` +
         `line prefixed with "— ", making the word's meaning clear from the situation; ` +
         `"exampleTranslation": that dialogue translated to ${targetName} (keep the line breaks). ` +
+        verbatim +
         avoidLine +
         levelLine +
         knownLine +
@@ -159,6 +165,7 @@ export async function enrichWordEntry(params: {
       : `"example": ONE natural, correct ${sourceName} sentence (about 8-14 words, a ${register} tone) that ` +
         `uses "${word}"${inSense} in a concrete context so its meaning is clear on its own — never a bare "It's small."; ` +
         `"exampleTranslation": that sentence translated to ${targetName}. ` +
+        verbatim +
         avoidLine +
         levelLine +
         knownLine +
