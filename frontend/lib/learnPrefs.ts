@@ -368,8 +368,11 @@ export interface CardLayout {
 }
 
 export const CARD_PRESETS: { id: string; front: CardField[]; back: CardField[] }[] = [
-  // Recognition: see the word, recall its meaning.
-  { id: "default", front: ["word", "phonetic", "pos"], back: ["meaning", "example", "exampleTr"] },
+  // Recognition: see the word, recall its meaning. The pinyin waits on the back with
+  // the word itself, so it's the character that gets read (no pinyin in the HSK 3+
+  // papers) and the character and its answer are on screen together when grading.
+  // The review screen's switch puts the pinyin back on the front (`togglePinyinFront`).
+  { id: "default", front: ["word", "pos"], back: ["word", "phonetic", "meaning", "example", "exampleTr"] },
   // Production (active recall): see the meaning, recall the word yourself.
   { id: "reverse", front: ["meaning"], back: ["word", "phonetic", "example", "exampleTr"] },
   // Train the word's synonym/antonym family.
@@ -383,6 +386,11 @@ function isField(x: unknown): x is CardField {
   return typeof x === "string" && (CARD_FIELDS as string[]).includes(x);
 }
 
+// The default before 2026-10-02 (pinyin on the front). A layout saved as exactly that
+// was a pick of "Default", not a choice of pinyin, so it follows the default.
+const OLD_DEFAULT: CardLayout = { front: ["word", "phonetic", "pos"], back: ["meaning", "example", "exampleTr"] };
+const sameFields = (a: CardField[], b: CardField[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
 export function getCardLayout(): CardLayout {
   if (typeof window === "undefined") return DEFAULT_LAYOUT;
   try {
@@ -390,6 +398,7 @@ export function getCardLayout(): CardLayout {
     if (raw && Array.isArray(raw.front) && Array.isArray(raw.back)) {
       const front = raw.front.filter(isField);
       const back = raw.back.filter(isField);
+      if (sameFields(front, OLD_DEFAULT.front) && sameFields(back, OLD_DEFAULT.back)) return DEFAULT_LAYOUT;
       if (front.length && back.length) return { front, back };
     }
   } catch {
@@ -401,6 +410,23 @@ export function getCardLayout(): CardLayout {
 export function setCardLayout(layout: CardLayout) {
   localStorage.setItem(CARD_KEY, JSON.stringify(layout));
   window.dispatchEvent(new Event(EVT));
+}
+
+/** The review screen's switch: pinyin on the front (after the word), or off it and on the back. */
+export function togglePinyinFront(layout: CardLayout) {
+  if (layout.front.includes("phonetic")) {
+    const front = layout.front.filter((f) => f !== "phonetic");
+    const back = layout.back.includes("phonetic") ? layout.back : withAfter(layout.back, "phonetic", "word");
+    setCardLayout({ front: front.length ? front : ["word"], back });
+  } else {
+    setCardLayout({ ...layout, front: withAfter(layout.front, "phonetic", "word") });
+  }
+}
+
+// `field` placed right after `after` when the side has it, else first.
+function withAfter(side: CardField[], field: CardField, after: CardField): CardField[] {
+  const i = side.indexOf(after);
+  return i < 0 ? [field, ...side] : [...side.slice(0, i + 1), field, ...side.slice(i + 1)];
 }
 
 export function useCardLayout(): CardLayout {

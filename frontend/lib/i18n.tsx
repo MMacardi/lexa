@@ -2249,6 +2249,12 @@ const DICT: Record<string, Entry> = {
     zh: "向任意方向滑动即可评分，点击翻面，也可使用按钮。",
   },
   "review.swipeUpDown": { en: "Swipe up and down too", ru: "Свайпы вверх и вниз", zh: "也启用上下滑动" },
+  "review.pinyinFront": { en: "Pinyin on the front", ru: "Пиньинь на лицевой стороне", zh: "正面显示拼音" },
+  "review.pinyinFrontHint": {
+    en: "Off: you read the character itself, as in the exam. The pinyin is on the back.",
+    ru: "Выключено: читаете сам иероглиф, как на экзамене. Пиньинь — на обороте.",
+    zh: "关闭时只看汉字，和考试一样；拼音在背面。",
+  },
   "review.swipeUpDownHint": {
     en: "Up grades Easy, down grades Hard — all four grades without reaching for a button. While this is on, dragging the card no longer scrolls the page.",
     ru: "Вверх — «Легко», вниз — «Трудно»: все четыре оценки, не тянясь к кнопке. Пока включено, перетаскивание карточки больше не прокручивает страницу.",

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading } from "./cedict.js";
-import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
+import { hskFrequency, hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
 import { prisma } from "./db.js";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -135,19 +135,27 @@ function levelOf(word: string): number {
   return levels.length ? Math.min(...levels) : 10;
 }
 
-// Best score first; among equals the easier (more common) word, then the shorter.
+// Best score first; among equals the easier word, then the more frequent ("shi": 是
+// before 事, both HSK 1), then the shorter. Frequency only breaks ties: weighed into
+// the score it made the Russian results worse (the audit of 2026-10-02).
 function rank(scored: Map<string, number>): string[] {
   return [...scored.entries()]
-    .sort((a, b) => b[1] - a[1] || levelOf(a[0]) - levelOf(b[0]) || a[0].length - b[0].length)
+    .sort(
+      (a, b) =>
+        b[1] - a[1] || levelOf(a[0]) - levelOf(b[0]) || hskFrequency(b[0]) - hskFrequency(a[0]) || a[0].length - b[0].length,
+    )
     .slice(0, MAX_HITS)
     .map(([w]) => w);
 }
 
+// The question words' meanings end in "?" (什么 «что?»): left on, «что» never matched
+// them exactly and 什么 came 8th.
 const norm = (s: string) =>
   s
     .toLowerCase()
     .replace(/ё/g, "е")
     .replace(/\([^)]*\)/g, " ")
+    .replace(/[?!.…]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 

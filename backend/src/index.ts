@@ -21,6 +21,10 @@ import { runAsUser } from "./lib/usageContext.js";
 import { startImportWorker } from "./services/importWorker.js";
 import { launchBot } from "./bot/index.js";
 import { startDeletionPurge } from "./services/accountData.js";
+import { cedictKnows } from "./services/cedict.js";
+import { defaultMeaning, lookup } from "./services/lookup.js";
+import { poolSentences } from "./services/sentences.js";
+import { hskPage } from "./services/wordPages.js";
 
 // Fail closed: never boot a production server with the guessable dev signing key.
 if (process.env.NODE_ENV === "production" && env.JWT_SECRET === "dev-insecure-secret-change-me") {
@@ -133,4 +137,15 @@ app.listen(env.PORT, () => {
   startDeletionPurge();
   // No-op unless ENABLE_TELEGRAM_BOT=true.
   launchBot();
+  // The dictionary files load on first use (~250 ms here, more on Railway's vCPU),
+  // which would block the first learner after every deploy. Load them now, one per
+  // tick, so a healthcheck in between still answers.
+  const warm = [
+    () => cedictKnows("一"),
+    () => defaultMeaning("一", "ru"),
+    () => poolSentences("一", "ru"),
+    () => hskPage("一", "ru"),
+    () => void lookup("hao", "ru").catch(() => {}),
+  ];
+  warm.forEach((f, i) => setTimeout(f, 200 * (i + 1)));
 });

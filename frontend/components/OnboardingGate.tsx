@@ -25,19 +25,23 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const [plan] = useState(readGuestPlan);
   const [mode, setMode] = useState<"plan" | "onboarding" | "app" | null>(() => (plan ? "plan" : null));
+  // An account with a target is past onboarding whatever it holds: the app opens on
+  // the profile alone. Only one with no target waits for its word list (614 KB for
+  // 800 cards) to tell an empty account from one that skipped the target.
+  const hasTarget = profile?.hskTarget != null;
   const { data: words, isError } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
-    enabled: !!accountId && mode === null,
+    enabled: !!accountId && mode === null && !!profile && !hasTarget,
   });
 
   useEffect(() => {
     if (mode !== null) return;
-    if (isError) setMode("app");
-    else if (words && profile) setMode(words.length === 0 && profile.hskTarget == null ? "onboarding" : "app");
-  }, [mode, words, profile, isError]);
+    if (hasTarget || isError) setMode("app");
+    else if (words && profile) setMode(words.length === 0 ? "onboarding" : "app");
+  }, [mode, words, profile, hasTarget, isError]);
 
-  if (mode === "app") return <>{children}</>;
+  if (mode === "app" || (mode === null && hasTarget)) return <>{children}</>;
   if (mode === null)
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper">

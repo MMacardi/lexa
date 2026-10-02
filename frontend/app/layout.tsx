@@ -7,6 +7,14 @@ import { FlagEmojiPolyfill } from "@/components/FlagEmojiPolyfill";
 import { TitleTips } from "@/components/TitleTips";
 import { themeBootScript } from "@/lib/theme";
 
+// The Telegram Mini App SDK, only inside Telegram (it opens the app with
+// #tgWebAppData; a reload there keeps the mark in sessionStorage). It is written in
+// parser-blocking, as before, so the auto-login finds window.Telegram; anywhere else
+// nothing loads — it was a blocking script from telegram.org on every page.
+const telegramBootScript =
+  'try{if(location.hash.indexOf("tgWebAppData")>=0)sessionStorage.setItem("tg","1");' +
+  'if(sessionStorage.getItem("tg")==="1")document.write(\'<script src="https://telegram.org/js/telegram-web-app.js"></scr\'+\'ipt>\')}catch(e){}';
+
 // metadataBase makes the og:image absolute — Telegram and Google need a full URL.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://onomika-lac.vercel.app";
 
@@ -57,9 +65,8 @@ export default function RootLayout({
       <head>
         {/* Set the theme class before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
-        {/* Telegram Mini App SDK — no-ops outside Telegram; enables auto-login inside. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        {/* Telegram Mini App SDK — inside Telegram only (auto-login there). */}
+        <script dangerouslySetInnerHTML={{ __html: telegramBootScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* App Router root layout: these load globally for every page. */}

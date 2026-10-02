@@ -27,6 +27,9 @@ import { Segmented } from "@/components/ui/Segmented";
 
 // Sentinel <Select> value for "create a new set from the selection".
 const NEW_SET = "__new__";
+// Cards still filling in are polled one by one up to this many; past it, the list.
+const MAX_POLLED = 8;
+const POLL_MS = 3000;
 
 type Filter = "all" | "learning" | "mastered" | "due";
 type SortKey = "recent" | "alpha" | "mastery" | "due";
@@ -73,9 +76,25 @@ export default function WordsPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
-    // Cards just made from the dictionary get their meaning a few seconds later.
-    refetchInterval: (q) => pollWhileUpgrading(q.state.data),
+    // Cards just made from the dictionary get their meaning a few seconds later. A
+    // few are polled one by one below; a Reader batch of many reloads the list.
+    refetchInterval: (q) => ((q.state.data ?? []).filter(upgradePending).length > MAX_POLLED ? pollWhileUpgrading(q.state.data) : false),
   });
+  // Polling only the cards still filling in, not the whole list (~600 KB for 800
+  // cards, every 3 s for up to two minutes after an add).
+  const pendingIds = (data ?? []).filter(upgradePending).map((w) => w.id);
+  const pendingKey = pendingIds.join(",");
+  useEffect(() => {
+    const ids = pendingKey ? pendingKey.split(",") : [];
+    if (!ids.length || ids.length > MAX_POLLED) return;
+    const timer = setInterval(async () => {
+      const fresh = await Promise.all(ids.map((id) => api.getWord(id).catch(() => null)));
+      qc.setQueryData<Word[]>(["words", accountId], (list) =>
+        list?.map((w) => fresh.find((f) => f?.id === w.id) ?? w),
+      );
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [pendingKey, qc, accountId]);
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
     queryFn: () => api.collections(accountId),

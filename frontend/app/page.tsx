@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -58,6 +59,19 @@ export default function TodayPage() {
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
   });
+  // The panels below mount only once the list is in, and each would start its own
+  // fetch then — four round trips in a row. Start them all with the list instead.
+  const qc = useQueryClient();
+  const hasTarget = profile?.hskTarget != null;
+  useEffect(() => {
+    if (!accountId) return;
+    void qc.prefetchQuery({ queryKey: ["stats", accountId], queryFn: () => api.stats(accountId) });
+    if (!hasTarget) return;
+    void qc.prefetchQuery({ queryKey: ["hskReadiness", accountId], queryFn: () => api.hskReadiness() });
+    void qc.prefetchQuery({ queryKey: ["hskDaily", accountId], queryFn: () => api.hskDaily() });
+    void qc.prefetchQuery({ queryKey: ["topicDaily", accountId], queryFn: () => api.topicDaily() });
+    void qc.prefetchQuery({ queryKey: ["hskPlan", accountId], queryFn: () => api.hskPlan() });
+  }, [qc, accountId, hasTarget]);
 
   const dateLocale = locale === "ru" ? "ru-RU" : locale === "zh" ? "zh-CN" : "en-US";
   const dateStr = new Date()

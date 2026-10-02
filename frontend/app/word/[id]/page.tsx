@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, type Word } from "@/lib/api";
+import { useAccount } from "@/lib/account";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
@@ -83,9 +84,13 @@ export default function WordDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [filling, setFilling] = useState(false);
   const examplePinyin = useExamplePinyin();
+  const { accountId } = useAccount();
   const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
     queryFn: () => api.getWord(id),
+    // Tapped from the list or a review: the card is already in the list's cache, so
+    // the page draws at once and the fetch only refreshes it.
+    placeholderData: () => qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === id),
     // A card made from the dictionary a moment ago: its meaning is on its way.
     refetchInterval: (q) => pollWhileUpgrading(q.state.data ? [q.state.data] : null),
   });

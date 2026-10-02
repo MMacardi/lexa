@@ -15,6 +15,7 @@ import {
   setSwipeUpDown,
   usePlayOnFlip,
   setPlayOnFlip,
+  togglePinyinFront,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -38,7 +39,7 @@ import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
@@ -430,6 +431,17 @@ export default function FlashcardsPage() {
   // `fly` is where the card leaves from — a swipe passes its own direction so the
   // card keeps going the way the thumb was pushing it; the buttons use the default.
   function commit(grade: number, word: Word, fly?: { x: number; y: number }) {
+    // Grades from the front stay for a word met before (a known one shouldn't need a
+    // reveal before Easy), but a card never reviewed is graded only once its back was
+    // seen: a "Good" on 服务器 unseen was a fake "I knew it" that FSRS scheduled days
+    // out (the audit, 2026-10-02). Its first grade — key, button or swipe — shows it.
+    if (!flipped && word.reviewCount === 0) {
+      if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
+      paintCard(0, 0);
+      axis.current = "";
+      reveal(word);
+      return;
+    }
     const to = fly ?? { x: grade >= 3 ? 640 : -640, y: 0 };
     follow.stop();
     const el = cardRef.current;
@@ -1185,6 +1197,21 @@ export default function FlashcardsPage() {
           >
             <MoveVertical className="h-3.5 w-3.5" />
             {t("review.swipeUpDown")}
+          </button>
+          <button
+            type="button"
+            onClick={() => togglePinyinFront(layout)}
+            aria-pressed={layout.front.includes("phonetic")}
+            title={t("review.pinyinFrontHint")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+              layout.front.includes("phonetic")
+                ? "border-sage bg-sage-tint text-sage-deep"
+                : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+            )}
+          >
+            <Type className="h-3.5 w-3.5" />
+            {t("review.pinyinFront")}
           </button>
           {canSpeak() && (
             <button

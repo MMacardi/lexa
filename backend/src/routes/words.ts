@@ -493,8 +493,6 @@ wordsRouter.get("/words/:id", async (req, res) => {
   // The pool sentence moves with the learner: the one they read best now (i+1).
   await refreshPoolExample(req.params.id).catch((err) => console.error("[sentences] refresh failed", err));
   await refreshDefaultMeanings({ id: req.params.id }).catch((err) => console.error("[lookup] refresh failed", err));
-  // An example written before the editor's read existed gets it now, once.
-  await checkOldExamples(req.params.id).catch((err) => console.error("[sentences] old examples failed", err));
   await fillMissingPhonetic(req.params.id).catch((err) => console.error("[capture] phonetic failed", err));
   const word = await getWord(req.params.id);
   if (!word) {
@@ -502,6 +500,10 @@ wordsRouter.get("/words/:id", async (req, res) => {
     return;
   }
   res.json(word);
+  // An example written before the editor's read existed gets it once — after the
+  // answer: it's a model call per example (0.7–3 s), and the page shouldn't wait on it.
+  // What it keeps, rewrites or removes shows on the next open.
+  void checkOldExamples(req.params.id).catch((err) => console.error("[sentences] old examples failed", err));
 });
 
 const addBody = z.object({
