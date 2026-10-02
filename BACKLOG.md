@@ -269,6 +269,19 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        along). Examples written before the editor's read existed get it on the card's next open,
        once (`Example.checkedAt`, `checkOldExamples`): kept, rewritten and read again, or removed —
        出发之前 for 之 goes without a call. `check-sentences.ts` §6 covers both.
+     - **Read again, 2026-10-02 (asked by the author: "all definitions and sentences natural"):**
+       the Qwen passes left English inside Russian («не succeeded», «падать morally»), mistranslations
+       (请坐稳 «присядьте поудобнее»), wrong collocations (必须条件, 打个打算) and plain wrong meanings
+       (差 without «плохой», 把 without the 把-construction). With no Qwen budget, every meaning, page and
+       sentence of the HSK 1–6 words is read by one Claude editor and each fix checked by a second
+       (~95% kept). `scripts/apply-hsk-review.ts` writes them: a changed sentence retires the old one
+       (`o`), a corrected translation reaches a card on open (`refreshPoolExample`, check §7).
+       **Part 1 shipped:** 63 of the 187 batches of 40 words (b000–b062 without b061, and b120) —
+       271 card meanings, 405 senses, 835 phrases, 230 synonym/antonym lists, 469 sentences
+       rewritten, 535 translations, 39 added, 27 pages ordered to their corrected card (日 «день»
+       before «солнце»), plus 388 ‘’ quotes, 155 «…。» and 6 duplicates over the whole pool.
+       **Left:** b061 (read, not yet checked) and b063–b186 without b120 (4,928 words) — the work
+       files and the exact steps are in `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's

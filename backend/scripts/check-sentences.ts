@@ -14,6 +14,8 @@
 //      word's sentence says it is formal.
 //   6. A card still carrying a corrected default meaning gets the new one; an old
 //      example that holds the word only inside a longer word is removed on open.
+//   7. A pool sentence whose Russian was corrected takes the new translation on open;
+//      the same sentence met elsewhere keeps its own.
 //   `--live`: the learner's own sentence — on their interests, at their level —
 //   lands first with the pool's second; one over the line is rewritten to fewer
 //   unknowns; a card the pool can't serve gets one from the learner's words.
@@ -195,6 +197,29 @@ async function main() {
   });
   await S.checkOldExamples(zhi.id);
   check((await prisma.example.count({ where: { wordId: zhi.id } })) === 0, "an old example with 之 only inside 之前 is gone on open, without a model call");
+
+  // --- 7. A pool sentence whose Russian was corrected (the review, 2026-09-29) ---
+  const easy = S.poolSentences("容易", "ru")[0];
+  const oldRu = "Перевод до ревью.";
+  const card = (sourceName: string) =>
+    prisma.word.create({
+      data: {
+        userId: u5.id,
+        word: "容易",
+        phonetic: "róng yì",
+        sourceLang: "zh",
+        targetLang: "ru",
+        examples: { create: { sentenceEn: easy.zh, sentenceZh: oldRu, sourceName, sourceUrl: "" } },
+      },
+    });
+  const fromPool = await card("Onomika AI");
+  await S.refreshPoolExample(fromPool.id);
+  const took = await prisma.example.findFirst({ where: { wordId: fromPool.id, sentenceEn: easy.zh } });
+  check(took?.sentenceZh === easy.ru, `the card keeps ${easy.zh} and takes «${took?.sentenceZh}»`);
+  const theirs = await card("Reader");
+  await S.refreshPoolExample(theirs.id);
+  const kept = await prisma.example.findFirst({ where: { wordId: theirs.id, sentenceEn: easy.zh } });
+  check(kept?.sentenceZh === oldRu, "the same sentence met elsewhere keeps its own translation");
 
   if (LIVE) {
     // The batch add queues its upgrade for the worker (not running here), so the

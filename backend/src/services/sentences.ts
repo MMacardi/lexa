@@ -318,7 +318,12 @@ export async function addPoolExample(wordId: string, word: string, s: PoolSenten
 export async function refreshPoolExample(wordId: string): Promise<boolean> {
   const card = await prisma.word.findUnique({
     where: { id: wordId },
-    select: { userId: true, word: true, targetLang: true, examples: { select: { id: true, sentenceEn: true } } },
+    select: {
+      userId: true,
+      word: true,
+      targetLang: true,
+      examples: { select: { id: true, sentenceEn: true, sentenceZh: true, sourceName: true } },
+    },
   });
   if (!card) return false;
   const pool = poolSentences(card.word, card.targetLang);
@@ -333,10 +338,17 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
     else await prisma.example.delete({ where: { id: stale.id } });
     return true;
   }
-  const current = card.examples.find((e) => pool.some((s) => s.zh === e.sentenceEn));
+  const current = card.examples.find((e) => e.sourceName === AI_SOURCE && pool.some((s) => s.zh === e.sentenceEn));
   if (!current) return false;
+  const inPool = pool.find((s) => s.zh === current.sentenceEn)!;
+  // A pool sentence whose Russian was corrected since (the review of 2026-09-29) takes
+  // the new translation; the Chinese is the same sentence, so it isn't retired.
+  if (current.sentenceZh !== inPool.ru) {
+    await prisma.example.update({ where: { id: current.id }, data: { sentenceZh: inPool.ru } });
+    return true;
+  }
   const { knows } = await learnerReading(card.userId);
-  const now = scored(pool.find((s) => s.zh === current.sentenceEn)!, knows);
+  const now = scored(inPool, knows);
   const pick = pickPoolSentence(card.word, knows, card.targetLang);
   if (!pick || pick.unknown > MAX_UNKNOWN || !better(pick, now)) return false;
   if (card.examples.some((e) => e.sentenceEn === pick.s.zh)) return false;
