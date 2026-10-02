@@ -82,9 +82,11 @@ export async function addWordForUser(params: {
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word the learner typed (add-by-translation): the sense they want
   notes?: string; // learner's own notes, stored as typed
+  asTyped?: boolean; // added as typed over a "did you mean": a false alarm of the spell check, or a typo kept
 }) {
   const user = await ensureUser(params.telegramId);
   const sourceLang = normalizeLang(params.word, params.sourceLang);
+  const asTyped: { asTyped?: boolean } = params.asTyped ? { asTyped: true } : {};
   const targetLang = params.targetLang ?? "zh";
   const useWeb = !FOCUS && params.exampleSource === "web"; // web mining is off while focused (F7)
   const withExample = params.exampleStyle !== "none";
@@ -129,7 +131,7 @@ export async function addWordForUser(params: {
       })
       // The card already stands on the dictionary; the word page offers "fill this in".
       .catch((err) => console.error(`[capture] upgrade failed for ${params.word}`, err));
-    track("word_add", { telegramId: params.telegramId, props: { mode: "ai", dict: true } });
+    track("word_add", { telegramId: params.telegramId, props: { mode: "ai", dict: true, ...asTyped } });
     return withDerived(
       await prisma.word.findUniqueOrThrow({
         where: { id: created.id },
@@ -225,7 +227,7 @@ export async function addWordForUser(params: {
     }
   }
 
-  track("word_add", { telegramId: params.telegramId, props: { mode: "ai" } });
+  track("word_add", { telegramId: params.telegramId, props: { mode: "ai", ...asTyped } });
 
   return prisma.word.findUniqueOrThrow({
     where: { id: wordId },

@@ -104,6 +104,7 @@ type AddVars = {
   level?: string;
   exampleStyle?: ExampleStyle;
   sense?: string; // add-by-translation: the known-language word they typed
+  asTyped?: boolean; // "did you mean" was offered and they kept what they typed
 };
 
 // `defaultCollectionId` is the active "Set" filter from My words ("all" or an
@@ -341,10 +342,9 @@ export function AddWordForm({
   };
 
   // Adds a word. `manual:true` skips the AI agents and creates a bare/manual
-  // card — used in Manual mode and for "Add as typed" (a word the AI doesn't
-  // know, so we must not let it fabricate a definition).
+  // card — used in Manual mode.
   const mutation = useMutation({
-    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense }: AddVars) => {
+    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense, asTyped }: AddVars) => {
       const base = {
         word: chosen.trim(),
         telegramId: accountId,
@@ -382,6 +382,7 @@ export function AddWordForm({
           exampleCount: pro ? getExampleCount() : 1,
           meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
           sense,
+          asTyped,
         });
       }
       await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
@@ -1016,8 +1017,10 @@ export function AddWordForm({
               <button
                 type="button"
                 disabled={mutation.isPending}
+                // What they typed, filled in by the AI like any word: a phrase the check
+                // took for a slip (拮据的, a collocation) was a blank card to fill by hand.
                 onClick={() =>
-                  addWithChecks({ chosen: word.trim(), manual: true, sourceLangOverride: resolvedSourceLang ?? sourceLang })
+                  addWithChecks({ chosen: word.trim(), manual: false, asTyped: true, sourceLangOverride: resolvedSourceLang ?? sourceLang })
                 }
                 className="rounded-full border border-black/[0.1] bg-surface px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
               >

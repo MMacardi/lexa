@@ -735,6 +735,7 @@ export interface AddAuto {
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word it was translated from, so the card leads with that sense
   notes?: string; // learner's own notes (P.S.), saved as typed
+  asTyped?: boolean; // added as typed over a "did you mean" (counted server-side)
 }
 
 export interface AddManual extends AddAuto {

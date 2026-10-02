@@ -2056,11 +2056,11 @@ const DICT: Record<string, Entry> = {
   "add.checking": { en: "Checking…", ru: "Проверяю…", zh: "检查中…" },
   "add.toSet": { en: "Add to set", ru: "В набор", zh: "加入合集" },
   "add.didYouMean": { en: "Did you mean…", ru: "Возможно, вы имели в виду…", zh: "你是想输入…" },
-  "add.asTyped": { en: "Add “{word}” manually", ru: "Добавить «{word}» вручную", zh: "手动添加“{word}”" },
+  "add.asTyped": { en: "Add “{word}” as typed", ru: "Добавить «{word}» как есть", zh: "按原样添加“{word}”" },
   "add.asTypedHint": {
-    en: "The AI may not know this word — it's added as a blank card you can edit.",
-    ru: "ИИ может не знать это слово — оно добавится пустой карточкой, которую можно отредактировать.",
-    zh: "AI 可能不认识这个词——它会作为空白卡片添加，你可以再编辑。",
+    en: "Not a typo? Add it as you wrote it — the AI fills in the meaning and an example.",
+    ru: "Не опечатка? Добавьте как написали — ИИ заполнит значение и пример.",
+    zh: "不是错别字？按你写的添加——AI 会补上释义和例句。",
   },
   "add.findingSentence": { en: "Finding a real sentence and translating it — a few seconds…", ru: "Ищу живой пример и перевожу — пара секунд…", zh: "正在查找真实例句并翻译——几秒钟…" },
   // Reverse-translation prompt: the user typed a word in their own (target) language
