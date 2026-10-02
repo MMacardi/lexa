@@ -24,8 +24,8 @@ import { placementAnswersSchema, savePlacementAnswers } from "../services/learne
 import { asHskVersion, hskDailyWords, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
-import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings } from "../services/lookup.js";
-import { upgradeCard } from "../services/capture.js";
+import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
+import { fillMissingPhonetic, upgradeCard } from "../services/capture.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
@@ -76,7 +76,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
+  /^\/(gloss|dict\/glosses|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -495,6 +495,7 @@ wordsRouter.get("/words/:id", async (req, res) => {
   await refreshDefaultMeanings({ id: req.params.id }).catch((err) => console.error("[lookup] refresh failed", err));
   // An example written before the editor's read existed gets it now, once.
   await checkOldExamples(req.params.id).catch((err) => console.error("[sentences] old examples failed", err));
+  await fillMissingPhonetic(req.params.id).catch((err) => console.error("[capture] phonetic failed", err));
   const word = await getWord(req.params.id);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
@@ -1051,6 +1052,24 @@ wordsRouter.get("/dict/lookup", async (req, res) => {
   const lang = String(req.query.lang ?? "ru");
   const result = await lookup(q, lang);
   res.json({ ...result, ...(result.hits.length ? { credit: cedictCredit() } : {}) });
+});
+
+// POST /api/dict/glosses {words, lang} -> {meanings}: the lookup rows that only have
+// the dictionary's English, in the learner's language (services/lookup.ts). Asked
+// after the lookup so it stays instant; a failure just leaves the English up.
+const glossesBody = z.object({ words: z.array(z.string().max(40)).max(8), lang: z.string().min(2).max(10) });
+wordsRouter.post("/dict/glosses", async (req, res) => {
+  const parsed = glossesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    res.json({ meanings: await translateGlosses(parsed.data.words, parsed.data.lang) });
+  } catch (err) {
+    console.error("[lookup] glosses failed", (err as Error).message);
+    res.json({ meanings: {} });
+  }
 });
 
 // POST /api/segment -> Chinese text as Reader tokens: ICU's word boundaries

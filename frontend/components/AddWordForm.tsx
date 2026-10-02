@@ -496,15 +496,30 @@ export function AddWordForm({
     const id = setTimeout(() => setLookupQ(next), next ? 200 : 0);
     return () => clearTimeout(id);
   }, [typedNow, zhMode]);
+  // The rows speak the interface's language, whatever the card's: Russian rows for a
+  // Russian interface, CC-CEDICT's English for an English one.
   const lookupQuery = useQuery({
-    queryKey: ["lookup", lookupQ, targetLang],
-    queryFn: () => api.lookup(lookupQ, targetLang),
+    queryKey: ["lookup", lookupQ, locale],
+    queryFn: () => api.lookup(lookupQ, locale),
     enabled: Boolean(lookupQ),
     staleTime: Infinity,
     placeholderData: (prev) => prev,
   });
   const looked = typedNow && lookupQ ? lookupQuery.data : undefined;
-  const lookupHits = looked?.hits ?? [];
+  // Rows off the HSK list come back in English; one fast call puts them in the
+  // learner's language, and the English stands until it lands (or if it fails).
+  const englishRows = (looked?.hits ?? []).filter((h) => h.english).map((h) => h.word);
+  const glossQuery = useQuery({
+    queryKey: ["lookupGlosses", englishRows.join(","), locale],
+    queryFn: () => api.lookupGlosses(englishRows, locale),
+    enabled: englishRows.length > 0 && locale === "ru",
+    staleTime: Infinity,
+    retry: false,
+  });
+  const lookupHits = (looked?.hits ?? []).map((h) => {
+    const meaning = h.english ? glossQuery.data?.meanings[h.word] : undefined;
+    return meaning ? { ...h, meaning, english: false } : h;
+  });
   // Settled on what's in the field and still empty: say what the button will do instead.
   const lookupMissed =
     meaningTyped && lookupQ === typedNow && !lookupQuery.isFetching && lookupQuery.isSuccess && lookupHits.length === 0;

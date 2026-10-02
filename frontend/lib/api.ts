@@ -887,6 +887,9 @@ export const api = {
     http<{ kind: "zh" | "meaning" | "none"; hits: LookupHit[]; credit?: DictCredit }>(
       `/api/dict/lookup?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(lang)}`,
     ),
+  // The rows the lookup could only give in English, in the learner's language (one fast model call).
+  lookupGlosses: (words: string[], lang: string) =>
+    http<{ meanings: Record<string, string> }>(`/api/dict/glosses`, { method: "POST", body: JSON.stringify({ words, lang }) }),
   wordFamily: (id: string) =>
     http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
   explainWord: (id: string) =>

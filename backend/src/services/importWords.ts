@@ -3,7 +3,7 @@ import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
-import { dictCardFields, translateDictMeanings } from "./capture.js";
+import { cardPhonetic, dictCardFields, translateDictMeanings } from "./capture.js";
 import { placePoolExamples, poolRegister } from "./sentences.js";
 
 const MAX_CARDS = 100;
@@ -144,7 +144,7 @@ export async function importWordsForUser(params: {
           word: item.word,
           sourceLang: params.sourceLang,
           targetLang: params.targetLang,
-          phonetic: dict?.phonetic ?? null,
+          phonetic: dict?.phonetic ?? (await cardPhonetic(item.word, params.sourceLang)),
           meaningZh: dict?.meaningZh ?? item.meaning,
           synonyms: params.keepProvidedExtras ? item.synonyms : [],
           collocations: [],

@@ -3,6 +3,7 @@ import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
 import { langName } from "../lib/langs.js";
+import { hasLocalPhonetic, localPhonetic } from "../lib/transcribe.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
 import {
@@ -49,6 +50,28 @@ export async function dictCardFields(
   if (!isChinese(sourceLang)) return null;
   const card = await cedictCard(word);
   return card ? { phonetic: card.phonetic, meaningZh: defaultMeaning(word, targetLang) ?? card.gloss } : null;
+}
+
+/**
+ * The pinyin a card is written with, never a model's: the dictionary's reading,
+ * else pinyin-pro's (a word CC-CEDICT doesn't have — 拮据的 — or one added with
+ * its meaning typed). Such a card used to wait for the upgrade's last write for
+ * its pinyin, and showed none when that never came (2026-10-02).
+ */
+export async function cardPhonetic(word: string, sourceLang: string): Promise<string | null> {
+  if (isChinese(sourceLang)) {
+    const card = await cedictCard(word, { count: false });
+    if (card) return card.phonetic;
+  }
+  return localPhonetic(word, sourceLang);
+}
+
+/** Cards opened with no pinyin get theirs now (see `cardPhonetic`). Called before a card is read. */
+export async function fillMissingPhonetic(id: string): Promise<void> {
+  const w = await prisma.word.findUnique({ where: { id }, select: { word: true, sourceLang: true, phonetic: true } });
+  if (!w || w.phonetic?.trim() || !hasLocalPhonetic(w.sourceLang)) return;
+  const phonetic = await cardPhonetic(w.word, w.sourceLang);
+  if (phonetic) await prisma.word.updateMany({ where: { id, phonetic: w.phonetic }, data: { phonetic } });
 }
 
 /**

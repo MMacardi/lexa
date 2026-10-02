@@ -4,6 +4,9 @@ import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChin
 import { hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
 import { prisma } from "./db.js";
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { FAST_MODEL, chatJson } from "./llm.js";
+import { langName } from "../lib/langs.js";
 
 /**
  * The learner's dictionary: a default meaning in Russian for every HSK headword,
@@ -310,4 +313,60 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
 
   const hits = (await Promise.all(words.map((w) => hit(w, lang)))).filter((h): h is LookupHit => Boolean(h));
   return { kind, hits };
+}
+
+// --- The rows the default doesn't cover, in the learner's language ---
+
+const glossSchema = z.object({
+  items: z.array(z.object({ word: z.string(), meaning: z.string().default("") })).default([]),
+});
+// word|lang → meaning, for the life of the process: the same rows come back as the
+// learner types on, and the dictionary under them doesn't change.
+const glossCache = new Map<string, string>();
+const GLOSS_CACHE_MAX = 20_000;
+
+/**
+ * A lookup row off the HSK list (有钱) has only CC-CEDICT's English, a third
+ * language to a Russian speaker. The lookup itself stays instant and model-free;
+ * the form asks for these after it, and the row switches from the English once
+ * they land. One fast call for the rows not cached, grounded on the dictionary's
+ * senses (pick and translate, never invent). An English interface keeps the
+ * English: the rows follow the interface language, not the card's (2026-10-02).
+ */
+export async function translateGlosses(words: string[], lang: string): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  // A Chinese interface keeps the English: a gloss in Chinese would only restate the word.
+  if (!lang || lang === "en" || isChinese(lang)) return out;
+  const todo: { word: string; senses: string }[] = [];
+  for (const word of new Set(words.map((w) => w.trim()).filter(Boolean).slice(0, MAX_HITS))) {
+    const cached = glossCache.get(`${word}|${lang}`);
+    if (cached) {
+      out[word] = cached;
+      continue;
+    }
+    const card = await cedictCard(word, { count: false });
+    if (card && !defaultMeaning(word, lang)) todo.push({ word, senses: card.gloss });
+  }
+  if (!todo.length) return out;
+  const r = await chatJson({
+    system:
+      `You write dictionary meanings for a ${langName(lang)} speaker learning Chinese. For each item, give the ` +
+      `word's meaning in ${langName(lang)}: its senses in the order given, 1–4 words each, separated by "; ", at ` +
+      `most three. Base it on the English dictionary senses given — pick and translate, don't invent. Keep the ` +
+      `words exactly as given. Respond as JSON: {"items":[{"word": string, "meaning": string}]}.`,
+    user: JSON.stringify(todo),
+    schema: glossSchema,
+    model: FAST_MODEL,
+    label: "lookup.gloss",
+  });
+  const asked = new Set(todo.map((t) => t.word));
+  for (const it of r.items ?? []) {
+    const word = it.word.trim();
+    const meaning = (it.meaning ?? "").trim();
+    if (!asked.has(word) || !meaning) continue;
+    out[word] = meaning;
+    if (glossCache.size >= GLOSS_CACHE_MAX) glossCache.delete(glossCache.keys().next().value!);
+    glossCache.set(`${word}|${lang}`, meaning);
+  }
+  return out;
 }
