@@ -280,8 +280,12 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        271 card meanings, 405 senses, 835 phrases, 230 synonym/antonym lists, 469 sentences
        rewritten, 535 translations, 39 added, 27 pages ordered to their corrected card (日 «день»
        before «солнце»), plus 388 ‘’ quotes, 155 «…。» and 6 duplicates over the whole pool.
-       **Left:** b061 (read, not yet checked) and b063–b186 without b120 (4,928 words) — the work
-       files and the exact steps are in `.review/HANDOFF.md` (local, not in git).
+       **Wave 1 shipped (2026-10-03):** b061 and b063–b086 (1,000 words) — 125 card meanings,
+       158 senses, 332 phrases (20 dropped), 112 synonym/antonym lists, 187 sentences rewritten,
+       246 translations, 15 added, 11 dropped, 6 pages ordered to their corrected card (出卖
+       «предавать» before «продавать»).
+       **Left:** b087–b186 without b120 (3,928 words) — the work files and the exact steps are in
+       `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's
