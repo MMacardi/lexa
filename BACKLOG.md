@@ -288,7 +288,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        363 phrases (11 dropped), 103 synonym/antonym lists, 254 sentences rewritten, 262
        translations, 14 added, 8 dropped, 3 pages ordered to their corrected card (指令 «приказ»
        before «приказывать»).
-       **Left:** b112–b186 without b120 (2,928 words) — the work files and the exact steps are in
+       **Wave 3 shipped (2026-10-03):** b112–b137 without b120 (1,000 words) — 120 card meanings
+       (外国 «иностранный государственный орган» → «иностранное государство», 践踏 «таптать» →
+       «топтать», 后 «задняя часть; императрица» → «сзади, задний; после», 女朋友 without «подруга»),
+       162 senses, 319 phrases (7 dropped), 100 synonym/antonym lists, 216 sentences rewritten,
+       198 translations, 15 added, 1 dropped, 8 pages ordered to their corrected card (度 «градус»
+       before «проводить (время)»). A third reader went over the verified change list first and
+       caught 6 more (放假 «иметь выходные», 令人震惊 «потрясающий», 度 leading with its bookish verb).
+       **Left:** b138–b186 (1,928 words) — the work files and the exact steps are in
        `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
