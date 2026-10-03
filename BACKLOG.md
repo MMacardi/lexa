@@ -284,7 +284,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        158 senses, 332 phrases (20 dropped), 112 synonym/antonym lists, 187 sentences rewritten,
        246 translations, 15 added, 11 dropped, 6 pages ordered to their corrected card (出卖
        «предавать» before «продавать»).
-       **Left:** b087–b186 without b120 (3,928 words) — the work files and the exact steps are in
+       **Wave 2 shipped (2026-10-03):** b087–b111 (1,000 words) — 118 card meanings, 219 senses,
+       363 phrases (11 dropped), 103 synonym/antonym lists, 254 sentences rewritten, 262
+       translations, 14 added, 8 dropped, 3 pages ordered to their corrected card (指令 «приказ»
+       before «приказывать»).
+       **Left:** b112–b186 without b120 (2,928 words) — the work files and the exact steps are in
        `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
