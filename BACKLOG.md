@@ -295,7 +295,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        198 translations, 15 added, 1 dropped, 8 pages ordered to their corrected card (度 «градус»
        before «проводить (время)»). A third reader went over the verified change list first and
        caught 6 more (放假 «иметь выходные», 令人震惊 «потрясающий», 度 leading with its bookish verb).
-       **Left:** b138–b186 (1,928 words) — the work files and the exact steps are in
+       **Wave 4a shipped (2026-10-04):** b138–b149 (480 words) — 55 card meanings (乐 without the
+       yuè «музыка», 付 without «счётное слово для пар» (that is 副), 领 not leading with «шея», 堵
+       «быть забитым (о дороге)» first, 外汇 «иностранная валюта»), 93 senses, 157 phrases (4 dropped),
+       58 synonym/antonym lists, 122 sentences rewritten, 111 translations, 22 added, 1 dropped,
+       4 pages ordered to their corrected card (领 «вести» before «шея»); the third read caught 5
+       (一单生意 yì dān, not yí dān; 二手 without «косвенный дым»; 市区 not led by «центр города»).
+       **Left:** b150–b186 (1,448 words) — the work files and the exact steps are in
        `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
