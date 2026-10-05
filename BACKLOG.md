@@ -315,7 +315,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        58 synonym/antonym lists, 122 sentences rewritten, 111 translations, 22 added, 1 dropped,
        4 pages ordered to their corrected card (领 «вести» before «шея»); the third read caught 5
        (一单生意 yì dān, not yí dān; 二手 without «косвенный дым»; 市区 not led by «центр города»).
-       **Left:** b150–b186 (1,448 words) — the work files and the exact steps are in
+       **Wave 4b shipped (2026-10-05):** b150–b162 (520 words) — 78 card meanings (王 without the
+       wàng «царствовать», 量 without the liàng «количество», 降 without the xiáng «сдаваться», 相声
+       «сяншэн» not «хуэйцзы», 摇头 «качать головой», 首 led by the measure word for songs and poems),
+       108 senses, 198 phrases (5 dropped), 56 synonym/antonym lists, 156 sentences rewritten,
+       77 translations, 17 added; the third read caught 10 (一户人家 yí hù, 决不后悔 jué bú, «символ
+       Цзинаня»).
+       **Left:** b163–b186 (928 words) — the work files and the exact steps are in
        `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
