@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
@@ -20,7 +23,7 @@ import {
   unknownIn,
   writtenLabel,
 } from "./sentences.js";
-import { hskPage } from "./wordPages.js";
+import { headGloss, hskPage, readsAs } from "./wordPages.js";
 
 /**
  * Instant capture: the dictionary makes the card, the model comes second.
@@ -72,6 +75,78 @@ export async function fillMissingPhonetic(id: string): Promise<void> {
   if (!w || w.phonetic?.trim() || !hasLocalPhonetic(w.sourceLang)) return;
   const phonetic = await cardPhonetic(w.word, w.sourceLang);
   if (phonetic) await prisma.word.updateMany({ where: { id, phonetic: w.phonetic }, data: { phonetic } });
+}
+
+// The pinyin a card used to be made with, per word, where the dictionary has since
+// read it otherwise (data/card-pinyin-old.jsonl, scripts/card-pinyin-moves.ts).
+let oldPinyin: Map<string, Set<string>> | null = null;
+
+function oldPinyinIndex(): Map<string, Set<string>> {
+  if (oldPinyin) return oldPinyin;
+  oldPinyin = new Map();
+  const path = fileURLToPath(new URL("../../data/card-pinyin-old.jsonl", import.meta.url));
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return oldPinyin;
+  }
+  for (const raw of text.split("\n")) {
+    const line = raw.trim(); // CRLF on a Windows checkout
+    if (!line) continue;
+    const row = JSON.parse(line) as { w?: string; o?: string[] };
+    if (row.w && row.o?.length) oldPinyin.set(row.w, new Set(row.o));
+  }
+  return oldPinyin;
+}
+
+/**
+ * Cards still carrying a pinyin the dictionary used to give them move to the
+ * current one: an HSK card now reads as the list does (东西 dōng xī "east and
+ * west" → dōng xi "thing", 告诉 gào sù → gào su, 盛 shèng → chéng), and an
+ * English card whose meaning is still the old reading's gloss ("to press
+ * charges") takes the new one's ("to tell"). A pinyin the learner typed is
+ * never an old one, so it stays; so does a card whose meaning is in the old
+ * reading's sense (a 盛 card kept as «процветающий» is still shèng). A card moved
+ * to another word whose meaning is now the shared default takes that word's part
+ * of speech too (盛 «накладывать» is a verb, «процветающий» was an adjective).
+ * Called before a card or the list is read, after `refreshDefaultMeanings`.
+ */
+export async function refreshCardReadings(where: Prisma.WordWhereInput): Promise<number> {
+  const old = oldPinyinIndex();
+  if (!old.size) return 0;
+  const cards = await prisma.word.findMany({
+    where: { ...where, sourceLang: { in: ["zh", "zh-Hant"] }, word: { in: [...old.keys()] } },
+    select: { id: true, word: true, sourceLang: true, targetLang: true, phonetic: true, meaningZh: true, partOfSpeech: true },
+  });
+  let n = 0;
+  for (const c of cards) {
+    const was = c.phonetic?.trim();
+    if (!was || !old.get(c.word)?.has(was)) continue;
+    const now = await cedictCard(c.word, { count: false });
+    if (!now || now.phonetic === was) continue;
+    const dictGloss = isCedictGloss(c.word, c.meaningZh);
+    if (!dictGloss && meansOtherReading(c.word, c.meaningZh, was, now.phonetic)) continue;
+    const meaning = dictGloss && c.meaningZh !== now.gloss ? { meaningZh: now.gloss } : {};
+    const pos = !readsAs(c.word, was, now.phonetic) && isDefaultMeaning(c) ? hskPage(c.word, c.targetLang)?.pos : undefined;
+    // Compare-and-set on what was read: an edit made meanwhile wins.
+    n += (
+      await prisma.word.updateMany({
+        where: { id: c.id, phonetic: c.phonetic, meaningZh: c.meaningZh },
+        data: { phonetic: now.phonetic, ...meaning, ...(pos && c.partOfSpeech && pos !== c.partOfSpeech ? { partOfSpeech: pos } : {}) },
+      })
+    ).count;
+  }
+  return n;
+}
+
+// Is the card's meaning a sense of the old reading and not the new one? Read off the
+// word page: the sense its first segment opens (as the page ticks it, `headGloss`).
+function meansOtherReading(word: string, meaning: string | null, was: string, now: string): boolean {
+  if (readsAs(word, was, now) || !meaning?.trim()) return false;
+  const head = headGloss(meaning.split(/[;；]/)[0] ?? "");
+  const sense = hskPage(word, "ru")?.s.find((s) => headGloss(s.m) === head);
+  return Boolean(sense && readsAs(word, sense.r, was) && !readsAs(word, sense.r, now));
 }
 
 /**

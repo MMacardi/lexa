@@ -106,6 +106,20 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - `check-hsk-readings.ts`: 29 pinned readings, format (no digits/u:, marks on the right vowel,
      a space per syllable), and every word that differs from pinyin-pro (109) must be hand-checked;
      the old list fails it with 184 unreviewed.
+   - **Card pinyin vs the official HSK list — done 2026-10-04.** Cards *were* affected: their
+     pinyin was pinyin-pro's alone, so HSK 1 cards read 东西 dōng xī, 告诉 gào sù, 多少 duō shǎo,
+     故事 gù shì (English cards glossed "east and west", "to press charges"), while the list views
+     had them right. Now an HSK card shows the list's reading, spoken (一/不 sandhi by the next
+     syllable: 一应俱全 yì yīng), and the English gloss is CC-CEDICT's for the reading of the page's
+     lead sense (说法 «wording», not «to expound Buddhist teachings»; 佛 Fó «Buddha»). 77 words
+     read against the official 3.0/2.0 pinyin (decide → verify, 20 agents): 41 list readings
+     changed (回来 huí lái, 关系 guān xì, 划 huá, 卷 juǎn, 缝 féng, 蒙 mēng), 27 cards moved to the
+     exam's reading with page lead and sentences (盛 chéng «накладывать (еду)», 咳 ké «кашлять», 觉
+     jiào «сон», 率 shuài, 钉 dìng, 铺 pū, 过 guò, 教授 «профессор»). Cards already made move on read
+     (`refreshCardReadings`, old pinyin in `data/card-pinyin-old.jsonl`, 205 words; a pinyin the
+     learner typed or a meaning in the old reading's sense stays). 婴儿/孤儿 no longer show 婴's/孤's
+     page. `check-card-readings.ts`: every HSK card reads as the list, every page leads with a
+     sense under it, every English card glosses that sense's reading, old cards move.
 
 1c. [x] **An adaptive check that catches overclaiming.** `[F12]` One or two sessions. Folds in the old
    "A placement that finds your level, and a mark that isn't a lie".

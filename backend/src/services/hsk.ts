@@ -81,6 +81,11 @@ export function hskTagFor(word: string): HskTag | null {
   return hit ? hit.levels : null;
 }
 
+/** The list's reading of a word ("dōng xi", tone-marked, no 一/不 sandhi), or null off the lists. */
+export function hskReading(word: string): string | null {
+  return idx().get(normalizeHanzi(word))?.pinyin || null;
+}
+
 /** Words that are new at exactly this level (the "exclusive" list). */
 export function hskLevelWords(version: HskVersion, level: number): Entry[] {
   if (!byLevel) build();

@@ -43,7 +43,7 @@ type Sentence = { c: Ceiling; zh: string; ru: string; t: string };
 type SentRow = { w: string; s: Sentence[]; o?: string[]; [k: string]: unknown };
 type RuRow = { s: string; p: string; m: string; o?: string[] };
 type Phrase = { t: string; r: string; ru: string };
-type PageRow = { w: string; s: { r: string; pos: string; m: string; p?: Phrase[] }[]; syn: string[]; ant: string[] };
+type PageRow = { w: string; s: { r: string; pos: string; m: string; g?: number[]; p?: Phrase[] }[]; syn: string[]; ant: string[] };
 
 function load<T>(name: string): { meta: Record<string, unknown>; rows: T[] } {
   const lines = readFileSync(file(name), "utf8").split("\n").filter((l) => l.trim());
@@ -138,7 +138,7 @@ if (MECHANICAL) {
 type Fix = {
   id: string; word: string; kind: string; si?: number; pi?: number; n?: number;
   new_m?: string; new_pos?: string; new_t?: string; new_r?: string; new_ru?: string; new_zh?: string;
-  new_list?: string[]; why: string; verdict?: string;
+  new_list?: string[]; new_g?: number[]; new_phrases?: Phrase[]; why: string; verdict?: string;
 };
 if (FIXES) {
   const fixes: (Fix & { batch: string })[] = [];
@@ -150,6 +150,7 @@ if (FIXES) {
   const dropped = new Map<string, Set<number>>();
   const added = new Map<string, Sentence[]>();
   const pDropped = new Map<string, Set<string>>();
+  const leads = new Map<string, number>();
   for (const x of fixes) {
     const tag = `${x.batch} ${x.id} ${x.kind} ${x.word}`;
     const skip = (why: string) => skipped.push(`${tag}: ${why}`);
@@ -177,12 +178,32 @@ if (FIXES) {
         show(`pos  ${x.word}#${x.si}: ${s.pos} → ${x.new_pos.trim()}`);
         s.pos = x.new_pos.trim();
       }
-      // A sense read another way (系 «завязывать» is jì), from the hand fixes.
+      // A sense read another way (系 «завязывать» is jì), from the hand fixes — with the
+      // glosses of that reading it cites ("g"), which the check reads its reading from.
       if (x.new_r?.trim() && x.new_r.trim() !== s.r) {
-        show(`reading  ${x.word}#${x.si}: ${s.r} → ${x.new_r.trim()}`);
+        show(`reading  ${x.word}#${x.si}: ${s.r} → ${x.new_r.trim()}${x.new_g?.length ? ` g ${x.new_g.join(",")}` : ""}`);
         s.r = x.new_r.trim();
+        if (x.new_g?.length) s.g = x.new_g;
       }
       bump("page sense");
+    } else if (x.kind === "sense_add") {
+      // A sense under the reading the card shows, where the page had none (the list's reading pass).
+      const page = pageBy.get(x.word);
+      const m = x.new_m?.trim();
+      const phrases = (x.new_phrases ?? []).filter((p) => p.t?.includes(x.word) && p.r?.trim() && p.ru?.trim());
+      if (!page || !m || !x.new_r?.trim() || !x.new_g?.length) { skip("no page, meaning, reading or glosses"); continue; }
+      if (hasHan(m)) { skip(`Chinese in the meaning: ${m}`); continue; }
+      if (!knownPos(x.new_pos ?? "")) { skip(`not a part of speech: ${x.new_pos}`); continue; }
+      if (phrases.length < 2) { skip("fewer than 2 phrases with the word"); continue; }
+      show(`sense added  ${x.word}: [${x.new_r.trim()}] ${m} :: ${phrases.map((p) => `${p.t} ${p.r}`).join(" / ")}   (${x.why})`);
+      page.s.push({ r: x.new_r.trim(), pos: x.new_pos!.trim(), m, g: x.new_g, p: phrases });
+      bump("page sense added");
+    } else if (x.kind === "sense_lead") {
+      // The sense the card leads with goes first (after the adds: an added sense's index
+      // follows the page's own). By index, where --order's head match can't tell two
+      // senses opening alike apart (哦 ó / ò «о!»).
+      if (!pageBy.get(x.word)) { skip("no page"); continue; }
+      leads.set(x.word, x.si ?? -1);
     } else if (x.kind === "phrase") {
       const ph = pageBy.get(x.word)?.s[x.si ?? -1]?.p?.[x.pi ?? -1];
       if (!ph) { skip("no such phrase"); continue; }
@@ -253,6 +274,15 @@ if (FIXES) {
   for (const [w, keys] of pDropped) {
     const page = pageBy.get(w)!;
     page.s.forEach((s, si) => (s.p = s.p?.filter((_, pi) => !keys.has(`${si}:${pi}`))));
+  }
+  for (const [w, i] of leads) {
+    const page = pageBy.get(w)!;
+    if (i <= 0 || i >= page.s.length) continue;
+    show(`lead  ${w}: «${page.s[i].m}» before «${page.s[0].m}»${page.s[i].pos !== page.pos ? `, ${page.pos} → ${page.s[i].pos}` : ""}`);
+    page.s = [page.s[i], ...page.s.filter((_, k) => k !== i)];
+    // The page's part of speech is the card's, its first sense's (盛 «накладывать» a verb now).
+    (page as PageRow & { pos?: string }).pos = page.s[0].pos;
+    bump("page led by its card's sense");
   }
   for (const w of new Set([...dropped.keys(), ...added.keys()])) sentBy.get(w)!.s.sort((a, b) => a.c - b.c);
 }

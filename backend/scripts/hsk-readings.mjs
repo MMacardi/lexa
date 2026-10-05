@@ -86,4 +86,17 @@ export const READINGS = {
   行家: "háng jia", 西边: "xī bian", 见过: "jiàn guo", 试探: "shì tan", 说道: "shuō dao", 费用: "fèi yong",
   赶不上: "gǎn bu shàng", 跟上: "gēn shang", 踏上: "tà shang", 车上: "chē shang", 遇上: "yù shang",
   醒来: "xǐng lai", 门路: "mén lu", 阎王: "Yán wang", 队伍: "duì wu", 风筝: "fēng zheng",
+
+  // Read again with each word's card (2026-10-04), once a card came to show the list's
+  // reading: a full tone the HSK 3.0 site writes and 现代汉语词典 allows (回来 huí∥·lái,
+  // 关系 guān·xì) over the neutral one upstream took, and of a word's two official
+  // readings the one its card means (划 huá «грести», 卷 juǎn, 缝 féng, 蒙 mēng).
+  // Kept against the site, with reasons: 心里 xīn li (xīnlǐ is 心理), 顾不得 gù bu de.
+  一塌糊涂: "yī tā hú tú", 下来: "xià lái", 两边: "liǎng biān", 价钱: "jià qián", 倒是: "dào shì", 关系: "guān xì", 划: "huá",
+  卷: "juǎn", 反过来: "fǎn guò lái", 只不过: "zhǐ bù guò", 可不是: "kě bù shi", 回去: "huí qù", 回来: "huí lái",
+  坏处: "huài chù", 基本上: "jī běn shàng", 夜里: "yè lǐ", 太阳: "tài yáng", 尺寸: "chǐ cùn", 尽可能: "jìn kě néng",
+  巴不得: "bā bu dé", 延误: "yán wù", 恭维: "gōng wéi", 暗地里: "àn dì lǐ", 标致: "biāo zhì", 用处: "yòng chù", 益处: "yì chù",
+  看上去: "kàn shàng qù", 看起来: "kàn qǐ lái", 算计: "suàn jì", 篇幅: "piān fú", 缝: "féng", 老是: "lǎo shì", 节气: "jié qì",
+  蒙: "mēng", 要不是: "yào bù shì", 记住: "jì zhù", 起来: "qǐ lái", 这时候: "zhè shí hou", 那边: "nà biān", 那里: "nà lǐ",
+  难处: "nán chù",
 };

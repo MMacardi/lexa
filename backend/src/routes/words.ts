@@ -25,7 +25,7 @@ import { asHskVersion, hskDailyWords, hskGapWords, hskListWords, hskTagFor, lear
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
-import { fillMissingPhonetic, upgradeCard } from "../services/capture.js";
+import { fillMissingPhonetic, refreshCardReadings, upgradeCard } from "../services/capture.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { prisma } from "../services/db.js";
@@ -211,6 +211,8 @@ wordsRouter.get("/words", async (req, res) => {
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   // A default meaning the list has since corrected is corrected on the cards too.
   await refreshDefaultMeanings({ user: { telegramId } }).catch((err) => console.error("[lookup] refresh failed", err));
+  // And a pinyin the dictionary has since read otherwise (东西 dōng xī → dōng xi).
+  await refreshCardReadings({ user: { telegramId } }).catch((err) => console.error("[capture] readings failed", err));
   const words = await listWordsForUser(telegramId);
   res.json(words);
 });
@@ -493,6 +495,7 @@ wordsRouter.get("/words/:id", async (req, res) => {
   // The pool sentence moves with the learner: the one they read best now (i+1).
   await refreshPoolExample(req.params.id).catch((err) => console.error("[sentences] refresh failed", err));
   await refreshDefaultMeanings({ id: req.params.id }).catch((err) => console.error("[lookup] refresh failed", err));
+  await refreshCardReadings({ id: req.params.id }).catch((err) => console.error("[capture] readings failed", err));
   await fillMissingPhonetic(req.params.id).catch((err) => console.error("[capture] phonetic failed", err));
   const word = await getWord(req.params.id);
   if (!word) {

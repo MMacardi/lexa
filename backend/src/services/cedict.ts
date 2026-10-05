@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { normalizeHanzi } from "./hsk.js";
+import { hskReading, normalizeHanzi } from "./hsk.js";
+import { hskPage, readsAs } from "./wordPages.js";
 
 /**
  * CC-CEDICT as the sense inventory for Chinese words.
@@ -242,23 +243,89 @@ const nearReading = (dict: string, expected: string) => {
   return d.length === e.length && d.every((s, i) => s === e[i] || (s.endsWith("5") && s.slice(0, -1) === e[i].slice(0, -1)));
 };
 
+// The HSK list's tone marks as CC-CEDICT's numbers: "dōng xi" → "dong1 xi5", the
+// erhua "r" of 一下儿 → "r5", ü as CC-CEDICT spells it (女 "nu:3").
+const TONE_OF: Record<string, number> = { "̄": 1, "́": 2, "̌": 3, "̀": 4 };
+function numberedPinyin(marked: string): string {
+  return marked
+    .split(" ")
+    .map((syl) => {
+      const d = syl.normalize("NFD");
+      const tone = [...d].map((c) => TONE_OF[c]).find(Boolean) ?? 5;
+      return d.replace(/[̀́̄̌]/g, "").normalize("NFC").replace(/ü/g, "u:") + tone;
+    })
+    .join(" ");
+}
+
 /**
- * The reading the learner most likely means: the one pinyin-pro gives the word
- * (it knows 长 is cháng and 着 is zhe, where "the reading with most senses" would
- * pick zhǎng and zháo), then one it gives but for a neutral tone, then the first
- * one that has a real meaning. `matched`: pinyin-pro gave exactly this reading,
- * so its spoken form (yí xià) is the card's pinyin; otherwise the dictionary's
- * own is (shì qing, where pinyin-pro says shì qíng).
+ * The reading the learner most likely means — the one whose glosses an English
+ * card shows. An HSK word's is the list's (`hskReading`, hand-checked against
+ * the official pinyin): pinyin-pro alone read 东西 dōng xī "east and west", 告诉
+ * gào sù "to press charges" and 所长 suǒ cháng "one's strong point", so HSK 1
+ * cards came out wrong while the list views had them right. Any other word's is
+ * the one pinyin-pro gives it (it knows 长 is cháng and 着 is zhe, where "the
+ * reading with most senses" would pick zhǎng and zháo). Either way an exact
+ * match first, then one but for a neutral tone on either side (好处 hǎo chu,
+ * 早晨 zǎo chen where CC-CEDICT writes chén), else the first reading with a real
+ * meaning. A proper-noun reading counts only when the list names it (佛 Fó).
+ * Where a tone alone parts two entries the list doesn't tell apart (说法 shuō fǎ
+ * "to expound Buddhist teachings" / shuō fa "wording", 口音, 下场), the one taken
+ * is the reading of the sense the word's page leads with — the card's own.
+ * `matched`: pinyin-pro reads the word exactly so (its spoken form is then the
+ * pinyin of a word off the list: yí xià).
  */
 export async function mainReading(entry: CedictEntry): Promise<{ reading: CedictReading; matched: boolean }> {
   const { pinyin } = await import("pinyin-pro");
   // Tone sandhi off to match the dictionary (一下 is yi1 xia4 there, yí xià spoken).
-  const expected = LEARNER_READING[entry.word] ?? pinyin(entry.word, { toneType: "num", type: "string", toneSandhi: false });
+  const said = pinyin(entry.word, { toneType: "num", type: "string", toneSandhi: false });
+  const learner = LEARNER_READING[entry.word];
+  const listed = hskReading(entry.word);
+  const meant = entry.readings.filter((r) => readingGloss(r));
   // Capitalised readings are proper nouns ("Huan2" is the surname reading of 还).
-  const common = entry.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase());
-  const matched = common.find((r) => sameReading(r.pinyin, expected) && readingGloss(r));
-  const near = matched ? undefined : common.find((r) => nearReading(r.pinyin, expected) && readingGloss(r));
-  return { reading: matched ?? near ?? common.find((r) => readingGloss(r)) ?? entry.readings[0], matched: Boolean(matched) };
+  const common = meant.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase());
+  const find = (expected: string, among = common) =>
+    among.find((r) => sameReading(r.pinyin, expected)) ??
+    among.find((r) => nearReading(r.pinyin, expected)) ??
+    among.find((r) => nearReading(expected, r.pinyin));
+  const list = listed ? numberedPinyin(listed) : null;
+  // The page's senses are in CC-CEDICT's readings, ordered to the card (hsk-pages.jsonl).
+  const lead = listed ? hskPage(entry.word, "ru")?.s[0]?.r : undefined;
+  const exactly = (p: string) => common.find((r) => sameReading(r.pinyin, p)) ?? meant.find((r) => sameReading(r.pinyin, p));
+  const reading =
+    (learner ? find(learner) : undefined) ??
+    (lead && readsAs(entry.word, lead, listed!) ? exactly(numberedPinyin(lead)) : undefined) ??
+    (list ? (find(list) ?? find(list, meant)) : undefined) ??
+    find(said) ??
+    common[0] ??
+    entry.readings[0];
+  return { reading, matched: !learner && sameReading(reading.pinyin, said) };
+}
+
+/**
+ * A numbered reading (the list's, or the dictionary's where pinyin-pro reads the
+ * word otherwise) as a card writes it: tone marks, and 一 and 不 as spoken
+ * (一会儿 yí huì r, not yī) — no list or dictionary writes the sandhi. pinyin-pro
+ * knows where it applies (not in 第一 or 一月); the tone it takes follows the
+ * reading's next syllable, which is not always pinyin-pro's (一应俱全 is yì yīng,
+ * where it reads 应 yìng).
+ */
+async function spokenReading(head: string, numbered: string): Promise<string> {
+  const syllables = numbered.split(" ");
+  const chars = Array.from(head);
+  if (!/[一不]/.test(head) || chars.length !== syllables.length) return toneMarked(numbered);
+  const { pinyin } = await import("pinyin-pro");
+  const plain = pinyin(head, { toneType: "num", type: "array", toneSandhi: false });
+  const spoken = pinyin(head, { toneType: "symbol", type: "array" });
+  if (plain.length !== chars.length || spoken.length !== chars.length) return toneMarked(numbered);
+  return syllables
+    .map((s, i) => {
+      const bends = /[一不]/.test(chars[i]) && sameReading(s, plain[i]) && spoken[i] !== toneMarked(s);
+      const next = /([1-5])$/.exec(syllables[i + 1] ?? "")?.[1];
+      if (!bends || !next || next === "5") return bends ? spoken[i] : toneMarked(s);
+      if (chars[i] === "一") return next === "4" ? "yí" : "yì";
+      return next === "4" ? "bú" : "bù";
+    })
+    .join(" ");
 }
 
 export type DictCard = { phonetic: string; gloss: string };
@@ -275,16 +342,22 @@ export async function cedictCard(word: string, opts: { count?: boolean } = {}): 
   const { pinyin } = await import("pinyin-pro");
   const head = entry.word;
   const { reading, matched } = await mainReading(entry);
+  // An HSK word reads as the list writes it, the card and the list views alike —
+  // also a neutral tone CC-CEDICT lacks (早晨 zǎo chen, 关上 guān shang: the official
+  // list's, 现代汉语词典's) — spoken (一下儿 yí xiàr: the list keeps the r apart).
+  const listed = hskReading(head);
+  const listPhonetic = listed ? (await spokenReading(head, numberedPinyin(listed))).replace(/ r$/, "r") : null;
   // 一下儿 is only "erhua form of 一下": the meaning is the base form's.
   if (!readingGloss(reading) && head.length > 1 && head.endsWith("儿")) {
     const base = await cedictCard(head.slice(0, -1), { count: false });
     // pinyin-pro reads that 儿 as a syllable ("yí xià ér"); it is the r of yí xiàr.
-    if (base) return { phonetic: `${base.phonetic}r`, gloss: base.gloss };
+    if (base) return { phonetic: listPhonetic ?? `${base.phonetic}r`, gloss: base.gloss };
   }
   const gloss = readingGloss(reading) || reading.glosses[0] || "";
   if (!gloss) return null;
   // The matched reading keeps pinyin-pro's spoken form (yí xià), as every other card does.
-  const phonetic = matched && !LEARNER_READING[head] ? pinyin(head, { toneType: "symbol", type: "string" }) : toneMarked(reading.pinyin);
+  const phonetic =
+    listPhonetic ?? (matched ? pinyin(head, { toneType: "symbol", type: "string" }) : await spokenReading(head, reading.pinyin));
   return { phonetic, gloss };
 }
 

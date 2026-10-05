@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { WordSense } from "../lib/schemas.js";
-import { normalizeHanzi } from "./hsk.js";
+import { hskReading, normalizeHanzi } from "./hsk.js";
 
 /**
  * HSK word pages, written once for everyone (BACKLOG "HSK word pages, written once").
@@ -111,11 +111,13 @@ function loadJsonl<T>(name: string, what: string, keep: (row: T & { w?: string }
 let pages: Map<string, WordPage> | null = null;
 let situations: Map<string, { w: string; s: Situation[] }> | null = null;
 
-// An 儿 word is kept under its base, as a card is (一下儿 → 一下, services/capture.ts).
+// An 儿 word is kept under its base, as a card is (一下儿 → 一下, services/capture.ts) —
+// when the 儿 is the erhua r: 婴儿 yīng ér is not 婴, nor 孤儿 «одинокий».
 function byHead<T>(index: Map<string, T>, word: string): T | null {
   const head = normalizeHanzi(word);
   if (!head) return null;
-  return index.get(head) ?? (head.length > 1 && head.endsWith("儿") ? index.get(head.slice(0, -1)) : undefined) ?? null;
+  const erhua = head.length > 1 && head.endsWith("儿") && !/ér$/.test(hskReading(head) ?? "");
+  return index.get(head) ?? (erhua ? index.get(head.slice(0, -1)) : undefined) ?? null;
 }
 
 /** An HSK word's page, or null (off the lists, not built yet, or not in Russian). */
@@ -236,11 +238,15 @@ export const headGloss = (s: string) =>
  * off the card's meaning.
  */
 export function pageSenses(page: WordPage, cardReading: string | null | undefined): WordSense[] {
+  // A card read as CC-CEDICT never writes it (下载 xià zài, 血 xiě: the official list's;
+  // the dictionary has xià zǎi, xuè) has its senses under the dictionary's spelling,
+  // which the page leads with: that is the card's reading, not another one to label.
+  const own = cardReading && !page.s.some((s) => readsAs(page.w, s.r, cardReading)) ? page.s[0]?.r : null;
   return page.s.map((s) => ({
     pos: s.pos,
     meaning: s.m,
     onCard: false,
     phrases: s.p.map((p) => ({ text: p.t, reading: p.r, translation: p.ru })),
-    ...(cardReading && s.r && !readsAs(page.w, s.r, cardReading) ? { reading: s.r } : {}),
+    ...(cardReading && s.r && s.r !== own && !readsAs(page.w, s.r, cardReading) ? { reading: s.r } : {}),
   }));
 }
