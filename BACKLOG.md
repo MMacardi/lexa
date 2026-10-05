@@ -321,7 +321,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        108 senses, 198 phrases (5 dropped), 56 synonym/antonym lists, 156 sentences rewritten,
        77 translations, 17 added; the third read caught 10 (一户人家 yí hù, 决不后悔 jué bú, «символ
        Цзинаня»).
-       **Left:** b163–b186 (928 words) — the work files and the exact steps are in
+       **Wave 5a shipped (2026-10-05):** b163–b174 (480 words) — 54 card meanings (客车 without
+       «автокофей», 同行 «коллега» not «однопрофессионец», 招 «набирать (на работу)» not «приглашать»,
+       公安 «полиция», 慢车 a slow stopping train, not a suburban bus, 尽 with its verb «исчерпать»),
+       83 senses, 185 phrases (3 dropped), 51 synonym/antonym lists, 120 sentences rewritten,
+       124 translations, 18 added, 3 dropped, 3 pages ordered to their corrected card (糟 «плохой»
+       before «барда»); the third read caught 4 (林荫 lín yīn, 如 keeps its «как» sense).
+       **Left:** b175–b186 (448 words) — the work files and the exact steps are in
        `.review/HANDOFF.md` (local, not in git).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
