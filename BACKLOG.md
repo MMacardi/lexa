@@ -327,8 +327,16 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        83 senses, 185 phrases (3 dropped), 51 synonym/antonym lists, 120 sentences rewritten,
        124 translations, 18 added, 3 dropped, 3 pages ordered to their corrected card (糟 «плохой»
        before «барда»); the third read caught 4 (林荫 lín yīn, 如 keeps its «как» sense).
-       **Left:** b175–b186 (448 words) — the work files and the exact steps are in
-       `.review/HANDOFF.md` (local, not in git).
+       **Wave 5b shipped (2026-10-06):** b175–b186 (448 words; the read of all 187 batches is done) —
+       65 card meanings (播 led by «транслировать», 罢了 «всего лишь» not «частица завершения действия»,
+       肿 «опухать» not «опухоль», 没法儿 «никак нельзя» not «беспомощно», 首脑 without «саммит», 清明节
+       «Цинмин»), 77 senses, 122 phrases (7 dropped), 38 synonym/antonym lists, 129 sentences rewritten,
+       99 translations, 26 added, 2 dropped, 7 pages ordered to their corrected card (肿 «опухать» before
+       «отёк»); the third read caught 3 (昏 led by «сумерки», 算是 «так что»). 婴儿 and 孤儿 (read ér) had
+       borrowed 婴's 女婴 and 孤's «одинокий» sentences through the erhua fallback: the pool now keys an
+       儿 word to its base only for the erhua r, as word pages do; the two have rows of their own, and
+       a card carrying the base's sentence moves on open (check-sentences §1).
+       **Left:** Qwen spot-checks a sample of Claude's Chinese rewrites (`.review/HANDOFF.md`, local).
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's

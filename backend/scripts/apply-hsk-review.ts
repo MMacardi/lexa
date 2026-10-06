@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 const { overCeiling, sentenceWords } = await import("../src/services/sentences.js");
 const { POS } = await import("./word-pages-rules.js");
 const { headGloss } = await import("../src/services/wordPages.js");
+const { hskReading } = await import("../src/services/hsk.js");
 type Ceiling = import("../src/services/sentences.js").Ceiling;
 
 const argOf = (name: string) => {
@@ -255,8 +256,12 @@ if (FIXES) {
       const row = sentBy.get(x.word);
       const zh = x.new_zh?.trim() ?? "";
       const ru = x.new_ru?.trim() ?? "";
-      if (!row) { skip("no pool row"); continue; }
-      const ps = problems(x.word, zh, ru, [...row.s, ...(added.get(x.word) ?? [])]);
+      // An erhua word (一下儿) has its base's row (services/sentences.ts, poolKey); one read
+      // ér (婴儿, 孤儿) gets a row of its own.
+      const erhua = x.word.length > 1 && x.word.endsWith("儿") && !/ér$/.test(hskReading(x.word) ?? "");
+      if (!row && erhua && sentBy.has(x.word.slice(0, -1))) { skip(`erhua: the pool's ${x.word.slice(0, -1)} row serves it`); continue; }
+      if (!row && !hskReading(x.word)) { skip("no pool row"); continue; }
+      const ps = problems(x.word, zh, ru, [...(row?.s ?? []), ...(added.get(x.word) ?? [])]);
       if (ps.length) { skip(`${zh}: ${ps.join("; ")}`); continue; }
       show(`sentence added  ${x.word}: ${zh} ${ru}`);
       if (!added.has(x.word)) added.set(x.word, []);
@@ -270,7 +275,15 @@ if (FIXES) {
     row.s = row.s.filter((_, i) => !ns.has(i));
     count["sentence dropped"] = (count["sentence dropped"] ?? 0) + ns.size;
   }
-  for (const [w, list] of added) sentBy.get(w)!.s.push(...list);
+  for (const [w, list] of added) {
+    if (!sentBy.has(w)) {
+      const row: SentRow = { w, s: [] };
+      sentFile.rows.push(row);
+      sentBy.set(w, row);
+      bump("pool row added");
+    }
+    sentBy.get(w)!.s.push(...list);
+  }
   for (const [w, keys] of pDropped) {
     const page = pageBy.get(w)!;
     page.s.forEach((s, si) => (s.p = s.p?.filter((_, pi) => !keys.has(`${si}:${pi}`))));

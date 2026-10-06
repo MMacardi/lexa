@@ -5,7 +5,7 @@ import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { segmentChinese } from "./segment.js";
-import { asHskVersion, hskTagFor, learnerStatus, normalizeHanzi } from "./hsk.js";
+import { asHskVersion, hskReading, hskTagFor, learnerStatus, normalizeHanzi } from "./hsk.js";
 import { learnerRates } from "./studyPlan.js";
 
 /**
@@ -167,11 +167,13 @@ function poolIndex(): Map<string, PoolSentence[]> {
   return pool;
 }
 
-// The pool keeps an 儿 word under its base, as a card does (一下儿 → 一下).
+// The pool keeps an 儿 word under its base, as a card does (一下儿 → 一下) — when the 儿
+// is the erhua r: 婴儿 yīng ér is not 婴's 女婴, nor 孤儿 孤's «одинокий» (services/wordPages.ts).
 function poolKey(word: string): string {
   const head = normalizeHanzi(word);
   poolIndex();
-  return !pool!.has(head) && head.length > 1 && head.endsWith("儿") ? head.slice(0, -1) : head;
+  const erhua = head.length > 1 && head.endsWith("儿") && !/ér$/.test(hskReading(head) ?? "");
+  return !pool!.has(head) && erhua ? head.slice(0, -1) : head;
 }
 
 /** Is this HSK word formal by nature (以, 之所以, 颇)? Its examples are written and labelled so. */

@@ -3,7 +3,8 @@
 // different sentence at HSK 2 than at HSK 5.
 //
 //   1. The words of a sentence as the check reads them (桌上 is 桌 + 上; 晚上 is
-//      not 上; 看一下 has 一下 in it).
+//      not 上; 看一下 has 一下 in it). An 儿 word takes its base's sentences only when
+//      the 儿 is the erhua r (一下儿 → 一下; 婴儿 yīng ér is not 婴's 女婴).
 //   2. Two accounts that took the check — one at HSK 2, one at HSK 5 — are handed
 //      the pool sentence each reads best, for every HSK 3.0 level-4 word.
 //   3. The add path, with the model unreachable: the card carries that sentence
@@ -67,6 +68,12 @@ async function main() {
   check(zhuo.own, `桌上: 上 counts as its own word (${zhuo.words.join(" ")})`);
   check(!S.sentenceWords("我每天晚上看书。", "上").own, "晚上: 上 is inside a list word, not its own");
   check(S.sentenceWords("我想看一下菜单。", "一下").own, "看一下: 一下 (the list's 一下儿) is its own word");
+  const xia = S.poolSentences("一下儿");
+  check(xia.length > 0 && xia === S.poolSentences("一下"), `一下儿 has 一下's sentences (${xia.length})`);
+  for (const w of ["婴儿", "孤儿"]) {
+    const own = S.poolSentences(w);
+    check(own.length > 0 && own.every((s) => s.zh.includes(w)), `${w} has its own sentences, not ${w[0]}'s: ${own.map((s) => s.zh).join(" / ")}`);
+  }
   const da = S.sentenceWords("他打篮球。", "打").words;
   check(da.join(" ") === "他 篮球", `打篮球 → 打 + 篮球 (${da.join(" ")})`);
   check(S.overCeiling(["我", "喝", "咖啡"], 1, "杯").length === 0, "我 喝 咖啡 is under the HSK 1–2 ceiling");
