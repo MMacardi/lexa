@@ -336,7 +336,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        borrowed 婴's 女婴 and 孤's «одинокий» sentences through the erhua fallback: the pool now keys an
        儿 word to its base only for the erhua r, as word pages do; the two have rows of their own, and
        a card carrying the base's sentence moves on open (check-sentences §1).
-       **Left:** Qwen spot-checks a sample of Claude's Chinese rewrites (`.review/HANDOFF.md`, local).
+       **Qwen read Claude's Chinese (2026-10-06, ¥0.26):** every one of the 1,815 sentences the Claude
+       editors wrote that is still in the pool, judged by qwen-plus (natural? Russian right? better than
+       the one it replaced? — 973 better, 631 the same). It flagged 46. A Claude judge and a skeptic
+       read each one, and Qwen answered their reasons: 4 were right and are fixed (兄弟 now shows «братья»
+       too; 理直气壮 «с полным правом», not «с чистой совестью»; 默默 «молча»; 病情 «о болезни», not «о
+       самочувствии»). Qwen withdrew the other 42: none of its 11 "unnatural Chinese" flags held. Most
+       swapped out the headword (捕老鼠 → 抓老鼠, 预备 → 准备, 即赠 → 就送), and some didn't know the card's
+       reading (倒车 dǎo chē «пересаживаться»). So the Claude read stands.
      - **Follow-ups, in 1f's "Left":** the 280 cards (221 in HSK 1–6) whose `hsk-ru` meaning leads with a rarer
        sense (热 «нагревать», 一边 «с одной стороны», 地方 «местный»; the check prints them) and the
        ones that are plain wrong (之所以 «поэтому», 炮 «жарить», 球 «глобус», 合 «гэ»). 则's
