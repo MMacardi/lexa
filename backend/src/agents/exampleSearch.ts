@@ -96,8 +96,12 @@ export async function runExampleSearch(params: {
   // The learner's words, level and interests (services/sentences.ts): a composed
   // example is built from them and held to one unknown besides the word.
   brief?: ExampleBrief;
+  // The sense the card teaches when it is one of its word page's (services/capture.ts
+  // `cardSense`): a composed example uses the word in it, not in its best-known one.
+  sense?: string;
 }): Promise<ExampleSearchResult> {
   const word = params.word.trim().toLowerCase();
+  const inSense = params.sense ? ` in the sense «${params.sense}» — not in any other sense it has` : "";
   const sourceLang = params.sourceLang ?? "en";
   const targetLang = params.targetLang ?? "zh";
   const sourceName = langName(sourceLang);
@@ -201,7 +205,7 @@ export async function runExampleSearch(params: {
     const composedSystem =
       style === "dialogue"
         ? `Write a short, natural ${sourceName} DIALOGUE of 2-3 turns between two people that uses ` +
-          `the word "${word}" naturally. Put EACH turn on its own line, prefixed with "— ". ` +
+          `the word "${word}"${inSense} naturally. Put EACH turn on its own line, prefixed with "— ". ` +
           `The exchange must make the meaning of "${word}" clear from the situation (not a bare ` +
           `question-and-answer). ` +
           avoidLine +
@@ -214,7 +218,7 @@ export async function runExampleSearch(params: {
           scriptNote(targetLang) +
           'Respond as JSON: {"sentence": string, "translation": string}, where sentence is the ' +
           `${sourceName} dialogue with line breaks (\\n) and translation is its ${targetName} rendering.`
-        : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}" in clear, ` +
+        : `Write ONE natural, correct ${sourceName} sentence that uses the word "${word}"${inSense} in clear, ` +
           `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
           RICHNESS_RULE +
           avoidLine +
@@ -244,7 +248,7 @@ export async function runExampleSearch(params: {
     // The editor's read, as the pool and the card's first example get: an unnatural
     // sentence is rewritten, or not added at all.
     if (sourceLang === "zh") {
-      const kept = await keepIfNatural({ word, sentence, translation, targetLang });
+      const kept = await keepIfNatural({ word, sentence, translation, targetLang, sense: params.sense });
       if (!kept) throw new Error("Couldn't write a natural example this time — try again");
       sentence = kept.sentence;
       translation = kept.translation;

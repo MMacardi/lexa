@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading } from "./cedict.js";
 import { hskFrequency, hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
+import { hskPage, readsAs } from "./wordPages.js";
 import { prisma } from "./db.js";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -117,12 +118,24 @@ export function defaultIsSettled(word: string, lang: string | null | undefined):
 
 // --- Lookup: type hanzi, pinyin or a meaning, get Chinese words ---
 
+// The word page's sense a Russian query found (世界 «мир» · 全世界 «весь мир», 和平
+// «мир» · 世界和平): which of two «мир» rows is which. `index` points into the page,
+// so picking the row makes the card in that sense; `reading` is set only where the
+// sense reads otherwise than the card (背 «нести на себе» bēi).
+export type LookupSense = {
+  index: number;
+  meaning: string;
+  reading?: string;
+  phrase?: { text: string; translation: string };
+};
+
 export type LookupHit = {
   word: string;
   pinyin: string;
   meaning: string;
   english: boolean; // the meaning is CC-CEDICT's English (no default in the learner's language)
   hsk: HskTag | null;
+  sense?: LookupSense;
 };
 export type Lookup = { kind: "zh" | "meaning" | "none"; hits: LookupHit[] };
 
@@ -172,16 +185,141 @@ function phraseScore(phrase: string, q: string): number {
   return 0;
 }
 
-// Senses in order; the first sense, and the first phrase in it, count for more.
-function meaningScore(meaning: string, q: string): number {
+// --- Russian: the forms a learner types, and the word pages' senses ---
+
+// Russian verbs come in aspect pairs and a dictionary glosses a word with one of
+// them: 买 is «покупать», 看见 «увидеть», 累 «уставать». A learner types the other one
+// as often, and купить, устать, выучить found nothing (the audit of 2026-10-02).
+// The pairs of every verb the defaults and the pages use were written once
+// (data/ru-aspect.tsv, 2,230): drafted by rule (-ывать/-авать/-ить → -ать, empty
+// prefixes по-/с-/на-), each partner checked against OpenCorpora's dictionary
+// (pymorphy3), then read by hand — купить/покупать, сказать/говорить, взять/брать
+// are no rule's, and подписать is not писать.
+let aspects: Map<string, string[]> | null = null;
+
+function aspectPartners(verb: string): string[] {
+  if (!aspects) {
+    aspects = new Map();
+    try {
+      const text = readFileSync(fileURLToPath(new URL("../../data/ru-aspect.tsv", import.meta.url)), "utf8");
+      for (const line of text.split("\n")) {
+        const [a, b] = line.trim().replace(/ё/g, "е").split("\t");
+        if (!a || !b) continue;
+        aspects.set(a, [...(aspects.get(a) ?? []), b]);
+        aspects.set(b, [...(aspects.get(b) ?? []), a]);
+      }
+    } catch (err) {
+      console.error("[lookup] no aspect pairs — Russian verbs match only as typed", err);
+    }
+  }
+  return aspects.get(verb) ?? [];
+}
+
+// What else a Russian query is looked up as, and how much a match on it counts:
+// the verb's other aspect (купить → покупать), an adverb's adjective (быстро →
+// быстрый: 快 is «быстрый»), a past participle's verb (уставший → устать, and so
+// уставать). A form that is no word matches nothing, so the rules can be loose.
+function ruForms(q: string): [string, number][] {
+  const forms = new Map<string, number>([[q, 1]]);
+  const add = (w: string, f: number) => {
+    if (w.length > 2 && f > (forms.get(w) ?? 0)) forms.set(w, f);
+  };
+  if (!/^[а-я-]+$/.test(q)) return [...forms];
+  for (const p of aspectPartners(q)) add(p, 0.9);
+  if (q.length >= 4 && q.endsWith("о")) for (const end of ["ый", "ий", "ой"]) add(q.slice(0, -1) + end, 0.9);
+  const participle = /^(.+[аяеиыу])(вшийся|вший|нный|тый)$/.exec(q);
+  if (participle) {
+    const verb = participle[1] + (participle[2] === "вшийся" ? "ться" : "ть");
+    add(verb, 0.9);
+    for (const p of aspectPartners(verb)) add(p, 0.85);
+  }
+  return [...forms];
+}
+
+// One phrase of a meaning, prepared once: a query is scored against every
+// default and page sense on each keystroke. Senses in order: the first sense, and
+// the first phrase in it, count for more (`bonus`). A clarifier goes before the split — «брать (в руки, с собой)»
+// cut at its comma left «брать (в руки» to match only as a word inside a phrase.
+type RuPhrase = { text: string; tokens: string[]; bonus: number };
+type RuWord = { word: string; card: RuPhrase[]; senses: RuPhrase[][] };
+let ruWords: RuWord[] | null = null;
+
+function ruPhrases(meaning: string, lead: boolean): RuPhrase[] {
+  const out: RuPhrase[] = [];
+  meaning
+    .replace(/\([^)]*\)/g, " ")
+    .split(/\s*;\s*/)
+    .forEach((sense, i) =>
+      sense.split(/\s*,\s*/).forEach((phrase, j) => {
+        const text = norm(phrase);
+        if (text) out.push({ text, tokens: text.split(/[^\p{L}-]+/u).filter(Boolean), bonus: (lead && i === 0 ? 8 : 0) + (j === 0 ? 4 : 0) });
+      }),
+    );
+  return out;
+}
+
+// Every HSK word's default and its page's senses. The pages carry the senses a
+// one-line default leaves out (汽车 «машина», 背 «учить наизусть»), and their
+// clarifiers say which sense a row answers.
+function ruWordList(): RuWord[] {
+  if (ruWords) return ruWords;
+  ruWords = [...ruIndex()].map(([word, meaning]) => ({
+    word,
+    card: ruPhrases(meaning, true),
+    senses: (hskPage(word, "ru")?.s ?? []).map((s, i) => ruPhrases(s.m, i === 0)),
+  }));
+  return ruWords;
+}
+
+// `phraseScore` on a prepared phrase. Only what was typed matches as a prefix
+// ("still typing it"); a derived form must be the whole word.
+function ruPhraseScore(p: RuPhrase, q: string, typed: boolean): number {
+  if (p.text === q) return 100;
+  if (p.tokens.includes(q)) return 60 - Math.min(20, p.tokens.length * 4);
+  if (!typed || q.length < 3) return 0;
+  if (p.text.startsWith(q)) return 45;
+  return p.tokens.some((t) => t.startsWith(q)) ? 25 : 0;
+}
+
+function ruBest(phrases: RuPhrase[], q: string, typed: boolean): number {
   let best = 0;
-  meaning.split(/\s*;\s*/).forEach((sense, i) => {
-    sense.split(/\s*,\s*/).forEach((phrase, j) => {
-      const s = phraseScore(phrase, q);
-      if (s) best = Math.max(best, s + (i === 0 ? 8 : 0) + (j === 0 ? 4 : 0));
-    });
-  });
+  for (const p of phrases) {
+    const s = ruPhraseScore(p, q, typed);
+    if (s) best = Math.max(best, s + p.bonus);
+  }
   return best;
+}
+
+// A page sense counts a little less than the default the card is made with, so a
+// default match of the same strength wins; a later sense less than the first.
+const SENSE_WEIGHT = 0.85;
+// An HSK 7–9 word gives way to an HSK 1–6 one that answers nearly as well: «сказать»
+// found 曰 (classical) before 说, «посмотреть» 瞅 (dialect) before 看. Measured on the
+// audit's 111 everyday queries: 0 → 92 natural first, 10 → 94, 15 → 95, none worse.
+const ADVANCED_PENALTY = 15;
+
+/** Russian query → score per word, and the page sense that answers it best. */
+function ruMatches(q: string): { scored: Map<string, number>; senses: Map<string, number> } {
+  const forms = ruForms(q);
+  const scored = new Map<string, number>();
+  const senses = new Map<string, number>();
+  for (const w of ruWordList()) {
+    let best = 0;
+    let bestSense = 0;
+    let senseAt = -1;
+    for (const [form, weight] of forms) {
+      const typed = form === q;
+      best = Math.max(best, weight * ruBest(w.card, form, typed));
+      w.senses.forEach((phrases, i) => {
+        const s = weight * SENSE_WEIGHT * (ruBest(phrases, form, typed) - (i ? 8 : 0));
+        if (s > bestSense) [bestSense, senseAt] = [s, i];
+      });
+    }
+    best = Math.max(best, bestSense);
+    if (best > 0) scored.set(w.word, best - (levelOf(w.word) >= 7 ? ADVANCED_PENALTY : 0));
+    if (senseAt >= 0) senses.set(w.word, senseAt);
+  }
+  return { scored, senses };
 }
 
 // "fǎngwèn", "fang3 wen4", "fangwen" → "fangwen"; CC-CEDICT's "lu:4" → "lv".
@@ -249,20 +387,28 @@ function wordsIn(text: string): string[] {
   return out;
 }
 
-async function hit(word: string, lang: string): Promise<LookupHit | null> {
+async function hit(word: string, lang: string, senseAt?: number): Promise<LookupHit | null> {
   const card = await cedictCard(word, { count: false });
   if (!card) return null;
   const meaning = defaultMeaning(word, lang);
-  return { word, pinyin: card.phonetic, meaning: meaning ?? card.gloss, english: !meaning, hsk: hskTagFor(word) };
+  const s = senseAt === undefined ? undefined : hskPage(word, "ru")?.s[senseAt];
+  const sense: LookupSense | undefined = s && {
+    index: senseAt!,
+    meaning: s.m,
+    ...(s.r && !readsAs(word, s.r, card.phonetic) ? { reading: s.r } : {}),
+    ...(s.p[0] ? { phrase: { text: s.p[0].t, translation: s.p[0].ru } } : {}),
+  };
+  return { word, pinyin: card.phonetic, meaning: meaning ?? card.gloss, english: !meaning, hsk: hskTagFor(word), ...(sense ? { sense } : {}) };
 }
 
 /**
  * The add form's dictionary, with no model call. Hanzi: the word itself, then
  * longer words that start with it (so a character drawn on the pad already
  * offers 访问 for 访), or the words inside a phrase. Anything else is a meaning
- * or pinyin: Cyrillic is matched against the default Russian meanings, Latin
- * against pinyin and CC-CEDICT's English. Easier words rank first — a learner
- * typing «посещать» wants 访问 before 造访.
+ * or pinyin: Cyrillic is matched against the default Russian meanings and the
+ * word pages' senses, in the forms a learner types (`ruForms`), and each row
+ * says which sense it answers; Latin against pinyin and CC-CEDICT's English.
+ * Easier words rank first — a learner typing «посещать» wants 访问 before 造访.
  */
 export async function lookup(query: string, lang: string): Promise<Lookup> {
   const q = query.trim().slice(0, 40);
@@ -289,10 +435,9 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
     if (nq.length < 2) return { kind, hits: [] };
     const scored = new Map<string, number>();
     if (/\p{Script=Cyrillic}/u.test(nq)) {
-      for (const [word, meaning] of ruIndex()) {
-        const s = meaningScore(meaning, nq);
-        if (s) scored.set(word, s);
-      }
+      const ru = ruMatches(nq);
+      const hits = await Promise.all(rank(ru.scored).map((w) => hit(w, lang, ru.senses.get(w))));
+      return { kind, hits: hits.filter((h): h is LookupHit => Boolean(h)) };
     } else {
       const py = plainPinyin(q);
       for (const e of await pinyinIndex()) {
@@ -305,7 +450,7 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
           else if (py && startsWithSyllables(r.syllables, py)) ps = 40;
           else if (py.length >= 4 && p.startsWith(py)) ps = 20;
           s = Math.max(s, r.main ? ps : ps / 3);
-          // Sense order counts, as in `meaningScore`: "to visit" is 访问's first
+          // Sense order counts, as in `ruPhrases`: "to visit" is 访问's first
           // sense and only a late one of 走, which would otherwise win as the easier word.
           r.glosses.forEach((g, i) => {
             // A gloss is often several phrases: "to visit; to call on (a person or place)".

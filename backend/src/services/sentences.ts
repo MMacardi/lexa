@@ -418,8 +418,12 @@ export async function keepIfNatural(p: {
   sentence: string;
   translation: string;
   targetLang: string;
+  // The sense the card teaches, when the learner picked one (背 «нести на себе» bēi):
+  // a sentence natural in another sense is still wrong for this card.
+  sense?: string;
 }): Promise<{ sentence: string; translation: string; unread?: true } | null> {
   const lang = langName(p.targetLang);
+  const inSense = p.sense ? `the sense «${p.sense}»` : "the same sense";
   // One read; the rewrite it offers is read again before it is kept — unread, the
   // editor's own fix came back worse (孩子之最爱 → 此书乃孩子之最爱, 以笔写字 → 以笔代口).
   const read = (sentence: string, translation: string, rewrite: boolean) =>
@@ -429,10 +433,12 @@ export async function keepIfNatural(p: {
         `modern textbook. Is this example sentence for "${p.word}" natural, idiomatic, correct modern Chinese that a ` +
         `native speaker would really say or write — "${p.word}" used as natives use it, as a word of its own; not ` +
         `stilted, not bent to use easy words, not pseudo-classical (此乃…之…, 孩子之最爱 where one says 孩子最喜爱的, ` +
-        `以笔代口), not odd in logic — and is the translation right? If so: {"natural": true}. If not: ` +
+        `以笔代口), not odd in logic — and is the translation right? ` +
+        (p.sense ? `The card teaches "${p.word}" in the sense «${p.sense}»: one that uses it in any other sense is not right. ` : "") +
+        `If so: {"natural": true}. If not: ` +
         (rewrite
           ? `{"natural": false, "why": a few words, "better": a sentence of similar length and difficulty that a ` +
-            `modern textbook would print, using "${p.word}" as a word of its own in the same sense — modern Chinese, ` +
+            `modern textbook would print, using "${p.word}" as a word of its own in ${inSense} — modern Chinese, ` +
             `formal only if the word is, never classical — "translation": its natural ${lang} translation}.`
           : `{"natural": false, "why": a few words}.`) +
         scriptNote("zh") +

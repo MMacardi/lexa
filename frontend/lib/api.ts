@@ -87,6 +87,14 @@ export interface LookupHit {
   meaning: string;
   english: boolean; // CC-CEDICT's English: no default in the learner's language
   hsk: HskTag | null;
+  // A Russian query: the word page's sense it found, so two «мир» rows say which is
+  // which (世界 · 全世界 / 和平 · 世界和平). `reading` only where it isn't `pinyin`.
+  sense?: {
+    index: number;
+    meaning: string;
+    reading?: string;
+    phrase?: { text: string; translation: string };
+  };
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's
@@ -734,6 +742,7 @@ export interface AddAuto {
   exampleCount?: number; // how many examples to generate (1–2)
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word it was translated from, so the card leads with that sense
+  senseIndex?: number; // the lookup row's sense (LookupHit.sense.index): the card is made in it
   notes?: string; // learner's own notes (P.S.), saved as typed
   asTyped?: boolean; // added as typed over a "did you mean" (counted server-side)
 }

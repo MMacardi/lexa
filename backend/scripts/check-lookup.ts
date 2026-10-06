@@ -51,7 +51,8 @@ async function expect(q: string, word: string, top = false) {
   check(ok, `${q} → ${word}${top ? " first" : ""} [${r.kind}, ${ms} ms]: ${r.hits.map((h) => `${h.word} ${h.meaning}`).join(" · ") || "nothing"}`);
   return ms;
 }
-await lookup("warm-up", "ru"); // the first calls build the indexes
+await lookup("warm-up", "ru"); // the first calls build the indexes (the server warms both at boot)
+await lookup("мир", "ru");
 await lookup("算法", "ru"); // and the first word off the list loads the rest of CC-CEDICT
 const times = [
   await expect("访问", "访问", true),
@@ -95,7 +96,87 @@ check(Boolean(hit?.pinyin && hit.meaning && !hit.english && hit.hsk), `a hit car
 const de = (await lookup("访问", "de")).hits[0];
 check(de?.english === true, "without a default the hit says its meaning is the dictionary's English");
 
-// 3. Fast enough for every keystroke (debounced 200 ms in the form).
+// 3. Russian as a learner types it, and rows that say which sense they answer
+// (2026-10-06). купить, устать, выучить found nothing: the dictionary glosses 买
+// «покупать», 累 «уставать» — the other aspect (data/ru-aspect.tsv).
+times.push(
+  await expect("купить", "买", true),
+  await expect("устать", "累", true),
+  await expect("сделать", "做", true),
+  await expect("посмотреть", "看", true), // not 瞅, dialect and HSK 7–9
+  await expect("сказать", "说", true), // not 曰, classical
+  await expect("покуп", "买", true), // still typing it
+);
+await expect("быстро", "快"); // the adverb finds the adjective (快 «быстрый»)
+await expect("уставший", "累"); // the participle finds the verb, and its other aspect
+await expect("машина", "汽车"); // a page sense the one-line default leaves out
+check((await lookup("выучить", "ru")).hits.length > 0, "выучить finds something (учить, its other aspect)");
+const senseOf = async (q: string, word: string) => (await lookup(q, "ru")).hits.find((h) => h.word === word)?.sense;
+const world = await senseOf("мир", "世界");
+const peace = await senseOf("мир", "和平");
+check(
+  world?.phrase?.text === "全世界" && peace?.phrase?.text === "世界和平",
+  `мир: the two rows show their own phrase (${world?.phrase?.text} / ${peace?.phrase?.text})`,
+);
+const carry = await senseOf("таскать", "背");
+check(carry?.meaning.startsWith("нести на себе") === true && carry.reading === "bēi", `таскать → 背 in its bēi sense: ${JSON.stringify(carry)}`);
+const recite = await senseOf("наизусть", "背");
+check(recite?.meaning.startsWith("учить наизусть") === true && !recite.reading, `наизусть → 背 «учить наизусть», the card's own bèi: ${JSON.stringify(recite)}`);
+check(!(await lookup("visit", "ru")).hits.some((h) => h.sense), "only a Russian query carries a page sense");
+
+// The audit's everyday queries (.review/ux-dictionary/score.mts): is the word a native
+// speaker would accept the first row? 89/111 first and 94 in the top 3 before; 95 and
+// 106 now. The rest wait for the register table (BACKLOG 8c: 有钱, 难过, 打电话).
+const GOLD: Record<string, string[]> = {
+  богатый: ["有钱"], мир: ["世界"], учить: ["教", "学", "学习"], лёгкий: ["轻", "容易", "简单"], ключ: ["钥匙"],
+  жить: ["住", "生活"], брать: ["拿"], идти: ["去", "走"], хороший: ["好"], большой: ["大"], время: ["时间"],
+  дело: ["事", "事情"], вопрос: ["问题"], работа: ["工作"], деньги: ["钱"], играть: ["玩", "玩儿"],
+  звонить: ["打电话"], говорить: ["说", "说话"], сказать: ["说"], видеть: ["看见", "看到"], знать: ["知道"],
+  думать: ["想", "觉得"], хотеть: ["想", "要"], любить: ["爱", "喜欢"], есть: ["吃"], пить: ["喝"],
+  спать: ["睡觉", "睡"], покупать: ["买"], дом: ["家", "房子"], семья: ["家", "家庭"], друг: ["朋友"],
+  город: ["城市"], страна: ["国家", "国"], учитель: ["老师"], язык: ["语言"], еда: ["饭", "食物", "吃的"],
+  машина: ["车", "汽车"], дорога: ["路"], день: ["天"], сегодня: ["今天"], сейчас: ["现在"], новый: ["新"],
+  старый: ["老", "旧"], маленький: ["小"], красивый: ["漂亮", "好看", "美"], трудный: ["难"], дорогой: ["贵"],
+  дешёвый: ["便宜"], быстро: ["快"], быстрый: ["快"], понимать: ["懂", "明白", "理解"],
+  помогать: ["帮", "帮助", "帮忙"], ждать: ["等"], открывать: ["开", "打开"], смотреть: ["看"], слушать: ["听"],
+  писать: ["写"], спрашивать: ["问"], отвечать: ["回答"], начинать: ["开始"],
+  встречать: ["见面", "遇到", "遇见", "接", "碰到"], искать: ["找"], найти: ["找到"], болеть: ["生病", "病", "疼"],
+  устать: ["累"], интересный: ["有意思", "有趣"], важный: ["重要"], холодный: ["冷"], погода: ["天气"],
+  телефон: ["电话", "手机"], магазин: ["商店", "店"], больница: ["医院"], врач: ["医生"], вещь: ["东西"],
+  жизнь: ["生活", "生命", "人生"], человек: ["人"], ребёнок: ["孩子"], место: ["地方"], делать: ["做", "干"],
+  сделать: ["做"], купить: ["买"], посмотреть: ["看"], понять: ["懂", "明白", "理解"], мочь: ["能", "可以", "会"],
+  нужно: ["要", "需要", "得", "应该"], нравиться: ["喜欢"], работать: ["工作"], отдыхать: ["休息"],
+  вкусный: ["好吃"], очень: ["很", "非常"], уже: ["已经"], тоже: ["也"], почему: ["为什么"], сколько: ["多少", "几"],
+  где: ["哪儿", "哪里"], можно: ["可以"], утро: ["早上"], неделя: ["星期", "周"], гулять: ["散步", "逛"],
+  путешествовать: ["旅游", "旅行"], вода: ["水"], чай: ["茶"], брат: ["哥哥", "弟弟", "兄弟"],
+  уставший: ["累"], грустный: ["难过", "伤心"], весёлый: ["开心", "高兴", "快乐"], ехать: ["去", "坐"],
+  учиться: ["学习", "学", "上学"], выучить: ["学会", "背"], помнить: ["记得"], забыть: ["忘", "忘记"],
+};
+let first = 0;
+let top3 = 0;
+for (const [q, ok] of Object.entries(GOLD)) {
+  const at = (await lookup(q, "ru")).hits.findIndex((h) => ok.includes(h.word));
+  if (at === 0) first++;
+  if (at >= 0 && at < 3) top3++;
+}
+const n = Object.keys(GOLD).length;
+check(first >= 95 && top3 >= 106, `everyday queries: the natural word first in ${first}/${n}, in the top 3 in ${top3}/${n}`);
+
+// The card for a picked sense (the add path, services/capture.ts).
+const { pickedSense } = await import("../src/services/capture.js");
+const bei = await cedictCard("背", { count: false });
+const picked = bei && pickedSense("背", "ru", carry?.index ?? -1, { phonetic: bei.phonetic, meaningZh: defaultMeaning("背", "ru")! });
+check(
+  picked?.phonetic === "bēi" && picked.meaningZh.startsWith("нести на себе") && picked.sense === "нести на себе",
+  `背 picked as «таскать»: ${JSON.stringify(picked)}`,
+);
+const buy = await cedictCard("买", { count: false });
+check(
+  buy !== null && pickedSense("买", "ru", 0, { phonetic: buy.phonetic, meaningZh: defaultMeaning("买", "ru")! }) === null,
+  "买 picked as «купить» keeps the default: it already leads with that sense",
+);
+
+// 4. Fast enough for every keystroke (debounced 200 ms in the form).
 const worst = Math.max(...times);
 check(worst < 150, `slowest lookup ${worst} ms`);
 

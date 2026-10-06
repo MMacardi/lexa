@@ -49,6 +49,23 @@ async function main() {
   const de = await addWordForUser({ telegramId: TG, word: "认真", sourceLang: "zh", targetLang: "de" });
   check(de.dictMeaning === true && /[a-z]/i.test(de.meaningZh ?? ""), `认真 for a German speaker: the English, labelled (${de.meaningZh})`);
 
+  // A sense picked in the add form's lookup (2026-10-06): 背 found by «таскать» is made
+  // in that sense and its reading, not as the default «спина; нести на себе» under bèi.
+  const carried = await addWordForUser({ telegramId: TG, word: "背", sourceLang: "zh", targetLang: "ru", senseIndex: 1 });
+  check(
+    carried.phonetic === "bēi" && carried.meaningZh === "нести на себе, таскать на спине",
+    `背 picked as «таскать»: ${carried.phonetic} — ${carried.meaningZh}`,
+  );
+  check(carried.examples.length === 0, "no pool sentence on it: the pool's may show 背 «спина»; the upgrade writes one in the sense");
+  check(carried.dictDefault === true, "it counts as the dictionary's meaning, so the pages poll until the upgrade lands");
+  const { cardSense } = await import("../src/services/capture.js");
+  const named = cardSense(carried)?.described ?? "";
+  check(/bēi/.test(named) && /背包/.test(named), `its examples are asked for in that sense: ${named}`);
+  const ticks = (await getWord(carried.id))?.sensesNow?.senses.map((s) => s.onCard);
+  check(JSON.stringify(ticks) === "[false,true,false]", `the word page ticks that sense alone: ${JSON.stringify(ticks)}`);
+  const bought = await addWordForUser({ telegramId: TG, word: "买", sourceLang: "zh", targetLang: "ru", senseIndex: 0 });
+  check(bought.dictDefault === true, `买 picked as «купить» keeps the default, which leads with it: ${bought.meaningZh}`);
+
   // 2. The Reader's add: a tapped word with its sentence, made from the
   // dictionary rather than as an empty shell waiting on the worker.
   const r = await importWordsForUser({

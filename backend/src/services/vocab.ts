@@ -14,7 +14,7 @@ import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
 import { cedictCredit, cedictInventory, isChinese } from "./cedict.js";
-import { dictCardFields, hasDictMeaning, upgradeCard } from "./capture.js";
+import { cardSense, dictCardFields, hasDictMeaning, pickedSense, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords } from "./sentences.js";
 import { track } from "./analytics.js";
@@ -81,6 +81,7 @@ export async function addWordForUser(params: {
   exampleCount?: number; // how many examples to generate (1–2); default 1
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word the learner typed (add-by-translation): the sense they want
+  senseIndex?: number; // the word page's sense picked in the add form's lookup (services/lookup.ts)
   notes?: string; // learner's own notes, stored as typed
   asTyped?: boolean; // added as typed over a "did you mean": a false alarm of the spell check, or a typo kept
 }) {
@@ -98,14 +99,18 @@ export async function addWordForUser(params: {
   // Web-mined examples keep the slow path — the search is the point of them.
   const dict = useWeb ? null : await dictCardFields(params.word, sourceLang, targetLang);
   if (dict) {
+    // A sense picked in the lookup makes the card in that sense, and its example is
+    // written in it: the pool's sentences may show another (背 «спина»).
+    const picked = params.senseIndex === undefined ? null : pickedSense(params.word, targetLang, params.senseIndex, dict);
+    const sense = params.sense ?? picked?.sense;
     const created = await prisma.word.create({
       data: {
         userId: user.id,
         word: params.word.trim().toLowerCase(),
         sourceLang,
         targetLang,
-        phonetic: dict.phonetic,
-        meaningZh: dict.meaningZh,
+        phonetic: picked?.phonetic ?? dict.phonetic,
+        meaningZh: picked?.meaningZh ?? dict.meaningZh,
         collocations: [],
         synonyms: [],
         antonyms: [],
@@ -115,7 +120,7 @@ export async function addWordForUser(params: {
     });
     // An HSK word's example is on the card now too, the pool sentence this learner
     // reads best (services/sentences.ts); the upgrade writes one only if none fits.
-    if (withExample && sourceLang === "zh" && poolRegister(params.exampleStyle) && !params.sense) {
+    if (withExample && sourceLang === "zh" && poolRegister(params.exampleStyle) && !sense) {
       await placePoolExamples(user.id, [{ ...created, targetLang }]);
     }
     const upgrade = { level: params.level, exampleStyle: params.exampleStyle };
@@ -124,7 +129,7 @@ export async function addWordForUser(params: {
       synonymLevel: params.synonymLevel,
       withExample,
       meaningInstruction: params.meaningPrompt,
-      sense: params.sense,
+      sense,
     })
       .then(async () => {
         for (let i = 1; withExample && i < count; i++) await addExampleToWord(created.id, { ...upgrade, exampleSource: params.exampleSource });
@@ -314,15 +319,18 @@ export async function addWordManual(params: {
  * nothing needs backfilling. Only Chinese cards can carry it. `dictMeaning` is
  * derived the same way: the meaning is still CC-CEDICT's English, waiting for
  * the model's (services/capture.ts) — the client labels it. `dictDefault`: the
- * meaning is the shared default (services/lookup.ts); the client polls until the
- * rest of a fresh card lands.
+ * meaning is the shared default (services/lookup.ts) or one of the word page's
+ * senses (picked in the lookup: 背 «нести на себе, таскать на спине»); the client
+ * polls until the rest of a fresh card lands.
  */
 function withDerived<T extends { word: string; sourceLang: string; targetLang: string; meaningZh: string | null }>(w: T) {
+  const m = w.meaningZh?.trim();
+  const pageSense = Boolean(m) && isChinese(w.sourceLang) && Boolean(hskPage(w.word, w.targetLang)?.s.some((s) => s.m === m));
   return {
     ...w,
     hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null,
     dictMeaning: hasDictMeaning(w),
-    dictDefault: isDefaultMeaning(w),
+    dictDefault: isDefaultMeaning(w) || pageSense,
   };
 }
 
@@ -401,6 +409,7 @@ export async function addExampleToWord(
       userId: true,
       sourceLang: true,
       targetLang: true,
+      meaningZh: true,
       examples: { select: { sentenceEn: true } },
     },
   });
@@ -421,6 +430,8 @@ export async function addExampleToWord(
     // Adding another (not replacing) → avoid duplicating the current example(s).
     avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),
     brief: await exampleBrief(word.userId, word.sourceLang, word.id),
+    // 背 made as «нести на себе» gets a sentence that carries something, not 背单词.
+    sense: cardSense(word)?.described,
   });
 
   return prisma.word.findUniqueOrThrow({

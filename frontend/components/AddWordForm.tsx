@@ -104,6 +104,7 @@ type AddVars = {
   level?: string;
   exampleStyle?: ExampleStyle;
   sense?: string; // add-by-translation: the known-language word they typed
+  senseIndex?: number; // a lookup row's sense: the card is made in it
   asTyped?: boolean; // "did you mean" was offered and they kept what they typed
 };
 
@@ -344,7 +345,7 @@ export function AddWordForm({
   // Adds a word. `manual:true` skips the AI agents and creates a bare/manual
   // card — used in Manual mode.
   const mutation = useMutation({
-    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense, asTyped }: AddVars) => {
+    mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense, senseIndex, asTyped }: AddVars) => {
       const base = {
         word: chosen.trim(),
         telegramId: accountId,
@@ -382,6 +383,7 @@ export function AddWordForm({
           exampleCount: pro ? getExampleCount() : 1,
           meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
           sense,
+          senseIndex,
           asTyped,
         });
       }
@@ -528,7 +530,8 @@ export function AddWordForm({
   // The row showed its meaning and the learner picked it, so the card keeps that
   // meaning: no typed sense for the upgrade to reword it by (that stays for the
   // AI path, where nobody has seen a meaning yet).
-  const addHit = (h: LookupHit) => addWithChecks({ chosen: h.word, manual: false, sourceLangOverride: sourceLang });
+  const addHit = (h: LookupHit) =>
+    addWithChecks({ chosen: h.word, manual: false, sourceLangOverride: sourceLang, senseIndex: h.sense?.index });
 
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
@@ -859,12 +862,24 @@ export function AddWordForm({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className="font-zh text-[19px] leading-tight text-ink">{h.word}</span>
-                        <span className="truncate text-[13px] text-ink-faint">{h.pinyin}</span>
+                        <span className="truncate text-[13px] text-ink-faint">{h.sense?.reading ?? h.pinyin}</span>
                         <HskBadge hsk={h.hsk} className="self-center" />
                       </span>
-                      <span className={cn("block truncate text-[13px] leading-snug", h.english ? "italic text-ink-faint" : "text-ink-soft")}>
-                        {h.meaning}
+                      {/* A Russian query shows the sense it found, and that sense's first
+                          phrase: 世界 · 全世界 «весь мир» against 和平 · 世界和平. */}
+                      <span
+                        className={cn(
+                          "block truncate text-[13px] leading-snug",
+                          h.english && !h.sense ? "italic text-ink-faint" : "text-ink-soft",
+                        )}
+                      >
+                        {h.sense?.meaning ?? h.meaning}
                       </span>
+                      {h.sense?.phrase && (
+                        <span className="block truncate text-[12px] leading-snug text-ink-faint">
+                          <span className="font-zh">{h.sense.phrase.text}</span> {h.sense.phrase.translation}
+                        </span>
+                      )}
                     </span>
                     {owned ? (
                       <Check className="h-4 w-4 shrink-0 text-sage" aria-label={t("lookup.owned")} />

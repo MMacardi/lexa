@@ -146,6 +146,7 @@ app.listen(env.PORT, () => {
     () => poolSentences("一", "ru"),
     () => hskPage("一", "ru"),
     () => void lookup("hao", "ru").catch(() => {}),
+    () => void lookup("мир", "ru").catch(() => {}),
   ];
   warm.forEach((f, i) => setTimeout(f, 200 * (i + 1)));
 });

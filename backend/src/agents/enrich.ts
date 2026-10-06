@@ -58,6 +58,7 @@ export async function enrichWordEntry(params: {
   meaningInstruction?: string; // learner override; falls back to the concise default
   avoid?: string[]; // existing examples to differ from (for "add another")
   sense?: string; // target-language word the learner typed to reach this one (add-by-translation)
+  senseAnchor?: string; // what pins that sense down for the example: "read bēi, as in 背包, 背孩子"
   context?: string; // the sentence the learner met the word in (Reader): the meaning is that sentence's sense
   knownWords?: string[]; // the learner's own words: the example is built from these
   hskLevel?: number | null; // besides those, nothing above this HSK level (the check's "mostly known")
@@ -95,7 +96,10 @@ export async function enrichWordEntry(params: {
       `separated by "; " (e.g. "turn on; open"). The first collocation should use that sense too. `
     : "";
 
-  const inSense = sense ? ` in the sense "${sense}" (the translation must say "${sense}" or a form of it)` : "";
+  const anchor = params.senseAnchor?.trim();
+  const inSense = sense
+    ? ` in the sense "${sense}"${anchor ? ` (${anchor}) — not in any other sense it has` : ""} (the translation must say "${sense}" or a form of it)`
+    : "";
 
   // Captured from a text: the card is for the sense the word has THERE, which is
   // the one thing a dictionary lookup can't tell. A typed sense still wins.

@@ -56,6 +56,49 @@ export async function dictCardFields(
 }
 
 /**
+ * The page sense a card is made in, when its meaning is one (背 «нести на себе,
+ * таскать на спине», picked in the lookup or on the word page), as an example
+ * prompt names it: the gloss with its reading and phrases. Told only «нести на
+ * себе», the model wrote 背二十个单词 — the 背 it knows best (2026-10-06).
+ */
+export function cardSense(card: {
+  word: string;
+  sourceLang: string;
+  targetLang: string;
+  meaningZh: string | null;
+}): { sense: string; anchor?: string; described: string; pos: string } | null {
+  const m = card.meaningZh?.trim();
+  const s = m && isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang)?.s.find((x) => x.m === m) : undefined;
+  if (!s) return null;
+  const anchor = [s.r && `read ${s.r}`, s.p.length && `as in ${s.p.map((p) => p.t).join(", ")}`].filter(Boolean).join(", ");
+  return { sense: s.m, ...(anchor ? { anchor } : {}), described: anchor ? `${s.m} (${anchor})` : s.m, pos: s.pos };
+}
+
+/**
+ * The card for the word-page sense picked in the add form's lookup: 背 found by
+ * «нести» is «нести на себе, таскать на спине» read bēi, not the default «спина;
+ * нести на себе» under bèi; 背 found by «учить» is «учить наизусть». Null when the
+ * default already opens with that sense (买 found by «купить»): it stays, it may
+ * say more. `sense` is the gloss the upgrade writes the example in — with its
+ * clarifier («богатый (о ресурсах, чувствах)»), which is what tells the senses apart.
+ */
+export function pickedSense(
+  word: string,
+  targetLang: string,
+  index: number,
+  card: { phonetic: string; meaningZh: string },
+): { phonetic: string; meaningZh: string; sense: string } | null {
+  const page = hskPage(word, targetLang);
+  const s = page?.s[index];
+  if (!page || !s || headGloss(s.m) === headGloss(card.meaningZh.split(/[;；]/)[0] ?? "")) return null;
+  return {
+    phonetic: s.r && !readsAs(page.w, s.r, card.phonetic) ? s.r : card.phonetic,
+    meaningZh: s.m,
+    sense: s.m.split(/\s*[,;]\s*(?![^(]*\))/)[0],
+  };
+}
+
+/**
  * The pinyin a card is written with, never a model's: the dictionary's reading,
  * else pinyin-pro's (a word CC-CEDICT doesn't have — 拮据的 — or one added with
  * its meaning typed). Such a card used to wait for the upgrade's last write for
@@ -258,6 +301,10 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // A formal word (以, 之所以) has no natural everyday sentence: theirs is written, and
   // labelled, in the register the word lives in — unless they asked for another.
   const style = isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
+  const page = isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang) : null;
+  // A card made in one of its page's senses (picked in the lookup) gets its example
+  // in that sense, pinned by the sense's reading and phrases.
+  const own = opts.sense ? cardSense(card) : null;
 
   const entry = await enrichWordEntry({
     word: card.word,
@@ -269,6 +316,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     withExample: personal,
     meaningInstruction: opts.meaningInstruction,
     sense: opts.sense,
+    senseAnchor: own?.anchor,
     context: met,
     knownWords: brief?.knownWords ?? [],
     hskLevel: brief?.reading?.checked ? (brief.reading.level ?? 1) : null,
@@ -302,7 +350,13 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     let ownWord = !chinese || sentenceWords(held.sentence, card.word).own;
     let checked = false;
     if (ownWord && chinese) {
-      const kept = await keepIfNatural({ word: card.word, sentence: held.sentence, translation: held.translation, targetLang: card.targetLang });
+      const kept = await keepIfNatural({
+        word: card.word,
+        sentence: held.sentence,
+        translation: held.translation,
+        targetLang: card.targetLang,
+        sense: own?.described,
+      });
       if (!kept) ownWord = false;
       else checked = !kept.unread;
       if (kept && kept.sentence !== held.sentence) {
@@ -335,13 +389,14 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     }
   }
   // An HSK word's part of speech and family are its page's, the same for everyone
-  // (services/wordPages.ts); the model's stand in for the words off the lists.
-  const page = isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang) : null;
+  // (services/wordPages.ts) — the picked sense's own part of speech (背 «нести на
+  // себе» is a verb, the page's lead «спина» a noun); the model's stand in for the
+  // words off the lists.
   await prisma.word.update({
     where: { id: card.id },
     data: {
       ...(card.phonetic ? {} : { phonetic: entry.phonetic || null }),
-      ...(card.partOfSpeech ? {} : { partOfSpeech: page?.pos || entry.partOfSpeech || null }),
+      ...(card.partOfSpeech ? {} : { partOfSpeech: own?.pos || page?.pos || entry.partOfSpeech || null }),
       ...(card.collocations.length ? {} : { collocations: entry.collocations }),
       ...(card.synonyms.length ? {} : { synonyms: page ? page.syn : entry.synonyms }),
       ...(card.antonyms.length ? {} : { antonyms: page ? page.ant : entry.antonyms }),
