@@ -11,17 +11,15 @@ import { Check } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import {
-  CEFR_LEVELS,
   EXAMPLE_STYLES,
   getExampleSource,
-  LEVEL_HINT,
+  levelOptions,
   setExampleStyle,
-  setLevel,
+  setLearnerLevel,
   useExampleStyle,
-  useLevel,
+  useLearnerLevel,
   getNativeLang,
   getStudyPair,
-  type CefrLevel,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
@@ -136,7 +134,7 @@ export function ImportWordsDialog({
   const [generateExamples, setGenerateExamples] = useState(false);
   // example difficulty/register — shared with single-word add via localStorage
   const exampleStyle = useExampleStyle();
-  const level = useLevel(sourceLang);
+  const level = useLearnerLevel(sourceLang);
 
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -533,11 +531,11 @@ export function ImportWordsDialog({
                           <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
                           <Select
                             value={level ?? ""}
-                            onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                            onChange={(v) => setLearnerLevel(sourceLang, v)}
                             ariaLabel={t("level.title")}
                             placeholder={t("level.pick")}
                             className="w-[136px]"
-                            options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                            options={levelOptions(sourceLang)}
                           />
                         </div>
                       )}

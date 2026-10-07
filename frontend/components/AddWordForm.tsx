@@ -17,10 +17,11 @@ import {
   LEVEL_HINT,
   getExampleSource,
   getHanLang,
-  getLevel,
+  getLearnerLevel,
+  levelOptions,
   pushRecentPair,
   setHanLang,
-  setLevel,
+  setLearnerLevel,
   useExampleStyle,
   setExampleStyle,
   useExampleSource,
@@ -32,7 +33,8 @@ import {
   useSynonymLevel,
   setExampleCount,
   useExampleCount,
-  useLevel,
+  useLearnerLevel,
+  usesHsk,
   useRecentPairs,
   useNativeLang,
   setNativeLang,
@@ -235,7 +237,7 @@ export function AddWordForm({
       if (style === "none") setExampleStyle("casual");
     }
   };
-  const currentLevel = useLevel(sourceLang);
+  const currentLevel = useLearnerLevel(sourceLang);
   const synLevel = useSynonymLevel();
   const recentPairs = useRecentPairs();
   // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
@@ -375,7 +377,8 @@ export function AddWordForm({
         created = await api.addWord({
           ...base,
           level,
-          synonymLevel: getSynonymLevel() || undefined,
+          // CEFR synonym levels are for exam prep in other languages; Chinese has HSK.
+          synonymLevel: usesHsk(base.sourceLang) ? undefined : getSynonymLevel() || undefined,
           exampleStyle,
           // Free plan: never send Pro-only params (web source, 2-3 examples, custom
           // meaning) — the UI locks them, this is the safety net against a stale pref.
@@ -401,17 +404,17 @@ export function AddWordForm({
 
   const ensureStyle = useEnsureStyle();
 
-  // Ask (once) for the l2earner's level in a concrete language; store it.
+  // Ask (once) for the learner's level in a concrete language (HSK for Chinese); store it.
   async function ensureLevel(lang: string): Promise<string | undefined> {
-    const stored = getLevel(lang);
+    const stored = getLearnerLevel(lang);
     if (stored) return stored;
     const picked = await choose({
       title: t("level.title"),
       message: t("level.question", { lang: langLabel(lang) }),
-      options: CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+      options: levelOptions(lang),
     });
     if (!picked) return undefined;
-    setLevel(lang, picked as CefrLevel);
+    setLearnerLevel(lang, picked);
     return picked;
   }
 
@@ -423,7 +426,7 @@ export function AddWordForm({
     // Level applies to AI example search in a concrete source language.
     let level: string | undefined;
     if (!vars.manual && effLang !== "auto") {
-      const had = getLevel(effLang);
+      const had = getLearnerLevel(effLang);
       level = await ensureLevel(effLang);
       // First-time picker dismissed without a choice → don't proceed.
       if (!had && !level) return;
@@ -1198,10 +1201,10 @@ export function AddWordForm({
                 <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
                 <Select
                   value={currentLevel ?? ""}
-                  onChange={(v) => setLevel(sourceLang, v as CefrLevel)}
+                  onChange={(v) => setLearnerLevel(sourceLang, v)}
                   ariaLabel={t("level.title")}
                   placeholder={t("level.notSet")}
-                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                  options={levelOptions(sourceLang)}
                 />
               </div>
             )}
@@ -1235,21 +1238,24 @@ export function AddWordForm({
               </div>
             )}
             {/* Synonym level — aim the card's synonyms at a target CEFR level (exam
-                prep). Applies to every auto sub-mode, since synonyms are always found. */}
-            <div className="min-w-0 space-y-1">
-              <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
-              <Select
-                value={synLevel}
-                onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
-                ariaLabel={t("syn.level")}
-                options={[
-                  { value: "", label: t("syn.auto") },
-                  ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
-                ]}
-              />
-            </div>
+                prep). Applies to every auto sub-mode, since synonyms are always found.
+                Not for Chinese: its levels are HSK, and the word page has the synonyms. */}
+            {!usesHsk(sourceLang) && (
+              <div className="min-w-0 space-y-1">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("syn.level")}</span>
+                <Select
+                  value={synLevel}
+                  onChange={(v) => setSynonymLevel(v as CefrLevel | "")}
+                  ariaLabel={t("syn.level")}
+                  options={[
+                    { value: "", label: t("syn.auto") },
+                    ...CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+                  ]}
+                />
+              </div>
+            )}
           </div>
-          <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>
+          {!usesHsk(sourceLang) && <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>}
 
           <label className="block space-y-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("edit.notes")}</span>

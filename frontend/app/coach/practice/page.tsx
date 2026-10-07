@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLearnerLevel } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { SpeakButton } from "@/components/SpeakButton";
 import { useMicInput } from "@/lib/useMicInput";
@@ -175,7 +175,7 @@ export default function CoachPracticePage() {
         words: wordPayload,
         sourceLang: pair.source,
         targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
+        level: getLearnerLevel(pair.source) ?? undefined,
         telegramId: accountId,
       });
       const thread = [...history, { role: "assistant" as const, content: res.say }];

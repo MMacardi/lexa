@@ -39,7 +39,7 @@ export async function coachSceneTurn(params: {
 }): Promise<CoachSceneTurn> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = `\n\n${levelGuide(params.level, source)}`;
+  const level = `\n\n${levelGuide(params.level, source, params.sourceLang)}`;
   const missionList = (params.scene.missionWords ?? [])
     .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)
     .join("\n");

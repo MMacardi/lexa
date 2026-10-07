@@ -22,7 +22,7 @@ export async function coachDrill(params: {
 }): Promise<CoachDrillResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = `\n\n${levelGuide(params.level, source)}`;
+  const level = `\n\n${levelGuide(params.level, source, params.sourceLang)}`;
   const wordList = params.words
     .slice(0, 12)
     .map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`)

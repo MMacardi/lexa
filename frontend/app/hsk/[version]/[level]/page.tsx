@@ -10,7 +10,6 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getNativeLang } from "@/lib/learnPrefs";
-import { CEFR_FOR_HSK } from "@/components/HskFirstRun";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
@@ -66,7 +65,7 @@ export default function HskLevelPage() {
     if (adding) return;
     setAdding(w.word);
     try {
-      await api.addWord({ telegramId: accountId, word: w.word, sourceLang: "zh", targetLang: native, level: CEFR_FOR_HSK[level] });
+      await api.addWord({ telegramId: accountId, word: w.word, sourceLang: "zh", targetLang: native, level: String(level) });
       qc.setQueryData(key, (prev: typeof data) =>
         prev
           ? { ...prev, words: prev.words.map((x) => (x.word === w.word ? { ...x, card: true, status: x.status ?? ("learning" as const) } : x)) }

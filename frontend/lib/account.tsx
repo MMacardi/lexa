@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, type Profile } from "@/lib/api";
-import { syncLearnerPrefs } from "@/lib/learnPrefs";
+import { HSK_TARGET_EVT, mirrorHsk, syncLearnerPrefs } from "@/lib/learnPrefs";
 
 // Auth-backed account context. The "account" is now the logged-in Telegram user
 // (verified via the Telegram Login Widget, or the dev shortcut locally), stored
@@ -79,6 +80,22 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (profile?.telegramId) syncLearnerPrefs(profile);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.telegramId]);
+
+  // The Chinese level is the HSK target: mirror it for the synchronous readers
+  // (lib/learnPrefs getLearnerLevel), and when a level picker changes it, the
+  // account and the HSK screens follow at once.
+  useEffect(() => {
+    if (profile) mirrorHsk(profile.hskTarget, profile.hskVersion);
+  }, [profile?.hskTarget, profile?.hskVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const qc = useQueryClient();
+  useEffect(() => {
+    const onTarget = (e: Event) => {
+      setProfile((p) => (p ? { ...p, hskTarget: (e as CustomEvent<number>).detail } : p));
+      for (const key of ["hskPlan", "hskReadiness", "hskDaily", "topicDaily"]) qc.invalidateQueries({ queryKey: [key] });
+    };
+    window.addEventListener(HSK_TARGET_EVT, onTarget);
+    return () => window.removeEventListener(HSK_TARGET_EVT, onTarget);
+  }, [qc]);
 
   const loginDev = async (id: string) => {
     await api.loginDev(id.trim());

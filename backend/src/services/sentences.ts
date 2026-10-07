@@ -6,6 +6,7 @@ import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { segmentChinese } from "./segment.js";
 import { asHskVersion, clampLevel, hskReading, hskTagFor, normalizeHanzi, type HskVersion } from "./hsk.js";
+import { hskOf, isHskLang } from "../lib/level.js";
 
 /**
  * Examples at the learner's level: the sentence around a word is written at the
@@ -116,10 +117,14 @@ export const levelLabel = (level: number) => (level <= 1 ? "HSK 1" : `HSK 1–${
 /**
  * The label for a sentence written for this learner: the HSK range it was written
  * at — beside a pool sentence's "HSK 1–3", a CEFR "B2" from the add form's settings
- * read as a different scale — else what the caller had.
+ * read as a different scale — else the level the request named, on the HSK scale
+ * for Chinese ("4" or an older client's "B2" → "HSK 1–4").
  */
-export function writtenLabel(brief: ExampleBrief | null | undefined, fallback: string | null): string | null {
-  return brief?.level ? levelLabel(brief.level) : fallback;
+export function writtenLabel(brief: ExampleBrief | null | undefined, fallback: string | null, sourceLang?: string | null): string | null {
+  if (brief?.level) return levelLabel(brief.level);
+  if (!isHskLang(sourceLang)) return fallback;
+  const n = hskOf(fallback);
+  return n ? levelLabel(n) : null;
 }
 
 // --- The pool ---

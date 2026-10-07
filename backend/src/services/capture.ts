@@ -54,6 +54,26 @@ export async function dictCardFields(
 }
 
 /**
+ * What an HSK word's page settles the moment the card is made, with no model call:
+ * its part of speech, synonyms, antonyms, and its lead sense's phrases as the
+ * collocations the Reader and a custom card layout show. Null off the lists.
+ */
+export function pageCardFields(
+  word: string,
+  sourceLang: string,
+  targetLang: string,
+): { partOfSpeech: string; collocations: string[]; synonyms: string[]; antonyms: string[] } | null {
+  const page = isChinese(sourceLang) ? hskPage(word, targetLang) : null;
+  if (!page) return null;
+  return {
+    partOfSpeech: page.pos,
+    collocations: (page.s[0]?.p ?? []).slice(0, 3).map((p) => p.t),
+    synonyms: page.syn,
+    antonyms: page.ant,
+  };
+}
+
+/**
  * The page sense a card is made in, when its meaning is one (背 «нести на себе,
  * таскать на спине», picked in the lookup or on the word page), as an example
  * prompt names it: the gloss with its reading and phrases. Told only «нести на
@@ -250,6 +270,8 @@ export async function translateDictMeanings(cardIds: string[]): Promise<void> {
   }
 }
 
+const NO_ENTRY = { phonetic: "", partOfSpeech: "", meaningZh: "", collocations: [], synonyms: [], antonyms: [], example: "", exampleTranslation: "" };
+
 export type UpgradeOptions = {
   level?: string;
   synonymLevel?: string;
@@ -307,24 +329,43 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // A card made in one of its page's senses (picked in the lookup) gets its example
   // in that sense, pinned by the sense's reading and phrases.
   const own = opts.sense ? cardSense(card) : null;
-
-  const entry = await enrichWordEntry({
-    word: card.word,
-    sourceLang: card.sourceLang,
-    targetLang: card.targetLang,
+  // An HSK word with its page and the shared default meaning, and nothing pointing
+  // at another sense: the meaning stays and the page has the details, so the full
+  // entry would be thrown away. Only their own example is left to write — and no
+  // call at all where the pool's sentence serves.
+  const settled = Boolean(page) && isDefaultMeaning(card) && !met && !opts.sense;
+  // What both calls write the example with: the level, their words and interests.
+  const forExample = {
     level: opts.level,
-    synonymLevel: opts.synonymLevel,
     exampleStyle: style,
-    withExample: personal,
-    meaningInstruction: opts.meaningInstruction,
-    sense: opts.sense,
-    senseAnchor: own?.anchor,
-    context: met,
     knownWords: brief?.knownWords ?? [],
     hskLevel: L,
     hskVersion: brief?.version,
     themes: brief?.themes,
-  });
+  };
+  const entry = settled
+    ? personal
+      ? await enrichWordEntry({
+          word: card.word,
+          sourceLang: card.sourceLang,
+          targetLang: card.targetLang,
+          withExample: true,
+          exampleOnly: { meaning: card.meaningZh! },
+          ...forExample,
+        })
+      : NO_ENTRY
+    : await enrichWordEntry({
+        word: card.word,
+        sourceLang: card.sourceLang,
+        targetLang: card.targetLang,
+        synonymLevel: opts.synonymLevel,
+        withExample: personal,
+        meaningInstruction: opts.meaningInstruction,
+        sense: opts.sense,
+        senseAnchor: own?.anchor,
+        context: met,
+        ...forExample,
+      });
 
   // Compare-and-set on the meaning we read: a learner who edited it while the
   // model was thinking keeps their edit. The shared default gives way only to a
@@ -372,7 +413,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
           sourceName: AI_SOURCE,
           sourceUrl: "",
           register: style ?? "casual",
-          level: writtenLabel(brief, opts.level ?? null),
+          level: writtenLabel(brief, opts.level ?? null, card.sourceLang),
           ...(checked ? { checkedAt: new Date() } : {}),
         },
       });
@@ -387,7 +428,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     data: {
       ...(card.phonetic ? {} : { phonetic: entry.phonetic || null }),
       ...(card.partOfSpeech ? {} : { partOfSpeech: own?.pos || page?.pos || entry.partOfSpeech || null }),
-      ...(card.collocations.length ? {} : { collocations: entry.collocations }),
+      ...(card.collocations.length ? {} : { collocations: settled ? (pageCardFields(card.word, card.sourceLang, card.targetLang)?.collocations ?? []) : entry.collocations }),
       ...(card.synonyms.length ? {} : { synonyms: page ? page.syn : entry.synonyms }),
       ...(card.antonyms.length ? {} : { antonyms: page ? page.ant : entry.antonyms }),
     },

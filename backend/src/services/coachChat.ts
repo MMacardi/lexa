@@ -25,7 +25,7 @@ export async function coachChat(params: {
 }): Promise<CoachChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const level = `\n\n${levelGuide(params.level, source)}`;
+  const level = `\n\n${levelGuide(params.level, source, params.sourceLang)}`;
   const pool = params.words.slice(0, 24);
   const wordList = pool.length
     ? pool.map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`).join("\n")

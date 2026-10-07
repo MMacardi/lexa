@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useClosing } from "@/lib/motion";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
-import { getLevel, getShowTextLevel, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
+import { asLevelValue, getLearnerLevel, getShowTextLevel, levelOptions, usesHsk } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, Sparkles } from "lucide-react";
@@ -122,7 +122,7 @@ export function SaveModal({
   const [aiName, setAiName] = useState(false);
   const [collection, setCollection] = useState(initialCollection ?? "");
   const [known, setKnown] = useState<string[]>([]);
-  const [level, setLevel] = useState<CefrLevel | "">((initialLevel as CefrLevel) || getLevel(sourceLang) || "");
+  const [level, setLevel] = useState<string>(asLevelValue(sourceLang, initialLevel) || getLearnerLevel(sourceLang) || "");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -220,10 +220,13 @@ export function SaveModal({
         <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.collectionLabel")}</label>
         <CollectionCombo value={collection} onChange={setCollection} options={known} placeholder={t("reader.collectionPh")} />
 
-        <label className="mb-1.5 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.levelLabel")}</label>
+        <label className="mb-1.5 mt-4 block text-[12px] font-medium text-ink-soft">
+          {t("reader.levelLabel")}
+          {usesHsk(sourceLang) && " · HSK"}
+        </label>
         <div className="flex gap-1">
-          {CEFR_LEVELS.map((lv) => (
-            <HoverTip key={lv} title={LEVEL_HINT[lv]} className="flex-1">
+          {levelOptions(sourceLang).map(({ value: lv, label, hint }) => (
+            <HoverTip key={lv} title={hint ?? label} className="flex-1">
               <button
                 type="button"
                 onClick={() => setLevel((cur) => (cur === lv ? "" : lv))}
@@ -232,7 +235,7 @@ export function SaveModal({
                   (level === lv ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
                 }
               >
-                {lv}
+                {label.replace(/^HSK /, "")}
               </button>
             </HoverTip>
           ))}
@@ -261,7 +264,7 @@ function GenerateModal({
   const { t } = useI18n();
   const { show } = useToast();
   const [topic, setTopic] = useState("");
-  const [level, setLevel] = useState<CefrLevel>(getLevel(sourceLang) ?? "B1");
+  const [level, setLevel] = useState<string>(getLearnerLevel(sourceLang) ?? (usesHsk(sourceLang) ? "3" : "B1"));
   const [busy, setBusy] = useState(false);
 
   async function go() {
@@ -292,10 +295,13 @@ function GenerateModal({
         </h3>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t("reader.genTopic")} autoFocus className="h-11" />
         <div className="mt-3">
-          <div className="mb-1.5 text-[12px] font-medium text-ink-soft">{t("reader.genLevel")}</div>
+          <div className="mb-1.5 text-[12px] font-medium text-ink-soft">
+            {t("reader.genLevel")}
+            {usesHsk(sourceLang) && " · HSK"}
+          </div>
           <div className="flex gap-1">
-            {CEFR_LEVELS.map((lv) => (
-              <HoverTip key={lv} title={LEVEL_HINT[lv]} className="flex-1">
+            {levelOptions(sourceLang).map(({ value: lv, label, hint }) => (
+              <HoverTip key={lv} title={hint ?? label} className="flex-1">
                 <button
                   type="button"
                   onClick={() => setLevel(lv)}
@@ -306,7 +312,7 @@ function GenerateModal({
                       : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")
                   }
                 >
-                  {lv}
+                  {label.replace(/^HSK /, "")}
                 </button>
               </HoverTip>
             ))}

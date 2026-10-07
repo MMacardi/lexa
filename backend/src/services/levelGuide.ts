@@ -4,6 +4,8 @@
 // budget and what to do with a word above the level, so every coach prompt constrains
 // difficulty the same way.
 
+import { cefrOf, isHskLang, levelName } from "../lib/level.js";
+
 const RULES: Record<string, string> = {
   A1: `A1 (complete beginner): ONE very short sentence per reply, at most ~10 words. Only the most common, ` +
     `everyday words — greetings, food, family, numbers, basic verbs. Present tense only. NO idioms, NO ` +
@@ -24,15 +26,17 @@ const RULES: Record<string, string> = {
  * The difficulty block to splice into a coach system prompt. `source` is the language
  * being practised, named so the rule can't be misread as applying to the learner's own
  * language. Never returns "" — an undeclared level still gets a conservative A2 cap,
- * which is what made difficulty feel random before.
+ * which is what made difficulty feel random before. Chinese is levelled in HSK: the
+ * rule is its CEFR band's, named "HSK 4" rather than "B2" (`sourceLang`).
  */
-export function levelGuide(level?: string, source = "the language being practised"): string {
-  const key = (level ?? "").trim().toUpperCase();
-  const rule = RULES[key];
+export function levelGuide(level?: string, source = "the language being practised", sourceLang?: string): string {
+  const key = cefrOf(level) ?? "";
+  const hsk = isHskLang(sourceLang) ? levelName(level, sourceLang) : null;
+  const rule = hsk ? RULES[key]?.replace(/^[ABC][12] \(([^)]*)\):/, `${hsk} ($1):`) : RULES[key];
   const head = rule
-    ? `LEVEL — a HARD constraint, not a hint. The learner is at CEFR ${key} in ${source}.\n${rule}`
-    : `LEVEL — a HARD constraint, not a hint. The learner has not declared a level, so assume A2 in ${source}: ` +
-      `1-2 short sentences, everyday vocabulary, no idioms.`;
+    ? `LEVEL — a HARD constraint, not a hint. The learner is at ${hsk ?? `CEFR ${key}`} in ${source}.\n${rule}`
+    : `LEVEL — a HARD constraint, not a hint. The learner has not declared a level, so assume ` +
+      `${isHskLang(sourceLang) ? "HSK 2" : "A2"} in ${source}: 1-2 short sentences, everyday vocabulary, no idioms.`;
   return (
     `${head}\n` +
     `Applies to everything you write in ${source} AND to everything you ask the learner to produce in it.\n` +

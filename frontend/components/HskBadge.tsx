@@ -1,16 +1,20 @@
 "use client";
 
 import { type HskTag, type HskVersion } from "@/lib/api";
+import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // The level tag on a card. A word usually sits at different levels in the two
-// lists, so the badge shows the HSK 3.0 one (the standard the textbooks are
-// moving to) and the title spells out every list it appears on.
+// lists, so the badge shows the level on the learner's own list (the one Today
+// and the Reader count on: 教育 is HSK 4 on 2.0, HSK 2 on 3.0), the other list
+// only for a word that isn't on theirs, and the title spells out every list.
 export function HskBadge({ hsk, className }: { hsk?: HskTag | null; className?: string }) {
   const { t } = useI18n();
+  const { profile } = useAccount();
   if (!hsk) return null;
-  const version: HskVersion = hsk["3.0"] ? "3.0" : "2.0";
+  const own: HskVersion = profile?.hskVersion ?? "3.0";
+  const version: HskVersion = hsk[own] ? own : own === "3.0" ? "2.0" : "3.0";
   const level = hsk[version];
   if (!level) return null;
 

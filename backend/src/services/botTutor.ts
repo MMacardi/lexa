@@ -1,5 +1,6 @@
 import { prisma } from "./db.js";
 import { cedictHas, isChinese } from "./cedict.js";
+import { isHskLang } from "../lib/level.js";
 
 // Server-side helpers for the Telegram tutor bot. The bot has no browser
 // localStorage, so the learner's language pair lives on the User row (resolved
@@ -8,7 +9,7 @@ import { cedictHas, isChinese } from "./cedict.js";
 export interface Pair {
   source: string;
   target: string;
-  /** The learner's CEFR level for `source`, when they have set one (F2 moved it
+  /** The learner's level for `source` (CEFR, or the HSK target for Chinese), when they have set one (F2 moved it
    * onto the User, so the bot can finally tune generation the way the web does). */
   level?: string;
 }
@@ -69,9 +70,14 @@ export async function ensureBotUser(
 export async function resolveUserPair(telegramId: string): Promise<Pair> {
   const user = await prisma.user.findUnique({
     where: { telegramId },
-    select: { preferredSource: true, preferredTarget: true, levels: true },
+    select: { preferredSource: true, preferredTarget: true, levels: true, hskTarget: true },
   });
-  const withLevel = (source: string, target: string): Pair => ({ source, target, level: levelFor(user?.levels, source) });
+  // Chinese is levelled by the HSK target ("4"), the scale the web app sends too.
+  const withLevel = (source: string, target: string): Pair => ({
+    source,
+    target,
+    level: isHskLang(source) && user?.hskTarget ? String(user.hskTarget) : levelFor(user?.levels, source),
+  });
 
   if (user?.preferredSource && user?.preferredTarget) {
     return withLevel(user.preferredSource, user.preferredTarget);

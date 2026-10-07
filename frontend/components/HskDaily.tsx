@@ -100,7 +100,8 @@ export function HskDaily() {
           ...toAdd.map((w) => ({ word: w.word })),
           ...topicToAdd.map((w) => ({ word: w.word, meaning: w.meaning })),
         ];
-        const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, items, level, enrich: true });
+        // The cards are made at the HSK level ("4"); the placement keeps its CEFR field.
+        const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, items, level: String(data.level), enrich: true });
         const words = items.map((i) => i.word);
         if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
         show({ icon: "📚", title: t("hskDaily.added", { n: r.created }) });
@@ -142,7 +143,7 @@ export function HskDaily() {
   ) : topic ? (
     <div className="mt-4">
       <div className="flex items-center gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("topic.label", { topic })}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("topic.label", { topic, level: levelName })}</p>
         <button
           type="button"
           onClick={() => setEditingTopic(true)}

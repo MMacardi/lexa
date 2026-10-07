@@ -4,6 +4,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
 import { cedictInventory, isChinese } from "../services/cedict.js";
 import { NATURAL_FIRST } from "../services/sentences.js";
+import { isHskLang, levelName } from "../lib/level.js";
 
 // Combined enrichment agent: ONE model call returns the full dictionary entry
 // (phonetic, part of speech, meaning, collocations, synonyms, antonyms) AND a
@@ -52,6 +53,8 @@ export function hskLevelLine(word: string, level: number, version: string): stri
   );
 }
 
+const exampleOnlySchema = enrichEntrySchema.pick({ example: true, exampleTranslation: true });
+
 export interface EnrichResult {
   phonetic: string;
   partOfSpeech: string;
@@ -81,6 +84,9 @@ export async function enrichWordEntry(params: {
   hskVersion?: string; // the list that level is on (2.0 or 3.0)
   themes?: string; // what the learner picked as their interests: the example's situation
   ground?: boolean; // default true; scripts/eval-senses.ts turns it off for its control arm
+  // Only the example, in the card's sense: an HSK word whose page has the rest and
+  // whose meaning stays (services/capture.ts upgradeCard). Needs withExample.
+  exampleOnly?: { meaning: string };
 }): Promise<EnrichResult> {
   const word = params.word.trim();
   const sourceLang = params.sourceLang ?? "en";
@@ -92,13 +98,13 @@ export async function enrichWordEntry(params: {
   const meaningInstruction = params.meaningInstruction?.trim() || DEFAULT_MEANING_INSTRUCTION;
   // A Chinese example's level is the HSK line below: one instruction, not "CEFR B2"
   // beside "HSK 2 and below" (the author's cards, 2026-10-06).
-  const levelLine =
-    params.level && !params.hskLevel
-      ? `The learner's CEFR level is ${params.level}; keep the example's vocabulary and grammar at that level. `
-      : "";
+  // Without one, a level the request named, on the language's own scale (HSK for Chinese).
+  const levelAt = params.hskLevel ? null : levelName(params.level, sourceLang);
+  const levelLine = levelAt ? `The learner's level is ${levelAt}; keep the example's vocabulary and grammar at that level. ` : "";
   // Optional: aim synonyms at a target CEFR level (e.g. for IELTS prep the learner
   // wants richer, higher-level alternatives rather than the plainest words).
-  const synClause = params.synonymLevel
+  // CEFR is for other languages' exam prep: Chinese is levelled in HSK.
+  const synClause = params.synonymLevel && !isHskLang(sourceLang)
     ? `synonyms (up to 3 genuine ${sourceName} synonyms, chosen at roughly CEFR ${params.synonymLevel} — ` +
       `richer, more advanced alternatives suitable for exam prep like IELTS, but still TRUE synonyms of the word)`
     : `synonyms (up to 3 genuine ${sourceName} synonyms)`;
@@ -119,7 +125,9 @@ export async function enrichWordEntry(params: {
   const anchor = params.senseAnchor?.trim();
   const inSense = sense
     ? ` in the sense "${sense}"${anchor ? ` (${anchor}) — not in any other sense it has` : ""} (the translation must say "${sense}" or a form of it)`
-    : "";
+    : params.exampleOnly
+      ? ` in its sense on the learner's card, "${params.exampleOnly.meaning}"`
+      : "";
 
   // Captured from a text: the card is for the sense the word has THERE, which is
   // the one thing a dictionary lookup can't tell. A typed sense still wins.
@@ -194,6 +202,32 @@ export async function enrichWordEntry(params: {
         levelLine +
         knownLine +
         themeLine;
+
+  // A third of the full entry's output, and none of it thrown away.
+  if (params.exampleOnly) {
+    const r = await chatJson({
+      system:
+        `You write example sentences for ${targetName}-speaking learners of ${sourceName}. ` +
+        `For the given ${sourceName} word, respond as JSON with: ` +
+        examplePart +
+        scriptNote(sourceLang) +
+        scriptNote(targetLang) +
+        'Shape: {"example":string,"exampleTranslation":string}.',
+      user: word,
+      schema: exampleOnlySchema,
+      label: "enrich(example only)",
+    });
+    return {
+      phonetic: (await localPhonetic(word, sourceLang)) ?? "",
+      partOfSpeech: "",
+      meaningZh: "",
+      collocations: [],
+      synonyms: [],
+      antonyms: [],
+      example: (r.example ?? "").trim(),
+      exampleTranslation: (r.exampleTranslation ?? "").trim(),
+    };
+  }
 
   const result = await chatJson({
     system:

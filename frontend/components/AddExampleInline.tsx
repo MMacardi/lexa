@@ -7,13 +7,11 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import {
-  CEFR_LEVELS,
   EXAMPLE_STYLES,
-  LEVEL_HINT,
   getExampleStyle,
   getExampleSource,
-  getLevel,
-  type CefrLevel,
+  getLearnerLevel,
+  levelOptions,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
@@ -46,7 +44,7 @@ export function AddExampleInline({ word }: { word: Word }) {
     const s = getExampleStyle();
     return s === "none" ? "casual" : s;
   });
-  const [level, setLevelState] = useState<CefrLevel | "">(() => getLevel(word.sourceLang) ?? "");
+  const [level, setLevelState] = useState<string>(() => getLearnerLevel(word.sourceLang) ?? "");
 
   // A card holds at most two AI examples; the second one is Pro. Manual entry is
   // never capped, so only the AI affordance below reacts to these.
@@ -182,11 +180,11 @@ export function AddExampleInline({ word }: { word: Word }) {
             )}
             <Select
               value={level}
-              onChange={(v) => setLevelState(v as CefrLevel)}
+              onChange={(v) => setLevelState(v)}
               ariaLabel={t("level.title")}
               placeholder={t("level.pick")}
               className="w-[128px]"
-              options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+              options={levelOptions(word.sourceLang)}
             />
           </div>
 

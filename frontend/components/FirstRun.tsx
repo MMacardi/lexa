@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { setLevel as setPrefLevel, pushRecentPair, getNativeLang, setNativeLang, CEFR_LEVELS, LEVEL_HINT, type CefrLevel } from "@/lib/learnPrefs";
+import { setLearnerLevel, pushRecentPair, getNativeLang, setNativeLang, levelOptions, usesHsk, CEFR_FOR_HSK, type CefrLevel } from "@/lib/learnPrefs";
 import { starterWords } from "@/lib/starterDecks";
 import { DEFAULT_LEARNING_LANG, LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
 import { useCustomLangs } from "@/lib/customLangs";
@@ -94,7 +94,9 @@ function GenericFirstRun() {
     DEFAULT_LEARNING_LANG && DEFAULT_LEARNING_LANG !== native ? DEFAULT_LEARNING_LANG : native === "en" ? "es" : "en",
   );
   const [target, setTarget] = useState(native); // language you already know (meanings)
-  const [level, setLevel] = useState<CefrLevel>("B1");
+  const [picked, setLevel] = useState("");
+  // Chinese is picked in HSK, the rest in CEFR; until a pick, the middle of the scale.
+  const level = levelOptions(source).some((o) => o.value === picked) ? picked : usesHsk(source) ? "3" : "B1";
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState(false);
 
@@ -193,7 +195,7 @@ function GenericFirstRun() {
     if (!unique.length || busy) return;
     setBusy(true);
     try {
-      setPrefLevel(source, level);
+      setLearnerLevel(source, level);
       pushRecentPair(source, target);
       if (!getNativeLang()) setNativeLang(target); // "I already know" = their side of every pair
       try {
@@ -212,7 +214,7 @@ function GenericFirstRun() {
           .savePlacement({
             sourceLang: source,
             targetLang: target,
-            level,
+            level: usesHsk(source) ? CEFR_FOR_HSK[Number(level)] : (level as CefrLevel),
             known: shown.filter((w) => !tapped.has(w.trim())),
             unknown: unique,
           })
@@ -272,10 +274,10 @@ function GenericFirstRun() {
             <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.level")}</span>
             <Select
               value={level}
-              onChange={(v) => setLevel(v as CefrLevel)}
+              onChange={setLevel}
               ariaLabel={t("first.level")}
               className="w-[130px]"
-              options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+              options={levelOptions(source)}
             />
           </label>
         </div>

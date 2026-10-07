@@ -17,7 +17,8 @@ import {
   setNewPerDay,
   setExampleStyle,
   useExampleStyle,
-  type CefrLevel,
+  CEFR_FOR_HSK,
+  mirrorHsk,
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { LangSelect } from "@/components/LangSelect";
@@ -84,11 +85,9 @@ const MAX_LEVEL: Record<HskVersion, number> = { "2.0": 6, "3.0": 7 };
 // The check (HskCheck) writes PlacementAnswers and the gap deck reads them.
 const DECK_SIZE = 20;
 
-// Cards are still generated at a CEFR level (examples, synonyms), so the HSK
-// target has to name one. Rough but stable: HSK 1–2 are A1/A2, 3 is B1, 4 is B2,
-// 5 and up are C1 — the mapping the HSK bands are usually published against.
-// Shared with Today's daily words (HskDaily), which make cards at the same level.
-export const CEFR_FOR_HSK: Record<number, CefrLevel> = { 1: "A1", 2: "A2", 3: "B1", 4: "B2", 5: "C1", 6: "C1", 7: "C2" };
+// levels.zh keeps a CEFR equivalent of the HSK target for the paths that still
+// read one (lib/learnPrefs): HSK 1–2 are A1/A2, 3 is B1, 4 is B2, 5 and up C1.
+export { CEFR_FOR_HSK };
 
 type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done" | "building" | "ready";
 const STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"];
@@ -468,6 +467,7 @@ export function HskFirstRun({
       }
       setNativeLang(native);
       setPrefLevel("zh", level);
+      mirrorHsk(target, version); // the level pickers read the target before the profile reloads
       pushRecentPair("zh", native);
       setDailyGoal(daily);
       setNewPerDay(daily); // review introduces what the plan promised, not the default 15
@@ -534,7 +534,7 @@ export function HskFirstRun({
       // back in a deck or in the daily words.
       // The rest are taken to learn: their first reviews keep the estimate honest.
       await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: [...rejected], unknown: [], took: words });
-      const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, words, level, enrich: true, meaningsFirst: Boolean(onFinish) });
+      const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, words, level: String(target), enrich: true, meaningsFirst: Boolean(onFinish) });
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["hskReadiness"] });

@@ -14,9 +14,9 @@ import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
 import { cedictCredit, cedictInventory, isChinese } from "./cedict.js";
-import { cardSense, dictCardFields, hasDictMeaning, pickedSense, upgradeCard } from "./capture.js";
+import { cardSense, dictCardFields, hasDictMeaning, pageCardFields, pickedSense, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
-import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords } from "./sentences.js";
+import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
 import { track } from "./analytics.js";
 import { headGloss, hskPage, pageSenses } from "./wordPages.js";
 
@@ -103,6 +103,9 @@ export async function addWordForUser(params: {
     // written in it: the pool's sentences may show another (背 «спина»).
     const picked = params.senseIndex === undefined ? null : pickedSense(params.word, targetLang, params.senseIndex, dict);
     const sense = params.sense ?? picked?.sense;
+    // The page's details now, except for a card made in another sense (the upgrade
+    // takes that sense's part of speech).
+    const page = sense ? null : pageCardFields(params.word, sourceLang, targetLang);
     const created = await prisma.word.create({
       data: {
         userId: user.id,
@@ -111,9 +114,10 @@ export async function addWordForUser(params: {
         targetLang,
         phonetic: picked?.phonetic ?? dict.phonetic,
         meaningZh: picked?.meaningZh ?? dict.meaningZh,
-        collocations: [],
-        synonyms: [],
-        antonyms: [],
+        partOfSpeech: page?.partOfSpeech || null,
+        collocations: page?.collocations ?? [],
+        synonyms: page?.synonyms ?? [],
+        antonyms: page?.antonyms ?? [],
         notes,
       },
       select: { id: true, word: true },
@@ -207,7 +211,7 @@ export async function addWordForUser(params: {
                 sourceName: "Onomika AI",
                 sourceUrl: "",
                 register: params.exampleStyle ?? "casual",
-                level: params.level ?? null,
+                level: writtenLabel(null, params.level ?? null, sourceLang),
                 ...(example.checked ? { checkedAt: new Date() } : {}),
               },
             }

@@ -3,7 +3,7 @@ import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
-import { cardPhonetic, dictCardFields, translateDictMeanings } from "./capture.js";
+import { cardPhonetic, dictCardFields, pageCardFields, translateDictMeanings } from "./capture.js";
 import { placePoolExamples, poolRegister } from "./sentences.js";
 
 const MAX_CARDS = 100;
@@ -137,6 +137,9 @@ export async function importWordsForUser(params: {
     // written with the dictionary's pinyin and gloss, so it is reviewable now and
     // the queued enrichment upgrades it rather than filling a blank.
     const dict = item.meaning ? null : await dictCardFields(item.word, params.sourceLang, params.targetLang);
+    // An HSK word's page has its part of speech and family: on the card now, not
+    // after a model call whose answer would be replaced by the page anyway.
+    const page = dict ? pageCardFields(item.word, params.sourceLang, params.targetLang) : null;
     try {
       const record = await prisma.word.create({
         data: {
@@ -146,9 +149,10 @@ export async function importWordsForUser(params: {
           targetLang: params.targetLang,
           phonetic: dict?.phonetic ?? (await cardPhonetic(item.word, params.sourceLang)),
           meaningZh: dict?.meaningZh ?? item.meaning,
-          synonyms: params.keepProvidedExtras ? item.synonyms : [],
-          collocations: [],
-          antonyms: [],
+          partOfSpeech: page?.partOfSpeech || null,
+          synonyms: params.keepProvidedExtras && item.synonyms.length ? item.synonyms : (page?.synonyms ?? []),
+          collocations: page?.collocations ?? [],
+          antonyms: page?.antonyms ?? [],
           collections: collectionIds.length ? { connect: collectionIds.map((id) => ({ id })) } : undefined,
           examples:
             params.keepProvidedExtras && item.example

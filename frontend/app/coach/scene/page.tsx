@@ -10,7 +10,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel, useTapAnyGloss } from "@/lib/learnPrefs";
+import { getLearnerLevel, useTapAnyGloss } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
 import { buildWordMatcher, type WordMatcher } from "@/lib/wordMatch";
 import { resolveMeaning } from "@/lib/resolveMeaning";
@@ -312,7 +312,7 @@ export default function CoachScenePage() {
         words: wordPayload,
         sourceLang: pair.source,
         targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
+        level: getLearnerLevel(pair.source) ?? undefined,
         idea: effectiveIdea,
         // Only steer away from recent themes when the learner didn't ask for a specific
         // scene — an explicit pick/preset should always be honoured.
@@ -574,7 +574,7 @@ export default function CoachScenePage() {
       },
       sourceLang: pair.source,
       targetLang: pair.target,
-      level: getLevel(pair.source) ?? undefined,
+      level: getLearnerLevel(pair.source) ?? undefined,
       wrap: opts.wrap,
       telegramId: accountId,
     };

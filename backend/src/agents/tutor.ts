@@ -4,6 +4,7 @@ import { tutorSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "./enrich.js";
+import { isHskLang } from "../lib/level.js";
 
 /**
  * Vocabulary Tutor Agent.
@@ -22,7 +23,7 @@ export async function runTutor(params: {
 }): Promise<void> {
   const sourceName = langName(params.sourceLang ?? "en");
   const targetName = langName(params.targetLang ?? "zh");
-  const synClause = params.synonymLevel
+  const synClause = params.synonymLevel && !isHskLang(params.sourceLang)
     ? `synonyms (up to 3 genuine ${sourceName} synonyms, chosen at roughly CEFR ${params.synonymLevel} — ` +
       `richer, more advanced alternatives suitable for exam prep like IELTS, but still TRUE synonyms)`
     : `synonyms (up to 3 genuine ${sourceName} synonyms)`;

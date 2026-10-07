@@ -12,7 +12,7 @@ import { RotateCcw, X } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { isAiSupported } from "@/lib/langs";
-import { getExampleSource, getExampleStyle, getLevel, getGraphAddMethod, setGraphAddMethod, type GraphAddMethod } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLearnerLevel, getGraphAddMethod, setGraphAddMethod, type GraphAddMethod } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/motion";
 
@@ -188,7 +188,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
         sourceLang: word.sourceLang,
         targetLang: word.targetLang,
         words: [term],
-        level: getLevel(word.sourceLang) ?? undefined,
+        level: getLearnerLevel(word.sourceLang) ?? undefined,
         exampleStyle: getExampleStyle(),
         exampleSource: getExampleSource(),
         enrich: isAiSupported(word.sourceLang),

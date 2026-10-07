@@ -12,14 +12,15 @@ import { Segmented } from "@/components/ui/Segmented";
 import { LangSelect } from "@/components/LangSelect";
 import { langLabel } from "@/lib/langs";
 import {
-  CEFR_LEVELS,
-  LEVEL_HINT,
   RETENTION_OPTIONS,
   DEFAULT_RETENTION,
   clearHanLang,
+  getLearnerLevel,
+  levelOptions,
   removeLevel,
   setExampleSource,
-  setLevel,
+  setLearnerLevel,
+  usesHsk,
   setNativeLang,
   setRetention,
   setShowTranscription,
@@ -42,7 +43,6 @@ import {
   useShowTranscription,
   useGraphAddMethod,
   useMicEngine,
-  type CefrLevel,
   type ExampleSource,
   STYLE_ORDER,
   DEFAULT_EXAMPLE_STYLE,
@@ -85,12 +85,13 @@ function LevelsSection() {
             <li key={lang} className="flex items-center justify-between gap-3">
               <span className="text-[15px] font-medium text-ink">{langLabel(lang)}</span>
               <div className="flex items-center gap-1.5">
+                {/* Chinese reads and saves the HSK target (one scale with Today). */}
                 <Select
-                  value={levels[lang]}
-                  onChange={(v) => setLevel(lang, v as CefrLevel)}
+                  value={usesHsk(lang) ? (getLearnerLevel(lang) ?? "") : levels[lang]}
+                  onChange={(v) => setLearnerLevel(lang, v)}
                   ariaLabel={t("level.title")}
                   className="w-[150px]"
-                  options={CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }))}
+                  options={levelOptions(lang)}
                 />
                 <button
                   type="button"

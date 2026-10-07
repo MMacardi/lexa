@@ -53,7 +53,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    An HSK 4 learner's examples all read "слова вокруг: HSK 1–2"; My words shows 教育 as HSK 2 while Today shows
    HSK 4; 19 added words take minutes to enrich, mostly for output that is thrown away. The author's decisions,
    the verified causes and four parts (one session each, in order) are in `PLAN-examples.md`. Work from there.
-   **Part 1 done 2026-10-07** (examples follow the chosen level); next: Part 2, one HSK scale in the UI.
+   **Parts 1–3 done 2026-10-07** (examples follow the chosen level; one HSK scale in the UI; page details at
+   once, an example-only call or none, 3 cards at a time). Next: Part 4, pool sentences per level band (costs ¥, ask first).
 
 1. [x] **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an

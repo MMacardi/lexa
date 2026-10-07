@@ -6,6 +6,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 import { FOCUS } from "../lib/env.js";
 import { NATURAL_FIRST, keepIfNatural, writtenLabel, type ExampleBrief } from "../services/sentences.js";
 import { hskLevelLine } from "./enrich.js";
+import { levelName } from "../lib/level.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -118,8 +119,10 @@ export async function runExampleSearch(params: {
   const style = STYLE_HINTS[params.exampleStyle ?? "news"] ? (params.exampleStyle ?? "news") : "news";
   const styleInfo = STYLE_HINTS[style];
 
-  const levelLine = params.level
-    ? `The learner's CEFR level is ${params.level}. Choose a sentence a ${params.level} learner can actually understand: prefer common, high-frequency vocabulary and avoid rare, technical, archaic, or foreign loan-words beyond their level. If every candidate is too hard, pick the simplest and clearest one. `
+  // HSK for Chinese, CEFR otherwise: one scale per language in what the model is told.
+  const levelAt = levelName(params.level, sourceLang);
+  const levelLine = levelAt
+    ? `The learner's level is ${levelAt}. Choose a sentence a ${levelAt} learner can actually understand: prefer common, high-frequency vocabulary and avoid rare, technical, archaic, or foreign loan-words beyond their level. If every candidate is too hard, pick the simplest and clearest one. `
     : "";
   // When the card already has examples, compose a fresh, DIFFERENT one instead of
   // searching (the web search returns the same top article/sentence every time).
@@ -283,7 +286,7 @@ export async function runExampleSearch(params: {
       // Record the register + level only for AI-composed examples (a web-mined
       // one carries its publication as the source, not a chosen register).
       register: source ? null : style,
-      level: source ? null : writtenLabel(params.brief, params.level ?? null),
+      level: source ? null : writtenLabel(params.brief, params.level ?? null, sourceLang),
       checkedAt,
     },
   });

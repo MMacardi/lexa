@@ -1,6 +1,7 @@
 import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { isHskLang, levelName, levelTag } from "../lib/level.js";
 import { isKnownCard, knownPercent, readerKey, readerTokens } from "./coverage.js";
 import { z } from "zod";
 
@@ -104,18 +105,22 @@ async function titleFor(content: string, sourceLang?: string): Promise<string> {
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 
-// Cheaply estimate a text's CEFR level in one short call. Best-effort.
+// Cheaply estimate a text's level in one short call: CEFR, or HSK for Chinese. Best-effort.
 async function estimateLevel(content: string, sourceLang?: string): Promise<string | null> {
   const source = langName(sourceLang ?? "en");
+  const hsk = isHskLang(sourceLang);
   try {
     const r = await chatJson({
       system:
-        `Estimate the CEFR level of the ${source} text (one of A1, A2, B1, B2, C1, C2) ` +
+        (hsk
+          ? `Estimate the HSK level of the ${source} text (one of 1, 2, 3, 4, 5, 6, or 7 for HSK 7–9) `
+          : `Estimate the CEFR level of the ${source} text (one of A1, A2, B1, B2, C1, C2) `) +
         `by its vocabulary and grammar. Respond as JSON: {"level": string}.`,
       user: content.trim().slice(0, 1500),
       schema: z.object({ level: z.string().min(1).max(12) }),
       timeoutMs: 15000,
     });
+    if (hsk) return levelTag(r.level, sourceLang);
     const lvl = r.level.trim().toUpperCase();
     return (LEVELS as readonly string[]).includes(lvl) ? lvl : null;
   } catch {
@@ -164,7 +169,7 @@ export async function createText(
   // A level the user picked wins (no tokens); only estimate via the model when
   // asked to and none was provided.
   const level = data.level?.trim()
-    ? data.level.trim().toUpperCase()
+    ? levelTag(data.level, data.sourceLang)
     : data.estimateLevel
       ? await estimateLevel(data.content, data.sourceLang)
       : null;
@@ -198,7 +203,7 @@ export async function updateText(
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
-  const owned = await prisma.readerText.findFirst({ where: { id, userId: uid }, select: { id: true } });
+  const owned = await prisma.readerText.findFirst({ where: { id, userId: uid }, select: { id: true, sourceLang: true } });
   if (!owned) throw new Error("Text not found");
   return prisma.readerText.update({
     where: { id },
@@ -206,7 +211,7 @@ export async function updateText(
       ...(data.title !== undefined ? { title: data.title.trim() || "Untitled" } : {}),
       ...(data.content !== undefined ? { content: data.content } : {}),
       ...(data.collection !== undefined ? { collection: data.collection?.trim() || null } : {}),
-      ...(data.level !== undefined ? { level: data.level?.trim().toUpperCase() || null } : {}),
+      ...(data.level !== undefined ? { level: levelTag(data.level, owned.sourceLang) } : {}),
       ...(data.translation !== undefined ? { translation: data.translation?.trim() || null } : {}),
       ...(data.clickedWords !== undefined ? { clickedWords: data.clickedWords } : {}),
     },
@@ -231,8 +236,9 @@ interface GenParams {
 
 async function generateOne(params: GenParams): Promise<{ title: string; content: string }> {
   const source = langName(params.sourceLang ?? "en");
-  const levelLine = params.level
-    ? `Write it for a CEFR ${params.level} learner — vocabulary and grammar they can mostly follow. `
+  const levelAt = levelName(params.level, params.sourceLang);
+  const levelLine = levelAt
+    ? `Write it for a ${levelAt} learner — vocabulary and grammar they can mostly follow. `
     : "Keep it accessible for an intermediate learner. ";
   const result = await chatJson({
     system:
@@ -259,7 +265,7 @@ export async function startGeneration(telegramId: string, params: GenParams) {
   if (!uid) throw new Error("Account not found");
   // A level the learner picked is stored straight away (no tokens); otherwise we
   // estimate it from the finished text below.
-  const chosenLevel = params.level?.trim().toUpperCase() || null;
+  const chosenLevel = levelTag(params.level, params.sourceLang);
   const row = await prisma.readerText.create({
     data: {
       userId: uid,

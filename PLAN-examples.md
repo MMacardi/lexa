@@ -85,7 +85,24 @@ each pool pick's level is the highest ≤ 4 the pool has (通过/记者 get c2 o
 where a higher one existed; an HSK 1 word gets a sentence above HSK 2 when its pool has one. Then a local Docker run:
 Today → Add → open 却 and 通过 → read the labels and sentences (never prod).
 
-## Part 2 — one HSK scale in the UI (frontend + prompts)
+## Part 2 — one HSK scale in the UI (frontend + prompts) — [x] done 2026-10-07
+
+**As built.** The badge (`HskBadge`) reads `profile.hskVersion` itself, so every user of it follows (CoachPicks
+already passed a tag on the learner's list). The topic row reads "{topic} · beyond HSK 4" / "сверх HSK 4" /
+"超出 HSK 4". One helper in `lib/learnPrefs.ts` serves every level picker: `levelOptions` (Chinese HSK 1–6, 7–9
+only on 3.0; A1–C2 otherwise), `getLearnerLevel` / `setLearnerLevel` / `useLearnerLevel` (Chinese = the HSK target;
+saving writes `hskTarget` and `levels.zh = CEFR_FOR_HSK[n]`), `levelName`. `lib/account.tsx` mirrors the target
+locally and, when a picker changes it, patches the profile and refetches Today, the plan and the readiness mark.
+Pickers: the add form and its first-time prompt, `useEnsureLevel`, AddExampleInline, ImportWordsDialog,
+PracticeBar, the account's Levels, FirstRun, the Reader's save and "AI text" pickers ("Level · HSK" 1–6). The
+CEFR synonym-level picker is hidden for Chinese and not sent. Every request level for Chinese is the HSK number
+(Today, onboarding and the HSK list page too); `savePlacement` keeps CEFR (its schema). Backend `lib/level.ts`
+reads either scale, so prompts say HSK for Chinese: `enrich`, `exampleSearch`, `coachSuggest`, `starterCandidates`,
+`tutorChat`, the coach `levelGuide` (the CEFR band's rule, named "HSK 4"), the Reader's generate and estimate
+(stored "HSK 4"); a request level stored as an example label reads "HSK 1–4"; the bot reads `hskTarget`.
+Checked: `next build`; a local run at 390 px: My words shows 教育 HSK 4 (2.0, as Today), the tooltip both lists; the
+add form offers A1–C2 for English and HSK 1–6 for Chinese with HSK 4 ticked; picking HSK 5 saved target 5 (C1),
+back to 4; the Reader's level buttons are 49 px with no sideways scroll.
 
 - **Badge**: `frontend/components/HskBadge.tsx:13` always prefers 3.0; Today uses the account's version (author:
   2.0, so 教育 = HSK 4 on Today and HSK 2 in My words). Show the level on `profile.hskVersion` (as
@@ -104,7 +121,24 @@ Today → Add → open 却 and 通过 → read the labels and sentences (never p
 - **Check**: `next build`, then a local run at 390 px: My words badge = Today's level for 教育; the add form's level
   picker shows HSK for Chinese and A1–C2 for English.
 
-## Part 3 — cheaper, faster enrichment for HSK words
+## Part 3 — cheaper, faster enrichment for HSK words — [x] done 2026-10-07
+
+**As built.** `pageCardFields` (capture.ts) puts the page's part of speech, synonyms, antonyms and the lead sense's
+first three phrases (as collocations: the Reader's word panel and a custom card layout show them) on the card at
+creation, in the batch add and the single add (not for a card made in a picked sense). In `upgradeCard` a card with
+a page, the default meaning and no sentence or typed sense pointing at another sense is *settled*: one
+`enrich(example only)` call (`enrichWordEntry({ exampleOnly })`, the Part 1 level line, the card's meaning named),
+then the judge — and no call at all when the pool's sentence serves. Off-list words keep the full call. The worker
+runs 3 cards at a time. `scripts/check-enrich-fast.ts` drives it against a fake OpenAI server and counts calls by
+label; `check-capture.ts` now fails an upgrade on the German card (认真 on its Russian default needs no call).
+Measured: the example-only call is ~460 tokens in / 36–70 out, 1.2–1.9 s, against ~1,010 / 115–141, 3–3.6 s.
+Local Today → Add, HSK 4 on 2.0: 5 words were cards in 0.2 s and the job was done in 1.8 s with **no model call**
+(each pool sentence served HSK 4); 3 topic words took 6.3 s together (full entry + judge each).
+**Level, still open:** on 12 words (使用 其中 发展 发生 各 市场 经济 记者 通过 成为 教育 方面) the example-only sentence read
+≤ HSK 4 on 2.0 in 5/12 with no interests, 4/12 with travel/film, 2/12 with IT; the full entry on the same words
+3/12. Two tighter wordings (list each word's level first; an explicit word budget) gave 5/12 & 5/12 and 4/12 & 5/12,
+the first less natural, so Part 1's wording stays. The model doesn't know the 2.0 levels (采访, 蔬菜, 员工 are HSK 5):
+that is the case for Part 4's checked sentences per level band.
 
 Today per card (`services/importWorker.ts:97`, sequential): `upgradeCard` → `enrichWordEntry` (meaning, POS,
 collocations, synonyms, antonyms, example), then after Part 1 `keepIfNatural` (1–2 `qwen3.5-plus` calls). For a

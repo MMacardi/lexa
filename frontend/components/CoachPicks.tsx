@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
-import { getLevel, getExampleStyle, getNativeLang } from "@/lib/learnPrefs";
+import { getLearnerLevel, getExampleStyle, getNativeLang, levelName } from "@/lib/learnPrefs";
 import { isAiSupported, langLabel } from "@/lib/langs";
 import { PairChip } from "@/components/PairChip";
 import { HskBadge } from "@/components/HskBadge";
@@ -128,12 +128,13 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
 
   const zh = pair.source === "zh" || pair.source === "zh-Hant";
   const hskTarget = zh ? profile?.hskTarget : null;
-  const levelLabel = hskTarget ? `HSK ${hskTarget === 7 ? "7–9" : hskTarget}` : getLevel(pair.source) ?? "—";
+  const lvl = getLearnerLevel(pair.source);
+  const levelLabel = hskTarget ? `HSK ${hskTarget === 7 ? "7–9" : hskTarget}` : lvl ? levelName(pair.source, lvl) : "—";
 
   const picksKey = ["coach-picks", accountId, pair.source, pair.target] as const;
   const picksQuery = useQuery<PicksData>({
     queryKey: picksKey,
-    queryFn: () => api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLevel(pair.source) ?? undefined, count: 8 }),
+    queryFn: () => api.coachPicks({ sourceLang: pair.source, targetLang: pair.target, level: getLearnerLevel(pair.source) ?? undefined, count: 8 }),
     enabled: false, // fetched on purpose only (first sight, or "New picks")
     staleTime: Infinity,
     gcTime: 30 * 60_000,
@@ -160,7 +161,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
       const r = await api.coachPicks({
         sourceLang: pair.source,
         targetLang: pair.target,
-        level: getLevel(pair.source) ?? undefined,
+        level: getLearnerLevel(pair.source) ?? undefined,
         count: 8,
         topic: nextTopic || undefined,
       });
@@ -232,7 +233,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
         sourceLang: pair.source,
         targetLang: pair.target,
         words,
-        level: getLevel(pair.source) ?? undefined,
+        level: getLearnerLevel(pair.source) ?? undefined,
         exampleStyle: getExampleStyle(),
         enrich: isAiSupported(pair.source),
       });

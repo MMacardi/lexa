@@ -3,7 +3,7 @@
 import { useDialog } from "@/lib/dialog";
 import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
-import { CEFR_LEVELS, LEVEL_HINT, setLevel, useLevel, getTapAnyGloss, setTapAnyGloss, useTapAnyGloss, type CefrLevel } from "@/lib/learnPrefs";
+import { levelName, levelOptions, setLearnerLevel, useLearnerLevel, getTapAnyGloss, setTapAnyGloss, useTapAnyGloss } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Fingerprint, Gauge } from "lucide-react";
 
@@ -13,7 +13,7 @@ import { ChevronDown, Fingerprint, Gauge } from "lucide-react";
 export function PracticeBar({ lang }: { lang: string }) {
   const { t } = useI18n();
   const { choose } = useDialog();
-  const level = useLevel(lang);
+  const level = useLearnerLevel(lang);
   const tapAny = useTapAnyGloss();
 
   async function pickLevel() {
@@ -21,9 +21,9 @@ export function PracticeBar({ lang }: { lang: string }) {
     const picked = await choose({
       title: t("level.title"),
       message: t("level.question", { lang: langLabel(lang) }),
-      options: CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] })),
+      options: levelOptions(lang),
     });
-    if (picked) setLevel(lang, picked as CefrLevel);
+    if (picked) setLearnerLevel(lang, picked);
   }
 
   return (
@@ -35,7 +35,7 @@ export function PracticeBar({ lang }: { lang: string }) {
         className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-paper px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition-colors hover:border-sage/50 hover:text-ink"
       >
         <Gauge className="h-3.5 w-3.5 text-sage-deep" />
-        {level ? t("practice.levelChip", { level }) : t("practice.levelUnset")}
+        {level ? t("practice.levelChip", { level: levelName(lang, level) }) : t("practice.levelUnset")}
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
 

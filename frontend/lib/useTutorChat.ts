@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { displayCode, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
-import { getExampleSource, getExampleStyle, getLevel } from "@/lib/learnPrefs";
+import { getExampleSource, getExampleStyle, getLearnerLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { downscaleImage } from "@/lib/image";
 
@@ -376,7 +376,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
           messages: payloadMessages(msgs),
           sourceLang: pair.source,
           targetLang: pair.target,
-          level: getLevel(pair.source) ?? undefined,
+          level: getLearnerLevel(pair.source) ?? undefined,
           telegramId: accountId,
         },
         {
@@ -678,7 +678,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
                 sourceLang: lang,
                 targetLang: pair.target,
                 words,
-                level: getLevel(lang) ?? undefined,
+                level: getLearnerLevel(lang) ?? undefined,
                 exampleStyle: getExampleStyle(),
                 exampleSource: getExampleSource(),
                 enrich: isAiSupported(lang),

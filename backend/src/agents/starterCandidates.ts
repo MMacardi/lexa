@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { chatJson, FAST_MODEL } from "../services/llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { levelName } from "../lib/level.js";
 
 // Onboarding placement mini-test: generate level-appropriate {source} vocabulary
 // grouped into a few themes, so the learner can tap the words they DON'T know and
@@ -28,12 +29,13 @@ export async function suggestStarterClusters(params: {
   const target = langName(params.targetLang);
   const clusterCount = Math.min(6, Math.max(2, params.clusters ?? 4));
   const per = Math.min(12, Math.max(3, params.perCluster ?? 7));
-  const level = params.level?.trim() || "B1";
+  // "CEFR B1", or "HSK 3" for Chinese.
+  const level = levelName(params.level?.trim() || "B1", params.sourceLang)!;
 
   const result = await chatJson({
     system:
       `You are a ${source} tutor building a short placement mini-test for a ${target}-speaking learner ` +
-      `who says their level is ${level} (CEFR). Produce ${clusterCount} themed clusters of ${source} vocabulary ` +
+      `who says their level is ${level}. Produce ${clusterCount} themed clusters of ${source} vocabulary ` +
       `that a ${level} learner plausibly encounters. Across the words, span the level — mix a few clearly-easier ` +
       `items with a few genuinely ${level}-and-above ones — so the test can tell what the learner already knows. ` +
       `Each cluster: "theme" = a short label (1-3 words) written in ${target} (the learner's own language); ` +

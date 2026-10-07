@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { langLabel } from "@/lib/langs";
-import { setLevel as setPrefLevel, pushRecentPair, setNativeLang, setDailyGoal, setNewPerDay } from "@/lib/learnPrefs";
+import { setLevel as setPrefLevel, mirrorHsk, pushRecentPair, setNativeLang, setDailyGoal, setNewPerDay } from "@/lib/learnPrefs";
 import { Button } from "@/components/ui/button";
 import { prefetchCoachPicks } from "@/components/CoachPicks";
 import { CEFR_FOR_HSK, clearGuestPlan, type GuestPlan } from "@/components/HskFirstRun";
@@ -38,6 +38,7 @@ export function FinishGuestPlan({ plan, onDone }: { plan: GuestPlan; onDone: () 
     try {
       setNativeLang(plan.native);
       setPrefLevel("zh", level);
+      mirrorHsk(plan.target, plan.version);
       pushRecentPair("zh", plan.native);
       setDailyGoal(plan.daily);
       setNewPerDay(plan.daily); // review introduces what the plan promised, not the default 15
@@ -74,7 +75,7 @@ export function FinishGuestPlan({ plan, onDone }: { plan: GuestPlan; onDone: () 
       if (plan.words.length) {
         // The cards exist in a moment; the meanings take the few seconds after.
         const tick = window.setTimeout(() => setStage((s) => Math.max(s, 2)), 1200);
-        await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: plan.native, words: plan.words, level, enrich: true, meaningsFirst: true });
+        await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: plan.native, words: plan.words, level: String(plan.target), enrich: true, meaningsFirst: true });
         window.clearTimeout(tick);
         const all = await api.listWords(accountId);
         const wanted = new Set(plan.words);

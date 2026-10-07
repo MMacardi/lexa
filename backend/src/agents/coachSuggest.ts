@@ -3,6 +3,7 @@ import { prisma } from "../services/db.js";
 import { chatJson } from "../services/llm.js";
 import { getProfile, profilePreamble } from "../services/coachMemory.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { levelName } from "../lib/level.js";
 import { asHskVersion, HSK_MAX_LEVEL, hskLevelWords, hskTagFor, normalizeHanzi, type HskVersion } from "../services/hsk.js";
 
 // Coach "Daily picks": suggest useful, level-appropriate words the learner does
@@ -151,10 +152,11 @@ export async function suggestDailyPicks(params: {
   // A topic set loses more to the filters below (above the cap, off the list), so
   // ask for a little extra and keep `count`.
   const ask = topic ? count + 2 : count;
+  const levelAt = levelName(params.level, params.sourceLang);
   const levelLine = hskVersion
     ? `The learner is preparing for the HSK ${hskName} exam (HSK ${hskVersion} word list). `
-    : params.level
-      ? `The learner's level is ${params.level}. Match it — not too easy, not too advanced. `
+    : levelAt
+      ? `The learner's level is ${levelAt}. Match it — not too easy, not too advanced. `
       : "";
   const focusLine = topic
     ? `This time the learner asked for words on a topic: "${topic}". Every pick should belong to it. The topic ` +

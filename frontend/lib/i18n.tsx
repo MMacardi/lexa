@@ -1679,7 +1679,7 @@ const DICT: Record<string, Entry> = {
     ru: "Добавить слова твоей сферы — ИИ, бизнес, путешествия…",
     zh: "加上你关注领域的词——AI、商务、旅行……",
   },
-  "topic.label": { en: "{topic} · off the list", ru: "{topic} · вне списка HSK", zh: "{topic} · 大纲以外" },
+  "topic.label": { en: "{topic} · beyond HSK {level}", ru: "{topic} · сверх HSK {level}", zh: "{topic} · 超出 HSK {level}" },
   "topic.change": { en: "Pick your fields", ru: "Выбрать сферы", zh: "选择领域" },
   "topic.editorHint": {
     en: "Three words a day from your fields, beside the exam ones, taking turns — mostly made of characters you already know. Pick as many as you like.",

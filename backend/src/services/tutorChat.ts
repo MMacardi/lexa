@@ -2,6 +2,7 @@ import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, ty
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
+import { levelName } from "../lib/level.js";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
 const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
@@ -26,7 +27,8 @@ export async function tutorChat(params: {
 }): Promise<TutorChatResult> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
-  const levelLine = params.level ? ` The learner's level is about ${params.level} (CEFR) — pitch your ${source}, examples and explanations to it.` : "";
+  const levelAt = levelName(params.level, params.sourceLang);
+  const levelLine = levelAt ? ` The learner's level is about ${levelAt} — pitch your ${source}, examples and explanations to it.` : "";
   // Past replies go back in the same JSON shape we ask for: fed as plain text, Qwen
   // copies them and answers with a bare JSON string, which fails the schema.
   // Walked newest-first so the photo budget goes to the latest turns.

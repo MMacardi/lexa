@@ -85,13 +85,21 @@ async function main() {
   if (r.job) await prisma.importJob.update({ where: { id: r.job.id }, data: { status: "cancelled" } });
 
   if (!LIVE) {
-    // 3. A failed upgrade leaves the card as it was: complete, still labelled.
-    const failed = await upgradeCard(ids[2]).then(
+    // 3. A failed upgrade leaves the card as it was: complete, still labelled. The
+    // German card needs the model (its meaning is the dictionary's English).
+    const failed = await upgradeCard(de.id).then(
       () => false,
       () => true,
     );
-    const after = await getWord(ids[2]);
-    check(failed && Boolean(after?.meaningZh) && after?.dictDefault === true, "a failed upgrade leaves the dictionary card standing");
+    const after = await getWord(de.id);
+    check(failed && Boolean(after?.meaningZh) && after?.dictMeaning === true, "a failed upgrade leaves the dictionary card standing");
+    // A Russian HSK card on its default, its pool sentence at the level: the page has
+    // the rest, so the upgrade needs no model at all (PLAN-examples Part 3).
+    const settled = await upgradeCard(ids[2]).then(
+      () => true,
+      () => false,
+    );
+    check(settled, "认真 on its Russian default: the upgrade makes no model call");
 
     // 4. Outside the dictionary the old path runs (and needs the model): no card is invented.
     const outside = await addWordForUser({ telegramId: TG, word: "扫码支付宝", sourceLang: "zh", targetLang: "ru" }).then(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type LearnerPrefs } from "@/lib/api";
+import { api, type HskVersion, type LearnerPrefs } from "@/lib/api";
 
 // Learner preferences. Most are local-only display settings (example style, card
 // layout, reader source). Four of them — level, native language, daily goal and
@@ -175,6 +175,99 @@ export function useLevel(lang: string): CefrLevel | null {
   const [level, setState] = useState<CefrLevel | null>(null);
   useEffect(() => {
     const sync = () => setState(getLevel(lang));
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [lang]);
+  return level;
+}
+
+// --- Chinese is levelled in HSK, never A1–C2 ---
+// The Chinese level is the account's HSK target: the one Today, the readiness mark
+// and the examples aim at. levels.zh stays beside it as the CEFR equivalent for the
+// paths that still read it. A picker's value is the level as requests carry it:
+// "B2" for most languages, the HSK level for Chinese ("4"; "7" is the 7–9 band).
+export const CEFR_FOR_HSK: Record<number, CefrLevel> = { 1: "A1", 2: "A2", 3: "B1", 4: "B2", 5: "C1", 6: "C1", 7: "C2" };
+const HSK_FOR_CEFR: Record<CefrLevel, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+const HSK_KEY = "lexa.hsk"; // { target, version }, mirrored from the account
+/** Fired when a level picker changes the HSK target; the account context patches itself. */
+export const HSK_TARGET_EVT = "lexa-hsk-target";
+
+export const usesHsk = (lang: string) => lang === "zh" || lang === "zh-Hant";
+
+function readHsk(): { target: number | null; version: HskVersion | null } {
+  if (typeof window === "undefined") return { target: null, version: null };
+  try {
+    const v = JSON.parse(localStorage.getItem(HSK_KEY) ?? "{}") as { target?: number | null; version?: HskVersion | null };
+    return { target: v.target ?? null, version: v.version ?? null };
+  } catch {
+    return { target: null, version: null };
+  }
+}
+
+/** Keep the local mirror of the account's HSK target in step (account.tsx). */
+export function mirrorHsk(target: number | null | undefined, version: HskVersion | null | undefined) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(HSK_KEY, JSON.stringify({ target: target ?? null, version: version ?? null }));
+    window.dispatchEvent(new Event(EVT));
+  } catch {
+    /* private mode — the CEFR fallback below still answers */
+  }
+}
+
+/** The learner's level for a language as pickers show it and requests carry it. */
+export function getLearnerLevel(lang: string): string | null {
+  if (!usesHsk(lang)) return getLevel(lang);
+  const n = readHsk().target ?? HSK_FOR_CEFR[getLevel(lang) ?? ("" as CefrLevel)];
+  return n ? String(n) : null;
+}
+
+export function setLearnerLevel(lang: string, value: string) {
+  if (!usesHsk(lang)) return setLevel(lang, value as CefrLevel);
+  const n = Math.round(Number(value));
+  if (!(n >= 1 && n <= 7)) return;
+  mirrorHsk(n, readHsk().version);
+  const all = readLevels();
+  all[lang] = CEFR_FOR_HSK[n];
+  localStorage.setItem(LEVELS_KEY, JSON.stringify(all));
+  pushPrefs({ levels: all });
+  window.dispatchEvent(new Event(EVT));
+  // Today and the readiness mark refetch once the server has the new target.
+  void api
+    .updateLearnerPrefs({ hskTarget: n })
+    .catch(() => {})
+    .finally(() => window.dispatchEvent(new CustomEvent(HSK_TARGET_EVT, { detail: n })));
+}
+
+/** How a level reads: "HSK 4" / "HSK 7–9" for Chinese, "B2" otherwise. */
+export function levelName(lang: string, value: string): string {
+  if (!usesHsk(lang)) return value;
+  return value === "7" ? "HSK 7–9" : `HSK ${value}`;
+}
+
+/** A level picker's choices: HSK 1–6 (and 7–9 on the 3.0 list) for Chinese, A1–C2 otherwise. */
+export function levelOptions(lang: string): { value: string; label: string; hint?: string }[] {
+  if (!usesHsk(lang)) return CEFR_LEVELS.map((l) => ({ value: l, label: l, hint: LEVEL_HINT[l] }));
+  const max = readHsk().version === "2.0" ? 6 : 7;
+  return Array.from({ length: max }, (_, i) => String(i + 1)).map((v) => ({ value: v, label: levelName(lang, v) }));
+}
+
+/** A stored level ("HSK 4", "HSK 7–9", "B2") as this language's picker value, or "" when it isn't one. */
+export function asLevelValue(lang: string, stored?: string | null): string {
+  const s = (stored ?? "").trim().toUpperCase().replace(/^HSK\s*/, "").replace(/^7\s*[-–]\s*9$/, "7");
+  return levelOptions(lang).some((o) => o.value === s) ? s : "";
+}
+
+/** Reactive getLearnerLevel. */
+export function useLearnerLevel(lang: string): string | null {
+  const [level, setState] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setState(getLearnerLevel(lang));
     sync();
     window.addEventListener(EVT, sync);
     window.addEventListener("storage", sync);

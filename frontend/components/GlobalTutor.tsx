@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useClosing } from "@/lib/motion";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLearnerLevel, levelName, usesHsk } from "@/lib/learnPrefs";
 import { type TutorCardCtx } from "@/lib/useTutorChat";
 import { useSharedTutorChat, useReportPanelOpen } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
@@ -243,7 +243,7 @@ export function GlobalTutor() {
                 <div className="flex flex-wrap gap-1.5">
                   <Chip onClick={() => fileRef.current?.click()}>{t("tutor.suggestPhoto")}</Chip>
                   <Chip onClick={() => fillTemplate(t("tutor.topicTemplate"))}>{t("tutor.suggestTopic")}</Chip>
-                  <Chip onClick={() => send(t("tutor.levelTemplate", { level: getLevel(pair.source) ?? "B1" }))}>
+                  <Chip onClick={() => send(t("tutor.levelTemplate", { level: levelName(pair.source, getLearnerLevel(pair.source) ?? (usesHsk(pair.source) ? "3" : "B1")) }))}>
                     {t("tutor.suggestLevel")}
                   </Chip>
                   <Chip onClick={() => fillTemplate(t("tutor.explainTemplate"))}>{t("tutor.suggestExplain")}</Chip>

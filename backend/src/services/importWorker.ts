@@ -71,8 +71,14 @@ async function claimAndProcessImportJob() {
   await runAsUser(job.user.telegramId, () => processImportJob(job));
 }
 
-/** Process a claimed job's cards sequentially and persist progress. */
-async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.findUniqueOrThrow>>) {
+type ImportJob = Awaited<ReturnType<typeof prisma.importJob.findUniqueOrThrow>>;
+
+// Cards enriched at once. One at a time, the 19 words of a Today add took a few
+// minutes; three overlap their model calls and stay well inside the lease.
+const CHUNK = 3;
+
+/** Process a claimed job's cards a few at a time and persist progress. Exported for scripts/check-enrich-fast.ts. */
+export async function processImportJob(job: ImportJob) {
   let cards: { id: string; word: string }[];
   try {
     cards = queuedCardsSchema.parse(job.cards);
@@ -94,127 +100,20 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
     });
   }
   try {
-    for (let index = job.processed; index < cards.length; index++) {
+    for (let start = job.processed; start < cards.length; start += CHUNK) {
       // The learner can stop enrichment mid-way to save tokens: re-check before
-      // each card and leave the rest as they are (they already exist as cards).
+      // each chunk and leave the rest as they are (they already exist as cards).
       const current = await prisma.importJob.findUnique({ where: { id: job.id }, select: { status: true } });
       if (current?.status === "cancelled") return;
-      const card = cards[index];
-      const word = await prisma.word.findUnique({
-        where: { id: card.id },
-        select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true },
-      });
+      const chunk = cards.slice(start, start + CHUNK);
+      for (const error of await Promise.all(chunk.map((card) => processCard(job, card)))) if (error) errors.push(error);
 
-      if (!word || word.userId !== job.userId) {
-        errors.push(`${card.word}: card no longer exists`);
-      } else {
-        let failed = false;
-        try {
-          const wantAiExample = job.generateExamples && job.exampleSource !== "web";
-          if (job.generateDetails && isChinese(word.sourceLang) && job.exampleSource !== "web") {
-            // Chinese: the card already stands on the dictionary (instant capture).
-            // One grounded call upgrades it — the meaning in the learner's language,
-            // in the sense its Reader sentence uses — and a provided sentence still
-            // gets its translation.
-            await upgradeCard(word.id, {
-              withExample: wantAiExample,
-              level: job.level ?? undefined,
-              exampleStyle: job.exampleStyle ?? undefined,
-            });
-            if (!job.generateExamples) await translateProvidedExample(word);
-          } else if (job.generateDetails && wantAiExample) {
-            // Common case (full AI enrich, no provided example) → ONE combined call
-            // for the dictionary entry + example + translation, instead of three.
-            const entry = await enrichWordEntry({
-              word: word.word,
-              sourceLang: word.sourceLang,
-              targetLang: word.targetLang,
-              level: job.level ?? undefined,
-              exampleStyle: job.exampleStyle ?? undefined,
-              withExample: true,
-            });
-            const preserveMeaning = Boolean(word.meaningZh?.trim());
-            await prisma.word.update({
-              where: { id: word.id },
-              data: {
-                phonetic: entry.phonetic || null,
-                partOfSpeech: entry.partOfSpeech || null,
-                ...(preserveMeaning ? {} : { meaningZh: entry.meaningZh || null }),
-                collocations: entry.collocations,
-                synonyms: entry.synonyms,
-                antonyms: entry.antonyms,
-              },
-            });
-            if (entry.example) {
-              await prisma.example.create({
-                data: {
-                  wordId: word.id,
-                  sentenceEn: entry.example,
-                  sentenceZh: entry.exampleTranslation,
-                  sourceName: "Onomika AI",
-                  sourceUrl: "",
-                  register: job.exampleStyle ?? "casual",
-                  level: job.level ?? null,
-                },
-              });
-            }
-          } else {
-          if (job.generateDetails) {
-            await runTutor({
-              wordId: word.id,
-              word: word.word,
-              sourceLang: word.sourceLang,
-              targetLang: word.targetLang,
-              // Keep a meaning the user reviewed (list import); generate one when
-              // the card has none yet (Reader adds a bare word with no meaning).
-              preserveMeaning: Boolean(word.meaningZh?.trim()),
-            });
-          }
-          if (job.generateExamples) {
-            await runExampleSearch({
-              userId: job.userId,
-              word: word.word,
-              wordId: word.id, // enrich the existing imported card, don't duplicate it
-              sourceLang: word.sourceLang,
-              targetLang: word.targetLang,
-              level: job.level ?? undefined,
-              exampleStyle: job.exampleStyle ?? undefined,
-              exampleSource: job.exampleSource ?? undefined,
-            });
-          } else {
-            await translateProvidedExample(word);
-          }
-          }
-        } catch (error) {
-          console.error(`Import enrichment failed for ${card.word}`, error);
-          failed = true;
-        }
-        // Never leave a blank card. If enrichment threw or produced no meaning,
-        // fall back to a plain translation so the card is at least usable. Only a
-        // card that is STILL blank afterwards counts as skipped — a card that got
-        // its meaning (just missing example/synonyms) is fine and isn't reported.
-        const fresh = await prisma.word.findUnique({ where: { id: word.id }, select: { meaningZh: true } });
-        if (!fresh?.meaningZh?.trim()) {
-          try {
-            const { translation } = await translateText({
-              text: word.word,
-              sourceLang: word.sourceLang,
-              targetLang: word.targetLang,
-            });
-            const meaning = translation.trim();
-            if (meaning) await prisma.word.update({ where: { id: word.id }, data: { meaningZh: meaning } });
-            else if (failed) errors.push(card.word);
-          } catch {
-            if (failed) errors.push(card.word);
-          }
-        }
-      }
-
-      // Persist after every card, and renew the lease. A restart resumes at
-      // this exact index instead of repeating the entire import.
+      // Persist after every chunk, and renew the lease. A restart resumes at this
+      // chunk and redoes at most its cards: the upgrade only adds an example to a
+      // card with none of its own, and meanings are compare-and-set.
       await prisma.importJob.update({
         where: { id: job.id },
-        data: { processed: index + 1, errors, leaseUntil: nextLease() },
+        data: { processed: start + chunk.length, errors, leaseUntil: nextLease() },
       });
     }
 
@@ -229,6 +128,117 @@ async function processImportJob(job: Awaited<ReturnType<typeof prisma.importJob.
       data: { status: "failed", errorMessage: (error as Error).message, completedAt: new Date(), leaseUntil: null },
     });
   }
+}
+
+/** Enrich one queued card; returns what to report when it is gone or left blank. */
+async function processCard(job: ImportJob, card: { id: string; word: string }): Promise<string | null> {
+  const word = await prisma.word.findUnique({
+    where: { id: card.id },
+    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true },
+  });
+  if (!word || word.userId !== job.userId) return `${card.word}: card no longer exists`;
+
+  let failed = false;
+  try {
+    const wantAiExample = job.generateExamples && job.exampleSource !== "web";
+    if (job.generateDetails && isChinese(word.sourceLang) && job.exampleSource !== "web") {
+      // Chinese: the card already stands on the dictionary (instant capture).
+      // One grounded call upgrades it — the meaning in the learner's language,
+      // in the sense its Reader sentence uses — and a provided sentence still
+      // gets its translation.
+      await upgradeCard(word.id, {
+        withExample: wantAiExample,
+        level: job.level ?? undefined,
+        exampleStyle: job.exampleStyle ?? undefined,
+      });
+      if (!job.generateExamples) await translateProvidedExample(word);
+    } else if (job.generateDetails && wantAiExample) {
+      // Common case (full AI enrich, no provided example) → ONE combined call
+      // for the dictionary entry + example + translation, instead of three.
+      const entry = await enrichWordEntry({
+        word: word.word,
+        sourceLang: word.sourceLang,
+        targetLang: word.targetLang,
+        level: job.level ?? undefined,
+        exampleStyle: job.exampleStyle ?? undefined,
+        withExample: true,
+      });
+      const preserveMeaning = Boolean(word.meaningZh?.trim());
+      await prisma.word.update({
+        where: { id: word.id },
+        data: {
+          phonetic: entry.phonetic || null,
+          partOfSpeech: entry.partOfSpeech || null,
+          ...(preserveMeaning ? {} : { meaningZh: entry.meaningZh || null }),
+          collocations: entry.collocations,
+          synonyms: entry.synonyms,
+          antonyms: entry.antonyms,
+        },
+      });
+      if (entry.example) {
+        await prisma.example.create({
+          data: {
+            wordId: word.id,
+            sentenceEn: entry.example,
+            sentenceZh: entry.exampleTranslation,
+            sourceName: "Onomika AI",
+            sourceUrl: "",
+            register: job.exampleStyle ?? "casual",
+            level: job.level ?? null,
+          },
+        });
+      }
+    } else {
+      if (job.generateDetails) {
+        await runTutor({
+          wordId: word.id,
+          word: word.word,
+          sourceLang: word.sourceLang,
+          targetLang: word.targetLang,
+          // Keep a meaning the user reviewed (list import); generate one when
+          // the card has none yet (Reader adds a bare word with no meaning).
+          preserveMeaning: Boolean(word.meaningZh?.trim()),
+        });
+      }
+      if (job.generateExamples) {
+        await runExampleSearch({
+          userId: job.userId,
+          word: word.word,
+          wordId: word.id, // enrich the existing imported card, don't duplicate it
+          sourceLang: word.sourceLang,
+          targetLang: word.targetLang,
+          level: job.level ?? undefined,
+          exampleStyle: job.exampleStyle ?? undefined,
+          exampleSource: job.exampleSource ?? undefined,
+        });
+      } else {
+        await translateProvidedExample(word);
+      }
+    }
+  } catch (error) {
+    console.error(`Import enrichment failed for ${card.word}`, error);
+    failed = true;
+  }
+  // Never leave a blank card. If enrichment threw or produced no meaning,
+  // fall back to a plain translation so the card is at least usable. Only a
+  // card that is STILL blank afterwards counts as skipped — a card that got
+  // its meaning (just missing example/synonyms) is fine and isn't reported.
+  const fresh = await prisma.word.findUnique({ where: { id: word.id }, select: { meaningZh: true } });
+  if (!fresh?.meaningZh?.trim()) {
+    try {
+      const { translation } = await translateText({
+        text: word.word,
+        sourceLang: word.sourceLang,
+        targetLang: word.targetLang,
+      });
+      const meaning = translation.trim();
+      if (meaning) await prisma.word.update({ where: { id: word.id }, data: { meaningZh: meaning } });
+      else if (failed) return card.word;
+    } catch {
+      if (failed) return card.word;
+    }
+  }
+  return null;
 }
 
 /**

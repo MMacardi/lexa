@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { getLevel } from "@/lib/learnPrefs";
+import { getLearnerLevel, levelName, usesHsk } from "@/lib/learnPrefs";
 import { useSharedTutorChat, useTutorLastPath } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
@@ -57,7 +57,7 @@ export default function MikaPage() {
 
   function applyPreset(key: string, open?: boolean) {
     if (key === "photo") return fileRef.current?.click();
-    const text = t(`mika.p.${key}.prompt`, { level: getLevel(pair.source) ?? "B1", due });
+    const text = t(`mika.p.${key}.prompt`, { level: levelName(pair.source, getLearnerLevel(pair.source) ?? (usesHsk(pair.source) ? "3" : "B1")), due });
     if (open) chat.fillTemplate(text);
     else setInput(text);
     requestAnimationFrame(() => {
