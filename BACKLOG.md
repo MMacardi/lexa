@@ -1071,6 +1071,17 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   learn"). Show the streak on Today, one free freeze a week, the nudge from the bot at the reminder
   hour; web push for home-screen installs where Telegram is blocked. `[competitor pass]`
 - **Fresh example per review / difficulty adaptation**, as part of resurfacing. `[13]`
+- **Band sentences at HSK 5–6** (asked for 2026-10-07, "one day"). Item 0 gave every word at HSK ≤ 4 an
+  HSK 3–4 sentence; nothing was written for HSK 5–6 words or for HSK 5–6 learners. A card takes the pool's
+  hardest sentence not above the learner's target and, when that reads two or more levels under it or above
+  it, gets one written per card (`capture.ts` `offLevel`), where the model aims badly at 5–6 (it doesn't know
+  the 2.0 levels). Measured 2026-10-07 (`pickPoolSentence` over both lists), share served by the pool with no
+  call: an HSK 4 learner, HSK 5 words 84% on 2.0 / 60% on 3.0, HSK 6 words 52% / 52%; an HSK 5 learner,
+  53–79%; an HSK 6 learner, 26–77% (its HSK 1–4 words mostly read too easy). Same recipe as Part 4 of
+  `PLAN-examples.md`: `build-band-sentences.ts` with `LO`/`HI` 5–6 (every other word ≤ 6 on both lists),
+  Sonnet agents, the stragglers by hand, `--merge`, `--judge`. 4,592 of 7,419 words lack one: ~92 batches of
+  50 at ~65k ≈ 6M agent tokens, four or five sessions of ~19 batches; or HSK 5–6 words first (the ones a
+  learner at 5–6 adds most), or only what an HSK 5 learner misses (see `.review/band-sentences/HANDOFF.md`).
 - **Resurfacing.** Reader texts and scenes built from words you recognise but can't use. `[S2]`
 - **Anki .apkg import with review history** → FSRS (reverses Anki's switching cost). `[S2]`
 - **HSK speaking** (HSK 3.0 speaking section / HSKK): tones + pronunciation via Alibaba 口语评测
