@@ -10,17 +10,15 @@ import { hasLocalPhonetic, localPhonetic } from "../lib/transcribe.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
 import {
-  MAX_UNKNOWN,
   addPoolExample,
   exampleBrief,
-  holdToLevel,
   isFormalWord,
   isPoolSentence,
   keepIfNatural,
   pickPoolSentence,
+  pooledLevel,
   poolRegister,
   sentenceWords,
-  unknownIn,
   writtenLabel,
 } from "./sentences.js";
 import { headGloss, hskPage, readsAs } from "./wordPages.js";
@@ -265,11 +263,10 @@ export type UpgradeOptions = {
  * Fill in what a card is missing with one grounded model call: the meaning when
  * it is empty or still the dictionary's English, the details it has none of,
  * and an example when it has none. Never overwrites what the learner wrote.
- * Examples are one step above the learner (services/sentences.ts). An HSK word
- * has the pool's checked sentence at their level the moment it is added; this
- * writes their own on top — their interests, their register, their level —
- * which goes first. It is held to one unknown like the pool; one that stays
- * over the line gives way to the pool sentence rather than join it.
+ * Examples are at the level the learner chose (services/sentences.ts). An HSK
+ * word has the pool's checked sentence at their level the moment it is added;
+ * this writes their own on top — their interests, their register — which goes
+ * first, and one at their level where the pool's is well under it.
  * Shared by the add path (in the background), the import worker, and the word
  * page's "fill this in" (`POST /api/words/:id/enrich`).
  */
@@ -290,14 +287,19 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // worker, "fill this in"). A typed sense asks for that sense, which the pool's
   // everyday one may not be.
   const pool =
-    brief?.reading && !pooled && poolRegister(opts.exampleStyle) && !opts.sense
-      ? pickPoolSentence(card.word, brief.reading.knows, card.targetLang)
+    brief && isChinese(card.sourceLang) && !pooled && poolRegister(opts.exampleStyle) && !opts.sense
+      ? pickPoolSentence(card.word, brief, card.targetLang)
       : null;
-  const placed = Boolean(pool && pool.unknown <= MAX_UNKNOWN);
-  if (placed) await addPoolExample(card.id, card.word, pool!.s);
-  const hasPool = pooled > 0 || placed;
-  // Their own on top of it only when there is something to make it theirs with.
-  const personal = withExample && (!hasPool || Boolean(brief?.themes || brief?.reading?.checked));
+  if (pool) await addPoolExample(card.id, card.word, pool);
+  const hasPool = pooled > 0 || Boolean(pool);
+  // How the pool's sentence on the card reads, against the level they chose.
+  const pooledAt = pool?.level ?? (brief ? pooledLevel(card.word, card.targetLang, card.examples.map((e) => e.sentenceEn), brief) : null);
+  const L = brief?.level ?? null;
+  // Their own on top of it when there is something to make it theirs with, or
+  // when the pool's three fixed sentences can't serve their level: 通过's best is
+  // HSK 2 on the 2.0 list, so an HSK 4 learner's own is written at HSK 4.
+  const offLevel = L !== null && pooledAt !== null && (pooledAt < L - 1 || pooledAt > L);
+  const personal = withExample && (!hasPool || Boolean(brief?.themes) || offLevel);
   // A formal word (以, 之所以) has no natural everyday sentence: theirs is written, and
   // labelled, in the register the word lives in — unless they asked for another.
   const style = isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
@@ -319,7 +321,8 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     senseAnchor: own?.anchor,
     context: met,
     knownWords: brief?.knownWords ?? [],
-    hskLevel: brief?.reading?.checked ? (brief.reading.level ?? 1) : null,
+    hskLevel: L,
+    hskVersion: brief?.version,
     themes: brief?.themes,
   });
 
@@ -337,48 +340,35 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // The example before the details: the pages poll until the part of speech lands,
   // so their own sentence has to be there by then to be seen without a reload.
   if (personal && entry.example && brief) {
-    let held = await holdToLevel({
-      word: card.word,
-      sentence: entry.example,
-      translation: entry.exampleTranslation,
-      targetLang: card.targetLang,
-      brief,
-    });
+    let written = { sentence: entry.example, translation: entry.exampleTranslation };
     // The word must be in it as a word, as the pool's are: 出发之前 has 之 only inside
     // 之前, and teaches 之前 (the author's 之 card, 2026-09-29). Then the editor's read.
     const chinese = isChinese(card.sourceLang);
-    let ownWord = !chinese || sentenceWords(held.sentence, card.word).own;
+    let ownWord = !chinese || sentenceWords(written.sentence, card.word).own;
     let checked = false;
     if (ownWord && chinese) {
       const kept = await keepIfNatural({
         word: card.word,
-        sentence: held.sentence,
-        translation: held.translation,
+        sentence: written.sentence,
+        translation: written.translation,
         targetLang: card.targetLang,
         sense: own?.described,
       });
       if (!kept) ownWord = false;
-      else checked = !kept.unread;
-      if (kept && kept.sentence !== held.sentence) {
-        const reading = brief.reading;
-        const unknown = reading?.checked ? unknownIn(sentenceWords(kept.sentence, card.word).words, reading.knows) : 0;
-        held = { ...kept, unknown };
+      else {
+        checked = !kept.unread;
+        written = kept;
       }
     }
     if (!ownWord) {
       // Not saved: the pool's sentence stays alone, or "add example" writes another.
-    } else if (hasPool && held.unknown > MAX_UNKNOWN) {
-      // Too hard to sit beside a checked one they can read: the pool's stays alone.
-    } else if (!hasPool && pool && pool.unknown < held.unknown) {
-      // Over the line either way: the pool's best still wins if they read more of it.
-      await addPoolExample(card.id, card.word, pool.s);
     } else {
       // Newest first on every page, so their own leads.
       await prisma.example.create({
         data: {
           wordId: card.id,
-          sentenceEn: held.sentence,
-          sentenceZh: held.translation,
+          sentenceEn: written.sentence,
+          sentenceZh: written.translation,
           sourceName: AI_SOURCE,
           sourceUrl: "",
           register: style ?? "casual",

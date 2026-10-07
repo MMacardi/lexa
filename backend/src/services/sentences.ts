@@ -5,29 +5,27 @@ import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { segmentChinese } from "./segment.js";
-import { asHskVersion, hskReading, hskTagFor, learnerStatus, normalizeHanzi } from "./hsk.js";
-import { learnerRates } from "./studyPlan.js";
+import { asHskVersion, clampLevel, hskReading, hskTagFor, normalizeHanzi, type HskVersion } from "./hsk.js";
 
 /**
- * Sentences one step above you (i+1): an example uses the one new word and,
- * besides it, words the learner already has. A sentence that suits HSK 5 is
- * unreadable at HSK 2, so "one good example per word" can't be shared — but
- * three can: every HSK word has a pool of three written once, offline
- * (`scripts/build-hsk-sentences.ts` → `data/hsk-sentences.jsonl`), each under a
- * stated ceiling and checked against it:
+ * Examples at the learner's level: the sentence around a word is written at the
+ * HSK level they chose to train, whatever the word's own level — an HSK 4 learner
+ * adding 吃 reads it in an HSK 4 sentence. A sentence that suits HSK 5 is a chore
+ * at HSK 2, so "one good example per word" can't be shared — but three can: every
+ * HSK word has a pool of three written once, offline (`scripts/build-hsk-sentences.ts`
+ * → `data/hsk-sentences.jsonl`), each under a stated ceiling and checked against it:
  *   1 — besides the headword, HSK 1–2 words only;
  *   2 — nothing above the word's own level;
  *   3 — natural, any words.
- * A learner gets the one with the fewest words they likely don't know. When even
- * that one has more than one, the per-card call writes a sentence from their own
- * words instead, kept on their card only (services/capture.ts), and that one is
- * checked the same way.
+ * A learner gets the hardest one that is not above their level. Where that is
+ * well under it (the pool's simple one only), or the pool has none, the per-card
+ * call writes a sentence at their level too, kept on their card only
+ * (services/capture.ts).
  *
- * "Know" is what the rest of the app means by it: a card past learning or an "I
- * know it" (learnerStatus, the readiness mark's "recognise"), and for a word never
- * asked about, the share of its level the check says they know (studyPlan.levelRates)
- * — an HSK 4 learner has no card for 我, and a count that took the cards alone would
- * call every sentence unreadable.
+ * Not a level measured from the check, nor "at most one word they don't know":
+ * the check couldn't be sure of HSK 3 on 12 taps, so an HSK 4 learner was held to
+ * HSK 1–2 — and even a week in, the app doesn't know which words a learner knows
+ * (the author, 2026-10-06).
  */
 
 const HAN = /^\p{Script=Han}+$/u;
@@ -112,22 +110,16 @@ export function overCeiling(words: string[], c: Ceiling, headword: string): stri
   return [...new Set(words.filter((w) => (minLevel(w) ?? Infinity) > cap))];
 }
 
-/** How a ceiling reads next to the example ("HSK 1–2"); the natural one has no label. */
-export function ceilingLabel(c: Ceiling, headword: string): string | null {
-  const cap = ceilingLevel(c, headword);
-  return cap === null ? null : levelLabel(cap);
-}
-
 // 7 is the HSK 7–9 band: its words are "HSK 1–9", not "1–7".
 export const levelLabel = (level: number) => (level <= 1 ? "HSK 1" : `HSK 1–${level >= 7 ? 9 : level}`);
 
 /**
- * The label for a sentence written for this learner: the HSK range it was held to
- * when they took the check — beside a pool sentence's "HSK 1–3", a CEFR "B2" from
- * the add form's settings read as a different scale — else what the caller had.
+ * The label for a sentence written for this learner: the HSK range it was written
+ * at — beside a pool sentence's "HSK 1–3", a CEFR "B2" from the add form's settings
+ * read as a different scale — else what the caller had.
  */
 export function writtenLabel(brief: ExampleBrief | null | undefined, fallback: string | null): string | null {
-  return brief?.reading?.checked ? levelLabel(brief.reading.level ?? 1) : fallback;
+  return brief?.level ? levelLabel(brief.level) : fallback;
 }
 
 // --- The pool ---
@@ -197,69 +189,71 @@ export function isPoolSentence(word: string, targetLang: string, zh: string): bo
   return poolSentences(word, targetLang).some((s) => s.zh === zh) || (targetLang === "ru" && isRetired(word, zh));
 }
 
-// --- Reading it as this learner ---
-
-/** How likely the learner knows a word, 0–1. */
-export type Knows = (word: string) => number;
+// --- At the learner's level ---
 
 /**
- * `knows`: a card past learning or an "I know it" is 1 — adding a word is not
- * knowing it, as the readiness mark says (hsk.ts). Any other list word is priced
- * at its level's share from the check, as the plan prices the words nobody asked
- * about; a word off the lists, or with no check to go on, is 0. `level`: the highest
- * level whose words, and every level's below it, they know at least SURE of — what
- * a per-card example may draw on besides their own words. `checked`: there is a
- * check to count against at all.
+ * The HSK level a learner's examples are written at, on their list: the one they
+ * chose — their target, else the CEFR level the add form keeps for Chinese
+ * (onboarding writes it from the target). Null: none to aim at.
  */
-export type Reading = { knows: Knows; level: number | null; checked: boolean };
+export type ExampleLevel = { level: number | null; version: HskVersion };
 
-// An example is ~8 words besides the new one; at 90% known each, that is under one
-// unknown. At 80% it was 1.4, and the first learner's own sentences, written "at
-// HSK 4" against a check of 10 of 12 there, were all too hard to keep.
-const SURE = 0.9;
+const HSK_FOR_CEFR: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
 
-export async function learnerReading(userId: string): Promise<Reading> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { telegramId: true, hskVersion: true } });
-  if (!user) return { knows: () => 0, level: null, checked: false };
-  const version = asHskVersion(user.hskVersion) ?? "3.0";
-  const [status, rates] = await Promise.all([learnerStatus(user.telegramId), learnerRates(user.telegramId, version)]);
-  let level: number | null = null;
-  for (let n = 1; (rates.get(n) ?? 0) >= SURE; n++) level = n;
-  const checked = [...rates.values()].some((r) => r !== null);
-  const knows: Knows = (word) => {
-    const has = status.get(word);
-    if (has && has !== "learning") return 1;
-    const tag = listTag(word);
-    const at = tag ? (tag[version] ?? Math.min(...Object.values(tag))) : null;
-    return at ? (rates.get(at) ?? 0) : 0;
-  };
-  return { knows, level, checked };
+export async function exampleLevel(userId: string): Promise<ExampleLevel> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { hskTarget: true, hskVersion: true, levels: true } });
+  const version = asHskVersion(user?.hskVersion) ?? "3.0";
+  const cefr = (user?.levels as Record<string, string> | null)?.zh;
+  const level = user?.hskTarget ?? HSK_FOR_CEFR[cefr ?? ""] ?? null;
+  return { level: level === null ? null : clampLevel(version, level), version };
 }
 
-/** How many of these words the learner likely doesn't know (an expected count). */
-export function unknownIn(words: string[], knows: Knows): number {
-  return words.reduce((n, w) => n + 1 - knows(w), 0);
+/** A word's level on the learner's list, else its lowest on the other; null when it is on neither. */
+function wordLevel(word: string, version: HskVersion): number | null {
+  const tag = listTag(word);
+  if (!tag) return null;
+  return tag[version] ?? Math.min(...Object.values(tag));
 }
 
-/** i+1: besides the new word, at most one the learner may not know. */
-export const MAX_UNKNOWN = 1;
+/**
+ * How hard a pool sentence reads on this list: its hardest word besides the
+ * headword. Off the lists, a one-character piece of a compound the cut split up
+ * (款, 警 — 4,904 of the pool's 31,309 sentences have an off-list piece, and
+ * 6,628 of those pieces are single characters) doesn't count; a whole word (敦煌,
+ * 鲁迅, 预警) is a name or a rare one, one level above the rest.
+ */
+export function poolLevel(s: PoolSentence, version: HskVersion): number {
+  let top = 1;
+  let offList = false;
+  for (const w of s.t.split(" ")) {
+    if (!w) continue;
+    const n = wordLevel(w, version);
+    if (n !== null) top = Math.max(top, n);
+    else if (Array.from(w).length > 1) offList = true;
+  }
+  return offList ? Math.min(top + 1, 7) : top;
+}
 
-type Pick = { s: PoolSentence; unknown: number };
+type Pick = { s: PoolSentence; level: number };
 
-// To half a word: 0.1 and 0.3 of a word read the same.
-const half = (n: number) => Math.round(n * 2) / 2;
+/** Closer to level L: at or under it beats over it; under it, the harder; over it, the easier; then the more natural. */
+function closer(a: Pick, b: Pick, L: number): boolean {
+  const aFits = a.level <= L;
+  if (aFits !== b.level <= L) return aFits;
+  if (a.level !== b.level) return aFits ? a.level > b.level : a.level < b.level;
+  return a.s.c > b.s.c;
+}
 
-/** Easier to read, or as easy and more natural (the higher ceiling). */
-const better = (a: Pick, b: Pick) => half(a.unknown) < half(b.unknown) || (half(a.unknown) === half(b.unknown) && a.s.c > b.s.c);
-
-const scored = (s: PoolSentence, knows: Knows): Pick => ({ s, unknown: unknownIn(s.t.split(" ").filter(Boolean), knows) });
-
-/** The pool sentence this learner reads best: the fewest likely-unknown words, then the more natural one. */
-export function pickPoolSentence(word: string, knows: Knows, targetLang = "ru"): Pick | null {
+/**
+ * The pool sentence at the learner's level: the hardest one not above it, the
+ * more natural on a tie (the higher ceiling); with none that low, or no level to
+ * aim at, the easiest.
+ */
+export function pickPoolSentence(word: string, at: ExampleLevel, targetLang = "ru"): Pick | null {
   let best: Pick | null = null;
   for (const s of poolSentences(word, targetLang)) {
-    const p = scored(s, knows);
-    if (!best || better(p, best)) best = p;
+    const p = { s, level: poolLevel(s, at.version) };
+    if (!best || closer(p, best, at.level ?? 0)) best = p;
   }
   return best;
 }
@@ -275,47 +269,50 @@ export const poolRegister = (style?: string | null) => !style || style === "casu
 
 // A formal word's sentences are formal ("news" reads «Формальный» on the page).
 // The pool was read by the editor (build-hsk-sentences.ts --judge): stamped as read.
-function poolExample(word: string, s: PoolSentence) {
+// The label is how hard the sentence reads on the learner's list ("HSK 1–4").
+function poolExample(word: string, p: Pick) {
   return {
-    sentenceEn: s.zh,
-    sentenceZh: s.ru,
+    sentenceEn: p.s.zh,
+    sentenceZh: p.s.ru,
     sourceName: AI_SOURCE,
     sourceUrl: "",
     register: isFormalWord(word) ? "news" : null,
-    level: ceilingLabel(s.c, word),
+    level: levelLabel(p.level),
     checkedAt: new Date(),
   };
 }
 
-/**
- * Fresh cards get the pool sentence they read best, with no model call — when it
- * has at most one word besides the new one they may not know. A card it can't
- * serve is left without, and the upgrade writes one from their own words.
- */
+/** Fresh cards get the pool sentence at the learner's level, with no model call. */
 export async function placePoolExamples(userId: string, cards: { id: string; word: string; targetLang: string }[]): Promise<number> {
   const served = cards.filter((c) => poolSentences(c.word, c.targetLang).length);
   if (!served.length) return 0;
-  const { knows } = await learnerReading(userId);
+  const at = await exampleLevel(userId);
   let n = 0;
   for (const c of served) {
-    const pick = pickPoolSentence(c.word, knows, c.targetLang);
-    if (!pick || pick.unknown > MAX_UNKNOWN) continue;
-    await prisma.example.create({ data: { wordId: c.id, ...poolExample(c.word, pick.s) } });
+    const pick = pickPoolSentence(c.word, at, c.targetLang);
+    if (!pick) continue;
+    await prisma.example.create({ data: { wordId: c.id, ...poolExample(c.word, pick) } });
     n++;
   }
   return n;
 }
 
 /** Write one pool sentence onto a card (the upgrade, once it has decided). */
-export async function addPoolExample(wordId: string, word: string, s: PoolSentence): Promise<void> {
-  await prisma.example.create({ data: { wordId, ...poolExample(word, s) } });
+export async function addPoolExample(wordId: string, word: string, p: Pick): Promise<void> {
+  await prisma.example.create({ data: { wordId, ...poolExample(word, p) } });
+}
+
+/** How hard the pool sentence among a card's examples reads on this list; null when none is one of the pool's now. */
+export function pooledLevel(word: string, targetLang: string, examples: string[], at: ExampleLevel): number | null {
+  const s = poolSentences(word, targetLang).find((p) => examples.includes(p.zh));
+  return s ? poolLevel(s, at.version) : null;
 }
 
 /**
- * On open, a pool sentence the learner has outgrown gives way to the one they read
- * best now — the natural sentence once the simple one's words are all theirs. Only
- * the pool's own sentence is swapped; one they met, wrote or asked for stays. It
- * moves only for a strictly better one, so it doesn't flip between two on the edge.
+ * On open, the pool sentence on a card follows the learner's level: the pick for
+ * the level they chose, so a card placed below it (the HSK 1–2 sentences of the
+ * check-measured level, before 2026-10-07) or before they changed it moves to it.
+ * Only the pool's own sentence is swapped; one they met, wrote or asked for stays.
  */
 export async function refreshPoolExample(wordId: string): Promise<boolean> {
   const card = await prisma.word.findUnique({
@@ -324,19 +321,18 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
       userId: true,
       word: true,
       targetLang: true,
-      examples: { select: { id: true, sentenceEn: true, sentenceZh: true, sourceName: true } },
+      examples: { select: { id: true, sentenceEn: true, sentenceZh: true, sourceName: true, level: true } },
     },
   });
   if (!card) return false;
   const pool = poolSentences(card.word, card.targetLang);
-  // One the naturalness pass took out goes whatever it takes: the best pick now, even
-  // past their level, or nothing — an unnatural sentence is never kept for being easy.
+  // One the naturalness pass took out goes whatever it takes: the pick now, or
+  // nothing — an unnatural sentence is never kept for being easy.
   const stale = card.examples.find((e) => isRetired(card.word, e.sentenceEn));
   if (stale && card.targetLang === "ru") {
-    const { knows } = await learnerReading(card.userId);
-    const pick = pickPoolSentence(card.word, knows, card.targetLang);
+    const pick = pickPoolSentence(card.word, await exampleLevel(card.userId), card.targetLang);
     if (pick && !card.examples.some((e) => e.sentenceEn === pick.s.zh))
-      await prisma.example.update({ where: { id: stale.id }, data: poolExample(card.word, pick.s) });
+      await prisma.example.update({ where: { id: stale.id }, data: poolExample(card.word, pick) });
     else await prisma.example.delete({ where: { id: stale.id } });
     return true;
   }
@@ -349,12 +345,16 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
     await prisma.example.update({ where: { id: current.id }, data: { sentenceZh: inPool.ru } });
     return true;
   }
-  const { knows } = await learnerReading(card.userId);
-  const now = scored(inPool, knows);
-  const pick = pickPoolSentence(card.word, knows, card.targetLang);
-  if (!pick || pick.unknown > MAX_UNKNOWN || !better(pick, now)) return false;
+  const pick = pickPoolSentence(card.word, await exampleLevel(card.userId), card.targetLang);
+  if (!pick) return false;
+  if (pick.s.zh === inPool.zh) {
+    // The same sentence, labelled by its ceiling before: now by how it reads.
+    if (current.level === levelLabel(pick.level)) return false;
+    await prisma.example.update({ where: { id: current.id }, data: { level: levelLabel(pick.level) } });
+    return true;
+  }
   if (card.examples.some((e) => e.sentenceEn === pick.s.zh)) return false;
-  await prisma.example.update({ where: { id: current.id }, data: poolExample(card.word, pick.s) });
+  await prisma.example.update({ where: { id: current.id }, data: poolExample(card.word, pick) });
   return true;
 }
 
@@ -372,11 +372,14 @@ export const NATURAL_FIRST = (word: string) =>
   `context), use the words it needs and the register it lives in — modern formal Chinese, never a pseudo-classical ` +
   `line like 此乃…之…: a natural sentence always beats an easy one, and the Chinese is never bent to fit the level. `;
 
-/** What a per-card example is written from: the learner's own words, how far past them it may go, their themes. */
-export type ExampleBrief = { reading: Reading | null; knownWords: string[]; themes: string };
+/**
+ * What a per-card example is written from: the level it is written at (Chinese
+ * only), words of the learner's it may reuse, their themes.
+ */
+export type ExampleBrief = ExampleLevel & { knownWords: string[]; themes: string };
 
 export async function exampleBrief(userId: string, sourceLang: string, exceptWordId?: string): Promise<ExampleBrief> {
-  const [cards, memory, reading] = await Promise.all([
+  const [cards, memory, at] = await Promise.all([
     // Words they know, not the ones they just took: 20 fresh cards as the building
     // blocks made 造型 "很些" — the model forced one in where 酷 had been.
     prisma.word.findMany({
@@ -392,12 +395,15 @@ export async function exampleBrief(userId: string, sourceLang: string, exceptWor
     }),
     // The interests picked in onboarding (HskFirstRun → coach memory).
     prisma.coachMemory.findUnique({ where: { userId_lang: { userId, lang: sourceLang } }, select: { interests: true } }),
-    sourceLang === "zh" ? learnerReading(userId) : Promise.resolve(null),
+    exampleLevel(userId),
   ]);
-  return { reading, knownWords: cards.map((c) => c.word), themes: memory?.interests.trim() ?? "" };
+  return {
+    ...at,
+    level: sourceLang === "zh" ? at.level : null,
+    knownWords: cards.map((c) => c.word),
+    themes: memory?.interests.trim() ?? "",
+  };
 }
-
-const rewriteSchema = z.object({ sentence: z.string().default(""), translation: z.string().default("") });
 
 const verdictSchema = z.object({
   natural: z.boolean().default(false),
@@ -507,54 +513,4 @@ export async function checkOldExamples(wordId: string): Promise<number> {
     }
   }
   return changed;
-}
-
-/**
- * Hold a model-written Chinese example to i+1, the check "one example built from
- * the learner's words" never had: segment it, count what they likely don't know
- * besides the word. Over one, it is rewritten once with those words named; the
- * version with fewer unknowns is kept, the count comes back with it.
- */
-export async function holdToLevel(p: {
-  word: string;
-  sentence: string;
-  translation: string;
-  targetLang: string;
-  brief: ExampleBrief;
-}): Promise<{ sentence: string; translation: string; unknown: number }> {
-  const reading = p.brief.reading;
-  // With no check there is nothing to count against: every word is "unknown".
-  if (!reading?.checked) return { sentence: p.sentence, translation: p.translation, unknown: 0 };
-  const level = reading.level ?? 1;
-  const count = (s: string) => unknownIn(sentenceWords(s, p.word).words, reading.knows);
-  const first = { sentence: p.sentence, translation: p.translation, unknown: count(p.sentence) };
-  if (first.unknown <= MAX_UNKNOWN) return first;
-  const hard = [...new Set(sentenceWords(p.sentence, p.word).words.filter((w) => reading.knows(w) < 0.5))];
-  try {
-    const r = await chatJson({
-      system:
-        `You rewrite a Chinese example sentence for a learner at HSK ${level}. Keep the word "${p.word}" exactly ` +
-        `as written and in the sense it has in the sentence, and the tone (line breaks too). Besides "${p.word}", ` +
-        `every word must be HSK ${level} or below; these are above it and must all go: ${hard.join(", ")}. ` +
-        // "Keep the situation" kept 软件 — the situation itself was the hard word.
-        `Change the situation if it needs them — a simpler everyday one is fine. Write it as a native speaker ` +
-        `would say it at that level, natural and grammatical; never swap in a word that doesn't fit. ` +
-        NATURAL_FIRST(p.word) +
-        `Then translate it into natural ${langName(p.targetLang)}.` +
-        scriptNote("zh") +
-        scriptNote(p.targetLang) +
-        ' Respond as JSON: {"sentence": string, "translation": string}.',
-      user: p.sentence,
-      schema: rewriteSchema,
-      label: "example.hold",
-    });
-    const sentence = (r.sentence ?? "").trim();
-    const translation = (r.translation ?? "").trim();
-    if (!sentence.includes(p.word) || !translation) return first;
-    const second = { sentence, translation, unknown: count(sentence) };
-    return second.unknown < first.unknown ? second : first;
-  } catch (err) {
-    console.error(`[sentences] rewrite failed for ${p.word}`, (err as Error).message);
-    return first;
-  }
 }

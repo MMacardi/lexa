@@ -1,25 +1,28 @@
-// Proves "Sentences one step above you (i+1)" (BACKLOG): an example uses the new
-// word and, besides it, words the learner has — so the same HSK 4 word gets a
-// different sentence at HSK 2 than at HSK 5.
+// Proves "Examples at the learner's level" (BACKLOG, PLAN-examples.md Part 1): the
+// sentence around a word is at the HSK level the learner chose, whatever the
+// word's own level — an HSK 4 learner's examples no longer all read "HSK 1–2".
 //
 //   1. The words of a sentence as the check reads them (桌上 is 桌 + 上; 晚上 is
 //      not 上; 看一下 has 一下 in it). An 儿 word takes its base's sentences only when
 //      the 儿 is the erhua r (一下儿 → 一下; 婴儿 yīng ér is not 婴's 女婴).
-//   2. Two accounts that took the check — one at HSK 2, one at HSK 5 — are handed
-//      the pool sentence each reads best, for every HSK 3.0 level-4 word.
-//   3. The add path, with the model unreachable: the card carries that sentence
-//      the moment it returns, the day's batch too. A fresh learner with nothing
-//      to go on gets none — the per-card call writes theirs.
-//   4. On open, a pool sentence the learner has outgrown moves up.
+//   2. The level: the target, else the add form's CEFR level; a pool sentence's level
+//      on the learner's list. Every HSK 3.0 level-4 word gets the hardest sentence
+//      not above the level — HSK 2 and HSK 5 learners get different ones.
+//   3. The add path, with the model unreachable: an HSK 4 learner on the 2.0 list
+//      adds 却 通过 教育 各 记者 朋友 — each carries the pool's sentence at HSK 4, or
+//      the closest under it, labelled by how it reads, the moment it returns.
+//   4. On open, a pool sentence below the level moves up to it, and back down when
+//      the learner lowers their target; one labelled by its old ceiling is relabelled.
 //   5. One the naturalness pass took out (他以笔写字) gives way on open, and a formal
 //      word's sentence says it is formal.
 //   6. A card still carrying a corrected default meaning gets the new one; an old
 //      example that holds the word only inside a longer word is removed on open.
 //   7. A pool sentence whose Russian was corrected takes the new translation on open;
 //      the same sentence met elsewhere keeps its own.
-//   `--live`: the learner's own sentence — on their interests, at their level —
-//   lands first with the pool's second; one over the line is rewritten to fewer
-//   unknowns; a card the pool can't serve gets one from the learner's words.
+//   `--live`: the learner's own sentence — written at HSK 4, not under it — lands
+//   first where the pool's best is HSK 1–2 or there are interests to set it in; a
+//   card whose pool sentence is already at HSK 4 gets none on top; "Add example"
+//   is labelled HSK 1–4 too.
 //
 // Needs data/hsk-sentences.jsonl (scripts/build-hsk-sentences.ts). Run against a
 // DEV database — it creates throwaway users and deletes them:
@@ -30,7 +33,7 @@ if (!LIVE) process.env.BAILIAN_API_KEY = "";
 
 const { prisma } = await import("../src/services/db.js");
 const { hskLevelWords } = await import("../src/services/hsk.js");
-const { addWordForUser, countAiExamples, getWord } = await import("../src/services/vocab.js");
+const { addExampleToWord, addWordForUser, countAiExamples, getWord } = await import("../src/services/vocab.js");
 const { importWordsForUser } = await import("../src/services/importWords.js");
 const { upgradeCard } = await import("../src/services/capture.js");
 const { deleteAccount } = await import("../src/services/accountData.js");
@@ -38,8 +41,8 @@ const S = await import("../src/services/sentences.js");
 const { defaultMeaning, refreshDefaultMeanings } = await import("../src/services/lookup.js");
 
 const STAMP = Date.now();
-const TG2 = `test-sent2-${STAMP}`;
-const TG5 = `test-sent5-${STAMP}`;
+const TG4 = `test-sent4-${STAMP}`;
+const TGC = `test-sentc-${STAMP}`;
 const FRESH = `test-sentf-${STAMP}`;
 let failures = 0;
 function check(ok: boolean, what: string) {
@@ -47,20 +50,17 @@ function check(ok: boolean, what: string) {
   if (!ok) failures++;
 }
 
-/**
- * An account as a check leaves it: 12 answers a level, `known[n]` of them "I know
- * it", on HSK 3.0 — the rates, not a card for every word, are what price the rest.
- */
-async function learner(telegramId: string, known: Record<number, number>) {
-  const user = await prisma.user.create({ data: { telegramId, firstName: "Sentences", nativeLang: "ru", hskVersion: "3.0" } });
-  const rows = [];
-  for (const [level, k] of Object.entries(known)) {
-    const sample = hskLevelWords("3.0", Number(level)).slice(40, 52); // not the words picked below
-    rows.push(...sample.map((w, i) => ({ userId: user.id, word: w.word, sourceLang: "zh", targetLang: "ru", known: i < k })));
-  }
-  await prisma.placementAnswer.createMany({ data: rows });
-  return user;
+type Version = "2.0" | "3.0";
+const at = (level: number | null, version: Version) => ({ level, version });
+/** The level the pick should land on: the highest not above L the pool has, else its lowest. */
+function want(word: string, L: number, version: Version): number {
+  const levels = S.poolSentences(word).map((s) => S.poolLevel(s, version));
+  const under = levels.filter((n) => n <= L);
+  return under.length ? Math.max(...under) : Math.min(...levels);
 }
+/** How a sentence the model wrote reads on a list, the way a pool sentence's level is read. */
+const writtenLevel = (zh: string, word: string, version: Version) =>
+  S.poolLevel({ c: 3, zh, ru: "", t: S.sentenceWords(zh, word).words.join(" ") }, version);
 
 async function main() {
   // --- 1. The words of a sentence ---
@@ -79,87 +79,104 @@ async function main() {
   check(S.overCeiling(["我", "喝", "咖啡"], 1, "杯").length === 0, "我 喝 咖啡 is under the HSK 1–2 ceiling");
   check(S.overCeiling(["导航", "软件"], 2, "地图").length === 2, "导航 软件 break 地图's own-level ceiling");
 
-  // --- 2. HSK 2 vs HSK 5, the same HSK 4 words ---
-  const u2 = await learner(TG2, { 1: 12, 2: 11, 3: 3, 4: 1 });
-  const u5 = await learner(TG5, { 1: 12, 2: 12, 3: 12, 4: 12, 5: 11, 6: 4 });
-  const r2 = await S.learnerReading(u2.id);
-  const r5 = await S.learnerReading(u5.id);
-  check(r2.level === 2 && r5.level === 5, `reading level from the check: ${r2.level} and ${r5.level}`);
+  // --- 2. The level, and a pool sentence's ---
+  const u4 = await prisma.user.create({ data: { telegramId: TG4, firstName: "Sentences", nativeLang: "ru", hskVersion: "2.0", hskTarget: 4 } });
+  const uc = await prisma.user.create({ data: { telegramId: TGC, firstName: "Cefr", nativeLang: "ru", hskVersion: "3.0", levels: { zh: "B2" } } });
+  const fresh = await prisma.user.create({ data: { telegramId: FRESH, firstName: "Fresh", nativeLang: "ru", hskVersion: "3.0" } });
+  const l4 = await S.exampleLevel(u4.id);
+  check(l4.level === 4 && l4.version === "2.0", `the target is the level: HSK ${l4.level} on ${l4.version}`);
+  check((await S.exampleLevel(uc.id)).level === 4, "no target: the add form's B2 is HSK 4");
+  check((await S.exampleLevel(fresh.id)).level === null, "neither: no level to aim at");
+  check((await S.exampleBrief(u4.id, "en")).level === null, "an English card's brief has no HSK level");
+  const t = (words: string) => ({ c: 3 as const, zh: "", ru: "", t: words });
+  check(S.poolLevel(t("我 喜欢 款"), "3.0") === 1, "a one-character piece off the lists (款) doesn't raise a sentence's level");
+  check(S.poolLevel(t("我 喜欢 敦煌"), "3.0") === 2, "a whole word off them (敦煌) is one level above the rest");
+  check(S.poolLevel(t("重视"), "2.0") > S.poolLevel(t("重视"), "3.0"), "a sentence reads on the learner's list (重视: HSK 4 on 2.0, lower on 3.0)");
 
   const level4 = hskLevelWords("3.0", 4).map((w) => w.word).filter((w) => S.poolSentences(w).length >= 2);
   check(level4.length > 800, `${level4.length} HSK 4 words have two or more pool sentences`);
   let differ = 0;
-  let fits2 = 0;
-  let fits5 = 0;
+  let wrong = 0;
   const byCeiling = { 2: [0, 0, 0, 0], 5: [0, 0, 0, 0] };
   let shown = 0;
   for (const w of level4) {
-    const p2 = S.pickPoolSentence(w, r2.knows)!;
-    const p5 = S.pickPoolSentence(w, r5.knows)!;
+    const p2 = S.pickPoolSentence(w, at(2, "3.0"))!;
+    const p5 = S.pickPoolSentence(w, at(5, "3.0"))!;
+    if (p2.level !== want(w, 2, "3.0") || p5.level !== want(w, 5, "3.0")) wrong++;
     byCeiling[2][p2.s.c]++;
     byCeiling[5][p5.s.c]++;
-    if (p2.unknown <= S.MAX_UNKNOWN) fits2++;
-    if (p5.unknown <= S.MAX_UNKNOWN) fits5++;
     if (p2.s.zh !== p5.s.zh) {
       differ++;
-      if (shown++ < 3) console.log(`     ${w}: HSK 2 → ${p2.s.zh} (${p2.unknown.toFixed(1)}) | HSK 5 → ${p5.s.zh} (${p5.unknown.toFixed(1)})`);
+      if (shown++ < 3) console.log(`     ${w}: HSK 2 → ${p2.s.zh} (L${p2.level}) | HSK 5 → ${p5.s.zh} (L${p5.level})`);
     }
   }
+  check(wrong === 0, `every pick is the hardest sentence not above the level, else the easiest (${wrong} off)`);
   const pct = (n: number) => `${Math.round((n / level4.length) * 100)}%`;
-  // Where they match, the middle one reads at HSK 2 and the natural one is past HSK 5 too.
-  // 53% before the naturalness pass (2026-09-28), 47% after: it took out the easy
-  // sentences that bent the Chinese (他以笔写字), and a natural one beats an easy one —
-  // so an HSK 2 learner more often gets their own per-card sentence than an easy pool one.
-  check(differ / level4.length > 0.4, `different sentences for ${differ} of ${level4.length} HSK 4 words (${pct(differ)})`);
+  check(differ / level4.length > 0.4, `different sentences at HSK 2 and HSK 5 for ${differ} of ${level4.length} HSK 4 words (${pct(differ)})`);
   console.log(`     ceilings picked, HSK 2: c1 ${byCeiling[2][1]} c2 ${byCeiling[2][2]} c3 ${byCeiling[2][3]}; HSK 5: c1 ${byCeiling[5][1]} c2 ${byCeiling[5][2]} c3 ${byCeiling[5][3]}`);
-  check(byCeiling[2][1] > byCeiling[2][3] && byCeiling[5][3] + byCeiling[5][2] > byCeiling[5][1], "HSK 2 mostly gets the simple one, HSK 5 the richer ones");
-  console.log(`     within one unknown: HSK 2 ${fits2} (${pct(fits2)}), HSK 5 ${fits5} (${pct(fits5)}) — the rest go to the per-card call`);
-  check(fits5 / level4.length > 0.9, "an HSK 5 learner reads nearly every HSK 4 word's best sentence");
+  check(byCeiling[5][3] + byCeiling[5][2] > 3 * byCeiling[5][1], "HSK 5 mostly gets the richer ones");
 
   // --- 3. The add path, the model unreachable ---
-  const word = level4.find((w) => S.pickPoolSentence(w, r5.knows)!.unknown <= S.MAX_UNKNOWN && S.pickPoolSentence(w, r2.knows)!.unknown <= S.MAX_UNKNOWN && S.pickPoolSentence(w, r2.knows)!.s.zh !== S.pickPoolSentence(w, r5.knows)!.s.zh)!;
-  const card5 = await addWordForUser({ telegramId: TG5, word, sourceLang: "zh", targetLang: "ru" });
-  const want5 = S.pickPoolSentence(word, r5.knows)!.s;
-  check(card5.examples[0]?.sentenceEn === want5.zh, `HSK 5 adds ${word}: the example is there at once — ${card5.examples[0]?.sentenceEn}`);
-  check(card5.examples[0]?.level === S.ceilingLabel(want5.c, word), `labelled with its ceiling (${card5.examples[0]?.level ?? "natural"})`);
-  check((await countAiExamples(card5.id)) === 0, "the pool's sentence doesn't use up the examples a learner asks for");
-
-  const batch = level4.filter((w) => w !== word).slice(0, 10);
-  const want2 = batch.filter((w) => S.pickPoolSentence(w, r2.knows)!.unknown <= S.MAX_UNKNOWN).length;
+  const drip = ["却", "通过", "教育", "各", "记者", "朋友"];
   await importWordsForUser({
-    telegramId: TG2,
+    telegramId: TG4,
     sourceLang: "zh",
     targetLang: "ru",
-    items: [word, ...batch].map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] })),
+    items: drip.map((w) => ({ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] })),
     generateDetails: true,
     generateExamples: true,
   });
-  const cards2 = await prisma.word.findMany({ where: { userId: u2.id }, include: { examples: true } });
-  const withEx = cards2.filter((c) => c.examples.length).length;
-  check(withEx === want2 + 1, `HSK 2's batch of ${cards2.length}: ${withEx} arrive with a sentence they can read, the rest wait for their own`);
-  const card2 = cards2.find((c) => c.word === word)!;
-  check(card2.examples[0]?.sentenceEn !== card5.examples[0]?.sentenceEn, `${word} at HSK 2: ${card2.examples[0]?.sentenceEn}`);
+  const cards4 = await prisma.word.findMany({ where: { userId: u4.id }, include: { examples: true } });
+  for (const w of drip) {
+    const card = cards4.find((c) => c.word === w);
+    const ex = card?.examples[0];
+    const s = S.poolSentences(w).find((p) => p.zh === ex?.sentenceEn);
+    const n = s ? S.poolLevel(s, "2.0") : null;
+    const top = want(w, 4, "2.0");
+    check(
+      card?.examples.length === 1 && n === top && ex?.level === S.levelLabel(top),
+      `HSK 4 adds ${w}: ${ex?.sentenceEn} (c${s?.c}, «${ex?.level}»; the pool: ${S.poolSentences(w).map((p) => `c${p.c} L${S.poolLevel(p, "2.0")}`).join(", ")})`,
+    );
+    if (top > 2) check(ex?.level !== "HSK 1–2", `  ${w} isn't labelled HSK 1–2 where the pool has an HSK ${top} one`);
+  }
+  for (const w of ["通过", "记者"]) {
+    const s = S.poolSentences(w).find((p) => p.zh === cards4.find((c) => c.word === w)?.examples[0]?.sentenceEn);
+    check(s !== undefined && s.c !== 1, `${w} gets the c${s?.c} sentence, not the HSK 1–2 one`);
+  }
+  check(want("朋友", 4, "2.0") > 2, "an HSK 1 word (朋友) gets a sentence above HSK 2 when its pool has one");
 
-  const fresh = await prisma.user.create({ data: { telegramId: FRESH, firstName: "Fresh", nativeLang: "ru", hskVersion: "3.0" } });
-  const rf = await S.learnerReading(fresh.id);
-  const pf = S.pickPoolSentence(word, rf.knows)!;
-  const cardF = await addWordForUser({ telegramId: FRESH, word, sourceLang: "zh", targetLang: "ru" });
-  check(pf.unknown > S.MAX_UNKNOWN && cardF.examples.length === 0, `a fresh learner (${pf.unknown.toFixed(1)} unknowns at best) gets no pool sentence`);
-  const styled = await addWordForUser({ telegramId: TG5, word: batch[0], sourceLang: "zh", targetLang: "ru", exampleStyle: "internet" });
+  const single = await addWordForUser({ telegramId: TG4, word: "经济", sourceLang: "zh", targetLang: "ru" });
+  const pickJ = S.pickPoolSentence("经济", l4)!;
+  check(single.examples[0]?.sentenceEn === pickJ.s.zh, `a single add carries it at once: 经济 — ${single.examples[0]?.sentenceEn} («${single.examples[0]?.level}»)`);
+  check((await countAiExamples(single.id)) === 0, "the pool's sentence doesn't use up the examples a learner asks for");
+  const cardF = await addWordForUser({ telegramId: FRESH, word: "经济", sourceLang: "zh", targetLang: "ru" });
+  const easiest = Math.min(...S.poolSentences("经济").map((s) => S.poolLevel(s, "3.0")));
+  check(
+    cardF.examples.length === 1 && cardF.examples[0].level === S.levelLabel(easiest),
+    `a learner with no level gets the easiest one: ${cardF.examples[0]?.sentenceEn} («${cardF.examples[0]?.level}»)`,
+  );
+  const styled = await addWordForUser({ telegramId: TG4, word: "市场", sourceLang: "zh", targetLang: "ru", exampleStyle: "internet" });
   check(styled.examples.length === 0, "a learner who picked internet slang gets theirs written, not the everyday pool");
 
-  // --- 4. On open, the sentence moves up ---
-  await prisma.placementAnswer.updateMany({ where: { userId: u2.id }, data: { known: true } });
-  await prisma.placementAnswer.createMany({
-    data: [5, 6].flatMap((n) =>
-      hskLevelWords("3.0", n).slice(40, 52).map((w) => ({ userId: u2.id, word: w.word, sourceLang: "zh", targetLang: "ru", known: true })),
-    ),
-  });
-  const before = card2.examples[0]?.sentenceEn;
-  const moved = await S.refreshPoolExample(card2.id);
-  const after = (await getWord(card2.id))?.examples[0]?.sentenceEn;
-  check(moved && after !== before, `after a check at HSK 6, ${word} moves up: ${before} → ${after}`);
-  check(!(await S.refreshPoolExample(card2.id)), "and stays put on the next open");
+  // --- 4. On open, the pool sentence follows the level ---
+  const jizhe = cards4.find((c) => c.word === "记者")!;
+  const c1 = S.poolSentences("记者").find((s) => s.c === 1)!;
+  await prisma.example.updateMany({ where: { wordId: jizhe.id }, data: { sentenceEn: c1.zh, sentenceZh: c1.ru, level: "HSK 1–2" } });
+  const moved = await S.refreshPoolExample(jizhe.id);
+  const up = (await getWord(jizhe.id))?.examples[0];
+  check(moved && up?.sentenceEn !== c1.zh && up?.level === S.levelLabel(want("记者", 4, "2.0")), `记者 placed at HSK 1–2 moves up on open: ${c1.zh} → ${up?.sentenceEn} («${up?.level}»)`);
+  check(!(await S.refreshPoolExample(jizhe.id)), "and stays put on the next open");
+  const que = cards4.find((c) => c.word === "却")!;
+  await prisma.example.updateMany({ where: { wordId: que.id }, data: { level: "HSK 1–2" } });
+  await S.refreshPoolExample(que.id);
+  const relabelled = (await getWord(que.id))?.examples[0];
+  check(relabelled?.level === S.levelLabel(want("却", 4, "2.0")), `却's sentence, labelled by its ceiling, now reads «${relabelled?.level}»: ${relabelled?.sentenceEn}`);
+  await prisma.user.update({ where: { id: u4.id }, data: { hskTarget: 2 } });
+  await S.refreshPoolExample(jizhe.id);
+  const down = (await getWord(jizhe.id))?.examples[0];
+  check(down?.level === S.levelLabel(want("记者", 2, "2.0")), `the target lowered to HSK 2: 记者 moves down — ${down?.sentenceEn} («${down?.level}»)`);
+  await prisma.user.update({ where: { id: u4.id }, data: { hskTarget: 4 } });
+  await S.refreshPoolExample(jizhe.id);
 
   // --- 5. The naturalness pass: a sentence it took out gives way on open ---
   check(S.levelLabel(7) === "HSK 1–9", `the HSK 7–9 band reads "${S.levelLabel(7)}", not "HSK 1–7"`);
@@ -169,7 +186,7 @@ async function main() {
   check(S.isPoolSentence("以", "ru", bent), "…yet still known as the pool's, so a card carrying it is found");
   const yi = await prisma.word.create({
     data: {
-      userId: u5.id,
+      userId: u4.id,
       word: "以",
       phonetic: "yǐ",
       sourceLang: "zh",
@@ -186,15 +203,15 @@ async function main() {
 
   // --- 6. Old defaults and old examples, fixed on open ---
   const was = "нагревать; горячий; жар";
-  const re = await prisma.word.create({ data: { userId: u5.id, word: "热", phonetic: "rè", sourceLang: "zh", targetLang: "ru", meaningZh: was } });
-  const own = await prisma.word.create({ data: { userId: u5.id, word: "休息", phonetic: "xiū xi", sourceLang: "zh", targetLang: "ru", meaningZh: "отдых (моё)" } });
-  await refreshDefaultMeanings({ user: { telegramId: TG5 } });
+  const re = await prisma.word.create({ data: { userId: u4.id, word: "热", phonetic: "rè", sourceLang: "zh", targetLang: "ru", meaningZh: was } });
+  const own = await prisma.word.create({ data: { userId: u4.id, word: "休息", phonetic: "xiū xi", sourceLang: "zh", targetLang: "ru", meaningZh: "отдых (моё)" } });
+  await refreshDefaultMeanings({ user: { telegramId: TG4 } });
   const reNow = (await prisma.word.findUniqueOrThrow({ where: { id: re.id } })).meaningZh;
   check(reNow === defaultMeaning("热", "ru") && reNow !== was, `热's old default «${was}» becomes «${reNow}»`);
   check((await prisma.word.findUniqueOrThrow({ where: { id: own.id } })).meaningZh === "отдых (моё)", "a meaning the learner wrote stays");
   const zhi = await prisma.word.create({
     data: {
-      userId: u5.id,
+      userId: u4.id,
       word: "之",
       phonetic: "zhī",
       sourceLang: "zh",
@@ -211,7 +228,7 @@ async function main() {
   const card = (sourceName: string) =>
     prisma.word.create({
       data: {
-        userId: u5.id,
+        userId: uc.id,
         word: "容易",
         phonetic: "róng yì",
         sourceLang: "zh",
@@ -231,46 +248,50 @@ async function main() {
   if (LIVE) {
     // The batch add queues its upgrade for the worker (not running here), so the
     // upgrade below is the only one: a single add fires its own in the background.
-    const liveCard = async (telegramId: string, w: string) => {
+    const liveCard = async (w: string) => {
       await importWordsForUser({
-        telegramId,
+        telegramId: TG4,
         sourceLang: "zh",
         targetLang: "ru",
         items: [{ word: w, meaning: "", example: "", exampleTranslation: "", synonyms: [] }],
         generateDetails: true,
         generateExamples: true,
       });
-      const u = await prisma.user.findUniqueOrThrow({ where: { telegramId } });
-      return prisma.word.findFirstOrThrow({ where: { userId: u.id, word: w } });
+      const c = await prisma.word.findFirstOrThrow({ where: { userId: u4.id, word: w } });
+      await upgradeCard(c.id, {});
+      return (await getWord(c.id))?.examples ?? [];
     };
-    for (const u of [u5, fresh]) await prisma.coachMemory.create({ data: { userId: u.id, lang: "zh", interests: "Технологии и IT" } });
 
-    // --- Their own first, the pool's second ---
-    const w5 = batch[1];
-    const c5 = await liveCard(TG5, w5);
-    await upgradeCard(c5.id, {});
-    const both = (await getWord(c5.id))?.examples ?? [];
+    // --- The pool's best is HSK 1–2: theirs at HSK 4 on top ---
+    check(want("成为", 4, "2.0") <= 2, `成为's pool has nothing past HSK ${want("成为", 4, "2.0")} on 2.0`);
+    const cw = await liveCard("成为");
+    const mine = cw[0];
     check(
-      both.length === 2 && !S.isPoolSentence(w5, "ru", both[0].sentenceEn) && S.isPoolSentence(w5, "ru", both[1].sentenceEn),
-      `HSK 5 + IT, ${w5}: their own first — ${both[0]?.sentenceEn} — then the pool's — ${both[1]?.sentenceEn}`,
+      cw.length === 2 && !S.isPoolSentence("成为", "ru", mine?.sentenceEn ?? "") && S.isPoolSentence("成为", "ru", cw[1]?.sentenceEn ?? ""),
+      `成为, no interests: their own first — ${mine?.sentenceEn} — then the pool's — ${cw[1]?.sentenceEn}`,
     );
-    const ownUnknown = S.unknownIn(S.sentenceWords(both[0]?.sentenceEn ?? "", w5).words, r5.knows);
-    check(ownUnknown <= S.MAX_UNKNOWN, `their own is held to one unknown (${ownUnknown.toFixed(1)})`);
-    check((await countAiExamples(c5.id)) === 1, "and only their own counts toward the examples cap");
+    check(mine?.level === "HSK 1–4", `their own is labelled «${mine?.level}»`);
+    const n = writtenLevel(mine?.sentenceEn ?? "", "成为", "2.0");
+    check(n >= 3, `and reads above HSK 2 (HSK ${n} on 2.0)`);
 
-    // --- Over the line: rewritten ---
-    const brief = await S.exampleBrief(u2.id, "zh");
-    const hard = "导航软件显示的地图比纸质地图更准确，也更新得更及时。";
-    const held = await S.holdToLevel({ word: "地图", sentence: hard, translation: "", targetLang: "ru", brief: { ...brief, reading: r2 } });
-    const was = S.unknownIn(S.sentenceWords(hard, "地图").words, r2.knows);
-    check(held.unknown < was, `over the line at HSK 2 (${was.toFixed(1)}) → rewritten: ${held.sentence} (${held.unknown.toFixed(1)})`);
+    // --- The pool's is at HSK 4 already, no interests: none on top ---
+    const jw = await liveCard("发展");
+    check(jw.length === 1 && S.isPoolSentence("发展", "ru", jw[0]?.sentenceEn ?? ""), `发展 (pool at HSK ${want("发展", 4, "2.0")}): the pool's alone — ${jw[0]?.sentenceEn}`);
 
-    // --- No pool sentence to read: their own only ---
-    const wf = batch[2];
-    const cf = await liveCard(FRESH, wf);
-    await upgradeCard(cf.id, {});
-    const own = (await getWord(cf.id))?.examples ?? [];
-    check(own.length === 1 && !S.isPoolSentence(wf, "ru", own[0].sentenceEn), `the fresh learner's ${wf} (themes: IT): ${own[0]?.sentenceEn} — ${own[0]?.sentenceZh}`);
+    // --- Off the pool: theirs only, at HSK 4 ---
+    const dw = await liveCard("敦煌");
+    check(dw.length === 1 && dw[0].level === "HSK 1–4", `敦煌 (no pool): ${dw[0]?.sentenceEn} — ${dw[0]?.sentenceZh} («${dw[0]?.level}»)`);
+
+    // --- With interests: theirs on top of a pool sentence at the level ---
+    await prisma.coachMemory.create({ data: { userId: u4.id, lang: "zh", interests: "Технологии и IT" } });
+    const sw = await liveCard("使用");
+    check(sw.length === 2 && sw[0].level === "HSK 1–4" && S.isPoolSentence("使用", "ru", sw[1]?.sentenceEn ?? ""), `使用 + IT: ${sw[0]?.sentenceEn} («${sw[0]?.level}») then ${sw[1]?.sentenceEn}`);
+    check((await countAiExamples((await prisma.word.findFirstOrThrow({ where: { userId: u4.id, word: "使用" } })).id)) === 1, "only their own counts toward the examples cap");
+
+    // --- "Add example": at HSK 4 too ---
+    const after = await addExampleToWord(cards4.find((c) => c.word === "却")!.id, { exampleStyle: "casual" });
+    const added = after.examples[0];
+    check(added?.level === "HSK 1–4", `"Add example" for 却: ${added?.sentenceEn} («${added?.level}», HSK ${writtenLevel(added?.sentenceEn ?? "", "却", "2.0")} on 2.0)`);
   }
 }
 
@@ -280,7 +301,7 @@ try {
   console.error(err);
   failures++;
 } finally {
-  for (const tg of [TG2, TG5, FRESH]) await deleteAccount(tg).catch(() => {});
+  for (const tg of [TG4, TGC, FRESH]) await deleteAccount(tg).catch(() => {});
   await prisma.$disconnect();
 }
 console.log(failures ? `\n${failures} failed` : "\nall passed");

@@ -170,9 +170,9 @@ export async function importWordsForUser(params: {
     }
   }
 
-  // i+1 with no model call: each HSK card gets the pool sentence this learner reads
-  // best (services/sentences.ts), so the day's words arrive with an example; the
-  // queued upgrade writes one from their own words only where none fits.
+  // With no model call, each HSK card gets the pool sentence at this learner's level
+  // (services/sentences.ts), so the day's words arrive with an example; the queued
+  // upgrade writes one at their level where the pool's is well under it.
   if (created.length && params.generateExamples && params.exampleSource !== "web" && params.sourceLang === "zh" && poolRegister(params.exampleStyle)) {
     await placePoolExamples(user.id, created.map((c) => ({ ...c, targetLang: params.targetLang })));
   }

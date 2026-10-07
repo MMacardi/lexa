@@ -1,0 +1,147 @@
+# Plan: examples at the learner's level, one HSK scale, cheaper enrichment
+
+Written 2026-10-06 from the author's screenshots of the Today drip (16 HSK 4 words + 3 topic words added at once).
+Nothing here is implemented yet. Do the parts **in order, one per session**; tick each part here and in
+`BACKLOG.md` when it is done. Other sessions commit in this tree: stage your own files by name.
+
+## The author's decisions (don't re-litigate)
+
+- **Examples are written at the level the learner chose, not a measured "reading level".** They set B2 = HSK 4
+  and want to train HSK 4, yet every example says "слова вокруг: HSK 1–2". The word itself may be HSK 1; the
+  sentence around it is at their level.
+- **No "at most one unknown word" rule** (`MAX_UNKNOWN`, i+1 by expected-unknown count) for choosing or keeping
+  examples: even a week in, the app doesn't know which words a learner knows.
+- **No separate rewrite pass to push a sentence down** (`holdToLevel`). The level goes into the personal-sentence
+  call we already make (`enrichWordEntry` from `upgradeCard`). The naturalness judge (`keepIfNatural`) stays.
+- **For Chinese, levels are HSK 1–6 (+7–9), never A1–C2**, everywhere the learner sees or sets one.
+- The personal example stays at add time (it is the "personalization sentence we already do").
+
+## Why it is HSK 1–2 today (verified 2026-10-06, no code changed)
+
+1. **The personal sentence** ("Onomika AI · Бытовой", e.g. 他每天都上网，却只看不说话): `exampleBrief` →
+   `learnerReading` (`backend/src/services/sentences.ts:221`) sets `level` = highest n such that levels 1..n are
+   each known at ≥ `SURE` = 0.9 (studyPlan `levelRates` over ~12 check taps per level, after false-alarm
+   correction). The author's comes out 2, so the prompt says "Besides X, use only words of HSK 2 and below"
+   (`agents/enrich.ts:119-121`). The same call also gets `level: "B2"` → "The learner's CEFR level is B2"
+   (`enrich.ts:76`): two contradicting instructions. Label = `writtenLabel` → `levelLabel(2)` = "HSK 1–2".
+2. **The pool sentence** (天很热，他却穿大衣): each HSK word has up to 3 pool sentences, ceilings c1 (HSK 1–2 words
+   only), c2 (up to the word's level), c3 (natural). `pickPoolSentence` takes the fewest expected unknowns, so c1
+   nearly always wins. 却 has only c1 sentences (91 pool words are c1-only; 1,253 have no c3).
+3. A throwaway probe (real code, synthetic HSK 4 learner on the 2.0 list): HSK 3 at 10/12 → label **HSK 1** (unasked
+   HSK 1–2 inherit HSK 3's rate); 11/12 → HSK 1–3, but one extra claimed fake word → HSK 1; even 12/12 → 10 of 17
+   words still get the c1 sentence. A learner's reviewed cards never count toward the level share.
+
+## Part 1 — examples follow the chosen level (backend) — [x] done 2026-10-07
+
+**As built** (differences from the text below): a word's level in a sentence is read on the learner's own list
+(`hskVersion`), falling back to its lowest on the other, not `minLevel`. On the 2.0 list 重视 and 味道 are HSK 4,
+so 教育's and 却's "HSK 1–2" sentences read HSK 1–4 there. The pool label is now the sentence's level on that list
+(a c3 sentence is labelled too), and on open a card's pool sentence is relabelled if its label has changed. The
+learner's own sentence is also written when the pool's best is *above* L (`pooledAt > L`: 进行's are all HSK 5).
+Per `scripts/check-sentences.ts` and a local run (HSK 4, 2.0 list, Today's 20 words): 却 and 记者 come with an HSK 1–4
+pool sentence; 通过 (pool tops at HSK 2), 成为, 其中 and 进行 also get their own at HSK 1–4, written first.
+The prompt line names the list and says "nothing harder". Measured on 12 words, the sentence read ≤ HSK 4 on 2.0 in
+9/12 cases (the first wording managed 4/12). With "Tech & IT" interests it was 6/12 (first wording 2/12), because
+the theme pulls in 软件, 内存, 续航. Part 3's example-only prompt is the place to tighten it further.
+
+**The level.** New helper, e.g. `exampleLevel(userId): number | null` (HSK, 1–7) in `services/sentences.ts`:
+`user.hskTarget` → else `User.levels.zh` mapped A1→1, A2→2, B1→3, B2→4, C1→5, C2→6 → else null (no level line).
+Onboarding writes `levels.zh` from the target anyway (`frontend/components/HskFirstRun.tsx:326`, `CEFR_FOR_HSK`),
+so for the author both say 4. Part 2 makes the Chinese level picker write `hskTarget`, so there is one value.
+
+**Pool pick, without "knows".** Give each pool sentence a level: the highest list level among its words besides
+the headword (`minLevel` over its stored tokens `s.t`). **Don't count an off-list token as HSK 7**: in 5,259 of the
+11,712 natural sentences the off-list tokens are mostly numbers and one-character pieces of split compounds (一 882,
+款 154, 实 106, 警 98…), not hard words; skip numbers and single-character off-list pieces, and count a
+multi-character off-list word as one level above the list's highest word in the sentence (a name or a rare compound).
+Probe it on real pool rows before trusting it. Pick the sentence with
+the **highest level ≤ L**; tie → higher ceiling (more natural); none ≤ L → the lowest-level one. Replace
+`pickPoolSentence`/`better`/`scored` with this. Users of the old pick:
+- `placePoolExamples` (`sentences.ts:295`): always place the pick (drop the `MAX_UNKNOWN` skip).
+- `refreshPoolExample` (`sentences.ts:320`): on open, swap the pool sentence when the new pick differs (this is
+  what moves the author's existing cards off their HSK 1–2 pool sentences). Keep the retired-sentence and
+  corrected-translation branches as they are.
+- `upgradeCard` (`services/capture.ts:289-298`): place the pick when none is pooled; no unknown gate.
+- `services/vocab.ts:124` and `:432` use `placePoolExamples` / `exampleBrief`: adapt.
+
+**The personal sentence** (`upgradeCard`, `capture.ts:299-390`; and "Add example" in `agents/exampleSearch.ts:244, :290`):
+- `exampleBrief` returns `{ level, knownWords, themes }` instead of `reading`.
+  `personal = withExample && (!hasPool || themes || poolLevel < L - 1)`: the pool can't serve every level with
+  three fixed sentences (below), so a learner with no interests set still gets one at their level when the pool's
+  best is too easy. This is what covers 却 (only HSK 1–2 sentences) without a bulk pool run.
+- `enrichWordEntry` gets `hskLevel: L`. Reword the line at `enrich.ts:119-121` so it aims *at* the level, not
+  under it: "Write it for an HSK L learner: besides X, words up to HSK L, and use level-L vocabulary where it is
+  natural; don't simplify to HSK 1–2." For Chinese, drop the CEFR `levelLine` (`enrich.ts:76`) so there is one
+  instruction. Soften `knownWords` from "build mostly from" to "may reuse" (the HSK line is the rule).
+- Remove the `holdToLevel` call and the two `MAX_UNKNOWN` branches (`capture.ts:370-374`): a natural personal
+  sentence is kept. Keep `keepIfNatural` and the "word must be a word of its own" check.
+- Label: `levelLabel(L)` ("HSK 1–4").
+- Then delete what is dead: `learnerReading`, `SURE`, `unknownIn`, `MAX_UNKNOWN`, `holdToLevel`, `half`, etc.
+  (grep `src/` and `scripts/` first). Don't touch `studyPlan.levelRates`: the readiness plan uses it.
+
+**Check.** `backend/scripts/check-sentences.ts` asserts the old i+1 rules: rewrite those sections. New asserts:
+a user with `hskTarget: 4` on 2.0, words 却 通过 教育 各 记者 + one HSK 1 word added through `importWordsForUser`:
+each pool pick's level is the highest ≤ 4 the pool has (通过/记者 get c2 or c3, not c1); the label is not "HSK 1–2"
+where a higher one existed; an HSK 1 word gets a sentence above HSK 2 when its pool has one. Then a local Docker run:
+Today → Add → open 却 and 通过 → read the labels and sentences (never prod).
+
+## Part 2 — one HSK scale in the UI (frontend + prompts)
+
+- **Badge**: `frontend/components/HskBadge.tsx:13` always prefers 3.0; Today uses the account's version (author:
+  2.0, so 教育 = HSK 4 on Today and HSK 2 in My words). Show the level on `profile.hskVersion` (as
+  `app/reader/page.tsx:365` does), fall back to the other list only if the word isn't on it; the tooltip already
+  lists both. Users: `app/words/page.tsx:372`, `app/word/[id]/page.tsx`, `AddWordForm`, `CoachPicks`.
+- **Topic row label**: `topic.label` ("{topic} · вне списка HSK", `lib/i18n.tsx:1691`) is wrong for 开发 (HSK 2.0
+  level 5): the filter (`backend/src/services/topic.ts:75`) drops words *at or below the target*. Rename to
+  "{topic} · beyond HSK {level}" / "сверх HSK {level}" / "HSK {level} 以上" (true for off-list words too).
+- **Level pickers for Chinese**: `CEFR_LEVELS` options at `components/AddWordForm.tsx:411`,
+  `components/AddExampleInline.tsx:189`, `lib/useEnsureLevel.tsx:27`, `components/ReaderTextTools.tsx:125, :264`,
+  `components/GlobalTutor.tsx:246`. For `zh`: HSK 1–6 and 7–9; saving writes `hskTarget` via
+  `api.updateLearnerPrefs` (and `levels.zh = CEFR_FOR_HSK[n]` for old paths; note `CEFR_FOR_HSK` maps 5 and 6 both
+  to C1). Requests that pass `level` for Chinese pass the HSK number. Every new string in en/ru/zh.
+- **Prompts**: for Chinese say HSK, not CEFR: `agents/enrich.ts:76`, `agents/exampleSearch.ts:121`. The Reader's
+  `services/levelGuide.ts:33` and `services/readerText.ts:113` are a follow-up if the session runs short.
+- **Check**: `next build`, then a local run at 390 px: My words badge = Today's level for 教育; the add form's level
+  picker shows HSK for Chinese and A1–C2 for English.
+
+## Part 3 — cheaper, faster enrichment for HSK words
+
+Today per card (`services/importWorker.ts:97`, sequential): `upgradeCard` → `enrichWordEntry` (meaning, POS,
+collocations, synonyms, antonyms, example), then after Part 1 `keepIfNatural` (1–2 `qwen3.5-plus` calls). For a
+word with an HSK page most of that is discarded: the default meaning stays (`capture.ts:330`), POS/syn/ant come from
+the page (`capture.ts:395-403`). 19 cards took a few minutes.
+1. At creation (`services/importWords.ts:139-165`), a Chinese word with `hskPage(word, targetLang)` gets
+   `partOfSpeech`, `synonyms`, `antonyms` from the page at once; collocations from the page's phrases only if the
+   card view shows `collocations` (grep the word page first).
+2. In `upgradeCard`, a card with a page and a default meaning skips the full entry: an example-only call (a flag on
+   `enrichWordEntry` or a small new prompt) with the Part 1 level line, then `keepIfNatural`. Off-list words (topic
+   words) keep the full call.
+3. `importWorker` processes 3 cards at a time (`Promise.all` per chunk), checks cancel per chunk, persists
+   `processed` after each chunk. A restart redoes at most one chunk; safe, since `upgradeCard` only adds an example
+   to a card without one of its own and meanings are compare-and-set.
+4. **Check**: a `scripts/check-*.ts` that adds 5 HSK words and asserts POS/synonyms are set before the job runs and
+   that the job makes one model call per card + the judge (count by `label`). Then Today → Add locally and time it.
+
+## Part 4 — pool gaps (costs ¥, ask first; optional once Part 1 writes the personal sentence at L)
+
+The real gap is not "no natural sentence" but "no sentence at HSK 3–4": the natural (c3) ones are mostly news-style
+and hard (教育: 家庭教育对儿童性格形成具有深远影响; 方面: 这项政策在经济和社会两个方面都产生了深远影响), the c1 ones
+HSK 1–2. A rough simulation of the Part 1 pick for an HSK 4 learner over all 11,434 pool words (off-list tokens
+over-counted, so treat as an upper bound on the gap): ~5,070 get an HSK 3–4 sentence, ~3,980 only HSK 1–2, ~2,390
+have nothing ≤ HSK 4. Of the author's 17 drip words, 9 move up (使用 其中 发展 发生 各 市场 经济 记者 通过) and 8
+stay HSK 1–2 (内 分之 却 成为 教育 方面 由于 旅行). If the personal sentence isn't enough, the fix is a sentence per
+level band (HSK 3–4, 5–6) rather than more c3.
+
+91 pool words have only c1 sentences (却), 1,253 have no natural c3 (by word level: 49 HSK 1, 49 HSK 2, 80 HSK 3,
+88 HSK 4, 140 HSK 5, 345 HSK 6, 491 HSK 7–9). What matters for "a sentence at your level", first: the c1-only
+words, and HSK 1–3 words with no c3 (their c2 caps at HSK 2–3, so an HSK 4 learner has nothing at their level).
+For an HSK 4+ word a missing c3 matters less: its c2 already reaches the word's own level. Not yet checked why
+those words lack c3 (dropped by the editor pass, or never written). `scripts/build-hsk-sentences.ts` writes and
+judges them. Per the Bailian-budget rule, give the author the ¥ estimate before running (the 1,815-sentence judge
+pass cost ¥0.26 with qwen-plus).
+
+## Not in scope
+
+- Re-writing personal sentences already on prod cards (they keep their "HSK 1–2" label; "Add example" writes a
+  new one). Pool sentences move on open via `refreshPoolExample` after Part 1.
+- The readiness mark and study plan math.

@@ -36,6 +36,22 @@ export const DEFAULT_MEANING_INSTRUCTION =
   '(table → "стол", not "стол (мебель)"; she → "她"; a country → its name). ' +
   "Do NOT list the word's other senses and do NOT write a full dictionary-style definition.";
 
+/**
+ * A Chinese example aimed at the learner's HSK level, the word's own level aside:
+ * an HSK 4 learner reads 吃 in an HSK 4 sentence. Shared with "Add example"
+ * (agents/exampleSearch.ts).
+ */
+export function hskLevelLine(word: string, level: number, version: string): string {
+  const hsk = level >= 7 ? "HSK 7–9" : `HSK ${level}`;
+  return (
+    `Write it for an ${hsk} learner (the HSK ${version} word list): besides "${word}", every word must be ${hsk} ` +
+    `or below on that list — nothing harder, no rare word or name` +
+    (level >= 3
+      ? ` — yet write it at that level, with ${hsk} words and grammar where they are natural, not an HSK 1–2 sentence. `
+      : `. `)
+  );
+}
+
 export interface EnrichResult {
   phonetic: string;
   partOfSpeech: string;
@@ -61,7 +77,8 @@ export async function enrichWordEntry(params: {
   senseAnchor?: string; // what pins that sense down for the example: "read bēi, as in 背包, 背孩子"
   context?: string; // the sentence the learner met the word in (Reader): the meaning is that sentence's sense
   knownWords?: string[]; // the learner's own words: the example is built from these
-  hskLevel?: number | null; // besides those, nothing above this HSK level (the check's "mostly known")
+  hskLevel?: number | null; // the HSK level the learner chose: the example is written at it
+  hskVersion?: string; // the list that level is on (2.0 or 3.0)
   themes?: string; // what the learner picked as their interests: the example's situation
   ground?: boolean; // default true; scripts/eval-senses.ts turns it off for its control arm
 }): Promise<EnrichResult> {
@@ -73,9 +90,12 @@ export async function enrichWordEntry(params: {
   const style = params.exampleStyle && REGISTER[params.exampleStyle] ? params.exampleStyle : "casual";
   const register = REGISTER[style];
   const meaningInstruction = params.meaningInstruction?.trim() || DEFAULT_MEANING_INSTRUCTION;
-  const levelLine = params.level
-    ? `The learner's CEFR level is ${params.level}; keep the example's vocabulary and grammar at that level. `
-    : "";
+  // A Chinese example's level is the HSK line below: one instruction, not "CEFR B2"
+  // beside "HSK 2 and below" (the author's cards, 2026-10-06).
+  const levelLine =
+    params.level && !params.hskLevel
+      ? `The learner's CEFR level is ${params.level}; keep the example's vocabulary and grammar at that level. `
+      : "";
   // Optional: aim synonyms at a target CEFR level (e.g. for IELTS prep the learner
   // wants richer, higher-level alternatives rather than the plainest words).
   const synClause = params.synonymLevel
@@ -109,16 +129,16 @@ export async function enrichWordEntry(params: {
       `even when it is not the word's most common one. `
     : "";
 
-  // An example made of words the learner already has is one they can read
-  // without looking anything else up — the new word is the only unknown in it.
+  // Written at the level the learner chose, not under it: "HSK 2 and below" gave an
+  // HSK 4 learner nothing but HSK 1–2 sentences. Their own words are a resource, not the rule.
   const known = (params.knownWords ?? []).map((w) => w.trim()).filter((w) => w && w !== word).slice(0, 40);
   // Only for a card of the learner's own (the upgrade passes their words, maybe none).
   const knownLine = !params.knownWords
     ? ""
-    : (known.length ? `Build the example mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
-      (params.hskLevel
-        ? `Besides "${word}", use only words of HSK ${params.hskLevel} and below. `
+    : (params.hskLevel
+        ? hskLevelLine(word, params.hskLevel, params.hskVersion ?? "3.0")
         : `Any other word in it must be simpler and more common than "${word}". `) +
+      (known.length ? `It may reuse words the learner already knows: ${known.join(", ")}. ` : "") +
       NATURAL_FIRST(word);
   const themes = params.themes?.trim().slice(0, 200) ?? "";
   // The level wins: "IT" at HSK 2 wrote 软件 and 运行, and the sentence was too hard to keep.

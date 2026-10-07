@@ -492,7 +492,7 @@ wordsRouter.delete("/collections/:id/words/:wordId", async (req, res) => {
 // GET /api/words/:id  -> one word with examples
 wordsRouter.get("/words/:id", async (req, res) => {
   if (!(await guardWord(req, res))) return;
-  // The pool sentence moves with the learner: the one they read best now (i+1).
+  // The pool sentence moves with the learner: the one at the level they chose now.
   await refreshPoolExample(req.params.id).catch((err) => console.error("[sentences] refresh failed", err));
   await refreshDefaultMeanings({ id: req.params.id }).catch((err) => console.error("[lookup] refresh failed", err));
   await refreshCardReadings({ id: req.params.id }).catch((err) => console.error("[capture] readings failed", err));

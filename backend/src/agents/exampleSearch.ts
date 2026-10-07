@@ -4,7 +4,8 @@ import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { FOCUS } from "../lib/env.js";
-import { NATURAL_FIRST, holdToLevel, keepIfNatural, writtenLabel, type ExampleBrief } from "../services/sentences.js";
+import { NATURAL_FIRST, keepIfNatural, writtenLabel, type ExampleBrief } from "../services/sentences.js";
+import { hskLevelLine } from "./enrich.js";
 
 // Does the sentence actually use the source language's script? Catches the case
 // where the web results (and the model) drift into English for a non-Latin word.
@@ -93,8 +94,8 @@ export async function runExampleSearch(params: {
   // When set, attach the example to this existing card (import enrichment).
   // When absent, create a new card (single-word add — duplicates allowed).
   wordId?: string;
-  // The learner's words, level and interests (services/sentences.ts): a composed
-  // example is built from them and held to one unknown besides the word.
+  // The learner's level, words and interests (services/sentences.ts): a composed
+  // example is written at the HSK level they chose.
   brief?: ExampleBrief;
   // The sense the card teaches when it is one of its word page's (services/capture.ts
   // `cardSense`): a composed example uses the word in it, not in its best-known one.
@@ -130,11 +131,11 @@ export async function runExampleSearch(params: {
     : "";
 
   const known = (params.brief?.knownWords ?? []).filter((w) => w !== word).slice(0, 40);
-  const level = params.brief?.reading?.checked ? (params.brief.reading.level ?? 1) : null;
+  const level = params.brief?.level ?? null;
   const knownLine = !params.brief
     ? ""
-    : (known.length ? `Build it mostly from words the learner already knows: ${known.join(", ")}. ` : "") +
-      (level ? `Besides "${word}", use only words of HSK ${level} and below. ` : `Any other word must be simpler and more common than "${word}". `) +
+    : (level ? hskLevelLine(word, level, params.brief.version) : `Any other word must be simpler and more common than "${word}". `) +
+      (known.length ? `It may reuse words the learner already knows: ${known.join(", ")}. ` : "") +
       NATURAL_FIRST(word);
   const themes = params.brief?.themes.slice(0, 200) ?? "";
   const themeLine = themes
@@ -209,7 +210,7 @@ export async function runExampleSearch(params: {
           `The exchange must make the meaning of "${word}" clear from the situation (not a bare ` +
           `question-and-answer). ` +
           avoidLine +
-          (levelLine || "") +
+          (level ? "" : levelLine) +
           knownLine +
           themeLine +
           `It MUST be written in ${sourceName} and contain "${word}".` +
@@ -222,7 +223,7 @@ export async function runExampleSearch(params: {
           `interesting everyday context. Prefer a ${styleInfo.register} tone. ` +
           RICHNESS_RULE +
           avoidLine +
-          (levelLine || "") +
+          (level ? "" : levelLine) +
           knownLine +
           themeLine +
           `The sentence MUST be written in ${sourceName} and contain "${word}".` +
@@ -240,11 +241,6 @@ export async function runExampleSearch(params: {
     sentence = written.sentence.trim();
     translation = written.translation.trim();
     source = null;
-    if (params.brief) {
-      const held = await holdToLevel({ word, sentence, translation, targetLang, brief: params.brief });
-      sentence = held.sentence;
-      translation = held.translation;
-    }
     // The editor's read, as the pool and the card's first example get: an unnatural
     // sentence is rewritten, or not added at all.
     if (sourceLang === "zh") {

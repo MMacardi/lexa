@@ -118,8 +118,8 @@ export async function addWordForUser(params: {
       },
       select: { id: true, word: true },
     });
-    // An HSK word's example is on the card now too, the pool sentence this learner
-    // reads best (services/sentences.ts); the upgrade writes one only if none fits.
+    // An HSK word's example is on the card now too, the pool sentence at this
+    // learner's level (services/sentences.ts); the upgrade writes theirs on top.
     if (withExample && sourceLang === "zh" && poolRegister(params.exampleStyle) && !sense) {
       await placePoolExamples(user.id, [{ ...created, targetLang }]);
     }

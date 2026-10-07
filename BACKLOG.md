@@ -49,6 +49,12 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
 
+0. [ ] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).
+   An HSK 4 learner's examples all read "слова вокруг: HSK 1–2"; My words shows 教育 as HSK 2 while Today shows
+   HSK 4; 19 added words take minutes to enrich, mostly for output that is thrown away. The author's decisions,
+   the verified causes and four parts (one session each, in order) are in `PLAN-examples.md`. Work from there.
+   **Part 1 done 2026-10-07** (examples follow the chosen level); next: Part 2, one HSK scale in the UI.
+
 1. [x] **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an
    untested backup is not a backup. First because it is the only irreversible risk on the board:
