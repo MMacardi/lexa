@@ -349,7 +349,7 @@ export async function listWordsForUser(telegramId: string) {
       collections: { select: { id: true, name: true } },
     },
   });
-  return words.map(withDerived);
+  return words.map((w) => ({ ...withDerived(w), cardSenses: cardSenses(w) }));
 }
 
 /** A single word by id, with its examples. */
@@ -899,6 +899,51 @@ function sensesAtHand(word: {
   if (page) return { senses: flagByMeaning(pageSenses(page, word.phonetic), meaning), grounded: true };
   if (cached) return { senses: flagByMeaning(cached, meaning), grounded: stored?.grounded === true };
   return null;
+}
+
+// A gloss's terms without its usage hints: "когда; при (ком-л.)" -> ["когда", "при"].
+const glossTerms = (s: string) =>
+  s
+    .replace(/\s*[(（][^)）]*[)）]/g, " ")
+    .split(/[;；,，、/]/)
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+
+export type CardSenseLine = { meaning: string; reading?: string; phrase?: { text: string; translation: string } };
+
+/**
+ * The card's meaning sense by sense, each part with its sense's first phrase — for
+ * the back of a review card whose meaning joins two senses or more (当 «быть (кем-л.),
+ * работать кем-л.; когда»): the example shows one of them, the phrases show each
+ * (当老师 · 当他来的时候). The card's own wording stays; when a part of it is no
+ * sense's (a meaning written by hand), the card is left as it was. No model call.
+ */
+function cardSenses(word: Parameters<typeof sensesAtHand>[0]): CardSenseLine[] | undefined {
+  const parts = (word.meaningZh ?? "")
+    .split(/[;；]/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return undefined;
+  const senses = sensesAtHand(word)?.senses ?? [];
+  const used = new Set<WordSense>();
+  const lines: CardSenseLine[] = [];
+  for (const part of parts) {
+    const head = headGloss(part);
+    // The sense the part opens with; a part the composer shortened ("指明" for
+    // "指明，指出") still opens with one of its sense's terms.
+    const s =
+      senses.find((x) => !used.has(x) && headGloss(x.meaning) === head) ??
+      senses.find((x) => !used.has(x) && glossTerms(x.meaning).includes(head));
+    if (!s) return undefined;
+    used.add(s);
+    const p = s.phrases[0];
+    lines.push({
+      meaning: part,
+      ...(s.reading ? { reading: s.reading } : {}),
+      ...(p ? { phrase: { text: p.text, translation: p.translation } } : {}),
+    });
+  }
+  return lines.some((l) => l.phrase) ? lines : undefined;
 }
 
 /**

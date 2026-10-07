@@ -93,6 +93,9 @@ export function Sidebar() {
   // Every way of closing a sheet — scrim, ×, a link inside it, the tab bar —
   // goes through here; presence keeps it mounted long enough to slide away.
   const closeSheet = () => setSheet(null);
+  // A link inside a sheet that doesn't call it (quick add's "Open card") still
+  // leaves the page, and the sheet goes with it.
+  useEffect(() => setSheet(null), [pathname]);
   const moreSheet = usePresence(sheet === "more", 200);
   const addSheet = usePresence(sheet === "add", 200);
   const { data } = useQuery({
@@ -419,7 +422,10 @@ function MobileSheet({
         className={cn(
           "relative flex flex-col rounded-t-[24px] border-t border-black/[0.08] bg-surface shadow-[0_-12px_40px_rgba(46,42,38,0.25)]",
           entered ? "anim-sheet" : "invisible",
-          composer ? "max-h-full" : "max-h-[calc(100%-12px)]",
+          // Quick add is its full height from the start: sized to its content, it
+          // grew upward as the dictionary rows came in, carrying the field and the
+          // draw pad up under the finger on every letter.
+          composer ? "h-full" : "max-h-[calc(100%-12px)]",
         )}
         onClick={(e) => e.stopPropagation()}
       >

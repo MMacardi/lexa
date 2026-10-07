@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type LookupHit } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -8,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
-import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush, Check } from "lucide-react";
+import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush, Check, ArrowRight } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
 import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
@@ -18,6 +19,7 @@ import {
   getExampleSource,
   getHanLang,
   getLearnerLevel,
+  levelName,
   levelOptions,
   pushRecentPair,
   setHanLang,
@@ -177,6 +179,9 @@ export function AddWordForm({
   const [reverse, setReverse] = useState<{ native: string; nativeLang: string } | null>(null);
   const [reverseTo, setReverseTo] = useState("");
   const [reversing, setReversing] = useState(false);
+  // The card just made, so the form can open it: closing the sheet and finding the
+  // word in My words was the only way to see what the add produced.
+  const [lastAdded, setLastAdded] = useState<{ id: string; word: string } | null>(null);
   // Example/synonym tuning and notes are collapsed by default to keep the form light.
   const [showAdvanced, setShowAdvanced] = useState(false);
   // "Ввожу на" — which side of the pair the learner types. false = source
@@ -398,6 +403,7 @@ export function AddWordForm({
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       setSuggestions(null);
+      setLastAdded({ id: created.id, word: created.word });
       reset(); // keep collIds so several words can go into the same set(s)
     },
   });
@@ -539,6 +545,26 @@ export function AddWordForm({
   // Only the word (auto) — or word + meaning (manual) — are required.
   const canSubmit = word.trim().length > 0 && (mode === "auto" || meaning.trim().length > 0);
   const busy = mutation.isPending || checking || reversing;
+  const working = mode === "auto" ? t("add.searching") : t("add.saving");
+  const translateLabel = `${zhMode ? t("add.translateShort") : t("add.reverseGo")} →`;
+  const submitLabel = reversing
+    ? t("add.reversing")
+    : checking
+    ? t("add.checking")
+    : willTranslate
+      ? translateLabel
+      : mutation.isPending
+      ? working
+      : t("add.submit");
+  const submitLabels = [
+    ...new Set([
+      t("add.submit"),
+      ...(zhMode || willTranslate ? [translateLabel] : []),
+      t("add.checking"),
+      t("add.reversing"),
+      working,
+    ]),
+  ];
 
   // Core reverse: translate `text` from `fromLang` into `learnLang` and add the
   // resulting studied-language card. `flip` re-points the pair so `learnLang` is
@@ -795,46 +821,44 @@ export function AddWordForm({
           disabled={busy}
         />
         <Button type="submit" disabled={busy || !canSubmit} className="shrink-0">
-          {reversing
-            ? t("add.reversing")
-            : checking
-            ? t("add.checking")
-            : willTranslate
-              ? `${zhMode ? t("add.translateShort") : t("add.reverseGo")} →`
-              : mutation.isPending
-              ? mode === "auto"
-                ? t("add.searching")
-                : t("add.saving")
-              : t("add.submit")}
+          {/* Every label the button can take, stacked in one cell: it is as wide as
+              the longest, so "Add" turning into "Translate" mid-word doesn't nudge
+              the field. */}
+          <span className="grid">
+            {submitLabels.map((l) => (
+              <span key={l} className={cn("col-start-1 row-start-1 text-center", l !== submitLabel && "invisible")}>
+                {l}
+              </span>
+            ))}
+          </span>
         </Button>
       </div>
 
       {/* Drawing is a way in as common as typing for a character off a sign or a
           page, so it is a labelled button of its own under the field — as an icon
-          squeezed between the field and "Add" nobody found it. */}
-      {(canDraw || (zhMode && !typedNow) || !word.trim()) && (
-        <div className="-mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {/* a word copied somewhere else: its first line, one tap */}
-          {!word.trim() && <PasteButton onPaste={(s) => typeWord(s.split(/\r?\n/)[0].trim())} disabled={busy} />}
-          {canDraw && (
-            <button
-              type="button"
-              onClick={toggleDraw}
-              aria-pressed={drawOpen}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
-                drawOpen
-                  ? "border-sage bg-sage-tint text-sage-deep"
-                  : "border-sage/40 bg-surface text-sage-deep hover:border-sage hover:bg-sage-tint/60",
-              )}
-            >
-              <Brush className="h-3.5 w-3.5" />
-              {drawOpen ? t("draw.hide") : t("draw.toggle")}
-            </button>
-          )}
-          {zhMode && !typedNow && <span className="min-w-0 text-[12px] leading-snug text-ink-faint">{t("add.zhHint")}</span>}
-        </div>
-      )}
+          squeezed between the field and "Add" nobody found it. The row is the same
+          whatever is typed: buttons that came and went with the first letter made
+          the pad under them jump on every character picked or deleted. */}
+      <div className="-mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* a word copied somewhere else: its first line, one tap */}
+        <PasteButton onPaste={(s) => typeWord(s.split(/\r?\n/)[0].trim())} disabled={busy} />
+        {canDraw && (
+          <button
+            type="button"
+            onClick={toggleDraw}
+            aria-pressed={drawOpen}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors",
+              drawOpen
+                ? "border-sage bg-sage-tint text-sage-deep"
+                : "border-sage/40 bg-surface text-sage-deep hover:border-sage hover:bg-sage-tint/60",
+            )}
+          >
+            <Brush className="h-3.5 w-3.5" />
+            {drawOpen ? t("draw.hide") : t("draw.toggle")}
+          </button>
+        )}
+      </div>
 
       {canDraw && drawOpen && (
         <HandwritingPad
@@ -845,11 +869,32 @@ export function AddWordForm({
         />
       )}
 
+      {/* One slot under the field, whose content takes turns: what to type, the
+          dictionary's rows, the card just made. Above it nothing comes or goes, so
+          the field and the pad stay where the finger left them. */}
+      {!typedNow && lastAdded ? (
+        <div className="anim-fade-in flex items-center gap-2.5 rounded-[14px] border border-sage/30 bg-sage-tint/40 py-2 pr-2 pl-3">
+          <Check className="h-4 w-4 shrink-0 text-sage-deep" />
+          <span className="min-w-0 flex-1 truncate text-[13px] text-ink-soft">
+            <span className="font-zh text-[16px] text-ink">{lastAdded.word}</span> {t("add.added")}
+          </span>
+          <Link
+            href={`/word/${lastAdded.id}`}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sage px-3 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-sage-deep"
+          >
+            {t("add.openCard")}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      ) : (
+        zhMode &&
+        lookupHits.length === 0 &&
+        !lookupMissed && <p className="-mt-1 px-1 text-[12px] leading-snug text-ink-faint">{t("add.zhHint")}</p>
+      )}
+
       {zhMode && lookupHits.length > 0 && (
-        <div className="anim-fade-up space-y-1.5">
-          {looked?.kind === "meaning" && (
-            <p className="px-1 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("lookup.pick")}</p>
-          )}
+        <div className="anim-fade-in space-y-1.5">
+          <p className="px-1 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("lookup.pick")}</p>
           <ul className="divide-y divide-black/[0.05] overflow-hidden rounded-[14px] border border-black/[0.06] bg-surface">
             {lookupHits.map((h) => {
               const owned = ownedZh.has(h.word);
@@ -1165,7 +1210,9 @@ export function AddWordForm({
               stays visible even with Advanced collapsed. */}
           <p className="text-[12px] leading-snug text-ink-faint">
             {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
-            {exMode !== "none" && sourceLang !== "auto" && currentLevel ? ` · ${t("level.forLevel", { level: currentLevel })}` : ""}
+            {exMode !== "none" && sourceLang !== "auto" && currentLevel
+              ? ` · ${t("level.forLevel", { level: levelName(sourceLang, currentLevel) })}`
+              : ""}
           </p>
 
           <div>

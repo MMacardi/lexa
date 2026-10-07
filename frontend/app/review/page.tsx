@@ -142,6 +142,7 @@ export default function FlashcardsPage() {
   // The session's pace, for the time-left estimate.
   const startedAt = useRef(0);
   const graded = useRef(0);
+  const flying = useRef(false); // a graded card is still on its way off screen
   const [undoing, setUndoing] = useState(false);
   const { show } = useToast();
 
@@ -266,11 +267,16 @@ export default function FlashcardsPage() {
   // arc — so a downward-curving "I know it" used to start pull-to-refresh mid-drag.
   useEffect(() => {
     if (!started) return;
+    // And a card flying off past the screen's edge made the page wider for a moment,
+    // which a phone answers by shifting the whole page sideways.
     const html = document.documentElement;
     const prev = html.style.overscrollBehaviorY;
+    const prevX = html.style.overflowX;
     html.style.overscrollBehaviorY = "contain";
+    html.style.overflowX = "hidden";
     return () => {
       html.style.overscrollBehaviorY = prev;
+      html.style.overflowX = prevX;
     };
   }, [started]);
 
@@ -364,7 +370,7 @@ export default function FlashcardsPage() {
   // undone, and the card back on screen answer-side up, ready to be graded again.
   async function undo() {
     const last = lastGrade;
-    if (!last || undoing) return;
+    if (!last || undoing || flying.current) return;
     setUndoing(true);
     try {
       await last.sent;
@@ -457,8 +463,10 @@ export default function FlashcardsPage() {
       /* not allowed here — the card flying off says it too */
     }
     graded.current += 1;
-    // Only the newest grade can be taken back, and not while its card is still flying off.
-    setLastGrade(null);
+    // Only the newest grade can be taken back, and not while its card is still flying
+    // off. Held by a flag, not by clearing lastGrade: Undo leaving the row and coming
+    // back moved the card on every grade.
+    flying.current = true;
     // The card as the list has it now, before this grade — what Undo restores.
     const before = qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === word.id) ?? word;
     const sent = recordGrade(word, grade);
@@ -467,6 +475,7 @@ export default function FlashcardsPage() {
     if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session
     const at = index;
     setTimeout(() => {
+      flying.current = false;
       restCard();
       setFlipped(false);
       setIndex((i) => i + 1);
@@ -474,10 +483,12 @@ export default function FlashcardsPage() {
     }, 260);
   }
 
-  const undoButton = lastGrade && (
+  // Always in the session's row, greyed out until there's a grade to take back: a
+  // button that appeared with the first grade pushed the card down a line.
+  const undoButton = (
     <button
       onClick={() => void undo()}
-      disabled={undoing}
+      disabled={!lastGrade || undoing}
       title={t("review.undoHint")}
       className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
     >
@@ -763,7 +774,7 @@ export default function FlashcardsPage() {
           >
             {t("review.backToSetup")}
           </button>
-          {undoButton}
+          {lastGrade && undoButton}
         </div>
       </div>
     );
@@ -795,7 +806,8 @@ export default function FlashcardsPage() {
       </div>
     ) : null;
 
-  const fieldNode = (field: CardField, primary: boolean, withTr = false): React.ReactNode => {
+  // `back`: the answer side, where a phrase may show the word itself.
+  const fieldNode = (field: CardField, primary: boolean, withTr = false, back = false): React.ReactNode => {
     switch (field) {
       case "word":
         return (
@@ -825,7 +837,33 @@ export default function FlashcardsPage() {
       case "meaning":
         return word.meaningZh ? (
           <div>
-            {primary ? (
+            {back && word.cardSenses?.length ? (
+              // Two senses or more: one line each with its own phrase, since the
+              // example under it can only show one of them.
+              <ol className="mx-auto w-fit max-w-full space-y-2.5 text-left">
+                {word.cardSenses.map((s, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="mt-[5px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sage-tint text-[11px] font-bold text-sage-deep">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className={cn("break-words text-[20px] font-bold leading-snug text-sage-deep", targetFont(word.targetLang))}>
+                        {s.reading && <span className="mr-1.5 text-[13px] font-semibold">{s.reading}</span>}
+                        {s.meaning}
+                      </div>
+                      {s.phrase && (
+                        <div className="mt-0.5 break-words text-[15px] leading-snug text-ink-soft">
+                          <span className="text-[17px] text-ink">
+                            <ExampleText text={s.phrase.text} word={word.word} lang={word.sourceLang} hideWordReading />
+                          </span>{" "}
+                          <span className={targetFont(word.targetLang)}>{s.phrase.translation}</span>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : primary ? (
               <FitText
                 text={word.meaningZh}
                 max={36}
@@ -1142,7 +1180,7 @@ export default function FlashcardsPage() {
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
                         {t(`field.${f}`)}
                       </p>
-                      {fieldNode(f, false, backTr)}
+                      {fieldNode(f, false, backTr, true)}
                     </div>
                   ))}
                 </div>

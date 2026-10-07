@@ -563,9 +563,10 @@ html.dark .graph-center { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6); }
   .graph-pill { transition: none; }
 }
 
-/* The next flashcard comes up off the deck as the graded one flies away. */
+/* The next flashcard comes up off the deck as the graded one flies away — in its
+   own place: rising from 14px below, it read as each card landing lower. */
 @keyframes lexaCardIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: none; }
 }
 .anim-card-in { animation: lexaCardIn 0.34s var(--ease-out) both; }

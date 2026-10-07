@@ -2076,6 +2076,9 @@ const DICT: Record<string, Entry> = {
   // Beside the lookup rows, where the field needs the width: the AI fallback.
   "add.translateShort": { en: "Translate", ru: "Перевести", zh: "翻译" },
   "add.reversing": { en: "Translating…", ru: "Перевожу…", zh: "翻译中…" },
+  // Under the field once a card is made: the way to it without leaving the form.
+  "add.added": { en: "added", ru: "добавлено", zh: "已添加" },
+  "add.openCard": { en: "Open card", ru: "Открыть карточку", zh: "打开卡片" },
   "add.reverseAsIs": { en: "Add as is", ru: "Добавить как есть", zh: "按原样添加" },
   // Live line under the add field when the typed word is in the known language.
   "add.flipOn": {
@@ -2378,7 +2381,7 @@ const DICT: Record<string, Entry> = {
   },
   "word.meaningsTested": { en: "On the card", ru: "На карточке", zh: "在卡片上" },
   "word.meaningsAdd": { en: "Add to card", ru: "На карточку", zh: "加到卡片" },
-  "word.meaningsSave": { en: "Test these on the card", ru: "Проверять на карточке", zh: "卡片考这些" },
+  "word.meaningsSave": { en: "Save", ru: "Сохранить", zh: "保存" },
   "word.meaningsPreview": { en: "The card will say:", ru: "На карточке будет:", zh: "卡片上将写：" },
   "word.meaningsFuller": { en: "Update the card", ru: "Обновить карточку", zh: "更新卡片" },
   "word.meaningsSaved": { en: "Card meaning updated", ru: "Значение карточки обновлено", zh: "卡片释义已更新" },

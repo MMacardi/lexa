@@ -135,7 +135,7 @@ export function HandwritingPad({
   return (
     // select-none + no touch callout: a long press while writing is a stroke, not
     // iOS's Copy / Translate / Share bubble over the pad.
-    <div className="anim-fade-up space-y-2 rounded-[14px] border border-black/[0.08] bg-surface p-2.5 select-none [-webkit-touch-callout:none]">
+    <div className="anim-fade-in space-y-2 rounded-[14px] border border-black/[0.08] bg-surface p-2.5 select-none [-webkit-touch-callout:none]">
       {/* Candidates sit above the pad, where a drawing hand doesn't cover them. */}
       <div className="flex h-11 items-center gap-1 overflow-x-auto" aria-live="polite">
         {candidates.length ? (

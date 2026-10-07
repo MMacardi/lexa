@@ -68,6 +68,10 @@ export interface Word {
   // The word page's Meanings list when it needed no model call (an HSK word's
   // page, a cached list) — only on a single word's fetch, so it's there on first paint.
   sensesNow?: { senses: WordSense[]; credit?: DictCredit } | null;
+  // A meaning that joins two senses or more, part by part with each sense's first
+  // phrase (当: «быть…» 当老师 / «когда» 当他来的时候) — only in the word list, for
+  // the back of the review card. Absent for a one-sense meaning.
+  cardSenses?: { meaning: string; reading?: string; phrase?: { text: string; translation: string } }[];
 }
 
 // A tapped Chinese word as the dictionary has it: the reading, CC-CEDICT's English,

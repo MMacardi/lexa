@@ -172,10 +172,14 @@ export function WordSenses({ word }: { word: Word }) {
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 leading-snug">
+                  {/* A long word (достопримечательность) breaks inside its own column
+                      instead of running under the button beside it. */}
+                  <p className="min-w-0 break-words leading-snug">
                     {showTr && s.reading && <span className="mr-2 text-[13px] font-semibold text-sage-deep">{s.reading}</span>}
                     {s.pos && <span className="mr-2 text-[13px] italic text-ink-faint">{s.pos}</span>}
-                    <span className={cn("text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>{s.meaning}</span>
+                    <span lang={word.targetLang} className={cn("hyphens-auto text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>
+                      {s.meaning}
+                    </span>
                   </p>
                   {multi && (
                     <button
