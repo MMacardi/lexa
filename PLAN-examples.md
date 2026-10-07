@@ -156,7 +156,19 @@ the page (`capture.ts:395-403`). 19 cards took a few minutes.
 4. **Check**: a `scripts/check-*.ts` that adds 5 HSK words and asserts POS/synonyms are set before the job runs and
    that the job makes one model call per card + the judge (count by `label`). Then Today → Add locally and time it.
 
-## Part 4 — pool gaps (costs ¥, ask first; optional once Part 1 writes the personal sentence at L)
+## Part 4 — pool gaps (costs ¥, ask first; optional once Part 1 writes the personal sentence at L) — [~] half done 2026-10-07
+
+**As built so far.** Why words lack c3: 1,290 of the 1,291 lost theirs in the naturalness pass (dropped, no
+replacement). The gap that matters: 1,919 of the 3,317 words at HSK ≤ 4 have no pool sentence reading HSK 3–4 on
+both lists (4,592 of 7,419 lack one at 5–6). The author chose the 3–4 band, written by Claude Sonnet agents: on the
+same 50 words through `scripts/build-band-sentences.ts`'s check (every other word HSK ≤ 4 on both lists, the sentence
+HSK ≥ 3 on each, one write + two fixes) Sonnet passed 50/50, Qwen 16/50 (its fixes went simpler: 夏天我们吃西瓜). The
+band sentences live in `data/hsk-band-sentences.jsonl` (`c: 4`), added to the pool at load; the pick reads their
+level like any other. Done: the pilot's 50 and batches 01–19 = **1,000 words** (9 stragglers rewritten by hand, all
+pass), ~1.32M Sonnet tokens (~65k a batch). `check-sentences` and `check-enrich-fast` guard it: an HSK 4 learner's
+却 通过 教育 各 记者 朋友 are all served at HSK 3–4 by the pool now, no model call; on the local server, opening 通过 moved
+it from 我通过考试了 (HSK 1–2) to 我们通过电子邮件联系，所以很方便 (HSK 1–4). **Left:** batches 20–38 (919 words), steps
+in `.review/band-sentences/HANDOFF.md`; the 5–6 band is not planned.
 
 The real gap is not "no natural sentence" but "no sentence at HSK 3–4": the natural (c3) ones are mostly news-style
 and hard (教育: 家庭教育对儿童性格形成具有深远影响; 方面: 这项政策在经济和社会两个方面都产生了深远影响), the c1 ones

@@ -169,17 +169,18 @@ async function main() {
   check(count("enrich(+example)") === 1, `one full entry, for ${OFF} (${count("enrich(+example)")})`);
   check(own(OFF) === 1, `${OFF} got its own example`);
   check(
-    count("enrich(example only)") === written.length && written.length > 0,
-    `example-only calls ${count("enrich(example only)")} = HSK cards given their own sentence (${written.join(" ")})`,
+    count("enrich(example only)") === written.length,
+    `example-only calls ${count("enrich(example only)")} = HSK cards given their own sentence (${written.join(" ") || "none"})`,
   );
   check(count("example.judge") === written.length + 1, `one editor's read per sentence written (${count("example.judge")})`);
-  // 通过 tops out at HSK 2 in the pool on the 2.0 list: its own sentence is written at HSK 4.
-  check(written.includes("通过"), "通过 gets its own sentence (the pool's best is HSK 2)");
-  check(written.length < HSK.length, `the pool's sentence serves the rest with no call (${HSK.filter((w) => !written.includes(w)).join(" ")})`);
-  const prompt = examplePrompts.find((p) => p.includes('"通过"')) ?? "";
+  // The pool has a sentence at HSK 3–4 for each now — 通过's three topped out at HSK 2
+  // on the 2.0 list until the band sentences (PLAN-examples Part 4) — so none needs a call.
+  const labels = (
+    await prisma.word.findMany({ where: { user: { telegramId: TG }, word: { in: HSK } }, include: { examples: true } })
+  ).map((c) => `${c.word} ${c.examples.map((e) => e.level).join("/")}`);
   check(
-    prompt.includes("for an HSK 4 learner (the HSK 2.0 word list)") && prompt.includes("on the learner's card") && !/CEFR/.test(prompt),
-    "the example-only call aims at HSK 4 on the 2.0 list, in the card's sense, with no CEFR line",
+    written.length === 0 && labels.every((l) => /HSK 1–[34]$/.test(l)),
+    `the pool serves all six at HSK 3–4, no call: ${labels.join(", ")}`,
   );
 
   // B. Interests set: every card gets its own sentence, one call and the read each,
@@ -192,6 +193,11 @@ async function main() {
     `${calls.length} calls for ${HSK.length} cards: one example-only call and one read each`,
   );
   check(maxInFlight >= 2, `cards run together: up to ${maxInFlight} calls in flight`);
+  const prompt = examplePrompts.find((p) => p.includes('"通过"')) ?? "";
+  check(
+    prompt.includes("for an HSK 4 learner (the HSK 2.0 word list)") && prompt.includes("on the learner's card") && !/CEFR/.test(prompt),
+    "the example-only call aims at HSK 4 on the 2.0 list, in the card's sense, with no CEFR line",
+  );
 }
 
 try {

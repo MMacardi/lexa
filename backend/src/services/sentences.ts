@@ -131,7 +131,9 @@ export function writtenLabel(brief: ExampleBrief | null | undefined, fallback: s
 
 // `t` is the sentence's words as checked, space-separated: the segmentation is
 // stored, not redone per request, so the words scored are the words checked.
-export type PoolSentence = { c: Ceiling; zh: string; ru: string; t: string };
+// `c` 4 is the band sentence (data/hsk-band-sentences.jsonl, scripts/build-band-sentences.ts):
+// HSK 3–4 on both lists, for a word whose three had nothing there.
+export type PoolSentence = { c: Ceiling | 4; zh: string; ru: string; t: string };
 
 let pool: Map<string, PoolSentence[]> | null = null;
 // From the naturalness pass (scripts/build-hsk-sentences.ts --judge): words formal
@@ -160,6 +162,19 @@ function poolIndex(): Map<string, PoolSentence[]> {
     if (row.s?.length) pool.set(row.w, row.s);
     if (row.f) formal.add(row.w);
     if (row.o?.length) retired.set(row.w, new Set(row.o));
+  }
+  // The band sentences ride beside the three, in a file of their own: the pool's
+  // build assembles hsk-sentences.jsonl from its partials and would drop them.
+  try {
+    const band = readFileSync(fileURLToPath(new URL("../../data/hsk-band-sentences.jsonl", import.meta.url)), "utf8");
+    for (const raw of band.split("\n")) {
+      const line = raw.trim();
+      if (!line) continue;
+      const row = JSON.parse(line) as { w: string; s: PoolSentence[] };
+      pool.set(row.w, [...(pool.get(row.w) ?? []), ...row.s]);
+    }
+  } catch {
+    /* none yet */
   }
   return pool;
 }

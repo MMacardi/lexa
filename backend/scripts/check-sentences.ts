@@ -97,7 +97,7 @@ async function main() {
   check(level4.length > 800, `${level4.length} HSK 4 words have two or more pool sentences`);
   let differ = 0;
   let wrong = 0;
-  const byCeiling = { 2: [0, 0, 0, 0], 5: [0, 0, 0, 0] };
+  const byCeiling = { 2: [0, 0, 0, 0, 0], 5: [0, 0, 0, 0, 0] };
   let shown = 0;
   for (const w of level4) {
     const p2 = S.pickPoolSentence(w, at(2, "3.0"))!;
@@ -113,8 +113,18 @@ async function main() {
   check(wrong === 0, `every pick is the hardest sentence not above the level, else the easiest (${wrong} off)`);
   const pct = (n: number) => `${Math.round((n / level4.length) * 100)}%`;
   check(differ / level4.length > 0.4, `different sentences at HSK 2 and HSK 5 for ${differ} of ${level4.length} HSK 4 words (${pct(differ)})`);
-  console.log(`     ceilings picked, HSK 2: c1 ${byCeiling[2][1]} c2 ${byCeiling[2][2]} c3 ${byCeiling[2][3]}; HSK 5: c1 ${byCeiling[5][1]} c2 ${byCeiling[5][2]} c3 ${byCeiling[5][3]}`);
-  check(byCeiling[5][3] + byCeiling[5][2] > 3 * byCeiling[5][1], "HSK 5 mostly gets the richer ones");
+  console.log(
+    `     ceilings picked, HSK 2: c1 ${byCeiling[2][1]} c2 ${byCeiling[2][2]} c3 ${byCeiling[2][3]} band ${byCeiling[2][4]}; ` +
+      `HSK 5: c1 ${byCeiling[5][1]} c2 ${byCeiling[5][2]} c3 ${byCeiling[5][3]} band ${byCeiling[5][4]}`,
+  );
+  check(byCeiling[5][3] + byCeiling[5][2] + byCeiling[5][4] > 3 * byCeiling[5][1], "HSK 5 mostly gets the richer ones");
+  // The band sentences (PLAN-examples Part 4): 通过's three read HSK 2 at best on 2.0;
+  // its band sentence reads HSK 3–4 on both lists, so an HSK 4 learner on 2.0 gets it
+  // (on 3.0 a natural one already read HSK 4, and stays the pick).
+  const t20 = S.pickPoolSentence("通过", at(4, "2.0"))!;
+  check(t20.s.c === 4 && t20.level >= 3, `通过, HSK 4 on 2.0: the band sentence — ${t20.s.zh} (HSK ${t20.level})`);
+  const t30 = S.pickPoolSentence("通过", at(4, "3.0"))!;
+  check(t30.level >= 3 && t30.level <= 4, `通过, HSK 4 on 3.0: a sentence at HSK 3–4 — ${t30.s.zh} (HSK ${t30.level})`);
 
   // --- 3. The add path, the model unreachable ---
   const drip = ["却", "通过", "教育", "各", "记者", "朋友"];
