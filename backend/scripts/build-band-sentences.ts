@@ -15,6 +15,8 @@
 //   npx tsx scripts/build-band-sentences.ts --qwen                        qwen.jsonl
 //   npx tsx scripts/build-band-sentences.ts --check <file.jsonl>          the check, per sentence
 //   npx tsx scripts/build-band-sentences.ts --level 采访,蔬菜              a word's levels on both lists
+//   npx tsx scripts/build-band-sentences.ts --merge                       → data/hsk-band-sentences.jsonl
+//   npx tsx scripts/build-band-sentences.ts --judge                       Qwen's naturalness read of the merged file
 // Files live in ../.review/band-pilot/ (git-ignored).
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -300,6 +302,61 @@ if (argOf("--level")) {
   writeFileSync(fileURLToPath(new URL("../data/hsk-band-sentences.jsonl", import.meta.url)), lines.join("\n") + "\n");
   const left = all.filter((w) => lacksBand(w) && !kept.has(w.word)).length;
   console.log(`${lines.length} band sentences → data/hsk-band-sentences.jsonl (${failing} lines still failing; ${left} words still lack the band)`);
+} else if (process.argv.includes("--judge")) {
+  // A native editor's read of the merged band sentences (Qwen, as the pool's naturalness pass
+  // in build-hsk-sentences.ts): the check above sees levels, not whether a native would say it
+  // (定好了航班 for 订, "I plan to graduate"). Resumable: verdicts land in judge.jsonl as they
+  // come; flagged ones go to a Claude read, nothing is changed here.
+  const { chatJson } = await import("../src/services/llm.js");
+  const out = fileURLToPath(new URL("../../.review/band-sentences/judge.jsonl", import.meta.url));
+  const done = new Set(existsSync(out) ? readFileSync(out, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l).w as string) : []);
+  const rows = readFileSync(fileURLToPath(new URL("../data/hsk-band-sentences.jsonl", import.meta.url)), "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l) as { w: string; s: { zh: string; ru: string }[] })
+    .filter((r) => !done.has(r.w));
+  const SYSTEM =
+    "You are a native Mandarin editor checking the example sentences of a Chinese–Russian learner's dictionary, " +
+    "judging as the editor of a modern textbook. Each sentence is written for an HSK 3–4 learner, so plain, simple " +
+    "vocabulary is expected and is never a fault. For each word you get its reading, its Russian meaning, one " +
+    "example sentence and its Russian translation. BAD: a sentence no native would say even if grammatical, stilted " +
+    "or bent to use easy words, odd in logic or situation, two halves that don't belong together, the word in a wrong " +
+    "sense or reading or a wrong collocation (在网上定好了航班 where one says 订), or a Russian translation that is " +
+    "wrong or unnatural. Be strict but fair: flag only what a careful editor would change. " +
+    'Respond as JSON: {"bad":[{"word": string, "why": string}]} listing only the bad ones ("why" in a few English ' +
+    'words); {"bad":[]} when all are fine.';
+  const schema = z.object({ bad: z.array(z.object({ word: z.string(), why: z.string().catch("") })).catch([]) });
+  const batches: (typeof rows)[] = [];
+  for (let i = 0; i < rows.length; i += 20) batches.push(rows.slice(i, i + 20));
+  let at = 0;
+  let flagged = 0;
+  let failed = 0;
+  await Promise.all(
+    Array.from({ length: 6 }, async () => {
+      while (at < batches.length) {
+        const batch = batches[at++];
+        try {
+          const r = await chatJson({
+            system: SYSTEM,
+            user: JSON.stringify(
+              batch.map((b) => ({ word: b.w, reading: byWord.get(b.w)?.pinyin, meaning: byWord.get(b.w)?.meaning, zh: b.s[0].zh, ru: b.s[0].ru })),
+            ),
+            schema,
+            label: "build.bandSentences.judge",
+            model: "qwen3.5-plus",
+            timeoutMs: 180_000,
+          });
+          const why = new Map(r.bad.map((b) => [b.word.trim(), b.why]));
+          flagged += batch.filter((b) => why.has(b.w)).length;
+          writeFileSync(out, batch.map((b) => JSON.stringify({ w: b.w, zh: b.s[0].zh, bad: why.has(b.w), why: why.get(b.w) ?? "" })).join("\n") + "\n", { flag: "a" });
+        } catch (e) {
+          failed += batch.length;
+          console.error(`judge failed for ${batch[0].w}…: ${(e as Error).message}`);
+        }
+      }
+    }),
+  );
+  console.log(`${rows.length - failed} read, ${flagged} flagged, ${failed} to retry (run again) → ${out}`);
 } else if (process.argv.includes("--qwen")) {
   await qwen(JSON.parse(readFileSync(`${DIR}words.json`, "utf8")));
 } else if (argOf("--check")) {
@@ -313,5 +370,5 @@ if (argOf("--level")) {
   }
   console.log(`${pass}/${rows.length} pass`);
 } else {
-  console.log("usage: --pick N | --qwen | --check <file.jsonl> | --level 词,词");
+  console.log("usage: --pick N | --qwen | --check <file.jsonl> | --level 词,词 | --merge | --judge");
 }

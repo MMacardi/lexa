@@ -56,7 +56,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    **Parts 1–3 done 2026-10-07** (examples follow the chosen level; one HSK scale in the UI; page details at
    once, an example-only call or none, 3 cards at a time). **Part 4 done 2026-10-07**: all 1,919 words at HSK ≤ 4
    that had no pool sentence at HSK 3–4 on both lists now have a checked band sentence (Sonnet agents, stragglers by
-   hand), served to an HSK 4 learner on either list. Optional: Qwen naturalness read of the 1,919 (~¥0.3, ask).
+   hand), served to an HSK 4 learner on either list; a Qwen naturalness read of all 1,919 (¥0.12) flagged 99, and
+   the 48 that held up were rewritten and read again clean.
 
 1. [x] **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an

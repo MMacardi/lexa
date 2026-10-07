@@ -170,8 +170,11 @@ pass), ~1.32M Sonnet tokens (~65k a batch). `check-sentences` and `check-enrich-
 it from 我通过考试了 (HSK 1–2) to 我们通过电子邮件联系，所以很方便 (HSK 1–4). Batches 20–38 (919 words) in a second
 session: 887/919 by the agents, the 32 stragglers and 2 wrong-sense lines found in a 70-line read (定 for 订 "book",
 "I plan to graduate") rewritten by hand. **All 1,919 done**; `check-sentences` now asserts each is served at HSK 3–4 to
-an HSK 4 learner on both lists. The 5–6 band is not planned. Optional, not done: a Qwen naturalness read of all
-1,919 (~¥0.3), flags to a Claude read — the 70-line sample found 2 to fix, so expect ~25.
+an HSK 4 learner on both lists. The 5–6 band is not planned. Then a native editor's read of all 1,919
+(`build-band-sentences.ts --judge`, qwen3.5-plus, 20 a call, ¥0.12): 99 flagged, about half wrong (一根香蕉, 戴帽子,
+他半天没应 are fine); the rest rewritten by hand and checked — 37 sentences (法/国/妹/力 bare where Chinese wants
+法律/国家/妹妹/力气, 处于 for a place, a fire reported to the police, 药物…使用, 一边…同时, 读书 for magazines) and 11
+Russian translations (едя, пару новой обуви) — and the 48 read again: 0 flagged.
 
 The real gap is not "no natural sentence" but "no sentence at HSK 3–4": the natural (c3) ones are mostly news-style
 and hard (教育: 家庭教育对儿童性格形成具有深远影响; 方面: 这项政策在经济和社会两个方面都产生了深远影响), the c1 ones
