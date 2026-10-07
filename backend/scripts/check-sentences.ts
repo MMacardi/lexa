@@ -125,6 +125,13 @@ async function main() {
   check(t20.s.c === 4 && t20.level >= 3, `通过, HSK 4 on 2.0: the band sentence — ${t20.s.zh} (HSK ${t20.level})`);
   const t30 = S.pickPoolSentence("通过", at(4, "3.0"))!;
   check(t30.level >= 3 && t30.level <= 4, `通过, HSK 4 on 3.0: a sentence at HSK 3–4 — ${t30.s.zh} (HSK ${t30.level})`);
+  // All 1,919 words that lacked one: an HSK 4 learner gets an HSK 3–4 sentence on either list.
+  const banded = [
+    ...new Set((["2.0", "3.0"] as const).flatMap((v) => [1, 2, 3, 4].flatMap((n) => hskLevelWords(v, n).map((w) => w.word)))),
+  ].filter((w) => S.poolSentences(w).some((s) => s.c === 4));
+  const below = banded.filter((w) => (["2.0", "3.0"] as const).some((v) => S.pickPoolSentence(w, at(4, v))!.level < 3));
+  check(banded.length >= 1919, `${banded.length} words at HSK 4 and under carry a band sentence`);
+  check(!below.length, `each is served at HSK 3–4 to an HSK 4 learner on both lists (${below.length} not: ${below.slice(0, 8).join(" ")})`);
 
   // --- 3. The add path, the model unreachable ---
   const drip = ["却", "通过", "教育", "各", "记者", "朋友"];

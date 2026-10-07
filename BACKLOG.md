@@ -49,13 +49,14 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ---
 
-0. [ ] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).
+0. [x] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).
    An HSK 4 learner's examples all read "слова вокруг: HSK 1–2"; My words shows 教育 as HSK 2 while Today shows
    HSK 4; 19 added words take minutes to enrich, mostly for output that is thrown away. The author's decisions,
    the verified causes and four parts (one session each, in order) are in `PLAN-examples.md`. Work from there.
    **Parts 1–3 done 2026-10-07** (examples follow the chosen level; one HSK scale in the UI; page details at
-   once, an example-only call or none, 3 cards at a time). Part 4 half done: 1,000 of 1,919 words have an HSK 3–4
-   band sentence (Sonnet agents); next: batches 20–38 per `.review/band-sentences/HANDOFF.md`, then `--merge`.
+   once, an example-only call or none, 3 cards at a time). **Part 4 done 2026-10-07**: all 1,919 words at HSK ≤ 4
+   that had no pool sentence at HSK 3–4 on both lists now have a checked band sentence (Sonnet agents, stragglers by
+   hand), served to an HSK 4 learner on either list. Optional: Qwen naturalness read of the 1,919 (~¥0.3, ask).
 
 1. [x] **Backups + one rehearsed restore.** `[H1]` Enable Railway Postgres backups, take one by hand
    via `DATABASE_PUBLIC_URL`, then **restore it into the local Docker Postgres (host 5433)** — an

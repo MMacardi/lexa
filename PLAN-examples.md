@@ -156,7 +156,7 @@ the page (`capture.ts:395-403`). 19 cards took a few minutes.
 4. **Check**: a `scripts/check-*.ts` that adds 5 HSK words and asserts POS/synonyms are set before the job runs and
    that the job makes one model call per card + the judge (count by `label`). Then Today → Add locally and time it.
 
-## Part 4 — pool gaps (costs ¥, ask first; optional once Part 1 writes the personal sentence at L) — [~] half done 2026-10-07
+## Part 4 — pool gaps (costs ¥, ask first; optional once Part 1 writes the personal sentence at L) — [x] done 2026-10-07
 
 **As built so far.** Why words lack c3: 1,290 of the 1,291 lost theirs in the naturalness pass (dropped, no
 replacement). The gap that matters: 1,919 of the 3,317 words at HSK ≤ 4 have no pool sentence reading HSK 3–4 on
@@ -167,8 +167,11 @@ band sentences live in `data/hsk-band-sentences.jsonl` (`c: 4`), added to the po
 level like any other. Done: the pilot's 50 and batches 01–19 = **1,000 words** (9 stragglers rewritten by hand, all
 pass), ~1.32M Sonnet tokens (~65k a batch). `check-sentences` and `check-enrich-fast` guard it: an HSK 4 learner's
 却 通过 教育 各 记者 朋友 are all served at HSK 3–4 by the pool now, no model call; on the local server, opening 通过 moved
-it from 我通过考试了 (HSK 1–2) to 我们通过电子邮件联系，所以很方便 (HSK 1–4). **Left:** batches 20–38 (919 words), steps
-in `.review/band-sentences/HANDOFF.md`; the 5–6 band is not planned.
+it from 我通过考试了 (HSK 1–2) to 我们通过电子邮件联系，所以很方便 (HSK 1–4). Batches 20–38 (919 words) in a second
+session: 887/919 by the agents, the 32 stragglers and 2 wrong-sense lines found in a 70-line read (定 for 订 "book",
+"I plan to graduate") rewritten by hand. **All 1,919 done**; `check-sentences` now asserts each is served at HSK 3–4 to
+an HSK 4 learner on both lists. The 5–6 band is not planned. Optional, not done: a Qwen naturalness read of all
+1,919 (~¥0.3), flags to a Claude read — the 70-line sample found 2 to fix, so expect ~25.
 
 The real gap is not "no natural sentence" but "no sentence at HSK 3–4": the natural (c3) ones are mostly news-style
 and hard (教育: 家庭教育对儿童性格形成具有深远影响; 方面: 这项政策在经济和社会两个方面都产生了深远影响), the c1 ones
