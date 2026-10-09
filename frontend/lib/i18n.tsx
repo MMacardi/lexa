@@ -2282,6 +2282,12 @@ const DICT: Record<string, Entry> = {
   },
   "review.swipeUpDown": { en: "Swipe up and down too", ru: "Свайпы вверх и вниз", zh: "也启用上下滑动" },
   "review.pinyinFront": { en: "Pinyin on the front", ru: "Пиньинь на лицевой стороне", zh: "正面显示拼音" },
+  "review.toneColors": { en: "Tone colours", ru: "Цвета тонов", zh: "声调颜色" },
+  "review.toneColorsHint": {
+    en: "Pinyin coloured by tone: 1 red, 2 green, 3 blue, 4 purple, neutral uncoloured.",
+    ru: "Пиньинь раскрашен по тонам: 1 — красный, 2 — зелёный, 3 — синий, 4 — фиолетовый, лёгкий тон без цвета.",
+    zh: "按声调给拼音上色：一声红、二声绿、三声蓝、四声紫，轻声不上色。",
+  },
   "review.pinyinFrontHint": {
     en: "Off: you read the character itself, as in the exam. The pinyin is on the back.",
     ru: "Выключено: читаете сам иероглиф, как на экзамене. Пиньинь — на обороте.",
@@ -2365,6 +2371,7 @@ const DICT: Record<string, Entry> = {
   "print.hint": { en: "Pick what goes on the front and back, then download.", ru: "Выбери, что на лице и обороте, затем скачай.", zh: "选择正反面内容，然后下载。" },
   "print.download": { en: "Download PNG", ru: "Скачать PNG", zh: "下载 PNG" },
   "word.back": { en: "← My words", ru: "← Мои слова", zh: "← 我的单词" },
+  "word.measure": { en: "Measure word", ru: "Счётное слово", zh: "量词" },
   "word.share": { en: "↗ Share", ru: "↗ Поделиться", zh: "↗ 分享" },
   "word.edit": { en: "✎ Edit", ru: "✎ Изменить", zh: "✎ 编辑" },
   // Instant capture: a new card's first meaning is the dictionary's English.
@@ -2518,6 +2525,8 @@ const DICT: Record<string, Entry> = {
   "word.fromNews": { en: "From the news", ru: "Из новостей", zh: "来自新闻" },
   "word.inContext": { en: "In context", ru: "В контексте", zh: "在语境中" },
   "exPinyin.toggle": { en: "Pinyin", ru: "Пиньинь", zh: "拼音" },
+  // A word tapped in an example and added: the sentence is its example, credited so.
+  "example.tapSource": { en: "Example for {word}", ru: "Пример к слову {word}", zh: "{word}的例句" },
   "exPinyin.label": { en: "Pinyin over example sentences", ru: "Пиньинь над примерами", zh: "例句上方显示拼音" },
   "exPinyin.hint": {
     en: "On the word page and in review. In review the card's own word stays bare — its sound is the answer.",

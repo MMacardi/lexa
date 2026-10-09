@@ -891,6 +891,34 @@ export function useExamplePinyin(): boolean {
   return on;
 }
 
+// Pinyin coloured by tone (components/Pinyin.tsx): a second cue for the tone, as
+// Pleco and Hack Chinese do. On by default; the review screen has the switch.
+const TONE_COLORS_KEY = "lexa.toneColors";
+export function setToneColors(on: boolean) {
+  try {
+    localStorage.setItem(TONE_COLORS_KEY, on ? "1" : "0");
+  } catch {}
+  window.dispatchEvent(new Event(EVT));
+}
+export function useToneColors(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setState(localStorage.getItem(TONE_COLORS_KEY) !== "0");
+      } catch {}
+    };
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Coach: make EVERY word in a chat/scene bubble tappable for an instant gloss (and
 // one-tap add to the deck), not just the words already in play. Off = only the
 // highlighted words respond, so no lookup request can fire.

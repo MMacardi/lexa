@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
@@ -21,6 +22,8 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { ExampleText } from "@/components/ExampleText";
+import { MeasureWords } from "@/components/MeasureWords";
+import { Pinyin } from "@/components/Pinyin";
 import { setExamplePinyin, useExamplePinyin } from "@/lib/learnPrefs";
 import { WordSenses } from "@/components/WordSenses";
 import { AddExampleInline } from "@/components/AddExampleInline";
@@ -210,7 +213,12 @@ export default function WordDetailPage() {
           </h1>
           <SpeakButton text={word.word} lang={word.sourceLang} />
           <PronounceButton text={word.word} lang={word.sourceLang} />
-          {word.phonetic && <span className="text-[18px] text-ink-faint">{word.phonetic}</span>}
+          {word.phonetic &&
+            (isChineseLang(word.sourceLang) ? (
+              <Pinyin text={word.phonetic} className="text-[20px] text-ink-muted" />
+            ) : (
+              <span className="text-[18px] text-ink-faint">{word.phonetic}</span>
+            ))}
           {word.partOfSpeech && (
             <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
               {word.partOfSpeech}
@@ -227,6 +235,7 @@ export default function WordDetailPage() {
           </p>
         )}
         <DictMeaningLabel word={word} className="block" />
+        <MeasureWords word={word.word} items={word.measureWords} />
         {needsFill && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <button
@@ -337,7 +346,7 @@ export default function WordDetailPage() {
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
             <p className="whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
-              <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} />
+              <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} />
             </p>
             {ex.sentenceZh && (
               <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>

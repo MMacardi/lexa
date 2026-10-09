@@ -72,6 +72,9 @@ export interface Word {
   // phrase (当: «быть…» 当老师 / «когда» 当他来的时候) — only in the word list, for
   // the back of the review card. Absent for a one-sense meaning.
   cardSenses?: { meaning: string; reading?: string; phrase?: { text: string; translation: string } }[];
+  // CC-CEDICT's measure words for a Chinese noun, in the card's reading (电脑 → 台 tái).
+  // Absent when the dictionary lists none or the card isn't a noun.
+  measureWords?: { word: string; pinyin: string }[];
 }
 
 // A tapped Chinese word as the dictionary has it: the reading, CC-CEDICT's English,

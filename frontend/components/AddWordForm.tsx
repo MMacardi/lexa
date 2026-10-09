@@ -57,6 +57,7 @@ import { HskBadge } from "@/components/HskBadge";
 import { cn } from "@/lib/utils";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
 import { Collapse } from "@/components/ui/Collapse";
+import { Pinyin } from "@/components/Pinyin";
 
 type Mode = "auto" | "manual";
 
@@ -906,7 +907,7 @@ export function AddWordForm({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className="font-zh text-[19px] leading-tight text-ink">{h.word}</span>
-                        <span className="truncate text-[13px] text-ink-faint">{h.sense?.reading ?? h.pinyin}</span>
+                        <Pinyin text={h.sense?.reading ?? h.pinyin} className="truncate text-[13px] text-ink-faint" />
                         <HskBadge hsk={h.hsk} className="self-center" />
                         {h.register && (
                           <span

@@ -13,7 +13,7 @@ import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
 import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
-import { cedictCredit, cedictInventory, isChinese } from "./cedict.js";
+import { cedictCredit, cedictInventory, isChinese, measureWordsFor } from "./cedict.js";
 import { cardSense, dictCardFields, hasDictMeaning, pageCardFields, pickedSense, upgradeCard } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
@@ -321,14 +321,26 @@ export async function addWordManual(params: {
  * senses (picked in the lookup: 背 «нести на себе, таскать на спине»); the client
  * polls until the rest of a fresh card lands.
  */
-function withDerived<T extends { word: string; sourceLang: string; targetLang: string; meaningZh: string | null }>(w: T) {
+function withDerived<
+  T extends {
+    word: string;
+    sourceLang: string;
+    targetLang: string;
+    meaningZh: string | null;
+    phonetic: string | null;
+    partOfSpeech: string | null;
+  },
+>(w: T) {
   const m = w.meaningZh?.trim();
   const pageSense = Boolean(m) && isChinese(w.sourceLang) && Boolean(hskPage(w.word, w.targetLang)?.s.some((s) => s.m === m));
+  // CC-CEDICT's measure words for a noun (一台电脑): on the card's back and the word page.
+  const measureWords = isChinese(w.sourceLang) ? measureWordsFor(w.word, w.phonetic, w.partOfSpeech) : [];
   return {
     ...w,
     hsk: w.sourceLang === "zh" ? hskTagFor(w.word) : null,
     dictMeaning: hasDictMeaning(w),
     dictDefault: isDefaultMeaning(w) || pageSense,
+    ...(measureWords.length ? { measureWords } : {}),
   };
 }
 

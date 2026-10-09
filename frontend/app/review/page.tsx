@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { isChineseLang } from "@/lib/dictEntry";
 import { useI18n } from "@/lib/i18n";
 import {
   useCardLayout,
@@ -16,6 +17,8 @@ import {
   usePlayOnFlip,
   setPlayOnFlip,
   togglePinyinFront,
+  useToneColors,
+  setToneColors,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -29,6 +32,8 @@ import { FitText } from "@/components/FitText";
 import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
 import { ExampleText } from "@/components/ExampleText";
+import { MeasureWords } from "@/components/MeasureWords";
+import { Pinyin } from "@/components/Pinyin";
 import { Confetti } from "@/components/Confetti";
 import { CollectionSelect } from "@/components/CollectionSelect";
 import { CardLayoutPreview } from "@/components/CardLayoutPreview";
@@ -39,7 +44,7 @@ import { OnceHint } from "@/components/OnceHint";
 import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
@@ -147,6 +152,7 @@ export default function FlashcardsPage() {
   const { show } = useToast();
 
   const swipeUpDown = useSwipeUpDown();
+  const toneColors = useToneColors();
   const playOnFlip = usePlayOnFlip();
 
   // Turn the card to its answer side, saying the word as it turns. Called straight
@@ -829,7 +835,15 @@ export default function FlashcardsPage() {
           </div>
         );
       case "phonetic":
-        return word.phonetic ? <div className="break-words text-[18px] text-ink-faint">{word.phonetic}</div> : null;
+        if (!word.phonetic) return null;
+        if (!isChineseLang(word.sourceLang)) return <div className="break-words text-[18px] text-ink-faint">{word.phonetic}</div>;
+        // On the back, the noun's measure words with it: 一台电脑 is learnt with 电脑.
+        return (
+          <div className="space-y-1.5">
+            <Pinyin text={word.phonetic} className="block break-words text-[20px] text-ink-muted" />
+            {back && <MeasureWords word={word.word} items={word.measureWords} className="justify-center" />}
+          </div>
+        );
       case "pos":
         return word.partOfSpeech ? (
           <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{word.partOfSpeech}</div>
@@ -854,7 +868,7 @@ export default function FlashcardsPage() {
                       {s.phrase && (
                         <div className="mt-0.5 break-words text-[15px] leading-snug text-ink-soft">
                           <span className="text-[17px] text-ink">
-                            <ExampleText text={s.phrase.text} word={word.word} lang={word.sourceLang} hideWordReading />
+                            <ExampleText text={s.phrase.text} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
                           </span>{" "}
                           <span className={targetFont(word.targetLang)}>{s.phrase.translation}</span>
                         </div>
@@ -883,7 +897,7 @@ export default function FlashcardsPage() {
             {word.examples.map((ex) => (
               <div key={ex.id}>
                 <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
-                  <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} hideWordReading />
+                  <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
                 </p>
                 {withTr && ex.sentenceZh?.trim() && (
                   <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
@@ -939,8 +953,8 @@ export default function FlashcardsPage() {
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
-    // Let interactive children (speak button, links) work without flipping/dragging.
-    if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
+    // Let interactive children (speak button, links, a word in an example) work without flipping/dragging.
+    if ((e.target as HTMLElement).closest("button, a, input, textarea, [data-ci]")) return;
     // Edge dead zone: iOS owns a drag that starts here (back/forward navigation),
     // so starting a swipe there would drag the page along with the card.
     if (e.pointerType === "touch" && (e.clientX < EDGE_PX || e.clientX > window.innerWidth - EDGE_PX))
@@ -1028,7 +1042,7 @@ export default function FlashcardsPage() {
   // rapid/double taps reliable where a manual pointerup toggle could get stuck.
   // Ignore taps on interactive children (speak button, links) so they don't flip.
   const onFlip = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
+    if ((e.target as HTMLElement).closest("button, a, input, textarea, [data-ci]")) return;
     if (draggedRef.current) {
       draggedRef.current = false;
       return;
@@ -1251,6 +1265,23 @@ export default function FlashcardsPage() {
             <Type className="h-3.5 w-3.5" />
             {t("review.pinyinFront")}
           </button>
+          {isChineseLang(word.sourceLang) && (
+            <button
+              type="button"
+              onClick={() => setToneColors(!toneColors)}
+              aria-pressed={toneColors}
+              title={t("review.toneColorsHint")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                toneColors
+                  ? "border-sage bg-sage-tint text-sage-deep"
+                  : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+              )}
+            >
+              <Palette className="h-3.5 w-3.5" />
+              {t("review.toneColors")}
+            </button>
+          )}
           {canSpeak() && (
             <button
               type="button"

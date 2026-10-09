@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Plus, Check, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { SpeakButton } from "@/components/SpeakButton";
+import { Pinyin } from "@/components/Pinyin";
 import { cn } from "@/lib/utils";
 
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
@@ -90,7 +91,9 @@ export function WordMeaningPop({
           )}
         </div>
         {transcription && (
-          <div className="mt-0.5 select-text text-[12px] font-medium tracking-wide text-ink-faint">{transcription}</div>
+          <div className="mt-0.5 select-text text-[12px] font-medium tracking-wide text-ink-faint">
+            {sourceLang === "zh" || sourceLang === "zh-Hant" ? <Pinyin text={transcription} /> : transcription}
+          </div>
         )}
         {loading ? (
           <div className="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-faint">

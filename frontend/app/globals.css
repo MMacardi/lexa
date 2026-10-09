@@ -123,6 +123,11 @@ html {
   --color-hsk5: #c08428;
   --color-hsk6: #c9573d;
   --color-hsk7: #b0436b;
+  /* Pinyin tone colours (Pleco's order: 1 red, 2 green, 3 blue, 4 purple; neutral keeps the text colour) */
+  --color-tone1: #c2412f;
+  --color-tone2: #2d8448;
+  --color-tone3: #2f68b5;
+  --color-tone4: #8b43a8;
 
   --font-serif: "Twemoji Country Flags", "Newsreader", Georgia, serif;
   --font-sans: "Twemoji Country Flags", "Hanken Grotesk", system-ui, sans-serif;
@@ -174,6 +179,10 @@ html.dark {
   --color-hsk5: #e0ad5a;
   --color-hsk6: #e98b72;
   --color-hsk7: #e27fa3;
+  --color-tone1: #ef8170;
+  --color-tone2: #74c98f;
+  --color-tone3: #82b1f0;
+  --color-tone4: #c995e3;
 }
 
 /* In dark mode the faint black hairlines/fills become invisible — lift them to

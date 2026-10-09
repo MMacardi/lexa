@@ -36,10 +36,12 @@ import { hskPage, readsAs } from "./wordPages.js";
  * full dump lists phrases like 一个人 and 的话, and would join them).
  */
 
-export type CedictReading = { pinyin: string; glosses: string[] };
+// A measure word as a card shows it: 台 tái for 电脑.
+export type MeasureWord = { word: string; pinyin: string };
+export type CedictReading = { pinyin: string; glosses: string[]; measures?: MeasureWord[] };
 export type CedictEntry = { word: string; traditional?: string; readings: CedictReading[] };
 
-type Row = { s: string; t?: string; r: { p: string; g: string[] }[] };
+type Row = { s: string; t?: string; r: { p: string; g: string[]; cl?: { w: string; p: string }[] }[] };
 type Meta = { source: string; url: string; license: string; licenseUrl: string; release: string; words: number };
 
 let index: Map<string, CedictEntry> | null = null;
@@ -78,7 +80,11 @@ function load(file: string, into: Map<string, CedictEntry>, onMeta?: (m: Meta) =
     into.set(row.s, {
       word: row.s,
       ...(row.t ? { traditional: row.t } : {}),
-      readings: row.r.map((r) => ({ pinyin: r.p, glosses: r.g })),
+      readings: row.r.map((r) => ({
+        pinyin: r.p,
+        glosses: r.g,
+        ...(r.cl ? { measures: r.cl.map((m) => ({ word: m.w, pinyin: toneMarked(m.p) })) } : {}),
+      })),
     });
   }
 }
@@ -299,6 +305,33 @@ export async function mainReading(entry: CedictEntry): Promise<{ reading: Cedict
     common[0] ??
     entry.readings[0];
   return { reading, matched: !learner && sameReading(reading.pinyin, said) };
+}
+
+// A part of speech that says noun in any of the languages cards carry it in
+// ("noun / verb" counts: 工作 is both). No part of speech counts too.
+const NOUNISH = /noun|сущ|名/i;
+
+/**
+ * The measure words CC-CEDICT lists for a card (电脑 → 台, 河 → 条 道), from the
+ * reading the card is read in: 行 xíng has none though 行 háng has. [] for a card
+ * that isn't a noun, and for the many nouns the dictionary gives none.
+ */
+export function measureWordsFor(word: string, phonetic: string | null | undefined, pos?: string | null): MeasureWord[] {
+  if (pos?.trim() && !NOUNISH.test(pos)) return [];
+  const entry = find(word);
+  if (!entry?.readings.some((r) => r.measures?.length)) return [];
+  const said = phonetic?.trim() ? numberedPinyin(phonetic.trim().toLowerCase()) : "";
+  // Proper-noun readings last: 书 "shū" is shu1 "book", not Shu1 the classic's name.
+  const proper = (r: CedictReading) => r.pinyin[0] !== r.pinyin[0].toLowerCase();
+  const readings = [...entry.readings.filter((r) => !proper(r)), ...entry.readings.filter(proper)];
+  const reading = said
+    ? (readings.find((r) => sameReading(r.pinyin, said)) ??
+      readings.find((r) => nearReading(r.pinyin, said) || nearReading(said, r.pinyin)))
+    : undefined;
+  if (reading) return reading.measures ?? [];
+  // No reading to go by: only when one reading has them can there be no doubt.
+  const withThem = entry.readings.filter((r) => r.measures?.length);
+  return withThem.length === 1 ? withThem[0].measures! : [];
 }
 
 /**

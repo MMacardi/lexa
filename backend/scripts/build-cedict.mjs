@@ -10,8 +10,10 @@
 // subset fall back to the ungrounded path; services/cedict.ts counts those misses
 // so we can see whether the subset wants widening.
 //
-// Run: node scripts/build-cedict.mjs   (needs network; re-run when CC-CEDICT
-// publishes a release worth picking up, or when the HSK lists change)
+// Run: node scripts/build-cedict.mjs [dump.txt.gz] [--measure-words]   (needs
+// network without the file; re-run when CC-CEDICT publishes a release worth
+// picking up, or when the HSK lists change — then rerun check-word-pages.ts, whose
+// pages point at glosses by position)
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -28,9 +30,21 @@ const HSK_WORDS =
   readFileSync(join(ROOT, "src", "data", "hskWords.ts"), "utf8").match(/HSK_WORDS = `([^`]*)`/)?.[1] ?? "";
 if (!HSK_WORDS) throw new Error("could not read HSK_WORDS out of src/data/hskWords.ts");
 
-const res = await fetch(SRC);
-if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
-const text = gunzipSync(Buffer.from(await res.arrayBuffer())).toString("utf8");
+// A downloaded dump can be passed instead (`node scripts/build-cedict.mjs dump.txt.gz`),
+// so a rebuild can be rerun on the same release.
+const local = process.argv.slice(2).find((a) => !a.startsWith("--"));
+// --measure-words: refresh only the readings' `cl` in the files as they are. The
+// word pages (data/hsk-pages.jsonl) point at glosses by position, so a release that
+// rewords 必须 or 讨厌 breaks them; this takes a release's measure words without that.
+const MEASURE_WORDS_ONLY = process.argv.includes("--measure-words");
+let gz;
+if (local) gz = readFileSync(local);
+else {
+  const res = await fetch(SRC);
+  if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+  gz = Buffer.from(await res.arrayBuffer());
+}
+const text = gunzipSync(gz).toString("utf8");
 
 // The dump's own header carries the release stamp; storing it beside the data is
 // what stops "which version is this?" becoming archaeology two releases later.
@@ -44,10 +58,28 @@ const wanted = new Set(HSK_WORDS.split("\n").map((l) => l.split("\t")[0]).filter
 for (const w of [...wanted]) if (w.length > 1 && w.endsWith("儿")) wanted.add(w.slice(0, -1));
 
 /**
+ * The measure words one reading's glosses list — `CL:臺|台[tai2]` as its own gloss
+ * (电脑) or inside one (河 "river (CL:條|条[tiao2],道[dao4])") — as [{ w, p }],
+ * simplified form and numbered pinyin, in the dictionary's order. A learner needs
+ * them per noun (一台电脑, 一条河) and Russian has nothing like them.
+ */
+function measureWords(glosses) {
+  const out = [];
+  for (const g of glosses) {
+    for (const [, list] of g.matchAll(/CL:([^/()]*)/g)) {
+      for (const [, w, p] of list.matchAll(/(?:[^\s,|[\]]+\|)?([^\s,|[\]]+)\[([^\]]+)\]/g)) {
+        if (!out.some((m) => m.w === w)) out.push({ w, p });
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * One CC-CEDICT gloss, tidied just enough to go into a prompt.
  * - `漢字|汉字[pin1 yin1]` cross-references are cut down to the simplified form,
  *   because the bracket notation reads as noise to a model and to a learner.
- * - `CL:個|个[ge4]` is classifier data, not a sense.
+ * - `CL:個|个[ge4]` is classifier data, not a sense (`measureWords` keeps it).
  * - The leading "to " of a verb gloss stays: it is how the dictionary marks one.
  */
 function cleanGloss(g, simplified) {
@@ -94,7 +126,7 @@ for (const line of text.split("\n")) {
     const glosses = body.split("/").map((g) => cleanGloss(g, simplified)).filter(Boolean).slice(0, MAX_EXTRA_GLOSSES);
     if (!glosses.length) continue;
     const readings = extraByWord.get(simplified) ?? [];
-    readings.push({ p: pinyin.trim(), g: glosses });
+    readings.push({ p: pinyin.trim(), g: glosses, cl: measureWords(body.split("/")) });
     extraByWord.set(simplified, readings);
     if (traditional !== simplified) {
       const seen = extraTrad.get(simplified);
@@ -106,7 +138,7 @@ for (const line of text.split("\n")) {
   const glosses = body.split("/").map((g) => cleanGloss(g, simplified)).filter(Boolean);
   if (!glosses.length) continue;
   const readings = byWord.get(simplified) ?? [];
-  readings.push({ p: pinyin.trim(), g: glosses });
+  readings.push({ p: pinyin.trim(), g: glosses, cl: measureWords(body.split("/")) });
   byWord.set(simplified, readings);
   // Traditional forms cost nothing here and make a traditional-text card (or OCR
   // of traditional print) findable later. Recorded only when every entry for the
@@ -135,23 +167,55 @@ const meta = {
 
 mkdirSync(dirname(OUT), { recursive: true });
 
+// One reading per pinyin: the dump splits entries by traditional form, so a
+// simplified-only app sees the same reading two or three times over.
+function merged(readings) {
+  const out = new Map();
+  for (const { p, g, cl } of readings) {
+    const into = out.get(p);
+    if (into) {
+      for (const gloss of g) into.g.includes(gloss) || into.g.push(gloss);
+      for (const m of cl) into.cl.some((x) => x.w === m.w) || into.cl.push(m);
+    } else out.set(p, { g: [...new Set(g)], cl: [...cl] });
+  }
+  return out;
+}
+
 function rows(words, tradMap) {
   const out = [];
   for (const word of [...words.keys()].sort()) {
-    // One reading per pinyin: the dump splits entries by traditional form, so a
-    // simplified-only app sees the same reading two or three times over.
-    const merged = new Map();
-    for (const { p, g } of words.get(word)) {
-      const into = merged.get(p);
-      if (into) for (const gloss of g) into.includes(gloss) || into.push(gloss);
-      else merged.set(p, [...new Set(g)]);
-    }
-    const row = { s: word, r: [...merged].map(([p, g]) => ({ p, g })) };
+    // `cl` only where the reading has measure words, so most rows stay as they were.
+    const row = { s: word, r: [...merged(words.get(word))].map(([p, { g, cl }]) => ({ p, g, ...(cl.length ? { cl } : {}) })) };
     const t = tradMap.get(word);
     if (t) row.t = t;
     out.push(JSON.stringify(row));
   }
   return out;
+}
+
+// --measure-words: the file as it is, each reading's `cl` taken from this release.
+function withMeasureWords(file, words) {
+  let n = 0;
+  const lines = readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line) => {
+    const row = JSON.parse(line);
+    if (row._meta) return JSON.stringify({ _meta: { ...row._meta, measureWords: release } });
+    const now = words.has(row.s) ? merged(words.get(row.s)) : new Map();
+    row.r = row.r.map(({ cl: _, ...r }) => {
+      const cl = now.get(r.p)?.cl ?? [];
+      if (cl.length) n++;
+      return cl.length ? { ...r, cl } : r;
+    });
+    return JSON.stringify(row);
+  });
+  writeFileSync(file, lines.join("\n") + "\n", "utf8");
+  return n;
+}
+
+if (MEASURE_WORDS_ONLY) {
+  const n = withMeasureWords(OUT, byWord);
+  const m = withMeasureWords(EXTRA_OUT, extraByWord);
+  console.log(`measure words from ${release}: ${n} readings in ${OUT}, ${m} in ${EXTRA_OUT}; glosses untouched`);
+  process.exit(0);
 }
 
 writeFileSync(OUT, [JSON.stringify(meta), ...rows(byWord, trad)].join("\n") + "\n", "utf8");

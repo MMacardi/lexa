@@ -10,6 +10,8 @@ import { hasTranscription, useShowTranscription } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TapGlossPills } from "@/components/TapGlossPills";
+import { Pinyin } from "@/components/Pinyin";
+import { isChineseLang } from "@/lib/dictEntry";
 import { Check, Plus } from "lucide-react";
 
 // Stable empty list so the memo below doesn't re-fire every render.
@@ -70,6 +72,9 @@ export function WordSenses({ word }: { word: Word }) {
   const { show } = useToast();
   const qc = useQueryClient();
   const showTr = useShowTranscription() && hasTranscription(word.sourceLang);
+  // Chinese readings in tone colours; other scripts' transcriptions as they are.
+  const reading = (text: string, className: string) =>
+    isChineseLang(word.sourceLang) ? <Pinyin text={text} className={className} /> : <span className={className}>{text}</span>;
   const sensesKey = ["senses", word.id, word.word, word.sourceLang, word.targetLang];
   const q = useQuery({
     queryKey: sensesKey,
@@ -175,7 +180,7 @@ export function WordSenses({ word }: { word: Word }) {
                   {/* A long word (достопримечательность) breaks inside its own column
                       instead of running under the button beside it. */}
                   <p className="min-w-0 break-words leading-snug">
-                    {showTr && s.reading && <span className="mr-2 text-[13px] font-semibold text-sage-deep">{s.reading}</span>}
+                    {showTr && s.reading && reading(s.reading, "mr-2 text-[13px] font-semibold text-sage-deep")}
                     {s.pos && <span className="mr-2 text-[13px] italic text-ink-faint">{s.pos}</span>}
                     <span lang={word.targetLang} className={cn("hyphens-auto text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>
                       {s.meaning}
@@ -203,7 +208,7 @@ export function WordSenses({ word }: { word: Word }) {
                     {s.phrases.map((p, j) => (
                       <li key={j} className="leading-snug">
                         <span className={cn("text-[15px] text-ink", srcFont(word.sourceLang))}>{p.text}</span>
-                        {showTr && p.reading && <span className="ml-2 text-[13px] text-ink-faint">{p.reading}</span>}
+                        {showTr && p.reading && reading(p.reading, "ml-2 text-[13px] text-ink-faint")}
                         {p.translation && (
                           <span className={cn("block text-[13px] text-ink-soft", tgtFont(word.targetLang))}>
                             {p.translation}

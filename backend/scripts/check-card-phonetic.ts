@@ -51,19 +51,23 @@ async function main() {
   check((await prisma.word.findUnique({ where: { id: edited.id } }))?.phonetic === "yǒuqián!", "pinyin the learner wrote is left alone");
 
   // 3. Lookup rows: English only when there's no default; translated for a Russian interface.
-  const ru = await lookup("有钱", "ru");
-  const row = ru.hits.find((h) => h.word === "有钱");
-  check(Boolean(row?.english), `有钱's row starts in English (${row?.meaning})`);
+  // 有钱 has had a Russian default since the everyday-words table (learning audit 8c),
+  // so the word off every list here is 书签.
+  const rich = (await lookup("有钱", "ru")).hits.find((h) => h.word === "有钱");
+  check(rich?.english === false, `有钱's row is Russian with no model call (${rich?.meaning})`);
+  const ru = await lookup("书签", "ru");
+  const row = ru.hits.find((h) => h.word === "书签");
+  check(Boolean(row?.english), `书签's row starts in English (${row?.meaning})`);
   const t0 = Date.now();
-  const meanings = await translateGlosses(["有钱", "访问"], "ru");
-  check(/[а-яё]/i.test(meanings["有钱"] ?? ""), `有钱 in Russian: ${meanings["有钱"]} (${Date.now() - t0} ms)`);
+  const meanings = await translateGlosses(["书签", "访问"], "ru");
+  check(/[а-яё]/i.test(meanings["书签"] ?? ""), `书签 in Russian: ${meanings["书签"]} (${Date.now() - t0} ms)`);
   check(!("访问" in meanings), "a word with a Russian default isn't asked again");
   const t1 = Date.now();
-  const again = await translateGlosses(["有钱"], "ru");
-  check(again["有钱"] === meanings["有钱"] && Date.now() - t1 < 50, "the second ask is cached");
-  check(Object.keys(await translateGlosses(["有钱"], "en")).length === 0, "an English interface keeps CC-CEDICT's English");
-  const en = await lookup("有钱", "en");
-  check(Boolean(en.hits.find((h) => h.word === "访问" || h.word === "有钱")?.english), "the English lookup gives English rows");
+  const again = await translateGlosses(["书签"], "ru");
+  check(again["书签"] === meanings["书签"] && Date.now() - t1 < 50, "the second ask is cached");
+  check(Object.keys(await translateGlosses(["书签"], "en")).length === 0, "an English interface keeps CC-CEDICT's English");
+  const en = await lookup("书签", "en");
+  check(Boolean(en.hits.find((h) => h.word === "访问" || h.word === "书签")?.english), "the English lookup gives English rows");
   const enHsk = await lookup("访问", "en");
   check(enHsk.hits[0]?.english === true, `an HSK word's row is English for an English interface (${enHsk.hits[0]?.meaning})`);
 }
