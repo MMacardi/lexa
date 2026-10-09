@@ -37,7 +37,9 @@ export async function suggestTopicWords(params: {
       `understand real material on a topic they care about: talks, articles, conference presentations and ` +
       `chats in mainland China. List 30 Chinese words (simplified) that come up most in such material on the ` +
       `topic: the field's own everyday terms — the words a newcomer to the field hears in the first week — not ` +
-      `rare jargon, and not general words that aren't about the field. Words only: no phrases, no sentences, no ` +
+      `rare jargon, and not general words that aren't about the field. Skip the words an HSK ${levelName} learner ` +
+      `already knows (火车, 电脑, 手机, 医生 at HSK 4): name the field's own term above them, 高铁 rather than ` +
+      `火车. Words only: no phrases, no sentences, no ` +
       `English, no names of people or companies. For each give "word" and "meaning" ` +
       `in ${target}, 1–4 words, in the sense the field uses it. Order them by how often they come up in real ` +
       `material, most frequent first. ` +

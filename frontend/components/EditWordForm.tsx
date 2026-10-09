@@ -12,9 +12,6 @@ import { Input, textareaClass } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { langLabel } from "@/lib/langs";
 import { cn } from "@/lib/utils";
-import { useIsPro } from "@/lib/useIsPro";
-import { useUpsell } from "@/lib/useUpsell";
-import { ProTag } from "@/components/ProTag";
 
 const csv = (a: string[]) => a.join(", ");
 const parse = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
@@ -63,14 +60,6 @@ export function EditWordForm({
     setExamples((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const removeEx = (i: number) => setExamples((rows) => rows.filter((_, idx) => idx !== i));
   const addBlankEx = () => setExamples((rows) => [...rows, { sentenceEn: "", sentenceZh: "", sourceName: "" }]);
-
-  // A card holds at most two AI examples; the second one is Pro. This form only
-  // offers "add another" (never replace), so the cap gates its AI button.
-  const pro = useIsPro();
-  const upsell = useUpsell();
-  const aiCount = examples.filter((e) => e.sourceName === "Onomika AI").length;
-  const capped = aiCount >= 2;
-  const aiLocked = !pro && aiCount >= 1;
 
   // Fetch a fresh AI example. `replace` clears existing ones (regenerate);
   // otherwise it adds another. Runs immediately (independent of Save).
@@ -209,30 +198,24 @@ export function EditWordForm({
           className="w-[150px]"
           options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
         />
-        {capped ? (
-          <span className="text-sm text-ink-faint">{t("word.examplesCap")}</span>
-        ) : aiLocked ? (
-          <Button type="button" variant="ghost" size="sm" onClick={() => upsell({ word: w })}>
-            <span className="inline-flex items-center gap-1.5">+ {t("edit.addExample")} <ProTag /></span>
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={regen.isPending}
-            onClick={async () => {
-              const { ok } = await ensureLevel(sourceLang);
-              if (ok) regen.mutate(false);
-            }}
-          >
-            {regen.isPending ? (
-              t("edit.fetching")
-            ) : (
-              <span className="inline-flex items-center gap-1.5">+ {t("edit.addExample")}</span>
-            )}
-          </Button>
-        )}
+        {/* Open to everyone, as many as wanted: every card comes with two, and the
+            old cap of two (the second Pro) was spent before the learner asked. */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={regen.isPending}
+          onClick={async () => {
+            const { ok } = await ensureLevel(sourceLang);
+            if (ok) regen.mutate(false);
+          }}
+        >
+          {regen.isPending ? (
+            t("edit.fetching")
+          ) : (
+            <span className="inline-flex items-center gap-1.5">+ {t("edit.addExample")}</span>
+          )}
+        </Button>
         {regen.isError && <span className="text-sm text-warn-text">{(regen.error as Error).message}</span>}
       </div>
 

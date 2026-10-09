@@ -13,6 +13,7 @@ import { DailyGoalCard } from "@/components/DailyGoalCard";
 import { HskTrack } from "@/components/HskTrack";
 import { CoachPicks } from "@/components/CoachPicks";
 import { InstallApp } from "@/components/InstallApp";
+import { FeatureTour } from "@/components/FeatureTour";
 import { HskReadiness } from "@/components/HskReadiness";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { useNewPerDay } from "@/lib/learnPrefs";
@@ -291,6 +292,9 @@ export default function TodayPage() {
           )}
         </div>
       </Disclosure>
+
+      {/* every part of the app, one tap each: for a newcomer and for the less-used tabs */}
+      <FeatureTour />
     </div>
   );
 }

@@ -94,12 +94,22 @@ async function main() {
     const after = await getWord(de.id);
     check(failed && Boolean(after?.meaningZh) && after?.dictMeaning === true, "a failed upgrade leaves the dictionary card standing");
     // A Russian HSK card on its default, its pool sentence at the level: the page has
-    // the rest, so the upgrade needs no model at all (PLAN-examples Part 3).
+    // the rest (PLAN-examples Part 3), so its one call is the learner's own example on
+    // top of the pool's (two by default, 2026-10-09). Offline that call fails, and the
+    // card keeps its meaning and the pool's sentence.
+    const before = await getWord(ids[2]);
     const settled = await upgradeCard(ids[2]).then(
-      () => true,
-      () => false,
+      () => "no call",
+      () => "asked the model",
     );
-    check(settled, "认真 on its Russian default: the upgrade makes no model call");
+    const kept = await getWord(ids[2]);
+    check(
+      settled === "asked the model" &&
+        kept?.meaningZh === before?.meaningZh &&
+        (before?.examples.length ?? 0) === 1 &&
+        kept?.examples.length === 1,
+      `认真 on its Russian default: only its own example needs the model (${settled}), the pool's sentence stays`,
+    );
 
     // 4. Outside the dictionary the old path runs (and needs the model): no card is invented.
     const outside = await addWordForUser({ telegramId: TG, word: "扫码支付宝", sourceLang: "zh", targetLang: "ru" }).then(

@@ -46,12 +46,6 @@ export function AddExampleInline({ word }: { word: Word }) {
   });
   const [level, setLevelState] = useState<string>(() => getLearnerLevel(word.sourceLang) ?? "");
 
-  // A card holds at most two AI examples; the second one is Pro. Manual entry is
-  // never capped, so only the AI affordance below reacts to these.
-  const aiCount = word.examples.filter((e) => e.sourceName === "Onomika AI").length;
-  const capped = aiCount >= 2;
-  const aiLocked = !pro && aiCount >= 1;
-
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["word", word.id] });
     qc.invalidateQueries({ queryKey: ["words"] });
@@ -133,71 +127,59 @@ export function AddExampleInline({ word }: { word: Word }) {
         <span className="h-px flex-1 bg-black/[0.07]" />
       </div>
 
-      {capped ? (
-        <p className="text-[13px] text-ink-faint">{t("word.examplesCap")}</p>
-      ) : aiLocked ? (
-        <button
-          type="button"
-          onClick={() => upsell({ word: word.word })}
-          className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-sage-tint/40 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> {t("word.aiExample")} <ProTag />
-        </button>
-      ) : (
-        <>
-          {/* AI knobs: source · register (AI only) · level */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented
-              size="sm"
-              value={pro ? src : "ai"}
-              onChange={(m) => (m === "web" && !pro ? upsell() : setSrc(m))}
-              options={([
-                ["ai", Sparkles],
-                ["web", Globe],
-              ] as const).map(([m, Icon]) => {
-                const locked = m === "web" && !pro;
-                return {
-                  value: m,
-                  Icon,
-                  title: locked ? t("pro.locked") : undefined,
-                  label: (
-                    <>
-                      {t(`exmode.${m}`)}
-                      {locked && <ProTag />}
-                    </>
-                  ),
-                };
-              })}
-            />
-            {src === "ai" && (
-              <Select
-                value={style}
-                onChange={(v) => setStyle(v as ExampleStyle)}
-                ariaLabel={t("style.label")}
-                className="w-[144px]"
-                options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
-              />
-            )}
-            <Select
-              value={level}
-              onChange={(v) => setLevelState(v)}
-              ariaLabel={t("level.title")}
-              placeholder={t("level.pick")}
-              className="w-[128px]"
-              options={levelOptions(word.sourceLang)}
-            />
-          </div>
+      {/* AI knobs: source · register (AI only) · level. No cap and no Pro gate on
+          another AI example (only web ones are Pro): every card comes with two, and
+          the old cap of two was spent before the learner asked for one. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented
+          size="sm"
+          value={pro ? src : "ai"}
+          onChange={(m) => (m === "web" && !pro ? upsell() : setSrc(m))}
+          options={([
+            ["ai", Sparkles],
+            ["web", Globe],
+          ] as const).map(([m, Icon]) => {
+            const locked = m === "web" && !pro;
+            return {
+              value: m,
+              Icon,
+              title: locked ? t("pro.locked") : undefined,
+              label: (
+                <>
+                  {t(`exmode.${m}`)}
+                  {locked && <ProTag />}
+                </>
+              ),
+            };
+          })}
+        />
+        {src === "ai" && (
+          <Select
+            value={style}
+            onChange={(v) => setStyle(v as ExampleStyle)}
+            ariaLabel={t("style.label")}
+            className="w-[144px]"
+            options={EXAMPLE_STYLES.filter((s) => s !== "none").map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
+          />
+        )}
+        <Select
+          value={level}
+          onChange={(v) => setLevelState(v)}
+          ariaLabel={t("level.title")}
+          placeholder={t("level.pick")}
+          className="w-[128px]"
+          options={levelOptions(word.sourceLang)}
+        />
+      </div>
 
-          <button
-            type="button"
-            onClick={genAi}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-sage-tint/40 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint disabled:opacity-50"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> {busy ? t("edit.fetching") : t("word.aiExample")}
-          </button>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={genAi}
+        disabled={busy}
+        className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-sage-tint/40 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint disabled:opacity-50"
+      >
+        <Sparkles className="h-3.5 w-3.5" /> {busy ? t("edit.fetching") : t("word.aiExample")}
+      </button>
     </div>
   );
 }

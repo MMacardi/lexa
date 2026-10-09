@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "./db.js";
 import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
+import { runExampleSearch } from "../agents/exampleSearch.js";
 import { langName } from "../lib/langs.js";
 import { hasLocalPhonetic, localPhonetic } from "../lib/transcribe.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
@@ -16,7 +17,6 @@ import {
   isPoolSentence,
   keepIfNatural,
   pickPoolSentence,
-  pooledLevel,
   poolRegister,
   sentenceWords,
   writtenLabel,
@@ -285,10 +285,11 @@ export type UpgradeOptions = {
  * Fill in what a card is missing with one grounded model call: the meaning when
  * it is empty or still the dictionary's English, the details it has none of,
  * and an example when it has none. Never overwrites what the learner wrote.
- * Examples are at the level the learner chose (services/sentences.ts). An HSK
- * word has the pool's checked sentence at their level the moment it is added;
- * this writes their own on top — their interests, their register — which goes
- * first, and one at their level where the pool's is well under it.
+ * Examples are at the level the learner chose (services/sentences.ts). A card
+ * holds two by default (the author, 2026-10-09: "one prebuilt, one personalized"):
+ * an HSK word has the pool's checked sentence at their level the moment it is
+ * added, and this writes their own on top — their interests, their register —
+ * which goes first. A word the pool has no sentence for gets two of its own.
  * Shared by the add path (in the background), the import worker, and the word
  * page's "fill this in" (`POST /api/words/:id/enrich`).
  */
@@ -313,15 +314,11 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       ? pickPoolSentence(card.word, brief, card.targetLang)
       : null;
   if (pool) await addPoolExample(card.id, card.word, pool);
-  const hasPool = pooled > 0 || Boolean(pool);
-  // How the pool's sentence on the card reads, against the level they chose.
-  const pooledAt = pool?.level ?? (brief ? pooledLevel(card.word, card.targetLang, card.examples.map((e) => e.sentenceEn), brief) : null);
   const L = brief?.level ?? null;
-  // Their own on top of it when there is something to make it theirs with, or
-  // when the pool's three fixed sentences can't serve their level: 通过's best is
-  // HSK 2 on the 2.0 list, so an HSK 4 learner's own is written at HSK 4.
-  const offLevel = L !== null && pooledAt !== null && (pooledAt < L - 1 || pooledAt > L);
-  const personal = withExample && (!hasPool || Boolean(brief?.themes) || offLevel);
+  // Their own always goes on top of the pool's. It used to be written only when
+  // there were interests to make it theirs with, or the pool's sentence was off
+  // their level, so most cards had the pool's alone and a second was Pro.
+  const personal = withExample;
   // A formal word (以, 之所以) has no natural everyday sentence: theirs is written, and
   // labelled, in the register the word lives in — unless they asked for another.
   const style = isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
@@ -332,7 +329,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // An HSK word with its page and the shared default meaning, and nothing pointing
   // at another sense: the meaning stays and the page has the details, so the full
   // entry would be thrown away. Only their own example is left to write — and no
-  // call at all where the pool's sentence serves.
+  // call at all when the card takes no example.
   const settled = Boolean(page) && isDefaultMeaning(card) && !met && !opts.sense;
   // What both calls write the example with: the level, their words and interests.
   const forExample = {
@@ -402,7 +399,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       }
     }
     if (!ownWord) {
-      // Not saved: the pool's sentence stays alone, or "add example" writes another.
+      // Not saved: the second below stands in for it.
     } else {
       // Newest first on every page, so their own leads.
       await prisma.example.create({
@@ -417,6 +414,26 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
           ...(checked ? { checkedAt: new Date() } : {}),
         },
       });
+    }
+  }
+  // Two by default: a word the pool has no sentence for (off the lists, a sense of
+  // its own), or whose own one the editor turned down, gets another of theirs,
+  // written to differ from what is there.
+  if (personal && brief) {
+    const have = await prisma.example.findMany({ where: { wordId: card.id }, select: { sentenceEn: true } });
+    if (have.length < 2) {
+      await runExampleSearch({
+        userId: card.userId,
+        word: card.word,
+        wordId: card.id,
+        sourceLang: card.sourceLang,
+        targetLang: card.targetLang,
+        exampleStyle: style,
+        level: opts.level,
+        avoid: have.map((e) => e.sentenceEn),
+        brief,
+        sense: own?.described,
+      }).catch((err) => console.error(`[capture] second example failed for ${card.word}`, err));
     }
   }
   // An HSK word's part of speech and family are its page's, the same for everyone

@@ -1,9 +1,12 @@
 // Proves the cheaper, faster enrichment for HSK words (PLAN-examples Part 3):
 //  1. an HSK word's card has its page's part of speech, synonyms, antonyms and
 //     phrases the moment it is made, before any model call;
-//  2. the import job then spends no full dictionary entry on it — at most one
-//     example-only call (where the pool's sentence doesn't serve) and the editor's
+//  2. the import job then spends no full dictionary entry on it — one example-only
+//     call for the learner's own sentence on top of the pool's, and the editor's
 //     read of it — while a word off the lists keeps the full call;
+//  2b. every card ends with two examples (the author, 2026-10-09: "one prebuilt, one
+//     personalized"): the pool's and theirs, or for a word the pool has nothing for,
+//     a second of its own;
 //  3. the job works three cards at a time and finishes with every card counted.
 //
 // The model is a fake OpenAI-compatible server started here (BAILIAN_BASE_URL),
@@ -21,6 +24,8 @@ let maxInFlight = 0;
 
 // A sentence the segmenter keeps the word whole in, whatever the word.
 const sentenceFor = (word: string) => `老师说“${word}”这个词很常用。`;
+// The second one, written to differ from the first ("add another").
+const secondFor = (word: string) => `我们今天又学了“${word}”这个词。`;
 
 function reply(system: string, user: string): unknown {
   if (system.startsWith("You write example sentences")) examplePrompts.push(system);
@@ -37,6 +42,7 @@ function reply(system: string, user: string): unknown {
       example: system.includes('"example": ONE natural') ? sentenceFor(user) : "",
       exampleTranslation: system.includes('"example": ONE natural') ? "Перевод." : "",
     };
+  if (system.startsWith("Write ONE natural")) return { sentence: secondFor(user), translation: "Сегодня мы снова учили это слово." };
   if (system.includes("native Mandarin editor")) return { natural: true };
   return {};
 }
@@ -137,14 +143,21 @@ async function add(telegramId: string, words: string[], beforeJob?: () => Promis
   check(job.status === "completed" && job.processed === job.total, `job ${job.status}, ${job.processed}/${job.total} in ${ms} ms`);
   log(`     calls: ${calls.join(", ")}`);
   const cards = await prisma.word.findMany({ where: { user: { telegramId } }, include: { examples: true } });
-  // The fake model's sentence, as against the pool's (both are "Onomika AI").
-  return (w: string) => cards.find((c) => c.word === w)!.examples.filter((e) => e.sentenceEn === sentenceFor(w)).length;
+  const of = (w: string) => cards.find((c) => c.word === w)!.examples;
+  // The fake model's sentences, as against the pool's (all are "Onomika AI").
+  return {
+    own: (w: string) => of(w).filter((e) => e.sentenceEn === sentenceFor(w)).length,
+    second: (w: string) => of(w).filter((e) => e.sentenceEn === secondFor(w)).length,
+    total: (w: string) => of(w).length,
+    pooled: (w: string) => of(w).filter((e) => e.sentenceEn !== sentenceFor(w) && e.sentenceEn !== secondFor(w)),
+  };
 }
 
 async function main() {
-  // A. No interests: their own sentence only where the pool's can't serve HSK 4.
+  // A. No interests: their own sentence on top of the pool's all the same — it used
+  // to be written only where the pool's couldn't serve HSK 4, so most cards had one.
   await learner(TG);
-  const own = await add(TG, [...HSK, OFF], async () => {
+  const a = await add(TG, [...HSK, OFF], async () => {
     // 1. The page's details, before the job runs.
     const made = await prisma.word.findMany({ where: { user: { telegramId: TG } } });
     for (const w of HSK) {
@@ -164,30 +177,35 @@ async function main() {
     const off = made.find((c) => c.word === OFF)!;
     check(!off.partOfSpeech && off.synonyms.length === 0, `${OFF}: off the lists, nothing until the model's call`);
   });
-  const written = HSK.filter((w) => own(w) > 0);
   check(count("enrich") === 0, "no example-less full entry for any card");
   check(count("enrich(+example)") === 1, `one full entry, for ${OFF} (${count("enrich(+example)")})`);
-  check(own(OFF) === 1, `${OFF} got its own example`);
+  check(HSK.every((w) => a.own(w) === 1), "each HSK card has its own sentence");
   check(
-    count("enrich(example only)") === written.length,
-    `example-only calls ${count("enrich(example only)")} = HSK cards given their own sentence (${written.join(" ") || "none"})`,
+    count("enrich(example only)") === HSK.length,
+    `example-only calls ${count("enrich(example only)")} = ${HSK.length}, one per HSK card`,
   );
-  check(count("example.judge") === written.length + 1, `one editor's read per sentence written (${count("example.judge")})`);
-  // The pool has a sentence at HSK 3–4 for each now — 通过's three topped out at HSK 2
-  // on the 2.0 list until the band sentences (PLAN-examples Part 4) — so none needs a call.
-  const labels = (
-    await prisma.word.findMany({ where: { user: { telegramId: TG }, word: { in: HSK } }, include: { examples: true } })
-  ).map((c) => `${c.word} ${c.examples.map((e) => e.level).join("/")}`);
+  // 2b. Two on every card: the pool's and theirs; the word off the lists has no pool
+  // sentence, so a second of its own, and only it.
+  check(a.own(OFF) === 1 && a.second(OFF) === 1, `${OFF}: its own example and a second (${a.own(OFF)} + ${a.second(OFF)})`);
+  check(count("example.compose") === 1, `one "add another" call, for ${OFF} (${count("example.compose")})`);
   check(
-    written.length === 0 && labels.every((l) => /HSK 1–[34]$/.test(l)),
-    `the pool serves all six at HSK 3–4, no call: ${labels.join(", ")}`,
+    [...HSK, OFF].every((w) => a.total(w) === 2),
+    `two examples on every card: ${[...HSK, OFF].map((w) => `${w} ${a.total(w)}`).join(", ")}`,
+  );
+  check(count("example.judge") === HSK.length + 2, `one editor's read per sentence written (${count("example.judge")})`);
+  // The pool's sentence is at HSK 3–4 for each — 通过's three topped out at HSK 2 on
+  // the 2.0 list until the band sentences (PLAN-examples Part 4).
+  const labels = HSK.map((w) => `${w} ${a.pooled(w).map((e) => e.level).join("/")}`);
+  check(
+    HSK.every((w) => a.pooled(w).length === 1 && /^HSK 1–[34]$/.test(a.pooled(w)[0].level ?? "")),
+    `the pool's sentence at HSK 3–4 on all six: ${labels.join(", ")}`,
   );
 
   // B. Interests set: every card gets its own sentence, one call and the read each,
   // and the cards run three at a time.
   await learner(TG2, "путешествия, кино");
-  const own2 = await add(TG2, HSK);
-  check(HSK.every((w) => own2(w) === 1), "each HSK card has its own sentence");
+  const b = await add(TG2, HSK);
+  check(HSK.every((w) => b.own(w) === 1 && b.total(w) === 2), "each HSK card has its own sentence and the pool's");
   check(
     count("enrich(example only)") === HSK.length && count("example.judge") === HSK.length && calls.length === 2 * HSK.length,
     `${calls.length} calls for ${HSK.length} cards: one example-only call and one read each`,

@@ -334,6 +334,17 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     inFlight.current = ac;
     setBusy(true);
     setIsError(false);
+    let acc = "";
+    // Drop the half-written bubble (on error) or replace it (on the final answer).
+    const closeOpen = (m: TutorMsg[], done?: TutorMsg) => {
+      const rest = m[m.length - 1]?.streaming ? m.slice(0, -1) : m;
+      return done ? [...rest, done] : rest;
+    };
+    const onDelta = (chunk: string) => {
+      if (inFlight.current !== ac) return; // stopped: what was written is already kept
+      acc += chunk;
+      setMessages((m) => closeOpen(m, { role: "assistant", content: acc, streaming: true }));
+    };
     // A chat about a card answers from the card's own endpoint (it has the word,
     // its meaning and its examples in hand) and may offer edits to that card.
     if (card) {
@@ -341,21 +352,23 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
         const r = await api.askWord(
           card.id,
           msgs.map((m) => ({ role: m.role, content: m.content })),
+          { onDelta, signal: ac.signal },
         );
         if (inFlight.current !== ac) return; // the chat moved on while we waited
-        setMessages((m) => [
-          ...m,
-          {
+        setMessages((m) =>
+          closeOpen(m, {
             role: "assistant",
             content: r.answer,
             addWords: r.addWords,
             addSynonyms: r.addSynonyms,
             addAntonyms: r.addAntonyms,
             addExamples: r.addExamples,
-          },
-        ]);
-      } catch {
-        if (inFlight.current === ac) setIsError(true);
+          }),
+        );
+      } catch (e) {
+        if ((e as Error).name === "AbortError" || inFlight.current !== ac) return;
+        setIsError(true);
+        setMessages((m) => closeOpen(m));
       } finally {
         if (inFlight.current === ac) {
           inFlight.current = null;
@@ -364,12 +377,6 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
       }
       return;
     }
-    let acc = "";
-    // Drop the half-written bubble (on error) or replace it (on the final answer).
-    const closeOpen = (m: TutorMsg[], done?: TutorMsg) => {
-      const rest = m[m.length - 1]?.streaming ? m.slice(0, -1) : m;
-      return done ? [...rest, done] : rest;
-    };
     try {
       const r = await api.tutorAskStream(
         {
@@ -379,14 +386,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
           level: getLearnerLevel(pair.source) ?? undefined,
           telegramId: accountId,
         },
-        {
-          onDelta: (chunk) => {
-            if (inFlight.current !== ac) return; // stopped: what was written is already kept
-            acc += chunk;
-            setMessages((m) => closeOpen(m, { role: "assistant", content: acc, streaming: true }));
-          },
-          signal: ac.signal,
-        },
+        { onDelta, signal: ac.signal },
       );
       if (inFlight.current !== ac) return;
       // Snap to the validated text and attach the one-tap "create cards" words.
@@ -531,12 +531,24 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     inFlight.current = ac;
     setBusy(true);
     setIsError(false);
+    // Streamed into an open bubble like every other answer: it used to land as one
+    // block after the spinner (the author's feedback, 2026-10-09).
+    let acc = "";
     try {
-      const r = await api.explainWord(ctx.id);
+      const r = await api.explainWord(ctx.id, {
+        onDelta: (chunk) => {
+          if (inFlight.current !== ac) return;
+          acc += chunk;
+          setMessages([opening, { role: "assistant", content: acc, streaming: true }]);
+        },
+        signal: ac.signal,
+      });
       if (inFlight.current !== ac) return;
       setMessages([opening, { role: "assistant", content: r.explanation }]);
-    } catch {
-      if (inFlight.current === ac) setIsError(true);
+    } catch (e) {
+      if ((e as Error).name === "AbortError" || inFlight.current !== ac) return;
+      setIsError(true);
+      setMessages([opening]);
     } finally {
       if (inFlight.current === ac) {
         inFlight.current = null;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
-import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, requestIsPro, callerId } from "../lib/entitlements.js";
+import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, callerId } from "../lib/entitlements.js";
 import { env } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
@@ -45,6 +45,7 @@ import {
   addExampleToWord,
   addProvidedExample,
   countAiExamples,
+  MAX_AI_EXAMPLES,
   explainWord,
   wordSenses,
   wordFamily,
@@ -520,7 +521,6 @@ const addBody = z.object({
   synonymLevel: z.string().max(4).optional(), // tune synonyms to a CEFR level (exam prep)
   exampleStyle: z.enum(["news", "casual", "dialogue", "literary", "internet", "none"]).optional(),
   exampleSource: z.enum(["ai", "web"]).optional(),
-  exampleCount: z.number().int().min(1).max(2).optional(),
   meaningPrompt: z.string().max(400).optional(), // learner override for meaning style
   sense: z.string().max(80).optional(), // known-language word it was translated from (the wanted sense)
   senseIndex: z.number().int().min(0).max(15).optional(), // the word page's sense picked in the lookup
@@ -803,18 +803,13 @@ wordsRouter.post("/words/:id/example", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  // A card holds at most two AI examples; the second one is a Pro feature.
-  // `replace` (regenerate) never grows the count, so it stays open to everyone.
-  if (!parsed.data.replace) {
-    const aiCount = await countAiExamples(String(req.params.id));
-    if (aiCount >= 2) {
-      res.status(403).json({ error: "A card holds at most two AI examples.", code: "examples_cap" });
-      return;
-    }
-    if (aiCount >= 1 && !(await requestIsPro(req))) {
-      res.status(403).json({ error: "That's a Pro feature. Upgrade to use it.", code: "pro_only", features: ["multi_example"] });
-      return;
-    }
+  // Every card comes with two (the pool's and the learner's own), and more are
+  // open to everyone: the old cap of two, the second Pro, read as a dumb limit once
+  // the pool's sentence filled the first slot (the author, 2026-10-09). Only a
+  // runaway guard is left. `replace` (regenerate) never grows the count.
+  if (!parsed.data.replace && (await countAiExamples(String(req.params.id))) >= MAX_AI_EXAMPLES) {
+    res.status(403).json({ error: `A card holds at most ${MAX_AI_EXAMPLES} AI examples.`, code: "examples_cap" });
+    return;
   }
   try {
     res.json(await addExampleToWord(String(req.params.id), parsed.data));
@@ -861,8 +856,14 @@ wordsRouter.post("/words/:id/enrich", async (req, res) => {
 });
 
 // POST /api/words/:id/explain -> on-demand AI explanation (nuance, usage, etc.)
+// With { stream: true } the text arrives as NDJSON deltas, as Mika's answers do.
 wordsRouter.post("/words/:id/explain", async (req, res) => {
   if (!(await guardWord(req, res))) return;
+  if ((req.body as { stream?: unknown } | undefined)?.stream === true) {
+    const id = String(req.params.id);
+    await streamNdjson(req, res, async (onDelta, signal) => ({ explanation: await explainWord(id, { onDelta, signal }) }));
+    return;
+  }
   try {
     res.json({ explanation: await explainWord(req.params.id) });
   } catch (err) {
@@ -915,12 +916,18 @@ const askBody = z.object({
     )
     .min(1)
     .max(200),
+  stream: z.boolean().optional(), // opt into NDJSON streaming of the "answer" text
 });
 wordsRouter.post("/words/:id/ask", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   const parsed = askBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  if (parsed.data.stream) {
+    const id = String(req.params.id);
+    await streamNdjson(req, res, (onDelta, signal) => askAboutWord(id, parsed.data.messages, { onDelta, signal }));
     return;
   }
   try {

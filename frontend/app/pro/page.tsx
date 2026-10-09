@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useIsPro } from "@/lib/useIsPro";
 import { cn } from "@/lib/utils";
-import { Infinity as InfinityIcon, Globe, Sparkles, BookOpen, Layers, PackageOpen, Star, Check, ArrowLeft } from "lucide-react";
+import { Infinity as InfinityIcon, Globe, Sparkles, BookOpen, PackageOpen, Star, Check, ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // Marketing / upgrade screen. Lays out every Pro benefit, a Free-vs-Pro table and
@@ -38,7 +38,6 @@ export default function ProPage() {
     { Icon: Globe, title: t("pro.b2"), desc: t("pro.b2d") },
     { Icon: Sparkles, title: t("pro.b3"), desc: t("pro.b3d") },
     { Icon: BookOpen, title: t("pro.b4"), desc: t("pro.b4d") },
-    { Icon: Layers, title: t("pro.b5"), desc: t("pro.b5d") },
     { Icon: PackageOpen, title: t("pro.b6"), desc: t("pro.b6d") },
   ];
 
@@ -47,7 +46,7 @@ export default function ProPage() {
     [t("pro.rCore"), "✓", "✓"],
     [t("pro.rDaily"), "20", "∞"],
     [t("pro.rMeaning"), t("pro.rMeaningFree"), t("pro.rMeaningPro")],
-    [t("pro.rExamples"), "1", t("pro.rExamplesPro")],
+    [t("pro.rExamples"), "2", t("pro.rExamplesPro")],
     [t("pro.rTutor"), t("pro.rLimited"), "∞"],
     [t("pro.rReaderGen"), "3 / " + t("pro.perMonth"), "∞"],
     [t("pro.rOcr"), "5 / " + t("pro.perMonth"), "∞"],

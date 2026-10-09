@@ -15,7 +15,7 @@ import { HskWordChip } from "@/components/HskWordChip";
 import { TopicEditor } from "@/components/TopicEditor";
 import { CEFR_FOR_HSK } from "@/components/HskFirstRun";
 import { ExamPlan, PlanLine } from "@/components/ExamPlan";
-import { CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
 
 // Today's new words at the learner's level: a daily drip, not a one-off build.
 // It replaced F11's "add more gap words" button — a learner shouldn't have to
@@ -258,6 +258,16 @@ export function HskDaily() {
           </Button>
         )}
       </div>
+
+      {/* The card is the day's few on purpose; more are a tap away on the Onomika
+          page, whose picks take the goal, a topic and "New picks" (the author,
+          2026-10-09: three topic words and nowhere to ask for more). */}
+      <p className="mt-3 text-[13px] text-ink-soft">
+        {t("hskDaily.moreLead")}{" "}
+        <Link href="/coach" className="inline-flex items-center gap-1 font-semibold text-sage-deep hover:text-sage">
+          {t("hskDaily.moreLink")} <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </p>
     </section>
   );
 }

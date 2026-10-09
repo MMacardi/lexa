@@ -44,13 +44,28 @@ export type TopicDay = {
 };
 
 /**
+ * A word the learner's level already covers: on their list at or below the target
+ * (the exam track brings it), or below the target on the other list. 火车 is HSK 1
+ * on 3.0 and off 2.0 (only 火车站 is there), so a 2.0 HSK 4 learner was offered it
+ * as a travel word. At the target on the other list it stays: 高铁 is 3.0 HSK 4,
+ * a travel term the 2.0 track never brings.
+ */
+export function coveredByLevel(word: string, version: HskVersion, target: number): boolean {
+  const tag = hskTagFor(word);
+  if (!tag) return false;
+  const own = tag[version];
+  if (own != null && own <= target) return true;
+  return Object.values(tag).some((n) => n != null && n < target);
+}
+
+/**
  * The pool in the order it should be met. Words from the learner's own text first
  * (most frequent there first): that is the material they are actually reading.
  * Then words made only of characters they know (数据 = 数 + 据 for an HSK 4 — cheap
  * to learn, which is what "usable at my level" means in Chinese), then mostly
- * known, then the rest; the model's frequency order breaks ties. Words already on
- * the learner's list at or below their target are dropped: the exam track brings
- * those, and offering them twice a day would be noise.
+ * known, then the rest; the model's frequency order breaks ties. Words their level
+ * already covers are dropped (coveredByLevel): the exam track brings those, or
+ * they are a beginner's words, and offering them as the field's would be noise.
  */
 export function rankTopicWords(
   candidates: TopicCandidate[],
@@ -59,7 +74,7 @@ export function rankTopicWords(
     knownChars: Set<string>;
     text?: string;
     hskLevelOf: (word: string) => number | null;
-    target: number;
+    covered: (word: string) => boolean;
   },
 ): TopicWord[] {
   const seen = new Set<string>();
@@ -70,9 +85,8 @@ export function rankTopicWords(
     // than eight is a phrase the model slipped in.
     if (word.length < 2 || word.length > 8 || word !== c.word.replace(/\s+/g, "") || seen.has(word)) return;
     seen.add(word);
-    if (opts.have.has(word)) return;
+    if (opts.have.has(word) || opts.covered(word)) return;
     const hsk = opts.hskLevelOf(word);
-    if (hsk != null && hsk <= opts.target) return;
     const chars = Array.from(word);
     const known = chars.filter((ch) => opts.knownChars.has(ch)).length / chars.length;
     const count = opts.text ? opts.text.split(word).length - 1 : 0;
@@ -183,7 +197,12 @@ async function fillPools(telegramId: string, topics: string[], more: boolean): P
         avoid: more ? old.map((w) => w.word) : undefined,
       });
       const had = new Set([...have, ...old.map((w) => w.word)]);
-      const ranked = rankTopicWords(candidates, { have: had, knownChars, hskLevelOf: (w) => hskTagFor(w)?.[version] ?? null, target });
+      const ranked = rankTopicWords(candidates, {
+        have: had,
+        knownChars,
+        hskLevelOf: (w) => hskTagFor(w)?.[version] ?? null,
+        covered: (w) => coveredByLevel(w, version, target),
+      });
       return [...old, ...ranked.map((w) => ({ ...w, pinyin: pinyin(w.word, { toneType: "symbol", type: "string" }) }))];
     }),
   );
@@ -260,7 +279,10 @@ export async function topicDaily(telegramId: string): Promise<TopicDay> {
   const { version, target } = levelOf(user);
   const { have, addedToday } = await learnerWords(user.id, version, target);
   const taken = new Set<string>();
-  const open = (w: TopicWord) => !taken.has(w.word) && (!have.has(w.word) || addedToday.has(w.word));
+  // Covered is checked here too, not only when a pool is listed: pools listed before
+  // the rule (or before a level change) still hold words like 火车.
+  const open = (w: TopicWord) =>
+    !taken.has(w.word) && !coveredByLevel(w.word, version, target) && (!have.has(w.word) || addedToday.has(w.word));
   const words: TopicDay["words"] = [];
   for (const slot of slots) {
     for (const topic of [slot, ...topics.filter((t) => t !== slot)]) {

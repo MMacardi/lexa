@@ -176,17 +176,16 @@ export function monthlyGuard(name: string, limit: number) {
 }
 
 /**
- * Reject Pro-only request parameters for free users (web-sourced examples, a
- * custom meaning style, or more than one example per word). Pro passes through.
+ * Reject Pro-only request parameters for free users (web-sourced examples or a
+ * custom meaning style). Pro passes through.
  */
 export async function requireProFeature(req: Request, res: Response, next: NextFunction): Promise<void> {
   const id = callerId(req);
   if (!simulatingFree(req) && (await isPro(id))) return next();
-  const b = (req.body ?? {}) as { exampleSource?: unknown; meaningPrompt?: unknown; exampleCount?: unknown };
+  const b = (req.body ?? {}) as { exampleSource?: unknown; meaningPrompt?: unknown };
   const features: string[] = [];
   if (b.exampleSource === "web") features.push("web_examples");
   if (typeof b.meaningPrompt === "string" && b.meaningPrompt.trim()) features.push("meaning_style");
-  if (typeof b.exampleCount === "number" && b.exampleCount > 1) features.push("multi_example");
   if (features.length) {
     res.status(403).json({ error: "That's a Pro feature. Upgrade to use it.", code: "pro_only", features });
     return;

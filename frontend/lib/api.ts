@@ -745,7 +745,6 @@ export interface AddAuto {
   synonymLevel?: string; // target CEFR level for the card's synonyms (exam prep)
   exampleStyle?: "news" | "casual" | "dialogue" | "literary" | "internet" | "none";
   exampleSource?: "ai" | "web";
-  exampleCount?: number; // how many examples to generate (1–2)
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word it was translated from, so the card leads with that sense
   senseIndex?: number; // the lookup row's sense (LookupHit.sense.index): the card is made in it
@@ -908,19 +907,22 @@ export const api = {
     http<{ meanings: Record<string, string> }>(`/api/dict/glosses`, { method: "POST", body: JSON.stringify({ words, lang }) }),
   wordFamily: (id: string) =>
     http<{ synonyms: string[]; antonyms: string[] }>(`/api/words/${id}/family`, { method: "POST" }),
-  explainWord: (id: string) =>
-    http<{ explanation: string }>(`/api/words/${id}/explain`, { method: "POST" }),
-  askWord: (id: string, messages: { role: "user" | "assistant"; content: string }[]) =>
-    http<{
+  // A card's explanation and the chat after it, streamed like Mika's answers: the
+  // text arrives via onDelta as it is written (a cached explanation comes whole).
+  explainWord: (id: string, opts: { onDelta?: (t: string) => void; signal?: AbortSignal }) =>
+    streamHttp<{ explanation: string }>(`/api/words/${id}/explain`, {}, opts),
+  askWord: (
+    id: string,
+    messages: { role: "user" | "assistant"; content: string }[],
+    opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
+  ) =>
+    streamHttp<{
       answer: string;
       addSynonyms: string[];
       addAntonyms: string[];
       addWords: string[];
       addExamples: { sentence: string; translation: string }[];
-    }>(`/api/words/${id}/ask`, {
-      method: "POST",
-      body: JSON.stringify({ messages }),
-    }),
+    }>(`/api/words/${id}/ask`, { messages }, opts),
   // Append a ready-made example (from tutor chat) to a card.
   addManualExample: (id: string, sentenceEn: string, sentenceZh: string) =>
     http<Word>(`/api/words/${id}/example/manual`, {

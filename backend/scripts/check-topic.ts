@@ -19,6 +19,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../src/services/db.js";
 import {
   clearTopic,
+  coveredByLevel,
   dayNumber,
   moreTopicWords,
   rankTopicWords,
@@ -48,13 +49,30 @@ function checkRanking() {
       knownChars: new Set(Array.from("数据参算法模型网络")),
       text,
       hskLevelOf: (w) => ({ 数据: 3, 网络: 4, 模型: 5 })[w] ?? null,
-      target: 4,
+      covered: (w) => ["数据", "网络"].includes(w),
     },
   ).map((w) => w.word);
   // Text words by count (模型 2, 算法 2, 参数 1), then all-known 数据? no — 数据 is
   // HSK 3 ≤ 4, dropped; 网络 HSK 4, dropped; then 芯片 (unknown chars), 神经元.
   const want = ["模型", "算法", "参数", "芯片", "神经元"];
   if (ranked.join(",") !== want.join(",")) fails.push(`ranking: got ${ranked.join(",")}, want ${want.join(",")}`);
+
+  // Covered by the level, on the real lists. 火车 is HSK 1 on 3.0 and off 2.0: a
+  // beginner's word for a 2.0 HSK 4 learner all the same. 高铁 is 3.0 HSK 4: the
+  // 3.0 track brings it, the 2.0 one never does, so it's a travel word there.
+  const cases: [string, "2.0" | "3.0", number, boolean][] = [
+    ["火车", "2.0", 4, true],
+    ["火车", "3.0", 4, true],
+    ["高铁", "2.0", 4, false],
+    ["高铁", "3.0", 4, true],
+    ["高铁", "2.0", 3, false],
+    ["算法", "2.0", 4, false],
+    ["数据", "2.0", 4, false], // 2.0 HSK 5, 3.0 HSK 4: neither at-or-below on theirs nor below on the other
+    ["数据", "3.0", 4, true],
+  ];
+  for (const [w, v, target, want] of cases) {
+    if (coveredByLevel(w, v, target) !== want) fails.push(`covered ${w} on ${v} at HSK ${target}: ${!want}, want ${want}`);
+  }
 }
 
 function checkPure() {
@@ -68,15 +86,15 @@ function checkPure() {
 async function checkDay() {
   const user = await prisma.user.create({ data: { telegramId: TG, firstName: "Topic", hskVersion: "3.0", hskTarget: 4, nativeLang: "ru" } });
   await prisma.coachMemory.create({ data: { userId: user.id, lang: "zh", interests: "AI" } });
-  await prisma.user.update({ where: { id: user.id }, data: { topicPool: { AI: pool("算法,模型,参数,芯片,算力,推理,训练") } } });
+  await prisma.user.update({ where: { id: user.id }, data: { topicPool: { AI: pool("算法,神经元,参数,芯片,算力,推理,显卡") } } });
   let day = await topicDaily(TG);
-  if (show(day) !== "算法,模型,参数") fails.push(`day 1: ${show(day)}`);
+  if (show(day) !== "算法,神经元,参数") fails.push(`day 1: ${show(day)}`);
   if (day.left !== 4) fails.push(`day 1 left ${day.left}, want 4`);
   if (!day.words.every((w) => w.topic === "AI")) fails.push("day 1: words not labelled with their field");
 
-  // Take 算法 today, said-known 模型, and an old card for 参数 from last week.
+  // Take 算法 today, said-known 神经元, and an old card for 参数 from last week.
   await prisma.word.create({ data: { userId: user.id, word: "算法", sourceLang: "zh", targetLang: "ru", meaningZh: "алгоритм" } });
-  await prisma.placementAnswer.create({ data: { userId: user.id, word: "模型", sourceLang: "zh", targetLang: "ru", known: true } });
+  await prisma.placementAnswer.create({ data: { userId: user.id, word: "神经元", sourceLang: "zh", targetLang: "ru", known: true } });
   await prisma.word.create({
     data: { userId: user.id, word: "参数", sourceLang: "zh", targetLang: "ru", meaningZh: "параметр", createdAt: new Date(Date.now() - 7 * 86400_000) },
   });
@@ -110,6 +128,16 @@ async function checkFields() {
   if (off.topics.join("|") !== "AI|Travel") fails.push(`off: topics ${off.topics.join("|")}`);
   await setTopics(TG, ["AI", "Travel"]);
   if (!(await topicDaily(TG)).on) fails.push("picking fields didn't turn it back on");
+}
+
+// A pool listed before the level rule (or before a level change) still holds 火车:
+// the day skips what the level covers. 2.0 HSK 4: 火车 is 3.0 HSK 1, 签证 2.0 HSK 4,
+// 护照 2.0 HSK 3 — all out; 高铁 (3.0 HSK 4, off 2.0) and 登机 stay.
+async function checkCoveredDay() {
+  await setTopics(TG, ["Travel"]);
+  await prisma.user.update({ where: { telegramId: TG }, data: { hskVersion: "2.0", topicPool: { Travel: pool("火车,高铁,签证,护照,登机") } } });
+  const day = await topicDaily(TG);
+  if (show(day) !== "高铁,登机" || day.left !== 0) fails.push(`covered by the level: ${show(day)} left ${day.left}, want 高铁,登机 left 0`);
 }
 
 // Never had words: the first Today lists the day's fields — both of them.
@@ -154,6 +182,7 @@ async function main() {
   checkPure();
   await checkDay();
   await checkFields();
+  await checkCoveredDay();
   if (LIVE) await checkSeedLive();
   if (LIVE) await checkMoreLive();
   await deleteAccount(TG);
@@ -161,7 +190,7 @@ async function main() {
     console.error("FAIL\n- " + fails.join("\n- "));
     process.exitCode = 1;
   } else {
-    console.log(`PASS — ranking, the day's three, fields round the interests, off stays off${LIVE ? ", a seeded day and more words" : ""}`);
+    console.log(`PASS — ranking, the day's three, fields round the interests, off stays off, covered words skipped${LIVE ? ", a seeded day and more words" : ""}`);
   }
 }
 

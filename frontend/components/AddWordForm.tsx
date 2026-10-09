@@ -28,13 +28,10 @@ import {
   setExampleStyle,
   useExampleSource,
   setExampleSource,
-  getExampleCount,
   getMeaningPrompt,
   getSynonymLevel,
   setSynonymLevel,
   useSynonymLevel,
-  setExampleCount,
-  useExampleCount,
   useLearnerLevel,
   usesHsk,
   useRecentPairs,
@@ -223,11 +220,10 @@ export function AddWordForm({
   };
 
   // learner prefs (example difficulty + register)
-  const pro = useIsPro(); // Pro-only knobs (web examples, 2-3 examples) are locked for free
+  const pro = useIsPro(); // Pro-only knobs (web examples, a custom meaning) are locked for free
   const upsell = useUpsell();
   const style = useExampleStyle();
   const exSource = useExampleSource();
-  const exCount = useExampleCount();
   // One control for where examples come from: AI-composed, mined from the web, or
   // none. Derived from the style/source prefs so it stays a single source of truth.
   const exMode: "ai" | "web" | "none" = style === "none" ? "none" : exSource === "web" ? "web" : "ai";
@@ -385,10 +381,10 @@ export function AddWordForm({
           // CEFR synonym levels are for exam prep in other languages; Chinese has HSK.
           synonymLevel: usesHsk(base.sourceLang) ? undefined : getSynonymLevel() || undefined,
           exampleStyle,
-          // Free plan: never send Pro-only params (web source, 2-3 examples, custom
-          // meaning) — the UI locks them, this is the safety net against a stale pref.
+          // Free plan: never send Pro-only params (web source, custom meaning) — the
+          // UI locks them, this is the safety net against a stale pref. Every card
+          // gets two examples, the pool's and their own: no count to send.
           exampleSource: pro ? getExampleSource() : "ai",
-          exampleCount: pro ? getExampleCount() : 1,
           meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
           sense,
           senseIndex,
@@ -1260,35 +1256,6 @@ export function AddWordForm({
                   ariaLabel={t("level.title")}
                   placeholder={t("level.notSet")}
                   options={levelOptions(sourceLang)}
-                />
-              </div>
-            )}
-            {exMode !== "none" && (
-              <div className="min-w-0 space-y-1">
-                <span className="block text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("count.label")}</span>
-                {/* Two options only, so a toggle rather than a dropdown. Free plan
-                    adds 1 example per word; tapping 2 opens the Pro upsell. */}
-                <Segmented
-                  size="sm"
-                  grow
-                  ariaLabel={t("count.label")}
-                  className="w-full"
-                  itemClassName="h-8"
-                  value={String(pro ? exCount : 1)}
-                  onChange={(v) => (v === "2" && !pro ? upsell({ word }) : setExampleCount(Number(v)))}
-                  options={[1, 2].map((n) => {
-                    const locked = n === 2 && !pro;
-                    return {
-                      value: String(n),
-                      title: locked ? t("pro.locked") : undefined,
-                      label: (
-                        <>
-                          {n}
-                          {locked && <ProTag />}
-                        </>
-                      ),
-                    };
-                  })}
                 />
               </div>
             )}

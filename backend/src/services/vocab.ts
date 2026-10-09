@@ -3,7 +3,7 @@ import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
 import { enrichWordEntry } from "../agents/enrich.js";
-import { chatJson, chatJsonConversation, type ChatMessage } from "./llm.js";
+import { chatJson, chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
@@ -78,7 +78,6 @@ export async function addWordForUser(params: {
   synonymLevel?: string; // tune the card's synonyms to a target CEFR level (exam prep)
   exampleStyle?: string;
   exampleSource?: string;
-  exampleCount?: number; // how many examples to generate (1–2); default 1
   meaningPrompt?: string; // learner override for how the meaning is written
   sense?: string; // known-language word the learner typed (add-by-translation): the sense they want
   senseIndex?: number; // the word page's sense picked in the add form's lookup (services/lookup.ts)
@@ -91,7 +90,6 @@ export async function addWordForUser(params: {
   const targetLang = params.targetLang ?? "zh";
   const useWeb = !FOCUS && params.exampleSource === "web"; // web mining is off while focused (F7)
   const withExample = params.exampleStyle !== "none";
-  const count = Math.max(1, Math.min(2, Math.round(params.exampleCount ?? 1)));
   const notes = params.notes?.trim() || null;
 
   // Instant capture: a Chinese word the dictionary knows is a card the moment
@@ -128,6 +126,7 @@ export async function addWordForUser(params: {
       await placePoolExamples(user.id, [{ ...created, targetLang }]);
     }
     const upgrade = { level: params.level, exampleStyle: params.exampleStyle };
+    // Two examples by default, the pool's and theirs (or two of theirs): upgradeCard.
     void upgradeCard(created.id, {
       ...upgrade,
       synonymLevel: params.synonymLevel,
@@ -135,9 +134,6 @@ export async function addWordForUser(params: {
       meaningInstruction: params.meaningPrompt,
       sense,
     })
-      .then(async () => {
-        for (let i = 1; withExample && i < count; i++) await addExampleToWord(created.id, { ...upgrade, exampleSource: params.exampleSource });
-      })
       // The card already stands on the dictionary; the word page offers "fill this in".
       .catch((err) => console.error(`[capture] upgrade failed for ${params.word}`, err));
     track("word_add", { telegramId: params.telegramId, props: { mode: "ai", dict: true, ...asTyped } });
@@ -222,18 +218,16 @@ export async function addWordForUser(params: {
     wordId = created.id;
   }
 
-  // Extra examples: compose N-1 more, each avoiding the ones already there. Skipped
-  // for the "no example" style.
-  if (count > 1 && withExample) {
-    for (let i = 1; i < count; i++) {
-      await addExampleToWord(wordId, {
-        exampleStyle: params.exampleStyle,
-        exampleSource: params.exampleSource,
-        level: params.level,
-      }).catch(() => {
-        /* one extra example failing shouldn't fail the whole add */
-      });
-    }
+  // Two examples by default, as on the instant path (upgradeCard): a second one,
+  // avoiding the first. Skipped for the "no example" style.
+  if (withExample && (await prisma.example.count({ where: { wordId } })) < 2) {
+    await addExampleToWord(wordId, {
+      exampleStyle: params.exampleStyle,
+      exampleSource: params.exampleSource,
+      level: params.level,
+    }).catch(() => {
+      /* the extra example failing shouldn't fail the whole add */
+    });
   }
 
   track("word_add", { telegramId: params.telegramId, props: { mode: "ai", ...asTyped } });
@@ -379,10 +373,11 @@ export async function addProvidedExample(id: string, sentenceEn: string, sentenc
 }
 
 /**
- * How many AI-generated examples a card holds (the cap is two, second is Pro).
- * The pool's sentence (services/sentences.ts) doesn't count: every HSK card comes
- * with one, and it mustn't use up the examples a learner asks for.
+ * How many AI-generated examples a card holds (capped at MAX_AI_EXAMPLES, a guard
+ * against runaway calls, not a plan limit). The pool's sentence (services/sentences.ts)
+ * doesn't count: every HSK card comes with one.
  */
+export const MAX_AI_EXAMPLES = 10;
 export async function countAiExamples(id: string): Promise<number> {
   const card = await prisma.word.findUnique({
     where: { id },
@@ -756,7 +751,12 @@ export async function recordCram(id: string, correct: boolean): Promise<boolean>
 // older prompt is written again on its next open. v2 (2026-09-28): the answer layout.
 const EXPLAIN_TAG = "explain-v2\n";
 
-export async function explainWord(id: string): Promise<string> {
+// `live` streams the visible text as it is written (the word page's "Explain with
+// Onomika" and the card chat after it), so it types out like the rest of Mika
+// instead of landing as one block after a long spinner.
+export type LiveText = { onDelta: (chunk: string) => void; signal?: AbortSignal };
+
+export async function explainWord(id: string, live?: LiveText): Promise<string> {
   const word = await prisma.word.findUnique({
     where: { id },
     select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, explainCache: true },
@@ -766,7 +766,7 @@ export async function explainWord(id: string): Promise<string> {
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
-  const { explanation } = await chatJson({
+  const ask = {
     system:
       `You are a friendly ${sourceName} teacher. Explain the ${sourceName} word or phrase to a learner ` +
       `whose language is ${targetName}. Write in ${targetName} (the ${sourceName} examples aside), concise and practical. ` +
@@ -781,7 +781,21 @@ export async function explainWord(id: string): Promise<string> {
       `Word: ${word.word}\nMeaning: ${word.meaningZh ?? "—"}\nPart of speech: ${word.partOfSpeech ?? "—"}` +
       (word.synonyms.length ? `\nListed synonyms: ${word.synonyms.join(", ")}` : ""),
     schema: explanationSchema,
-  });
+  };
+  const { explanation } = live
+    ? await chatJsonConversationStream({
+        messages: [
+          { role: "system", content: ask.system },
+          { role: "user", content: ask.user },
+        ],
+        schema: ask.schema,
+        onDelta: live.onDelta,
+        field: "explanation",
+        signal: live.signal,
+        timeoutMs: 60000,
+        label: "explain.stream",
+      })
+    : await chatJson(ask);
   const text = explanation.trim();
   // Cache it on the card so re-opening the word is free.
   await prisma.word.update({ where: { id }, data: { explainCache: EXPLAIN_TAG + text } }).catch(() => {});
@@ -1093,6 +1107,7 @@ export async function wordFamily(id: string): Promise<{ synonyms: string[]; anto
 export async function askAboutWord(
   id: string,
   history: { role: "user" | "assistant"; content: string }[],
+  live?: LiveText,
 ): Promise<WordChatResult> {
   const word = await prisma.word.findUnique({
     where: { id },
@@ -1155,7 +1170,17 @@ export async function askAboutWord(
     ...clipped,
   ];
 
-  const result = await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
+  const result = live
+    ? await chatJsonConversationStream({
+        messages,
+        schema: wordChatSchema,
+        onDelta: live.onDelta,
+        field: "answer",
+        signal: live.signal,
+        timeoutMs: 60000,
+        label: "askWord.stream",
+      })
+    : await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
   // Don't re-suggest words the card already has.
   const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
   const self = word.word.trim().toLowerCase();
