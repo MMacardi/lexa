@@ -912,6 +912,14 @@ export function AddWordForm({
                         <span className="font-zh text-[19px] leading-tight text-ink">{h.word}</span>
                         <span className="truncate text-[13px] text-ink-faint">{h.sense?.reading ?? h.pinyin}</span>
                         <HskBadge hsk={h.hsk} className="self-center" />
+                        {h.register && (
+                          <span
+                            title={t(`lookup.regTitle.${h.register}`)}
+                            className="shrink-0 self-center rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint"
+                          >
+                            {t(`lookup.reg.${h.register}`)}
+                          </span>
+                        )}
                       </span>
                       {/* A Russian query shows the sense it found, and that sense's first
                           phrase: 世界 · 全世界 «весь мир» against 和平 · 世界和平. */}

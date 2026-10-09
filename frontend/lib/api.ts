@@ -92,13 +92,15 @@ export interface LookupHit {
   english: boolean; // CC-CEDICT's English: no default in the learner's language
   hsk: HskTag | null;
   // A Russian query: the word page's sense it found, so two «мир» rows say which is
-  // which (世界 · 全世界 / 和平 · 世界和平). `reading` only where it isn't `pinyin`.
+  // which (世界 · 全世界 / 和平 · 世界和平). `reading` only where it isn't `pinyin`;
+  // no `index` for a word off the list (it has no page).
   sense?: {
-    index: number;
+    index?: number;
     meaning: string;
     reading?: string;
     phrase?: { text: string; translation: string };
   };
+  register?: "book" | "formal" | "coll" | "dial"; // not the everyday word: written (何处), official (拨打)…
 }
 
 // One Pleco-style sense of a word: part of speech, a short gloss in the learner's

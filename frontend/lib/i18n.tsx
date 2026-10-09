@@ -1240,6 +1240,15 @@ const DICT: Record<string, Entry> = {
   "lookup.pick": { en: "Tap a word to add it", ru: "Нажмите на слово, чтобы добавить", zh: "点按词语即可添加" },
   "lookup.add": { en: "Add {word}", ru: "Добавить {word}", zh: "添加 {word}" },
   "lookup.owned": { en: "Already in your words", ru: "Уже есть в ваших словах", zh: "已在你的词库中" },
+  // A row that isn't the everyday word says why (何处 for «где» is written Chinese).
+  "lookup.reg.book": { en: "literary", ru: "книжн.", zh: "书面" },
+  "lookup.reg.formal": { en: "formal", ru: "офиц.", zh: "正式" },
+  "lookup.reg.coll": { en: "colloquial", ru: "разг.", zh: "口语" },
+  "lookup.reg.dial": { en: "dialect", ru: "диал.", zh: "方言" },
+  "lookup.regTitle.book": { en: "Written, literary Chinese", ru: "Книжное, письменное слово", zh: "书面语" },
+  "lookup.regTitle.formal": { en: "Official, business Chinese", ru: "Официальное, деловое слово", zh: "正式用语" },
+  "lookup.regTitle.coll": { en: "Spoken, colloquial Chinese", ru: "Разговорное слово", zh: "口语" },
+  "lookup.regTitle.dial": { en: "Regional, dialect word", ru: "Диалектное, региональное слово", zh: "方言词" },
   "lookup.none": {
     en: "Not in the HSK dictionary — “Translate” will ask the AI.",
     ru: "В словаре HSK не нашлось — «Перевести» спросит ИИ.",

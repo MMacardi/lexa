@@ -126,7 +126,9 @@ check(!(await lookup("visit", "ru")).hits.some((h) => h.sense), "only a Russian 
 
 // The audit's everyday queries (.review/ux-dictionary/score.mts): is the word a native
 // speaker would accept the first row? 89/111 first and 94 in the top 3 before; 95 and
-// 106 now. The rest wait for the register table (BACKLOG 8c: 有钱, 难过, 打电话).
+// 106 with the page senses (8b); 111 and 111 with the register table (8c: 有钱, 难过,
+// 打电话). Not an independent measure — the table's first batch was these queries; the
+// blind check on 80 words outside them agreed on 75 and found one wrong (.review/ruzh).
 const GOLD: Record<string, string[]> = {
   богатый: ["有钱"], мир: ["世界"], учить: ["教", "学", "学习"], лёгкий: ["轻", "容易", "简单"], ключ: ["钥匙"],
   жить: ["住", "生活"], брать: ["拿"], идти: ["去", "走"], хороший: ["好"], большой: ["大"], время: ["时间"],
@@ -160,7 +162,41 @@ for (const [q, ok] of Object.entries(GOLD)) {
   if (at >= 0 && at < 3) top3++;
 }
 const n = Object.keys(GOLD).length;
-check(first >= 95 && top3 >= 106, `everyday queries: the natural word first in ${first}/${n}, in the top 3 in ${top3}/${n}`);
+check(first >= 111 && top3 >= 111,`everyday queries: the natural word first in ${first}/${n}, in the top 3 in ${top3}/${n}`);
+
+// 3b. The Russian → Chinese table (data/ru-zh.jsonl, BACKLOG 8c): the word people say
+// first, what the meanings alone never found (有钱 is off the HSK list), a register on the
+// bookish one, and each row saying which sense it is.
+const firstOf = async (q: string, ok: string[]) => {
+  const r = await lookup(q, "ru");
+  check(ok.includes(r.hits[0]?.word ?? ""), `${q} → ${ok.join("/")} first: ${r.hits.map((h) => h.word).join(" ")}`);
+  return r.hits;
+};
+const rich = await firstOf("богатый", ["有钱"]);
+check(
+  !rich[0]?.english && /богат/.test(rich[0]?.sense?.meaning ?? "") && rich[0]?.sense?.index === undefined && Boolean(rich[0]?.sense?.phrase),
+  `有钱's row is Russian, says its sense and has a phrase, but no page sense to make the card in: ${JSON.stringify(rich[0])}`,
+);
+check(rich.some((h) => h.word === "丰富" && h.sense?.index !== undefined), "丰富 «богатый (чем-то)» is still a row, in its page's sense");
+await firstOf("когда", ["什么时候"]);
+await firstOf("звонить", ["打电话"]);
+await firstOf("грустный", ["难过", "伤心"]);
+await firstOf("выучить", ["学会", "背"]);
+const where = await firstOf("где", ["哪儿", "哪里"]);
+const bookish = where.find((h) => h.word === "何处");
+check(!bookish || bookish.register === "book", `где: 何处 is marked written Chinese (${bookish?.register})`);
+check(!where.slice(0, 2).some((h) => h.register), "the everyday rows carry no register");
+const key = (await lookup("ключ", "ru")).hits.map((h) => h.word);
+check(!["拳头", "骨干", "重点", "画龙点睛"].some((w) => key.includes(w)), `ключ: no rows for «ключевой» (${key.join(" ")})`);
+await expect("youqian", "有钱", true); // the table's words off the list are in the pinyin index
+const split = (await lookup("背单词", "ru")).hits.map((h) => h.word);
+check(split.includes("背") && split.includes("单词"), `背单词 → ${split.join(" | ")} (单词 is off the list, not 单 | 词)`);
+const { dictCardFields } = await import("../src/services/capture.js");
+const richCard = await dictCardFields("有钱", "zh", "ru");
+check(
+  richCard?.meaningZh === defaultMeaning("有钱", "ru") && /[а-я]/.test(richCard?.meaningZh ?? "") && richCard?.phonetic === "yǒu qián",
+  `a 有钱 card starts in Russian: ${JSON.stringify(richCard)}`,
+);
 
 // The card for a picked sense (the add path, services/capture.ts).
 const { pickedSense } = await import("../src/services/capture.js");

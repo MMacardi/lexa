@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading } from "./cedict.js";
+import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading, type CedictEntry } from "./cedict.js";
 import { hskFrequency, hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
 import { hskPage, readsAs } from "./wordPages.js";
 import { prisma } from "./db.js";
@@ -30,25 +30,41 @@ let ru: Map<string, string> | null = null;
 // Meanings a default used to be (scripts/reorder-hsk-ru.ts keeps them on the row, "o"):
 // a card that still carries one is moved to the current default.
 const oldRu = new Map<string, Set<string>>();
+// The everyday words off the HSK list that the Russian table answers with (有钱,
+// 什么时候, 单词), and a phrase for each row — they have no word page to take one from.
+const everyday = new Map<string, { text: string; translation: string }>();
+
+// `../../data` is the same directory from src/services and from dist/services.
+function dataLines(file: string, missing: string): string[] {
+  const path = fileURLToPath(new URL(`../../data/${file}`, import.meta.url));
+  try {
+    // Trimmed: CRLF on a Windows checkout, as with cedict.jsonl.
+    return readFileSync(path, "utf8")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+  } catch (err) {
+    console.error("[lookup] no", path, "—", missing, err);
+    return [];
+  }
+}
 
 function ruIndex(): Map<string, string> {
   if (ru) return ru;
   ru = new Map();
-  // `../../data` is the same directory from src/services and from dist/services.
-  const path = fileURLToPath(new URL("../../data/hsk-ru.jsonl", import.meta.url));
-  let text: string;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch (err) {
-    console.error("[lookup] no default meanings at", path, "— cards start in English", err);
-    return ru;
-  }
-  for (const raw of text.split("\n")) {
-    const line = raw.trim(); // CRLF on a Windows checkout, as with cedict.jsonl
-    if (!line) continue;
+  for (const line of dataLines("hsk-ru.jsonl", "cards start in English")) {
     const row = JSON.parse(line) as { s?: string; m?: string; o?: string[] };
     if (row.s && row.m) ru.set(row.s, row.m);
     if (row.s && row.o?.length) oldRu.set(row.s, new Set(row.o));
+  }
+  // Written with the table (scripts/apply-ru-zh.ts): such a word is found by Russian and
+  // pinyin and starts as a Russian card, like a list word, instead of waiting on a
+  // model call to put CC-CEDICT's English into Russian.
+  for (const line of dataLines("everyday-ru.jsonl", "words off the HSK list start in English")) {
+    const row = JSON.parse(line) as { s?: string; m?: string; p?: [string, string] };
+    if (!row.s || !row.m || ru.has(row.s)) continue;
+    ru.set(row.s, row.m);
+    if (row.p) everyday.set(row.s, { text: row.p[0], translation: row.p[1] });
   }
   return ru;
 }
@@ -120,14 +136,18 @@ export function defaultIsSettled(word: string, lang: string | null | undefined):
 
 // The word page's sense a Russian query found (世界 «мир» · 全世界 «весь мир», 和平
 // «мир» · 世界和平): which of two «мир» rows is which. `index` points into the page,
-// so picking the row makes the card in that sense; `reading` is set only where the
-// sense reads otherwise than the card (背 «нести на себе» bēi).
+// so picking the row makes the card in that sense (a word off the list has no page,
+// and no index); `reading` is set only where the sense reads otherwise than the card
+// (背 «нести на себе» bēi).
 export type LookupSense = {
-  index: number;
+  index?: number;
   meaning: string;
   reading?: string;
   phrase?: { text: string; translation: string };
 };
+
+// Why a row is not the everyday word: written (何处), official (拨打), colloquial, regional.
+export type Register = "book" | "formal" | "coll" | "dial";
 
 export type LookupHit = {
   word: string;
@@ -136,6 +156,7 @@ export type LookupHit = {
   english: boolean; // the meaning is CC-CEDICT's English (no default in the learner's language)
   hsk: HskTag | null;
   sense?: LookupSense;
+  register?: Register;
 };
 export type Lookup = { kind: "zh" | "meaning" | "none"; hits: LookupHit[] };
 
@@ -298,8 +319,37 @@ const SENSE_WEIGHT = 0.85;
 // audit's 111 everyday queries: 0 → 92 natural first, 10 → 94, 15 → 95, none worse.
 const ADVANCED_PENALTY = 15;
 
-/** Russian query → score per word, and the page sense that answers it best. */
-function ruMatches(q: string): { scored: Map<string, number>; senses: Map<string, number> } {
+// The Russian words learners type, each with its Chinese answers in the order a native
+// speaker reaches for them and a line saying which sense each one is (BACKLOG 8c,
+// data/ru-zh.jsonl): богатый → 有钱 «богатый (о человеке, при деньгах)», 富, 丰富
+// «богатый (чем-то), обильный»; где → 哪儿 before 何处 (книжн.). The scorer below finds
+// what the meanings say, not what people say: 有钱 is off the HSK list, 曰 and 何处 are
+// exact matches, and 拨打 «звонить» beat 打电话 «звонить по телефону». Read once by one
+// Claude editor and checked by a second: the 1,023 Russian words heard most often in
+// films (OpenSubtitles) and the audit's everyday queries; 855 got a row, the rest the
+// scorer already answers.
+type RuAnswer = { w: string; si?: number; m: string; reg?: Register };
+type RuEntry = { a: RuAnswer[]; x?: string[] };
+let ruTable: Map<string, RuEntry> | null = null;
+
+function ruEntry(q: string): RuEntry | undefined {
+  if (!ruTable) {
+    ruTable = new Map();
+    for (const line of dataLines("ru-zh.jsonl", "Russian queries go by the scorer alone")) {
+      const row = JSON.parse(line) as { q?: string; k?: string[]; a?: RuAnswer[]; x?: string[] };
+      if (!row.q || !row.a?.length) continue;
+      for (const key of row.k ?? [row.q]) ruTable.set(norm(key), { a: row.a, ...(row.x?.length ? { x: row.x } : {}) });
+    }
+  }
+  return ruTable.get(q);
+}
+
+/**
+ * Russian query → score per word, and the page sense that answers it best. `whole`:
+ * the query is a word the table knows, so it was typed whole and a prefix match is
+ * noise — «ключ» filled its rows with 重点, 要素 and 画龙点睛 for «ключевой».
+ */
+function ruMatches(q: string, whole = false): { scored: Map<string, number>; senses: Map<string, number> } {
   const forms = ruForms(q);
   const scored = new Map<string, number>();
   const senses = new Map<string, number>();
@@ -308,7 +358,7 @@ function ruMatches(q: string): { scored: Map<string, number>; senses: Map<string
     let bestSense = 0;
     let senseAt = -1;
     for (const [form, weight] of forms) {
-      const typed = form === q;
+      const typed = !whole && form === q;
       best = Math.max(best, weight * ruBest(w.card, form, typed));
       w.senses.forEach((phrases, i) => {
         const s = weight * SENSE_WEIGHT * (ruBest(phrases, form, typed) - (i ? 8 : 0));
@@ -316,7 +366,8 @@ function ruMatches(q: string): { scored: Map<string, number>; senses: Map<string
       });
     }
     best = Math.max(best, bestSense);
-    if (best > 0) scored.set(w.word, best - (levelOf(w.word) >= 7 ? ADVANCED_PENALTY : 0));
+    // Not an everyday word off the list (有钱): it is off the list for being everyday.
+    if (best > 0) scored.set(w.word, best - (levelOf(w.word) >= 7 && !everyday.has(w.word) ? ADVANCED_PENALTY : 0));
     if (senseAt >= 0) senses.set(w.word, senseAt);
   }
   return { scored, senses };
@@ -347,7 +398,10 @@ let pinyinIdx: Promise<PinyinEntry[]> | null = null;
 function pinyinIndex(): Promise<PinyinEntry[]> {
   pinyinIdx ??= (async () => {
     const out: PinyinEntry[] = [];
-    for (const e of cedictEntries()) {
+    // The subset, and the everyday words the Russian table added: "youqian" → 有钱.
+    ruIndex();
+    const extra = [...everyday.keys()].filter((w) => !cedictHas(w)).map((w) => cedictLookup(w, { count: false }));
+    for (const e of [...cedictEntries(), ...extra.filter((e): e is CedictEntry => Boolean(e))]) {
       const main = e.readings.length > 1 ? (await mainReading(e)).reading : e.readings[0];
       const readings = e.readings.flatMap((r) => {
         if (r !== main && r.pinyin[0] !== r.pinyin[0].toLowerCase()) return [];
@@ -373,32 +427,52 @@ function startsWithSyllables(syllables: string[], py: string): boolean {
 }
 
 // Longest known word at each position — for a phrase typed or drawn whole
-// ("拜访老师"), so the learner can pick the word they meant out of it.
+// ("拜访老师"), so the learner can pick the word they meant out of it. A list word
+// first; where none longer than a character starts, a word from the rest of
+// CC-CEDICT: 背单词 was 背 | 单 | 词, because 单词 is off the list.
 function wordsIn(text: string): string[] {
   const out: string[] = [];
   let i = 0;
   while (i < text.length) {
     let len = Math.min(4, text.length - i);
     while (len > 1 && !cedictHas(text.slice(i, i + len))) len--;
+    if (len === 1) {
+      len = Math.min(4, text.length - i);
+      while (len > 1 && !cedictKnows(text.slice(i, i + len))) len--;
+    }
     const w = text.slice(i, i + len);
-    if (cedictHas(w) && !out.includes(w)) out.push(w);
+    if (cedictKnows(w) && !out.includes(w)) out.push(w);
     i += len;
   }
   return out;
 }
 
-async function hit(word: string, lang: string, senseAt?: number): Promise<LookupHit | null> {
+// A row of the add form. `senseAt` is the page sense the query matched; `answer` the
+// table's row for it, whose line says which sense of the Russian word this is.
+async function hit(word: string, lang: string, senseAt?: number, answer?: RuAnswer): Promise<LookupHit | null> {
   const card = await cedictCard(word, { count: false });
   if (!card) return null;
   const meaning = defaultMeaning(word, lang);
   const s = senseAt === undefined ? undefined : hskPage(word, "ru")?.s[senseAt];
-  const sense: LookupSense | undefined = s && {
-    index: senseAt!,
-    meaning: s.m,
-    ...(s.r && !readsAs(word, s.r, card.phonetic) ? { reading: s.r } : {}),
-    ...(s.p[0] ? { phrase: { text: s.p[0].t, translation: s.p[0].ru } } : {}),
+  const phrase = s?.p[0] ? { text: s.p[0].t, translation: s.p[0].ru } : answer ? everyday.get(word) : undefined;
+  const sense: LookupSense | undefined =
+    s || answer
+      ? {
+          ...(s ? { index: senseAt } : {}),
+          meaning: answer?.m ?? s!.m,
+          ...(s?.r && !readsAs(word, s.r, card.phonetic) ? { reading: s.r } : {}),
+          ...(phrase ? { phrase } : {}),
+        }
+      : undefined;
+  return {
+    word,
+    pinyin: card.phonetic,
+    meaning: meaning ?? card.gloss,
+    english: !meaning,
+    hsk: hskTagFor(word),
+    ...(sense ? { sense } : {}),
+    ...(answer?.reg ? { register: answer.reg } : {}),
   };
-  return { word, pinyin: card.phonetic, meaning: meaning ?? card.gloss, english: !meaning, hsk: hskTagFor(word), ...(sense ? { sense } : {}) };
 }
 
 /**
@@ -435,8 +509,17 @@ export async function lookup(query: string, lang: string): Promise<Lookup> {
     if (nq.length < 2) return { kind, hits: [] };
     const scored = new Map<string, number>();
     if (/\p{Script=Cyrillic}/u.test(nq)) {
-      const ru = ruMatches(nq);
-      const hits = await Promise.all(rank(ru.scored).map((w) => hit(w, lang, ru.senses.get(w))));
+      // The table's answers first, in its order; then the scorer's, less those it says
+      // don't answer the word at all («ключ» → 拳头 «ключевой»).
+      const entry = ruEntry(nq);
+      const ru = ruMatches(nq, Boolean(entry));
+      const answers = entry?.a ?? [];
+      const skip = new Set([...answers.map((a) => a.w), ...(entry?.x ?? [])]);
+      const rest = rank(new Map([...ru.scored].filter(([w]) => !skip.has(w)))).slice(0, Math.max(0, MAX_HITS - answers.length));
+      const hits = await Promise.all([
+        ...answers.slice(0, MAX_HITS).map((a) => hit(a.w, lang, a.si, a)),
+        ...rest.map((w) => hit(w, lang, ru.senses.get(w))),
+      ]);
       return { kind, hits: hits.filter((h): h is LookupHit => Boolean(h)) };
     } else {
       const py = plainPinyin(q);
