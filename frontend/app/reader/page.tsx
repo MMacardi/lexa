@@ -29,6 +29,7 @@ import { segment, wordKey, type Token } from "@/lib/segment";
 import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { MobileSheet } from "@/components/MobileSheet";
+import { SheetRow } from "@/components/SheetRow";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
 import { dictEntry, isChineseLang, peekDictEntry } from "@/lib/dictEntry";
@@ -45,7 +46,7 @@ import { recorderSupported } from "@/lib/record";
 import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -1857,7 +1858,7 @@ export default function ReaderPage() {
                   />
                 </div>
               )}
-              <ToolRow
+              <SheetRow
                 Icon={Languages}
                 label={t("reader.autoGloss")}
                 hint={t("reader.autoGlossHint")}
@@ -1865,7 +1866,7 @@ export default function ReaderPage() {
                 onClick={() => setAutoGloss(!autoGloss)}
               />
               {recOk && (
-                <ToolRow
+                <SheetRow
                   Icon={Mic}
                   label={t("reader.readAloud")}
                   hint={t("reader.readAloudSub")}
@@ -1883,7 +1884,7 @@ export default function ReaderPage() {
             <div className="mx-3 my-2 h-px bg-black/[0.06]" />
             <div className="space-y-1">
               {newKeys.size > 0 && selected.size < newKeys.size && (
-                <ToolRow
+                <SheetRow
                   Icon={CheckCheck}
                   label={t("reader.selectAllNew")}
                   onClick={() => {
@@ -1893,7 +1894,7 @@ export default function ReaderPage() {
                 />
               )}
               {savedRow && savedRow.content === text.trim() ? (
-                <ToolRow
+                <SheetRow
                   Icon={Check}
                   label={t("reader.savedShort")}
                   hint={t("reader.savedSub")}
@@ -1903,7 +1904,7 @@ export default function ReaderPage() {
                   }}
                 />
               ) : (
-                <ToolRow
+                <SheetRow
                   Icon={Save}
                   label={t("reader.save")}
                   onClick={() => {
@@ -1913,7 +1914,7 @@ export default function ReaderPage() {
                 />
               )}
               {openText && (
-                <ToolRow
+                <SheetRow
                   Icon={PenLine}
                   label={t("reader.edit")}
                   onClick={() => {
@@ -1951,45 +1952,3 @@ export default function ReaderPage() {
   );
 }
 
-// A row in the Reader's phone tools sheet: an action, or a setting with a
-// switch when `on` is given.
-function ToolRow({
-  Icon,
-  label,
-  hint,
-  on,
-  onClick,
-}: {
-  Icon: LucideIcon;
-  label: string;
-  hint?: string;
-  on?: boolean;
-  onClick: () => void;
-}) {
-  const isSwitch = on !== undefined;
-  return (
-    <button
-      type="button"
-      role={isSwitch ? "switch" : undefined}
-      aria-checked={isSwitch ? on : undefined}
-      onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-black/[0.03] active:bg-black/[0.05]"
-    >
-      <Icon className={cn("h-[19px] w-[19px] shrink-0", on ? "text-sage-deep" : "text-ink-soft")} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold text-ink">{label}</span>
-        {hint && <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-faint">{hint}</span>}
-      </span>
-      {isSwitch && (
-        <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-sage" : "bg-black/15")}>
-          <span
-            className={cn(
-              "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200",
-              on ? "left-[18px]" : "left-0.5",
-            )}
-          />
-        </span>
-      )}
-    </button>
-  );
-}

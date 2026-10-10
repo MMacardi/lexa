@@ -2307,6 +2307,7 @@ const DICT: Record<string, Entry> = {
     zh: "向任意方向滑动即可评分，点击翻面，也可使用按钮。",
   },
   "review.swipeUpDown": { en: "Swipe up and down too", ru: "Свайпы вверх и вниз", zh: "也启用上下滑动" },
+  "review.options": { en: "Review settings", ru: "Настройки повторения", zh: "复习设置" },
   "review.pinyinFront": { en: "Pinyin on the front", ru: "Пиньинь на лицевой стороне", zh: "正面显示拼音" },
   "review.toneColors": { en: "Tone colours", ru: "Цвета тонов", zh: "声调颜色" },
   "review.toneColorsHint": {

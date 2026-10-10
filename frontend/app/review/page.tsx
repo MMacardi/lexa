@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
@@ -41,10 +42,14 @@ import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
+import { MobileSheet } from "@/components/MobileSheet";
+import { SheetRow } from "@/components/SheetRow";
+import { useLockScroll } from "@/lib/mobileNav";
+import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
@@ -144,6 +149,11 @@ export default function FlashcardsPage() {
   const swipeUpDown = useSwipeUpDown();
   const toneColors = useToneColors();
   const playOnFlip = usePlayOnFlip();
+  // Phones: the session's switches live behind the gear, so the card and the
+  // grades have the screen to themselves.
+  const [optsOpen, setOptsOpen] = useState(false);
+  const optsSheet = usePresence(optsOpen, 200);
+  useLockScroll(optsOpen);
 
   // Turn the card to its answer side, saying the word as it turns. Called straight
   // from the tap or key handler, never from an effect: iOS only lets speech start
@@ -175,30 +185,59 @@ export default function FlashcardsPage() {
   // re-render on touch-down cost the first frames of the drag.
   const startX = useRef(0);
   const startY = useRef(0);
-  const axis = useRef<"" | "x" | "y">(""); // direction lock, decided on the first few px
+  // Direction lock, decided on the first few px; "s" is scrolling the answer text.
+  const axis = useRef<"" | "x" | "y" | "s">("");
+  // A drag that began on answer text long enough to scroll, and where it was then.
+  const textScroll = useRef<{ el: HTMLElement; top: number } | null>(null);
+  const glideId = useRef(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const gradesRef = useRef<HTMLDivElement | null>(null);
   // Phones: the card gives up height so the four grades are on screen without a
   // scroll — on a 390×844 iPhone the 348px card put them under the tab bar. Measured
   // rather than a fixed offset, so whatever sits above the card, the grades end just
-  // above the tab bar; never below 180px, where the word itself stops fitting.
+  // above the tab bar; never below 180px, where the word itself stops fitting. With
+  // room to spare it grows (to 480px), which brings the grades down within thumb reach.
   const [fitH, setFitH] = useState<number | null>(null);
+  // The whole session fits the screen, so the page is pinned (see the effect
+  // below): nothing scrolls or shifts sideways under a swipe. False on a wide
+  // screen, and on a phone too short for it (landscape), which keeps scrolling.
+  const [pinned, setPinned] = useState(false);
   useLayoutEffect(() => {
     const fit = () => {
       const card = cardRef.current;
       const grades = gradesRef.current;
       if (!card || !grades) return;
-      if (window.matchMedia("(min-width: 640px)").matches) return setFitH(null);
+      if (window.matchMedia("(min-width: 640px)").matches) {
+        setPinned(false);
+        return setFitH(null);
+      }
       const view = window.visualViewport?.height ?? window.innerHeight;
       const bar = document.querySelector("[data-tabbar]")?.getBoundingClientRect().height ?? 0;
       const over = grades.getBoundingClientRect().bottom + window.scrollY - (view - bar - 12);
       // offsetHeight, not the rect: a card mid-swipe is transformed.
-      setFitH(Math.round(Math.min(360, Math.max(180, card.offsetHeight - over))));
+      const want = card.offsetHeight - over;
+      setFitH(Math.round(Math.min(480, Math.max(180, want))));
+      setPinned(want >= 180);
     };
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
   }, [started, index]);
+  // Does the answer side's text overflow its box? Only then is it a scroll area
+  // that keeps vertical drags. It used to keep them always (and every drag that
+  // started on it), so on most answers a swipe did nothing or scrolled the page.
+  const backRef = useRef<HTMLDivElement | null>(null);
+  const [backScrolls, setBackScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const el = backRef.current;
+    if (!el) return;
+    const check = () => setBackScrolls(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    for (const c of Array.from(el.children)) ro.observe(c);
+    return () => ro.disconnect();
+  }, [started, index, flipped, fitH]);
   const stampAgain = useRef<HTMLDivElement | null>(null);
   const stampGood = useRef<HTMLDivElement | null>(null);
   const stampHard = useRef<HTMLDivElement | null>(null);
@@ -283,11 +322,33 @@ export default function FlashcardsPage() {
     const prevX = html.style.overflowX;
     html.style.overscrollBehaviorY = "contain";
     html.style.overflowX = "hidden";
+    // iOS still let a phone pan sideways past a dragged or flying card with only the
+    // root hidden; clipped at the body, the card never widens the page at all. A
+    // class, not an inline style: a sheet's scroll lock resets body's inline overflow.
+    document.body.classList.add("overflow-x-clip");
     return () => {
       html.style.overscrollBehaviorY = prev;
       html.style.overflowX = prevX;
+      document.body.classList.remove("overflow-x-clip");
     };
   }, [started]);
+  // A phone whose session fits the screen (see `pinned`): the page itself can't
+  // scroll, so no swipe or thumb arc can move it, and every drag belongs to the card.
+  // The end-of-session screen is free to scroll.
+  const onCard = started && index < deck.length;
+  useEffect(() => {
+    if (!onCard || !pinned) return;
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    const prevOver = html.style.overscrollBehavior;
+    window.scrollTo(0, 0);
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    return () => {
+      html.style.overflow = prev;
+      html.style.overscrollBehavior = prevOver;
+    };
+  }, [onCard, pinned]);
 
   // Anki's keys: 1–4 grade from either face, space/enter reveals the back — and
   // once the back is up, space is Good.
@@ -500,9 +561,10 @@ export default function FlashcardsPage() {
       onClick={() => void undo()}
       disabled={!lastGrade || undoing}
       title={t("review.undoHint")}
-      className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+      aria-label={t("review.undo")}
+      className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50 sm:px-3"
     >
-      <Undo2 className="h-3.5 w-3.5" /> {t("review.undo")}
+      <Undo2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span className="hidden sm:inline">{t("review.undo")}</span>
     </button>
   );
 
@@ -981,6 +1043,21 @@ export default function FlashcardsPage() {
   const frontFields = visibleFields(layout.front, true, frontTr);
   const backFields = visibleFields(layout.back, false, backTr);
 
+  const cardTouch = swipeUpDown || pinned ? "none" : "pan-y";
+
+  // Scrolling the answer text by hand keeps its momentum, as a native scroll would.
+  function glideText(el: HTMLElement, v: number) {
+    cancelAnimationFrame(glideId.current);
+    let step = v * 16; // px per frame
+    const tick = () => {
+      if (Math.abs(step) < 0.5) return;
+      el.scrollTop += step;
+      step *= 0.94;
+      glideId.current = requestAnimationFrame(tick);
+    };
+    glideId.current = requestAnimationFrame(tick);
+  }
+
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
@@ -1000,6 +1077,10 @@ export default function FlashcardsPage() {
     sampleT.current = e.timeStamp;
     prevD.current = 0;
     prevT.current = e.timeStamp;
+    cancelAnimationFrame(glideId.current);
+    const back = backRef.current;
+    textScroll.current =
+      pinned && flipped && backScrolls && back?.contains(e.target as Node) ? { el: back, top: back.scrollTop } : null;
     if (cardRef.current) cardRef.current.style.transition = "none";
     grabbing(true);
   };
@@ -1009,23 +1090,45 @@ export default function FlashcardsPage() {
     const dy = e.clientY - startY.current;
     // Lock to one axis on the first few px, so a swipe that drifts diagonally
     // doesn't end up grading on whichever direction happened to win at the end.
-    if (!axis.current && Math.hypot(dx, dy) > 8) {
-      const vertical = Math.abs(dy) > Math.abs(dx);
-      if (vertical && !swipeUpDown) {
-        // Vertical scrolling is the browser's here — let go of the card entirely.
-        // Still a drag though, so releasing must not read as a tap and flip it.
+    // Sideways is the main gesture and a thumb sweeps in an arc, often starting
+    // steeply: it takes a clearly vertical start (over ~55°) to go up or down.
+    if (!axis.current && Math.hypot(dx, dy) > 10) {
+      let vertical = Math.abs(dy) > 1.4 * Math.abs(dx);
+      if (vertical && textScroll.current) {
+        // Up or down on answer text that scrolls: scroll it, the card stays put.
+        axis.current = "s";
         draggedRef.current = true;
-        pointerActive.current = false;
-        grabbing(false);
-        return;
+      } else if (vertical && !swipeUpDown) {
+        if (!pinned) {
+          // Vertical scrolling is the browser's here — let go of the card entirely.
+          // Still a drag though, so releasing must not read as a tap and flip it.
+          draggedRef.current = true;
+          pointerActive.current = false;
+          grabbing(false);
+          return;
+        }
+        // A pinned page has nothing to scroll: a steep drag still moves the card sideways.
+        vertical = false;
       }
-      axis.current = vertical ? "y" : "x";
-      draggedRef.current = true;
-      follow.start(0, 0);
+      if (axis.current !== "s") {
+        axis.current = vertical ? "y" : "x";
+        draggedRef.current = true;
+        follow.start(0, 0);
+      }
+    }
+    // Locked vertical, then carried further sideways than up or down: that was a
+    // sideways swipe after all, so the card follows it instead of sinking to Hard
+    // (or staying put while the answer text scrolls).
+    if ((axis.current === "y" || axis.current === "s") && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+      if (axis.current === "s") follow.start(0, 0);
+      axis.current = "x";
+      sampleD.current = prevD.current = dx;
+      sampleT.current = prevT.current = e.timeStamp;
     }
     if (!axis.current) return;
-    const d = axis.current === "y" ? dy : dx;
-    follow.to(axis.current === "y" ? 0 : dx, axis.current === "y" ? dy : 0);
+    const d = axis.current === "x" ? dx : dy;
+    if (axis.current === "s" && textScroll.current) textScroll.current.el.scrollTop = textScroll.current.top - dy;
+    else follow.to(axis.current === "y" ? 0 : dx, axis.current === "y" ? dy : 0);
     if (e.timeStamp - sampleT.current > 30) {
       prevD.current = sampleD.current;
       prevT.current = sampleT.current;
@@ -1040,11 +1143,16 @@ export default function FlashcardsPage() {
     follow.stop();
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
-    const d = axis.current === "y" ? dy : dx;
+    const d = axis.current === "x" ? dx : dy;
     // `v * d > 0` so a drag that was yanked back at the last moment doesn't fire
     // the direction it was pulled away from.
     const dt = e.timeStamp - prevT.current;
     const v = dt > 0 ? (d - prevD.current) / dt : 0;
+    if (axis.current === "s") {
+      if (textScroll.current) glideText(textScroll.current.el, -v);
+      axis.current = "";
+      return;
+    }
     const fired = Math.abs(d) > SWIPE_PX || (Math.abs(d) > FLICK_PX && Math.abs(v) > FLICK_V && v * d > 0);
     if (fired && axis.current === "x")
       return d > 0
@@ -1088,7 +1196,9 @@ export default function FlashcardsPage() {
   return (
     <div className="mx-auto flex max-w-[560px] select-none flex-col items-center [-webkit-touch-callout:none]">
       <div className="w-full">
-        <div className="flex items-center justify-between gap-2">
+        {/* A phone drops the title row and keeps one line of controls (the
+            count moves into it), so the card and the grades fit without a scroll. */}
+        <div className="hidden items-center justify-between gap-2 sm:flex">
           <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
           <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink-soft">
             {total - index >= 3 && (
@@ -1099,7 +1209,14 @@ export default function FlashcardsPage() {
             {Math.min(index + 1, total)} / {total}
           </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:mt-2 sm:flex-wrap sm:gap-2">
+          <button
+            onClick={() => setStarted(false)}
+            aria-label={t("review.backToSetup")}
+            className="inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-2.5 py-1.5 text-ink-muted hover:bg-black/[0.03] sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <a
             href={`/word/${word.id}`}
             target="_blank"
@@ -1116,19 +1233,31 @@ export default function FlashcardsPage() {
           </button>
           <button
             onClick={() => setStarted(false)}
-            className="inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="hidden items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] sm:inline-flex"
           >
             ← {t("review.backToSetup")}
           </button>
           {undoButton}
+          <span className="ml-auto text-[14px] font-semibold tabular-nums text-ink-soft sm:hidden">
+            {Math.min(index + 1, total)} / {total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOptsOpen(true)}
+            aria-label={t("review.options")}
+            aria-haspopup="dialog"
+            className="inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-2.5 py-1.5 text-ink-muted hover:bg-black/[0.03] sm:hidden"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
-        <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
+        <div className="mt-3 h-[7px] overflow-hidden rounded-full bg-track sm:mt-4">
           <div
             className="h-full rounded-full bg-sage transition-[width] duration-300"
             style={{ width: `${(index / total) * 100}%` }}
           />
         </div>
-        <div className="mt-3 flex justify-between text-sm font-semibold">
+        <div className="mt-2 flex justify-between text-sm font-semibold sm:mt-3">
           <span className="flex items-center gap-2 text-warn-text">
             <span className="h-2.5 w-2.5 rounded-full bg-warn" /> {t("review.learningLabel", { n: learning })}
           </span>
@@ -1179,9 +1308,9 @@ export default function FlashcardsPage() {
             // transform/transition/cursor are written imperatively during a drag and
             // so are deliberately absent here — React must not clobber them on a re-render.
             willChange: "transform",
-            // With up/down on we own both axes, so the card can no longer scroll the
-            // page under it (the back face keeps its own scroll area below).
-            touchAction: swipeUpDown ? "none" : "pan-y",
+            // With up/down on, or a pinned page, we own both axes, so the card can no
+            // longer scroll the page under it (the back face keeps its own scroll area below).
+            touchAction: cardTouch,
           }}
         >
           {/* Keyed per card: the next word gets a fresh, face-up card that rises
@@ -1212,12 +1341,17 @@ export default function FlashcardsPage() {
               {/* BACK — the layout's back fields; scrollable so long content fits */}
               <div style={faceFit} className="flip-face flip-back flex min-h-[320px] flex-col rounded-[30px] border border-black/[0.07] bg-surface p-6 shadow-[0_30px_60px_rgba(46,42,38,0.13)]">
                 <div
-                  className="flex max-h-[300px] min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-1"
-                  // Keep the pointer for scrolling (so a drag here scrolls instead of
-                  // starting a swipe), but DON'T swallow the click — a tap on the back
-                  // must still flip the card back to the front.
-                  onPointerDown={(e) => e.stopPropagation()}
-                  style={{ touchAction: "pan-y" }}
+                  ref={backRef}
+                  // A phone's fitted card has a set height, and the text takes all of it.
+                  className={cn(
+                    "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-2 py-1",
+                    !fitH && "max-h-[300px]",
+                  )}
+                  // Long text: an up/down drag scrolls it and a sideways one still swipes
+                  // the card. On a pinned phone page the card does that scroll itself
+                  // (onPointerMove), so a thumb arc that starts steeply can still turn
+                  // into a swipe; elsewhere the browser scrolls it. A tap flips it.
+                  style={{ touchAction: backScrolls && !pinned ? "pan-y" : cardTouch }}
                 >
                   {backFields.map((f, i) => (
                     <div key={f} className="text-center">
@@ -1261,7 +1395,7 @@ export default function FlashcardsPage() {
       {/* Up/down swipes and audio are toggled here rather than on the setup screen:
           this is the only place either can be felt, so the switches sit under the
           card they apply to — and they take effect on the very next card. */}
-      <div className="mt-4 flex w-full max-w-[560px] flex-col items-center gap-2">
+      <div className="mt-4 hidden w-full max-w-[560px] flex-col items-center gap-2 sm:flex">
         <p className="text-center text-[13px] font-medium text-ink-faint">
           {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
         </p>
@@ -1331,6 +1465,50 @@ export default function FlashcardsPage() {
           )}
         </div>
       </div>
+
+      {/* phone: the switches above, behind the gear in the session's top row */}
+      {optsSheet.mounted &&
+        createPortal(
+          <MobileSheet closing={optsSheet.closing} onClose={() => setOptsOpen(false)} title={t("review.options")}>
+            <p className="px-3 pb-2 text-[13px] leading-snug text-ink-faint">
+              {t(swipeUpDown ? "review.dragHint4" : "review.dragHint")}
+            </p>
+            <div className="space-y-1">
+              <SheetRow
+                Icon={MoveVertical}
+                label={t("review.swipeUpDown")}
+                hint={t("review.swipeUpDownHint")}
+                on={swipeUpDown}
+                onClick={() => setSwipeUpDown(!swipeUpDown)}
+              />
+              <SheetRow
+                Icon={Type}
+                label={t("review.pinyinFront")}
+                hint={t("review.pinyinFrontHint")}
+                on={layout.front.includes("phonetic")}
+                onClick={() => togglePinyinFront(layout)}
+              />
+              {isChineseLang(word.sourceLang) && (
+                <SheetRow
+                  Icon={Palette}
+                  label={t("review.toneColors")}
+                  hint={t("review.toneColorsHint")}
+                  on={toneColors}
+                  onClick={() => setToneColors(!toneColors)}
+                />
+              )}
+              {canSpeak() && (
+                <SheetRow
+                  Icon={playOnFlip ? Volume2 : VolumeX}
+                  label={t("review.playOnFlip")}
+                  on={playOnFlip}
+                  onClick={() => setPlayOnFlip(!playOnFlip)}
+                />
+              )}
+            </div>
+          </MobileSheet>,
+          document.body,
+        )}
 
       {editing && (
         <EditWordModal
