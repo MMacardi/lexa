@@ -1389,7 +1389,7 @@ const DICT: Record<string, Entry> = {
     ru: "Сейчас нечего повторять — добавьте слова или зайдите позже.",
     zh: "暂无待复习——添加新词或稍后再来。",
   },
-  "tour.title": { en: "Everything in Onomika", ru: "Всё, что есть в Onomika", zh: "Onomika 的全部功能" },
+  "tour.title": { en: "All sections", ru: "Все разделы", zh: "全部功能" },
   "tour.add": { en: "Add a word", ru: "Добавить слово", zh: "添加单词" },
   "tour.add.d": { en: "Type, paste or draw it — a card at once", ru: "Впиши, вставь или нарисуй — сразу карточка", zh: "输入、粘贴或手写——立刻成卡" },
   "tour.review": { en: "Flashcards", ru: "Карточки", zh: "闪卡" },
