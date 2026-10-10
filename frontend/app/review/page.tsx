@@ -189,6 +189,8 @@ export default function FlashcardsPage() {
   const axis = useRef<"" | "x" | "y" | "s">("");
   // A drag that began on answer text long enough to scroll, and where it was then.
   const textScroll = useRef<{ el: HTMLElement; top: number } | null>(null);
+  // A press on a word in an example: the card takes the pointer only once it moves.
+  const captureLate = useRef(false);
   const glideId = useRef(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const gradesRef = useRef<HTMLDivElement | null>(null);
@@ -347,6 +349,35 @@ export default function FlashcardsPage() {
     return () => {
       html.style.overflow = prev;
       html.style.overscrollBehavior = prevOver;
+    };
+  }, [onCard, pinned]);
+  // iOS still rubber-bands a page that can't scroll: a drag slid the whole screen
+  // down and, held, pushed it around. So on the pinned card screen the browser gets
+  // no touch scrolling at all. The card scrolls a long answer itself, and a sheet or
+  // dialog whose content overflows (checked once per touch) keeps its own scroll.
+  useEffect(() => {
+    if (!onCard || !pinned) return;
+    let allow = false;
+    const onStart = (e: TouchEvent) => {
+      allow = false;
+      const target = e.target as Element;
+      if (cardRef.current?.contains(target)) return;
+      for (let n: Element | null = target; n && n !== document.body; n = n.parentElement) {
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+          allow = true;
+          return;
+        }
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!allow && e.cancelable) e.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
     };
   }, [onCard, pinned]);
 
@@ -508,17 +539,11 @@ export default function FlashcardsPage() {
   // `fly` is where the card leaves from — a swipe passes its own direction so the
   // card keeps going the way the thumb was pushing it; the buttons use the default.
   function commit(grade: number, word: Word, fly?: { x: number; y: number }) {
-    // Grades from the front stay for a word met before (a known one shouldn't need a
-    // reveal before Easy), but a card never reviewed is graded only once its back was
-    // seen: a "Good" on 服务器 unseen was a fake "I knew it" that FSRS scheduled days
-    // out (the audit, 2026-10-02). Its first grade — key, button or swipe — shows it.
-    if (!flipped && word.reviewCount === 0) {
-      if (cardRef.current) cardRef.current.style.transition = SNAP_BACK;
-      paintCard(0, 0);
-      axis.current = "";
-      reveal(word);
-      return;
-    }
+    // Every grade lands from either face, a new card's too. From 2026-10-02 a card
+    // never reviewed turned over on its first grade instead (a "Good" unseen was a
+    // fake "I knew it"), but then the first swipe on nearly every new HSK word did
+    // nothing but flip, and a word the learner already knows should be one swipe to
+    // Easy (the author, 2026-10-10). A wrong "Good" costs one early Again.
     const to = fly ?? { x: grade >= 3 ? 640 : -640, y: 0 };
     follow.stop();
     const el = cardRef.current;
@@ -1061,13 +1086,20 @@ export default function FlashcardsPage() {
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
   const onPointerDown = (e: React.PointerEvent) => {
-    // Let interactive children (speak button, links, a word in an example) work without flipping/dragging.
-    if ((e.target as HTMLElement).closest("button, a, input, textarea, [data-ci]")) return;
+    // A fresh press: whatever the last drag left behind mustn't eat this one's click.
+    draggedRef.current = false;
+    // Let interactive children (speak button, links) work without flipping/dragging.
+    if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
     // Edge dead zone: iOS owns a drag that starts here (back/forward navigation),
     // so starting a swipe there would drag the page along with the card.
     if (e.pointerType === "touch" && (e.clientX < EDGE_PX || e.clientX > window.innerWidth - EDGE_PX))
       return;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // A word in an example sentence is tappable (its meaning pops up), and the
+    // examples fill much of the answer side, so a swipe may start on one too: the
+    // card captures the pointer only once it moves, and a plain tap still reaches
+    // the word. Starting there used to leave the card dead under the thumb.
+    captureLate.current = !!(e.target as HTMLElement).closest("[data-ci]");
+    if (!captureLate.current) (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     startX.current = e.clientX;
     startY.current = e.clientY;
     axis.current = "";
@@ -1114,6 +1146,10 @@ export default function FlashcardsPage() {
         axis.current = vertical ? "y" : "x";
         draggedRef.current = true;
         follow.start(0, 0);
+      }
+      if (captureLate.current) {
+        captureLate.current = false;
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       }
     }
     // Locked vertical, then carried further sideways than up or down: that was a
@@ -1303,6 +1339,13 @@ export default function FlashcardsPage() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
           onPointerCancel={onPointerCancel}
+          // The click that ends a drag is no tap: it neither flips the card nor opens
+          // the word the drag happened to start on.
+          onClickCapture={(e) => {
+            if (!draggedRef.current) return;
+            draggedRef.current = false;
+            e.stopPropagation();
+          }}
           onClick={onFlip}
           style={{
             // transform/transition/cursor are written imperatively during a drag and
