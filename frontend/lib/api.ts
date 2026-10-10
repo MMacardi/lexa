@@ -52,6 +52,16 @@ export interface Word {
   state?: number;
   learningSteps?: number;
   lastReview?: string | null;
+  // The writing schedule (the /write drill), FSRS kept apart from the reading one
+  // above. null writeStability = never written from memory.
+  writeStability?: number | null;
+  writeDifficulty?: number | null;
+  writeDue?: string | null;
+  writeReps?: number;
+  writeLapses?: number;
+  writeState?: number;
+  writeSteps?: number;
+  writeLast?: string | null;
   // Production ledger — "can use it", tracked apart from the review schedule.
   produceAttempts?: number;
   produceCorrect?: number;
@@ -865,6 +875,9 @@ export const api = {
     }),
   // Take back the card's last grade: the schedule as it was, the log row gone.
   undoReview: (id: string) => http<Word>(`/api/words/${id}/undo`, { method: "POST" }),
+  // A writing drill grade (1–4): moves the word's writing schedule, never its reading one.
+  writeWord: (id: string, grade: number) =>
+    http<Word>(`/api/words/${id}/write`, { method: "POST", body: JSON.stringify({ grade, retention: readRetention() }) }),
   // A cram answer: logged, never graded into the schedule (BACKLOG "Cram a list now").
   cramWord: (id: string, correct: boolean) =>
     http<{ ok: true }>(`/api/words/${id}/cram`, { method: "POST", body: JSON.stringify({ correct }) }),

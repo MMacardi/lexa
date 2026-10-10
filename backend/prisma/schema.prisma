@@ -278,6 +278,18 @@ model Word {
   state         Int       @default(0) // 0=New 1=Learning 2=Review 3=Relearning
   learningSteps Int       @default(0)
   lastReview    DateTime?
+  // Writing schedule (FSRS again, apart): writing a Chinese word from its meaning
+  // is its own skill, so failing to write one the learner reads well must not
+  // reset its reading interval, and the writing drill has its own due list.
+  // null writeStability = never written from memory.
+  writeStability Float?
+  writeDifficulty Float?
+  writeDue       DateTime?
+  writeReps      Int       @default(0)
+  writeLapses    Int       @default(0)
+  writeState     Int       @default(0)
+  writeSteps     Int       @default(0)
+  writeLast      DateTime?
   // Production ledger, denormalised from ProductionEvent so the "can use" count
   // and the per-card badge are one query. Recognition state (above) is untouched
   // by it: a word can be due for review and still be one you can use, or vice versa.
@@ -367,7 +379,8 @@ model ReviewEvent {
   // FSRS Rating: 1=Again 2=Hard 3=Good 4=Easy. Null on pre-F2 rows.
   grade     Int?
   // Where the answer was given: review | quiz | drill | scene | chat, or cram
-  // (logged only — a cram answer never moves the schedule).
+  // (logged only — a cram answer never moves the schedule), or write (the
+  // writing schedule's grade; the reading schedule is untouched).
   source    String   @default("review")
   // The card's schedule from just before this grade, so "Undo" can put it back
   // exactly (BACKLOG "Undo the last grade in review"). Null on cram rows and on

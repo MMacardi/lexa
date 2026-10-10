@@ -40,6 +40,7 @@ import {
   getWord,
   recordReview,
   recordCram,
+  recordWriting,
   undoLastReview,
   asReviewSource,
   deleteWord,
@@ -765,6 +766,24 @@ wordsRouter.post("/words/:id/cram", async (req, res) => {
     return;
   }
   res.json({ ok: true });
+});
+
+// POST /api/words/:id/write -> grade the word on its writing schedule ({grade}
+// 1–4, from the writing drill). The reading schedule is left alone.
+wordsRouter.post("/words/:id/write", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  const raw = req.body?.grade;
+  if (typeof raw !== "number" || !(raw >= 1 && raw <= 4)) {
+    res.status(400).json({ error: "grade must be 1–4" });
+    return;
+  }
+  const retention = typeof req.body?.retention === "number" ? req.body.retention : undefined;
+  const word = await recordWriting(req.params.id, Math.round(raw), retention);
+  if (!word) {
+    res.status(404).json({ error: "Word not found" });
+    return;
+  }
+  res.json(word);
 });
 
 // POST /api/words/:id/production -> log an attempt to USE the word (drill, scene

@@ -41,7 +41,7 @@ import { EditWordModal } from "@/components/EditWordModal";
 import { PairMultiSelect } from "@/components/PairMultiSelect";
 import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
-import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
+import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
 import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
@@ -79,16 +79,6 @@ const GRADES = [
 function presetIdOf(layout: CardLayout): string {
   const eq = (a: CardField[], b: CardField[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   return CARD_PRESETS.find((p) => eq(p.front, layout.front) && eq(p.back, layout.back))?.id ?? "custom";
-}
-
-// Compact "next due" label for a grade button, e.g. "10м" / "2д" / "3мес".
-function fmtInterval(m: number, t: (k: string) => string): string {
-  if (m < 60) return `${m}${t("unit.min")}`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}${t("unit.hour")}`;
-  const d = Math.round(m / 1440);
-  if (d < 30) return `${d}${t("unit.day")}`;
-  return `${Math.round(d / 30)}${t("unit.month")}`;
 }
 
 export default function FlashcardsPage() {

@@ -1062,10 +1062,12 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   pace in use stops reaching the date, and the bot saying the plan's line. `[competitor pass]`
 - **Character parts on the word page.** Stroke order shipped 2026-10-09 (the word page's Characters
   block plays each character's strokes from the draw pad's Make Me a Hanzi medians — no Hanzi Writer
-  needed). Writing practice shipped 2026-10-10 (asked for directly): `WritingTrainer` — "Write it" on
-  the word page and the `/write` drill (due words first, from memory or traced), each stroke judged
-  as the pen lifts by Hanzi Writer's matcher ported to the 256 grid (`lib/strokeMatch.ts`, guarded by
-  `scripts/check-stroke-match.ts`); practice only, no review grade. Left: the parts that give the
+  needed). Writing shipped 2026-10-10 (asked for directly): `WritingTrainer` — "Write it" on the word
+  page (practice), and `/write`, a writing mode on its own FSRS schedule (`Word.write*`, backend
+  `recordWriting`, guarded by `scripts/check-writing-schedule.ts`): meaning + pinyin → write it, new
+  words traced first then written from memory at the end, grade suggested from hints/mistakes;
+  each stroke judged as the pen lifts by Hanzi Writer's matcher ported to the 256 grid
+  (`lib/strokeMatch.ts`, guarded by `scripts/check-stroke-match.ts`). Left: the parts that give the
   sound vs the meaning (Outlier's idea) from Make Me a Hanzi's dictionary.txt; check its licence
   first. `[competitor pass]`
 - **Exam-format drills from your own words.** 选词填空 fill-the-gap and "hear a sentence, pick the

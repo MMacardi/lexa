@@ -3,7 +3,9 @@
 // For every character in the stroke file, each stroke is drawn the way a finger
 // draws it — moved, resized, turned a little, shaky, starting late and running
 // long — and must pass as that stroke, in both trainer modes (outline shown or
-// not). The same drawing reversed must not pass (and should be called
+// not). It must pass drawn slowly too: points a fraction of a unit apart, as a
+// phone's touch sampling gives a careful stroke (a short stroke drawn that way
+// once thinned to a single point and failed). The same drawing reversed must not pass (and should be called
 // backwards); the next stroke drawn in this one's place must not pass (it's out
 // of order). A stroke from elsewhere in another character must not pass either.
 // Fails if any rate falls under the floors below.
@@ -68,8 +70,19 @@ function drawn(s: Pt[]): Pt[] {
   });
 }
 
-const tally = { right: [0, 0], reversed: [0, 0], backwards: [0, 0], order: [0, 0], stranger: [0, 0] };
-const fails: Record<string, string[]> = { right: [], reversed: [], order: [] };
+// The same line drawn slowly: a point every half unit along it, unshaken.
+function slow(d: Pt[]): Pt[] {
+  const out: Pt[] = [d[0]];
+  for (let i = 1; i < d.length; i++) {
+    const [a, b] = [d[i - 1], d[i]];
+    const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+    for (let k = 1; k <= n; k++) out.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+  }
+  return out;
+}
+
+const tally = { right: [0, 0], slow: [0, 0], reversed: [0, 0], backwards: [0, 0], order: [0, 0], stranger: [0, 0] };
+const fails: Record<string, string[]> = { right: [], slow: [], reversed: [], order: [] };
 const t0 = performance.now();
 for (const { ch, strokes } of chars) {
   for (let i = 0; i < strokes.length; i++) {
@@ -78,6 +91,9 @@ for (const { ch, strokes } of chars) {
       tally.right[1]++;
       if (judgeStroke(d, strokes, i, outline) === "ok") tally.right[0]++;
       else if (fails.right.length < 12) fails.right.push(`${ch}#${i + 1}`);
+      tally.slow[1]++;
+      if (judgeStroke(slow(d), strokes, i, outline) === "ok") tally.slow[0]++;
+      else if (fails.slow.length < 12) fails.slow.push(`${ch}#${i + 1}`);
       // Reversing a dot or a short tick barely changes it; long strokes only.
       const len = strokes[i].reduce((n, p, j) => (j ? n + Math.hypot(p[0] - strokes[i][j - 1][0], p[1] - strokes[i][j - 1][1]) : 0), 0);
       if (len >= 40) {
@@ -110,7 +126,7 @@ console.log(`${chars.length} characters judged in ${((performance.now() - t0) / 
 
 // Same-place strokes make some out-of-order cases unanswerable (三's three
 // 横 are one shape a few units apart, and a finger is shakier than that).
-const FLOORS = { right: 0.99, reversed: 0.99, backwards: 0.98, order: 0.97, stranger: 0.999 };
+const FLOORS = { right: 0.99, slow: 0.99, reversed: 0.99, backwards: 0.98, order: 0.97, stranger: 0.999 };
 let bad = false;
 for (const [k, [hit, n]] of Object.entries(tally)) {
   const rate = hit / n;

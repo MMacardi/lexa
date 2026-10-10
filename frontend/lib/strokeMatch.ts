@@ -131,7 +131,11 @@ function fit(drawn: Pt[], s: Stroke, o: { leniency: number; near: boolean; backw
  * `strokes`. `outline`: the character's outline is on screen.
  */
 export function judgeStroke(drawn: Pt[], strokes: Stroke[], next: number, outline: boolean, leniency = 1): Verdict {
-  const pts = drawn.filter((p, i) => !i || dist(p, drawn[i - 1]) >= 1);
+  // Thin to a unit apart from the last point kept — not from the previous point
+  // drawn: a slow stroke's points are all closer than that to their neighbour,
+  // and every one of them used to go, leaving a careful stroke a single dot.
+  const pts: Pt[] = [];
+  for (const p of drawn) if (!pts.length || dist(p, pts[pts.length - 1]) >= 1) pts.push(p);
   if (pts.length < 2) return "miss";
   const near = outline || next > 0;
   const want = fit(pts, strokes[next], { leniency, near, backwards: true });

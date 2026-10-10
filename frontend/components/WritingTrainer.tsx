@@ -54,20 +54,25 @@ function useWriteMode(key: string, fallback: WriteMode) {
 
 export function WritingTrainer({
   word,
-  storeKey,
+  storeKey = "word",
   defaultMode = "trace",
+  fixedMode,
   onFinish,
   children,
 }: {
   word: string;
-  storeKey: string;
+  /** Where the learner's Trace / From memory choice is remembered. */
+  storeKey?: string;
   defaultMode?: WriteMode;
+  /** The drill decides the mode per card: no switch, no "Write again". */
+  fixedMode?: WriteMode;
   onFinish?: (r: WriteResult) => void;
-  /** Shown beside "Write again" once the word is written (the drill's "Next"). */
+  /** Shown beside the result once the word is written. */
   children?: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const [mode, setMode] = useWriteMode(`lexa.writeMode.${storeKey}`, defaultMode);
+  const [chosen, setMode] = useWriteMode(`lexa.writeMode.${storeKey}`, defaultMode);
+  const mode = fixedMode ?? chosen;
   const chars = [...word].filter((c) => HAN.test(c));
   // Per character its strokes, or null when the stroke file lacks it (then it
   // stands written and is skipped).
@@ -120,27 +125,29 @@ export function WritingTrainer({
   const clean = !total.mistakes && !total.hints;
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Segmented
-          size="sm"
-          ariaLabel={t("write.mode")}
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "trace", label: t("write.trace") },
-            { value: "memory", label: t("write.memory") },
-          ]}
-        />
-        <button
-          type="button"
-          onClick={again}
-          title={t("write.again")}
-          aria-label={t("write.again")}
-          className="rounded-full p-2 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-      </div>
+      {!fixedMode && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Segmented
+            size="sm"
+            ariaLabel={t("write.mode")}
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "trace", label: t("write.trace") },
+              { value: "memory", label: t("write.memory") },
+            ]}
+          />
+          <button
+            type="button"
+            onClick={again}
+            title={t("write.again")}
+            aria-label={t("write.again")}
+            className="rounded-full p-2 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* The word so far: written characters in ink, the one being written
           framed; from memory the rest stay blank. */}
@@ -172,13 +179,15 @@ export function WritingTrainer({
             {clean && <Check className="h-4 w-4" />}
             {clean ? t("write.clean") : t("write.score", { m: total.mistakes, h: total.hints })}
           </p>
-          <button
-            type="button"
-            onClick={again}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> {t("write.again")}
-          </button>
+          {!fixedMode && (
+            <button
+              type="button"
+              onClick={again}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> {t("write.again")}
+            </button>
+          )}
           {children}
         </div>
       )}

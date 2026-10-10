@@ -711,7 +711,7 @@ const UNDO_WINDOW_MS = 30 * 60_000;
  */
 export async function undoLastReview(id: string) {
   const last = await prisma.reviewEvent.findFirst({
-    where: { wordId: id, source: { not: "cram" } },
+    where: { wordId: id, source: { notIn: ["cram", "write"] } },
     orderBy: { createdAt: "desc" },
   });
   if (!last?.prev || Date.now() - last.createdAt.getTime() > UNDO_WINDOW_MS) return null;
@@ -751,6 +751,51 @@ export async function recordCram(id: string, correct: boolean): Promise<boolean>
   await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source: "cram" } });
   track("review", { props: { grade, source: "cram" } });
   return true;
+}
+
+/**
+ * A grade from the writing drill (/write): the word written from its meaning.
+ * Scheduled on the card's own writing state with the same FSRS as reviews, so
+ * writing has its own due list and a word the learner reads well but can't yet
+ * write keeps its reading interval. Logged as source "write" (the day counts;
+ * no `prev`, and Undo, which is for review grades, passes over it).
+ */
+export async function recordWriting(id: string, grade: number, retention?: number) {
+  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: { retention: true } } } });
+  if (!word) return null;
+  await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source: "write" } });
+  track("review", { props: { grade, source: "write" } });
+
+  const now = new Date();
+  const card: Card =
+    word.writeStability == null
+      ? createEmptyCard(now)
+      : {
+          due: word.writeDue ?? now,
+          stability: word.writeStability,
+          difficulty: word.writeDifficulty ?? 0,
+          elapsed_days: 0,
+          scheduled_days: 0,
+          learning_steps: word.writeSteps,
+          reps: word.writeReps,
+          lapses: word.writeLapses,
+          state: word.writeState as State,
+          last_review: word.writeLast ?? undefined,
+        };
+  const { card: next } = schedulerFor(retention ?? word.user.retention ?? undefined).next(card, now, grade as Grade);
+  return prisma.word.update({
+    where: { id },
+    data: {
+      writeStability: next.stability,
+      writeDifficulty: next.difficulty,
+      writeDue: next.due,
+      writeReps: next.reps,
+      writeLapses: next.lapses,
+      writeState: next.state,
+      writeSteps: next.learning_steps ?? 0,
+      writeLast: now,
+    },
+  });
 }
 
 /**

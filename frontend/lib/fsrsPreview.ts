@@ -50,6 +50,31 @@ export function applyGradeLocally(word: Word, grade: 1 | 2 | 3 | 4): Word {
   };
 }
 
+// The same for the writing schedule: its fields read as the card's.
+export function previewWriteMinutes(word: Word) {
+  return previewMinutes({
+    ...word,
+    stability: word.writeStability ?? null,
+    difficulty: word.writeDifficulty ?? null,
+    due: word.writeDue ?? null,
+    reps: word.writeReps ?? 0,
+    lapses: word.writeLapses ?? 0,
+    state: word.writeState ?? 0,
+    learningSteps: word.writeSteps ?? 0,
+    lastReview: word.writeLast ?? null,
+  });
+}
+
+// "10min", "3h", "4d", "2mo" — a grade button's next interval.
+export function fmtInterval(m: number, t: (k: string) => string): string {
+  if (m < 60) return `${m}${t("unit.min")}`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}${t("unit.hour")}`;
+  const d = Math.round(m / 1440);
+  if (d < 30) return `${d}${t("unit.day")}`;
+  return `${Math.round(d / 30)}${t("unit.month")}`;
+}
+
 // Minutes-from-now until the card is next due for each grade (1=Again..4=Easy).
 export function previewMinutes(word: Word): { again: number; hard: number; good: number; easy: number } {
   const now = new Date();
