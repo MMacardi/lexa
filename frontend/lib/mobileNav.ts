@@ -64,6 +64,20 @@ export function useIsMobile() {
   return mobile;
 }
 
+// A touch screen with no mouse (phones, tablets, whatever their width): there a
+// press-and-drag gesture on the page fights the finger scrolling it.
+export function useTouchOnly() {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const on = () => setTouch(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return touch;
+}
+
 // iOS Safari doesn't shrink the layout viewport when the keyboard opens, so a
 // `fixed inset-0` modal ends up under the keyboard. Mirror the *visual* viewport
 // into --vv-top / --vv-h; the `.vv-overlay` class (globals.css) sizes overlays by it.

@@ -15,6 +15,7 @@ import { isAiSupported } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLearnerLevel, getGraphAddMethod, setGraphAddMethod, type GraphAddMethod } from "@/lib/learnPrefs";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/motion";
+import { useTouchOnly } from "@/lib/mobileNav";
 
 type Kind = "center" | "syn" | "ant";
 interface SimNode {
@@ -110,8 +111,9 @@ function clampToBox(n: SimNode, w: number, h: number) {
 // A live, Obsidian-style "word family": the current word sits in the middle, its
 // synonyms orbit to the right and antonyms to the left, each in a fanned column
 // sized from the pills' real width/height. Nodes spring toward their slot, shove
-// each other aside when boxes overlap, and everything is draggable — a pill stays
-// where it's dropped until Reset. No graph library; a tiny simulation on rAF.
+// each other aside when boxes overlap, and with a mouse everything is draggable —
+// a pill stays where it's dropped until Reset (on a touch screen, tap only). No
+// graph library; a tiny simulation on rAF.
 export function WordFamilyGraph({ word }: { word: Word }) {
   const { t } = useI18n();
   const { accountId } = useAccount();
@@ -122,6 +124,9 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const ensureLevel = useEnsureLevel();
   const [pending, setPending] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  // On a touch screen the pills are tapped, not dragged: a finger landing on the
+  // canvas has to scroll the page, and arranging pills by hand isn't worth that.
+  const touch = useTouchOnly();
   // Terms added from this graph → their new card id, so a tap right after adding
   // opens the freshly-created word (and a second tap never adds a duplicate).
   const [addedIds, setAddedIds] = useState<Map<string, string>>(new Map());
@@ -853,7 +858,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
       <div
         ref={wrapRef}
         style={{ height: boxH }}
-        className="graph-canvas relative w-full touch-none select-none overflow-hidden rounded-[18px] border border-black/[0.06]"
+        className={cn("graph-canvas relative w-full select-none overflow-hidden rounded-[18px] border border-black/[0.06]", !touch && "touch-none")}
       >
         {/* add-your-own controls, each under the column it grows */}
         <button
@@ -956,16 +961,21 @@ export function WordFamilyGraph({ word }: { word: Word }) {
             >
               <button
                 type="button"
-                onPointerDown={(e) => onDown(e, n)}
-                onPointerMove={(e) => onMove(e, n)}
-                onPointerUp={(e) => onUp(e, n)}
-                onPointerCancel={(e) => onUp(e, n, true)}
+                {...(touch
+                  ? { onClick: () => void activate(n) }
+                  : {
+                      onPointerDown: (e: React.PointerEvent) => onDown(e, n),
+                      onPointerMove: (e: React.PointerEvent) => onMove(e, n),
+                      onPointerUp: (e: React.PointerEvent) => onUp(e, n),
+                      onPointerCancel: (e: React.PointerEvent) => onUp(e, n, true),
+                    })}
                 title={saved ? n.label : `+ ${n.label}`}
                 data-kind={n.kind}
                 data-hot={hovered === n.id || undefined}
                 style={{ maxWidth: labelMax }}
                 className={cn(
-                  "graph-pill block cursor-grab touch-none rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug",
+                  "graph-pill block rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug",
+                  !touch && "cursor-grab touch-none",
                   targetFont(word.sourceLang),
                   saved
                     ? n.kind === "syn"
