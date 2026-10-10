@@ -100,18 +100,23 @@ export function GlobalTutor() {
     dragRef.current = null;
     clampToViewport();
   }
-  // Re-clamp when the panel opens or the window resizes (never leave the viewport).
+  // Re-clamp when the panel opens, the window resizes, or the panel itself grows.
+  // It's docked by its bottom edge, so a panel dragged up while the chat was
+  // empty grew upward with every message until its header — the drag handle and
+  // the reset button with it — was above the screen and it couldn't be moved.
   useEffect(() => {
-    if (!open) return;
+    const el = panelRef.current;
+    if (!open || mobile || !el) return;
     const onResize = () => clampToViewport();
-    // A tick after open so the panel has laid out.
-    const id = window.setTimeout(clampToViewport, 0);
+    // Fires once when observing starts, after the panel has laid out.
+    const ro = new ResizeObserver(onResize);
+    ro.observe(el);
     window.addEventListener("resize", onResize);
     return () => {
-      window.clearTimeout(id);
+      ro.disconnect();
       window.removeEventListener("resize", onResize);
     };
-  }, [open]);
+  }, [open, mobile]);
   const moved = offset.x !== 0 || offset.y !== 0;
 
   useEffect(() => {
@@ -150,6 +155,8 @@ export function GlobalTutor() {
               : "anim-panel fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
           )}
           style={mobile ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
+          // The open animation starts it scaled down; measure it again at full size.
+          onAnimationEnd={mobile ? undefined : clampToViewport}
           onClick={(e) => e.stopPropagation()}
           {...drop.props}
         >
