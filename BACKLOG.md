@@ -1093,6 +1093,29 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Read aloud says which words came through, and Bailian's voice for Chinese (2026-10-10, asked for directly)
+- Asked from a screenshot: the Reader's read-aloud gave "Не совсем · 57%" and nothing to fix, and the
+  browser's Chinese voice sounded robotic (on Windows it's Microsoft Huihui).
+  - **Read aloud, word by word** (`lib/pronounce.ts` `compareRead`): what speech-to-text wrote is
+    matched to the sentence syllable by syllable (pinyin with tones; a homophone counts as said right).
+    Each word either came through, was heard as something else (it's underlined, with its pinyin next
+    to the pinyin of what was heard: 海鸥 hǎi ōu · прозвучало как 好后 hǎo hòu), or isn't in the
+    recording (grey). The headline is "Понятно 12 из 16 слов"; the percentage is gone for Chinese.
+    The hint says what this can't do: when the recogniser fixes a small tone slip from context, it
+    doesn't show (in the local run, a voice saying 好后 in context was written down as 海鸥).
+  - **Bailian's voice** (`services/tts.ts`, `GET /api/tts`): qwen3-tts-flash, voice Cherry, ¥0.8 per
+    10,000 billed characters (a Chinese character bills as 2). Each text is made once, stored as a
+    48 kbps MP3 in `TtsClip` (keyed by a hash; the text isn't kept), and served to everyone after
+    that. It answers byte ranges, which Safari needs. `lib/speak.ts` plays it through one shared
+    `<audio>` element (iOS unlocks it inside the tap) and falls back to the browser voice if the
+    server fails. The speaker icon spins while a clip is made for the first time (~2.5 s; a replay
+    starts in ~10 ms). Usage rows log characters, and the admin cost view prices them.
+- `check-tts.ts` (backend): MP3 out, stored once, served from the DB, and speech-to-text hears the
+  clip as the exact text. `check-read-aloud.ts` (frontend): 8 cases, including the screenshot. Local
+  run: word page play (new clip, then a cached replay), and the Reader at 390 px in light and dark,
+  with a fake mic playing a misread sentence: 12/16, with 海鸥, 头顶, 盘旋 and 买东西 → 卖东西 mài marked.
+  Not run on a real iPhone.
+
 ### The pace question without a date: "Around HSK 4" is working on HSK 4 (2026-09-27, asked for directly)
 - Asked from a phone screenshot: on Sep 27, every pace on "How much time a day?" said "HSK 4 by
   Oct 5". The guest estimate read "Around HSK 4" as knows all of HSK 1–4, so an HSK 4 target had

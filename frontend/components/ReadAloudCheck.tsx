@@ -4,19 +4,25 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { recorderSupported, startRecording, type Recording } from "@/lib/record";
-import { scorePronunciation, type PronounceScore } from "@/lib/pronounce";
+import { compareRead, scorePronunciation, type PronounceScore, type ReadCheck } from "@/lib/pronounce";
+import { segment } from "@/lib/segment";
+import { Pinyin } from "@/components/Pinyin";
+import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
 import { Mic, Square, Loader2 } from "lucide-react";
 
 // Read-aloud practice for the Reader: each sentence of the text gets a mic —
-// read it out loud, and the SERVER transcribes (qwen-audio-asr via /api/coach/stt)
-// and scores how close it sounded. Unlike the browser recogniser this works on
-// mobile (iOS included) and in mainland China without a VPN.
+// read it out loud, and the SERVER transcribes (qwen3-asr-flash via /api/coach/stt).
+// Unlike the browser recogniser this works on mobile (iOS included) and in mainland
+// China without a VPN. Chinese gets its answer word by word (lib/pronounce.ts
+// compareRead): the words a listener would hear as other words, each with its pinyin
+// next to the pinyin of what was heard, and the words the recording doesn't have.
+// Other languages keep the overall closeness score.
 type RowState =
   | { kind: "idle" }
   | { kind: "recording" }
   | { kind: "checking" }
-  | { kind: "result"; score: PronounceScore }
+  | { kind: "result"; score: PronounceScore; read?: ReadCheck }
   | { kind: "error"; message: string };
 
 export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences: string[]; lang: string; hiddenCount?: number }) {
@@ -52,7 +58,12 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
           setRow(i, { kind: "error", message: t("pron.nothing") });
           return;
         }
-        setRow(i, { kind: "result", score: scorePronunciation(sentences[i], [text]) });
+        const score = scorePronunciation(sentences[i], [text]);
+        const zh = lang === "zh" || lang === "zh-Hant";
+        const read = zh
+          ? await compareRead(await api.segment(sentences[i]).catch(() => segment(sentences[i], lang)), text).catch(() => undefined)
+          : undefined;
+        setRow(i, { kind: "result", score, read });
       } catch (e) {
         const msg = (e as Error)?.message ?? "";
         setRow(i, { kind: "error", message: msg === "denied" ? t("pron.denied") : msg === "empty" ? t("pron.nothing") : t("pron.checkFailed") });
@@ -89,7 +100,21 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
           return (
             <div key={i} className="rounded-[14px] border border-black/[0.05] bg-paper/60 px-3.5 py-2.5">
               <div className="flex items-start gap-2.5">
-                <p className="min-w-0 flex-1 text-[14.5px] leading-relaxed text-ink">{s}</p>
+                <p className="min-w-0 flex-1 text-[14.5px] leading-relaxed text-ink">
+                  {row.kind === "result" && row.read
+                    ? row.read.words.map((w, k) => (
+                        <span
+                          key={k}
+                          className={cn(
+                            w.status === "misheard" && "underline decoration-warn-text decoration-2 underline-offset-4",
+                            w.status === "missed" && "text-ink-faint",
+                          )}
+                        >
+                          {w.text}
+                        </span>
+                      ))
+                    : s}
+                </p>
                 <button
                   type="button"
                   onClick={() => toggle(i)}
@@ -114,7 +139,8 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
                 <div className="mt-1 text-[12px] font-medium text-warn-text">{t("pron.recording")}</div>
               )}
               {row.kind === "error" && <div className="mt-1 text-[12px] text-warn-text">{row.message}</div>}
-              {row.kind === "result" && (
+              {row.kind === "result" && row.read && <ReadResult read={row.read} heard={row.score.heard} lang={lang} again={() => toggle(i)} />}
+              {row.kind === "result" && !row.read && (
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span
                     className={cn(
@@ -141,6 +167,48 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
       {hiddenCount > 0 && (
         <p className="mt-2 text-center text-[12px] text-ink-faint">{t("reader.readAloudMore", { n: String(hiddenCount) })}</p>
       )}
+    </div>
+  );
+}
+
+// Word by word: how many came through, then each misheard word with its pinyin and
+// the pinyin of what was heard, in tone colours — 海鸥 hǎi ōu · sounded like 好后 hǎo hòu.
+function ReadResult({ read, heard, lang, again }: { read: ReadCheck; heard: string; lang: string; again: () => void }) {
+  const { t } = useI18n();
+  const misheard = read.words.filter((w) => w.status === "misheard");
+  const missed = read.words.some((w) => w.status === "missed");
+  const all = read.total > 0 && read.understood === read.total;
+  return (
+    <div className="mt-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span className={cn("text-[12.5px] font-semibold", all ? "text-sage-deep" : "text-warn-text")}>
+          {all ? t("pron.allUnderstood") : t("pron.understood", { n: String(read.understood), total: String(read.total) })}
+        </span>
+        <button type="button" onClick={again} className="text-[12px] font-semibold text-sage hover:text-sage-deep">
+          {t("pron.again")}
+        </button>
+      </div>
+      {misheard.length > 0 && (
+        <ul className="mt-1 space-y-0.5">
+          {misheard.map((w, k) => (
+            <li key={k} className="flex flex-wrap items-center gap-x-2 text-[13px] leading-snug">
+              {/* Two halves that wrap whole: the word as it should sound, then what was heard. */}
+              <span className="inline-flex items-center gap-1.5">
+                <span className="font-medium text-ink">{w.text}</span>
+                {w.pinyin && <Pinyin text={w.pinyin} className="text-ink-soft" />}
+                <SpeakButton text={w.text} lang={lang} size="inline" />
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-ink-faint">{t("pron.soundsLike")}</span>
+                <span className="text-ink-soft">{w.heard}</span>
+                {w.heardPinyin && <Pinyin text={w.heardPinyin} className="text-ink-faint" />}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {missed && <p className="mt-1 text-[12px] text-ink-faint">{t("pron.missedHint")}</p>}
+      {heard && <p className="mt-0.5 text-[12px] text-ink-faint">{t("pron.heard", { heard })}</p>}
     </div>
   );
 }

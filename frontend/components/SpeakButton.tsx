@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { canSpeak, speak } from "@/lib/speak";
+import { canSpeak, speak, useSpeechLoading } from "@/lib/speak";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { langLabel } from "@/lib/langs";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Volume2 } from "lucide-react";
+import { Loader2, Volume2 } from "lucide-react";
+
+/** A speaker icon that spins while `text` is being fetched to be spoken (the first play of a new clip). */
+export function SpeakingIcon({ text, className }: { text: string; className?: string }) {
+  const loading = useSpeechLoading(text);
+  return loading ? <Loader2 className={cn(className, "animate-spin")} /> : <Volume2 className={className} />;
+}
 
 // 🔊 pronunciation button. Renders nothing if the browser has no speech engine;
 // says so when the device has no voice for the language.
@@ -52,7 +58,7 @@ export function SpeakButton({
           dim,
         )}
       >
-        <Volume2 className="h-[1em] w-[1em]" />
+        <SpeakingIcon text={text} className="h-[1em] w-[1em]" />
       </button>
     </HoverTip>
   );

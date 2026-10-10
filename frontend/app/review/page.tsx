@@ -27,7 +27,7 @@ import {
 import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SpeakButton } from "@/components/SpeakButton";
+import { SpeakButton, SpeakingIcon } from "@/components/SpeakButton";
 import { FitText } from "@/components/FitText";
 import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
@@ -862,7 +862,7 @@ export default function FlashcardsPage() {
               aria-label={t("speak.play")}
               className="flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint text-sage-deep transition-colors hover:bg-sage-tint/70 active:scale-95"
             >
-              <Volume2 className="h-9 w-9" />
+              <SpeakingIcon text={word.word} className="h-9 w-9" />
             </button>
             <span className="text-[13px] font-medium text-ink-faint">{t("review.listenHint")}</span>
           </div>

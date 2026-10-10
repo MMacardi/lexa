@@ -16,6 +16,9 @@ export const PRICING: Record<string, { in: number; out: number }> = {
   // Mika chat turns with a photo. Verified 2026-09-26 (≤128K input tier, non-thinking).
   "qwen3.5-plus": { in: 0.8, out: 4.8 },
   "qwen3-asr-flash": { in: 0, out: 0 },
+  // Speech (services/tts.ts) is billed per character: ¥0.8 per 10,000 = ¥80 per 1M,
+  // and its usage rows log characters as prompt tokens. Verified 2026-10-10 (Beijing).
+  "qwen3-tts-flash": { in: 80, out: 0 },
 };
 
 // Unknown models fall back to qwen-plus rates so a newly-added model still shows

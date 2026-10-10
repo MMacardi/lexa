@@ -6,6 +6,10 @@
 // the session/beta cookies first-party, so Safari ITP won't drop them.
 const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
+/** Where an <audio> element gets `text` read aloud in Mandarin (Bailian's voice, MP3). */
+export const ttsUrl = (text: string, lang: string) =>
+  `${BASE}/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
+
 export interface Example {
   id: string;
   wordId: string;

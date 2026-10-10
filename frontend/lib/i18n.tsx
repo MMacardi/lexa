@@ -325,9 +325,9 @@ const DICT: Record<string, Entry> = {
   },
   "reader.readAloud": { en: "Read aloud", ru: "Чтение вслух", zh: "朗读" },
   "reader.readAloudHint": {
-    en: "Read a sentence out loud — we'll listen and score how close it sounded.",
-    ru: "Прочитайте предложение вслух — мы послушаем и оценим произношение.",
-    zh: "大声朗读一个句子——我们会聆听并评估你的发音。",
+    en: "Read a sentence out loud — we'll mark the words a listener would hear as other words. A small tone slip that still sounds like the word won't show.",
+    ru: "Прочитайте предложение вслух — отметим слова, которые слышатся как другие. Небольшую ошибку в тоне, если слово всё равно узнаётся, это не покажет.",
+    zh: "大声朗读一个句子——我们会标出听起来像别的词的地方。声调稍有偏差但词仍能听懂的，这里不会显示。",
   },
   "reader.readAloudMore": {
     en: "+{n} more sentences aren't shown — the first twelve are here",
@@ -2147,6 +2147,14 @@ const DICT: Record<string, Entry> = {
   "pron.off": { en: "Not quite — try again", ru: "Не совсем — ещё раз", zh: "不太对——再试一次" },
   "pron.heard": { en: "heard: {heard}", ru: "услышал: {heard}", zh: "听到：{heard}" },
   "pron.again": { en: "Try again", ru: "Ещё раз", zh: "再试一次" },
+  "pron.allUnderstood": { en: "Every word came through", ru: "Понятно каждое слово", zh: "每个词都听懂了" },
+  "pron.understood": {
+    en: "{n} of {total} {total:word|words} came through",
+    ru: "Понятно {n} из {total} {total:слова|слов|слов}",
+    zh: "{total} 个词里听懂了 {n} 个",
+  },
+  "pron.soundsLike": { en: "sounded like", ru: "прозвучало как", zh: "听起来像" },
+  "pron.missedHint": { en: "Greyed words weren't in the recording", ru: "Серых слов в записи не было", zh: "灰色的词录音里没有" },
   "pron.nothing": { en: "Didn't catch that — try again", ru: "Не расслышал — попробуйте ещё раз", zh: "没听清——请再试一次" },
   "pron.unsupported": { en: "Speech input isn't available in this browser", ru: "Голосовой ввод недоступен в этом браузере", zh: "此浏览器不支持语音输入" },
   "pron.recording": { en: "Reading… tap the mic to finish", ru: "Слушаю… нажмите на микрофон, чтобы закончить", zh: "聆听中……点击麦克风结束" },

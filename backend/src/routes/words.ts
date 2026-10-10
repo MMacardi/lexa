@@ -13,6 +13,7 @@ import { coachSceneSetup } from "../services/coachSceneSetup.js";
 import { coachSceneTurn } from "../services/coachSceneTurn.js";
 import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
+import { speechClip, TTS_MAX_CHARS } from "../services/tts.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { listSessions, getSession, createSession, saveSession, deleteSession } from "../services/sceneSession.js";
@@ -1358,6 +1359,51 @@ wordsRouter.post("/coach/stt", async (req, res) => {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
   }
+});
+
+// GET /api/tts?lang=zh&text=… -> the text read aloud in Mandarin (MP3), Bailian's voice
+// (services/tts.ts). A GET so an <audio> element plays it straight from the tap — iOS
+// starts sound only inside the gesture — and the browser caches it for good. Ranges
+// are answered: Safari asks for bytes 0-1 first and won't play a server that ignores it.
+const ttsQuery = z.object({
+  lang: z.enum(["zh", "zh-Hant"]),
+  text: z.string().trim().min(1).max(TTS_MAX_CHARS).regex(/\p{Script=Han}/u),
+});
+const ttsLimiter = rateLimit({ windowMs: 60_000, max: 90, name: "tts" });
+wordsRouter.get("/tts", ttsLimiter, async (req, res) => {
+  const parsed = ttsQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  let mp3: Buffer;
+  try {
+    mp3 = await speechClip(parsed.data.text);
+  } catch (err) {
+    console.error("tts:", (err as Error).message);
+    res.status(502).json({ error: "tts_failed" }); // the browser falls back to its own voice
+    return;
+  }
+  res.setHeader("Content-Type", "audio/mpeg");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+  const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ""));
+  if (range && (range[1] || range[2])) {
+    const size = mp3.length;
+    // "bytes=-500" is the last 500 bytes; "bytes=100-" runs to the end.
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start >= size || start > end) {
+      res.status(416).setHeader("Content-Range", `bytes */${size}`).end();
+      return;
+    }
+    res.status(206).setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+    res.setHeader("Content-Length", String(end - start + 1));
+    res.end(mp3.subarray(start, end + 1));
+    return;
+  }
+  res.setHeader("Content-Length", String(mp3.length));
+  res.end(mp3);
 });
 
 // A word handed to the coach. The drill needs at least one; chat and scenes treat the

@@ -502,8 +502,8 @@ model TokenUsage {
   id               BigInt   @id @default(autoincrement())
   createdAt        DateTime @default(now())
   feature          String // coarse label, e.g. "gloss", "example.compose", "coachChat", "ocr", "asr"
-  model            String // qwen-plus | qwen-flash | qwen-vl-plus | qwen3-asr-flash
-  kind             String   @default("text") // text | ocr | asr
+  model            String // qwen-plus | qwen-flash | qwen-vl-plus | qwen3-asr-flash | qwen3-tts-flash
+  kind             String   @default("text") // text | ocr | asr | tts (tts counts characters as prompt tokens)
   promptTokens     Int      @default(0)
   completionTokens Int      @default(0)
   totalTokens      Int      @default(0)
@@ -517,6 +517,17 @@ model TokenUsage {
   @@index([model])
   @@index([feature])
   @@index([telegramId])
+}
+
+// Chinese read aloud by Bailian's voice (services/tts.ts): synthesised the first
+// time anyone plays a text, then served from here to everyone. Keyed by a hash of
+// model, voice and text; the text itself isn't kept, it can be a learner's own
+// sentence, and nothing needs it back.
+model TtsClip {
+  key       String   @id // sha256 of "model|voice|text"
+  mp3       Bytes
+  chars     Int // the text's length (Bailian bills a Chinese character as 2)
+  createdAt DateTime @default(now())
 }
 
 // Product analytics — one append-only row per meaningful learner action, so the

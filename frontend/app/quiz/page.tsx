@@ -11,6 +11,7 @@ import { langLabel, pairLabel } from "@/lib/langs";
 import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
+import { SpeakingIcon } from "@/components/SpeakButton";
 import { useToast } from "@/lib/toast";
 import { Pinyin } from "@/components/Pinyin";
 import { Button } from "@/components/ui/button";
@@ -797,7 +798,7 @@ export default function QuizPage() {
             aria-label={t("speak.play")}
             className="mx-auto mt-4 flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint text-sage-deep transition-colors hover:bg-sage-tint/70 active:scale-95"
           >
-            <Volume2 className="h-9 w-9" />
+            <SpeakingIcon text={q.word.word} className="h-9 w-9" />
           </button>
         ) : q.kind === "cloze" ? (
           <>
