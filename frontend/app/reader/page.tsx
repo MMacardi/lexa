@@ -26,7 +26,9 @@ import {
   setRubyAll,
 } from "@/lib/learnPrefs";
 import { segment, wordKey, type Token } from "@/lib/segment";
-import { useIsMobile } from "@/lib/mobileNav";
+import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { usePresence } from "@/lib/motion";
+import { MobileSheet } from "@/components/MobileSheet";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
 import { dictEntry, isChineseLang, peekDictEntry } from "@/lib/dictEntry";
@@ -35,6 +37,7 @@ import { PairChip } from "@/components/PairChip";
 import { FOCUS } from "@/lib/focus";
 import { holdsEnglish } from "@/components/DictMeaningLabel";
 import { HoverTip } from "@/components/ui/HoverTip";
+import { Segmented } from "@/components/ui/Segmented";
 import { HighlightWord } from "@/components/HighlightWord";
 import { SpeakButton } from "@/components/SpeakButton";
 import { speechLang, dictationSupported, startDictation, type DictationController } from "@/lib/dictation";
@@ -42,7 +45,7 @@ import { recorderSupported } from "@/lib/record";
 import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeft, Camera, Check, Mic, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, type LucideIcon } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -170,6 +173,13 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  // Phones: the toolbar keeps back, pinyin and translation; the rest is in a sheet.
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsSheet = usePresence(toolsOpen, 200);
+  useLockScroll(toolsOpen);
+  useEffect(() => {
+    if (!mobile) setToolsOpen(false);
+  }, [mobile]);
   // The saved row the text on screen lives in. Every text is kept the moment it
   // is read (autosave); Save then only renames it or files it in a collection.
   const [savedRow, setSavedRow] = useState<{ id: string; content: string; title: string } | null>(null);
@@ -178,6 +188,7 @@ export default function ReaderPage() {
   const [readAloud, setReadAloud] = useState(false);
   const [recOk, setRecOk] = useState(false);
   useEffect(() => setRecOk(recorderSupported()), []);
+  const readAloudRef = useRef<HTMLDivElement>(null);
   // "pinyin over characters" (ruby) for CJK: one batch call, cached per word.
   const [rubyOn, setRubyOn] = useState(false);
   const [rubyMap, setRubyMap] = useState<Record<string, string>>({});
@@ -1238,27 +1249,31 @@ export default function ReaderPage() {
 
   return (
     <div className="mx-auto max-w-[720px] pb-28 md:pb-6">
-      {/* sticky toolbar */}
+      {/* sticky toolbar. A phone keeps back, pinyin and the translation here and
+          the rest goes in the tools sheet (⋯): all ten chips in one sideways row
+          put the ones you came for off-screen. */}
       <div className="scroll-row sticky top-14 z-20 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-paper/95 px-4 py-2.5 backdrop-blur sm:top-0 sm:mx-0 sm:rounded-[14px] sm:border sm:px-4">
         <button
           type="button"
           onClick={leaveReading}
-          className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          aria-label={t(openText ? "reader.back" : "reader.edit")}
+          className="inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:py-1.5"
         >
-          ← {t(openText ? "reader.back" : "reader.edit")}
+          <ArrowLeft className="h-4 w-4 md:hidden" />
+          <span className="hidden md:inline">← {t(openText ? "reader.back" : "reader.edit")}</span>
         </button>
-        <span className="hidden text-xs font-medium text-ink-faint sm:inline">
+        <span className="hidden text-xs font-medium text-ink-faint md:inline">
           {langLabel(sourceLang)} → {langLabel(targetLang)}
         </span>
         {textLevel && (
-          <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">~{textLevel}</span>
+          <span className="hidden rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep md:inline">~{textLevel}</span>
         )}
 
         {/* save this text (works before or after translating) */}
         <button
           type="button"
           onClick={() => setShowSave(true)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+          className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:inline-flex"
         >
           {/* Already kept (autosave): the button renames it or files it away. */}
           {savedRow && savedRow.content === text.trim() ? (
@@ -1280,14 +1295,14 @@ export default function ReaderPage() {
           <button
             type="button"
             onClick={() => setReading(false)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:inline-flex"
           >
             <PenLine className="h-3.5 w-3.5" /> {t("reader.edit")}
           </button>
         )}
 
         {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
-        <HoverTip title={t("reader.autoGlossHint")} className="inline-flex">
+        <HoverTip title={t("reader.autoGlossHint")} className="hidden md:inline-flex">
           <button
             type="button"
             onClick={() => setAutoGloss(!autoGloss)}
@@ -1305,8 +1320,9 @@ export default function ReaderPage() {
           <button
             type="button"
             onClick={() => setRubyOn((v) => !v)}
+            aria-pressed={rubyOn}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-colors md:py-1.5",
               rubyOn ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
             )}
           >
@@ -1316,7 +1332,7 @@ export default function ReaderPage() {
         )}
         {/* which words carry it: the ones you don't know yet, or all of them */}
         {hasTranscription(sourceLang) && rubyOn && (
-          <div role="group" aria-label={t("reader.rubyOver")} className="inline-flex rounded-full border border-black/[0.08] bg-surface p-0.5">
+          <div role="group" aria-label={t("reader.rubyOver")} className="hidden rounded-full border border-black/[0.08] bg-surface p-0.5 md:inline-flex">
             {([false, true] as const).map((all) => (
               <button
                 key={String(all)}
@@ -1341,7 +1357,7 @@ export default function ReaderPage() {
             onClick={() => setReadAloud((v) => !v)}
             aria-pressed={readAloud}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              "hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors md:inline-flex",
               readAloud ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
             )}
           >
@@ -1354,23 +1370,37 @@ export default function ReaderPage() {
           type="button"
           onClick={translateAll}
           disabled={translating}
-          className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50"
+          aria-pressed={trReady && showTr}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50 md:py-1.5",
+            trReady && showTr
+              ? "border-sage bg-sage-tint text-sage-deep"
+              : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+          )}
         >
-          {!translating && !trReady && <Languages className="h-3.5 w-3.5" />}
-          {translating
-            ? t("reader.translating")
-            : trReady && showTr
-              ? t("reader.hideTranslation")
-              : trReady
-                ? t("reader.showTranslation")
-                : t("reader.translate")}
+          {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+          {translating ? (
+            t("reader.translating")
+          ) : (
+            <>
+              {/* a phone has room for one word: the chip is lit while it shows */}
+              <span className="md:hidden">{t("reader.translationTitle")}</span>
+              <span className="hidden md:inline">
+                {trReady && showTr
+                  ? t("reader.hideTranslation")
+                  : trReady
+                    ? t("reader.showTranslation")
+                    : t("reader.translate")}
+              </span>
+            </>
+          )}
         </button>
 
         {newKeys.size > 0 && selected.size < newKeys.size && (
           <button
             type="button"
             onClick={() => setSelected(new Set(newKeys))}
-            className="rounded-full bg-sage-tint px-3 py-1.5 text-xs font-semibold text-sage-deep hover:bg-sage-tint/70"
+            className="hidden rounded-full bg-sage-tint px-3 py-1.5 text-xs font-semibold text-sage-deep hover:bg-sage-tint/70 md:inline-block"
           >
             {t("reader.selectAllNew")}
           </button>
@@ -1379,11 +1409,21 @@ export default function ReaderPage() {
           <button
             type="button"
             onClick={() => setSelected(new Set())}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+            className="hidden rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:inline-block"
           >
             {t("reader.deselectAll")}
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => setToolsOpen(true)}
+          aria-label={t("reader.tools")}
+          aria-haspopup="dialog"
+          className="ml-auto inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-3 py-2 text-ink-muted hover:bg-black/[0.03] md:hidden"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
       </div>
 
       {langMismatch && (
@@ -1412,6 +1452,9 @@ export default function ReaderPage() {
       {/* how much of it you know, what's new, and the key to the underlines */}
       <div className="mb-3 space-y-1">
         <p className="text-[13px] text-ink-muted">
+          {textLevel && (
+            <span className="mr-1.5 rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep md:hidden">~{textLevel}</span>
+          )}
           {knownPct !== null && (
             <>
               <span title={t("reader.knownPctHint")} className="font-semibold text-ink">
@@ -1575,7 +1618,7 @@ export default function ReaderPage() {
       </div>
 
       {readAloud && readAloudSentences.length > 0 && (
-        <div className="mt-4">
+        <div ref={readAloudRef} className="mt-4 scroll-mt-20">
           <ReadAloudCheck sentences={readAloudSentences} lang={sourceLang} hiddenCount={readAloudHidden} />
         </div>
       )}
@@ -1791,6 +1834,99 @@ export default function ReaderPage() {
       {/* room for the last line to scroll up above a docked word panel */}
       {dockOpen && <div aria-hidden className="h-[40vh]" />}
 
+      {/* phone: what the toolbar has no room for, as rows a thumb can hit */}
+      {toolsSheet.mounted &&
+        createPortal(
+          <MobileSheet closing={toolsSheet.closing} onClose={() => setToolsOpen(false)} title={t("reader.tools")}>
+            <div className="space-y-1">
+              {hasTranscription(sourceLang) && rubyOn && (
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5">
+                  <span className="flex items-center gap-3 text-[15px] font-semibold text-ink">
+                    <Baseline className="h-[19px] w-[19px] shrink-0 text-sage-deep" />
+                    {t("reader.rubyOver")}
+                  </span>
+                  <Segmented
+                    size="sm"
+                    ariaLabel={t("reader.rubyOver")}
+                    value={rubyAll ? "all" : "unknown"}
+                    onChange={(v) => setRubyAll(v === "all")}
+                    options={[
+                      { value: "unknown", label: t("reader.rubyUnknown") },
+                      { value: "all", label: t("reader.rubyAllWords") },
+                    ]}
+                  />
+                </div>
+              )}
+              <ToolRow
+                Icon={Languages}
+                label={t("reader.autoGloss")}
+                hint={t("reader.autoGlossHint")}
+                on={autoGloss}
+                onClick={() => setAutoGloss(!autoGloss)}
+              />
+              {recOk && (
+                <ToolRow
+                  Icon={Mic}
+                  label={t("reader.readAloud")}
+                  hint={t("reader.readAloudSub")}
+                  on={readAloud}
+                  onClick={() => {
+                    // Turned on, it opens a panel under the text: take the learner there.
+                    setReadAloud(!readAloud);
+                    if (readAloud) return;
+                    setToolsOpen(false);
+                    setTimeout(() => readAloudRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+                  }}
+                />
+              )}
+            </div>
+            <div className="mx-3 my-2 h-px bg-black/[0.06]" />
+            <div className="space-y-1">
+              {newKeys.size > 0 && selected.size < newKeys.size && (
+                <ToolRow
+                  Icon={CheckCheck}
+                  label={t("reader.selectAllNew")}
+                  onClick={() => {
+                    setSelected(new Set(newKeys));
+                    setToolsOpen(false);
+                  }}
+                />
+              )}
+              {savedRow && savedRow.content === text.trim() ? (
+                <ToolRow
+                  Icon={Check}
+                  label={t("reader.savedShort")}
+                  hint={t("reader.savedSub")}
+                  onClick={() => {
+                    setToolsOpen(false);
+                    setShowSave(true);
+                  }}
+                />
+              ) : (
+                <ToolRow
+                  Icon={Save}
+                  label={t("reader.save")}
+                  onClick={() => {
+                    setToolsOpen(false);
+                    setShowSave(true);
+                  }}
+                />
+              )}
+              {openText && (
+                <ToolRow
+                  Icon={PenLine}
+                  label={t("reader.edit")}
+                  onClick={() => {
+                    setToolsOpen(false);
+                    setReading(false);
+                  }}
+                />
+              )}
+            </div>
+          </MobileSheet>,
+          document.body,
+        )}
+
       {showSave && (
         <SaveModal
           text={text}
@@ -1812,5 +1948,48 @@ export default function ReaderPage() {
         />
       )}
     </div>
+  );
+}
+
+// A row in the Reader's phone tools sheet: an action, or a setting with a
+// switch when `on` is given.
+function ToolRow({
+  Icon,
+  label,
+  hint,
+  on,
+  onClick,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  hint?: string;
+  on?: boolean;
+  onClick: () => void;
+}) {
+  const isSwitch = on !== undefined;
+  return (
+    <button
+      type="button"
+      role={isSwitch ? "switch" : undefined}
+      aria-checked={isSwitch ? on : undefined}
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-black/[0.03] active:bg-black/[0.05]"
+    >
+      <Icon className={cn("h-[19px] w-[19px] shrink-0", on ? "text-sage-deep" : "text-ink-soft")} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-ink">{label}</span>
+        {hint && <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-faint">{hint}</span>}
+      </span>
+      {isSwitch && (
+        <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-sage" : "bg-black/15")}>
+          <span
+            className={cn(
+              "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200",
+              on ? "left-[18px]" : "left-0.5",
+            )}
+          />
+        </span>
+      )}
+    </button>
   );
 }

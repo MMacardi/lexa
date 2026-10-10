@@ -232,6 +232,7 @@ const DICT: Record<string, Entry> = {
   "reader.save": { en: "Save", ru: "Сохранить", zh: "保存" },
   "reader.update": { en: "Update", ru: "Обновить", zh: "更新" },
   "reader.savedShort": { en: "Saved", ru: "Сохранён", zh: "已保存" },
+  "reader.savedSub": { en: "Rename it or put it in a collection", ru: "Переименовать или положить в коллекцию", zh: "重命名或放入合集" },
   "reader.saved": { en: "Saved to your texts", ru: "Сохранено в мои тексты", zh: "已保存到我的文本" },
   "reader.updated": { en: "Text updated", ru: "Текст обновлён", zh: "文本已更新" },
   "reader.editTitle": { en: "Edit text", ru: "Редактировать текст", zh: "编辑文本" },
@@ -325,6 +326,12 @@ const DICT: Record<string, Entry> = {
     zh: "长按单词可查看它在该句中的含义。",
   },
   "reader.readAloud": { en: "Read aloud", ru: "Чтение вслух", zh: "朗读" },
+  "reader.readAloudSub": {
+    en: "Read sentences into the mic and see which words came through.",
+    ru: "Читайте предложения в микрофон — видно, какие слова расслышаны.",
+    zh: "对着麦克风读句子，看看哪些词被听清了。",
+  },
+  "reader.tools": { en: "Reading tools", ru: "Инструменты чтения", zh: "阅读工具" },
   "reader.readAloudHint": {
     en: "Read a sentence out loud — we'll mark the words a listener would hear as other words. A small tone slip that still sounds like the word won't show.",
     ru: "Прочитайте предложение вслух — отметим слова, которые слышатся как другие. Небольшую ошибку в тоне, если слово всё равно узнаётся, это не покажет.",
