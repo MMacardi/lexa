@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   TriangleAlert, Sprout, Folders, BookOpen, Target, Languages, WifiOff,
   PenLine, Library, FileText, Save, Home, Layers, Sparkles, Bell, PartyPopper,
-  Trophy, UserPlus, Trash2, Loader2, Check, Square, X, ChevronDown, Copy, type LucideIcon,
+  Trophy, UserPlus, Trash2, Loader2, Check, Square, X, ChevronDown, Copy, VolumeX, type LucideIcon,
 } from "lucide-react";
 
 // Map the emoji that call sites pass to a clean line icon, so toasts match the
@@ -19,7 +19,7 @@ const TOAST_ICONS: Record<string, LucideIcon> = {
   "⚠️": TriangleAlert, "🌱": Sprout, "🗂": Folders, "📖": BookOpen, "🎯": Target,
   "🔤": Languages, "📴": WifiOff, "📝": PenLine, "📚": Library, "📄": FileText,
   "💾": Save, "🏠": Home, "🃏": Layers, "✨": Sparkles, "🔔": Bell, "🎉": PartyPopper,
-  "🏆": Trophy, "👥": UserPlus, "🗑": Trash2, "📋": Copy,
+  "🏆": Trophy, "👥": UserPlus, "🗑": Trash2, "📋": Copy, "🔇": VolumeX,
 };
 
 function ToastIcon({ icon }: { icon: string }) {

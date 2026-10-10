@@ -63,6 +63,8 @@ function drawFace(
   for (const f of fields) {
     switch (f) {
       case "word": add(word.word, 82, "#2e2a26"); break;
+      // Paper can't play the word: a listening card prints its sound as pinyin.
+      case "audio": add(word.phonetic, 46, "#2e2a26"); break;
       case "phonetic": add(word.phonetic, 34, "#a89f8f"); break;
       case "pos": add(word.partOfSpeech, 24, "#a89f8f", { upper: true }); break;
       case "meaning": add(word.meaningZh, 46, "#3f5a4a"); break;

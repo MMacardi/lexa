@@ -1454,7 +1454,16 @@ export default function ReaderPage() {
           )}
         >
           {tokens.map((tk, i) => {
-            if (!tk.wordLike) return <span key={i}>{tk.text}</span>;
+            // After each sentence, a play button that says it (Du Chinese plays every sentence).
+            if (!tk.wordLike)
+              return /[.!?。！？]/.test(tk.text) ? (
+                <span key={i}>
+                  {tk.text}
+                  <SpeakButton text={sentenceAround(i)} lang={sourceLang} size="inline" />
+                </span>
+              ) : (
+                <span key={i}>{tk.text}</span>
+              );
             const key = wordKey(tk.text);
             const knownId = knownMap.get(key);
             const isAdded = added.has(key);

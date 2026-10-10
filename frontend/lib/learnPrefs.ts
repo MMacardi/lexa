@@ -432,6 +432,7 @@ export function useNativeLang(): string | null {
 // Lets the learner train e.g. word → synonyms instead of word → meaning.
 export type CardField =
   | "word"
+  | "audio"
   | "phonetic"
   | "pos"
   | "meaning"
@@ -444,6 +445,7 @@ export type CardField =
 
 export const CARD_FIELDS: CardField[] = [
   "word",
+  "audio",
   "phonetic",
   "pos",
   "meaning",
@@ -470,6 +472,9 @@ export const CARD_PRESETS: { id: string; front: CardField[]; back: CardField[] }
   { id: "reverse", front: ["meaning"], back: ["word", "phonetic", "example", "exampleTr"] },
   // Train the word's synonym/antonym family.
   { id: "synonyms", front: ["word"], back: ["synonyms", "antonyms", "meaning"] },
+  // Listening (learning audit 8e): the word is heard, not read, and recognised —
+  // what the HSK listening paper scores, a third of every level.
+  { id: "listening", front: ["audio"], back: ["word", "phonetic", "meaning", "example", "exampleTr"] },
 ];
 
 export const DEFAULT_LAYOUT: CardLayout = { front: CARD_PRESETS[0].front, back: CARD_PRESETS[0].back };

@@ -117,6 +117,21 @@ export interface WordSense {
 }
 
 // The dictionary a grounded sense list came from, shown as a credit under it.
+// One character of a word, or one word built on it, for the word page's Characters
+// block. `english`: the dictionary's English, nothing in the learner's language;
+// `id`: the learner's own card for it.
+export interface CharWord {
+  word: string;
+  pinyin: string;
+  meaning: string;
+  english: boolean;
+  level: number | null;
+  id?: string;
+}
+export interface CharInfo extends CharWord {
+  words: CharWord[];
+}
+
 export interface DictCredit {
   source: string;
   url: string;
@@ -898,6 +913,12 @@ export const api = {
   dictLookup: (word: string, lang = "") =>
     http<{ entry: DictEntry | null; credit?: DictCredit }>(
       `/api/dict?word=${encodeURIComponent(word)}&lang=${encodeURIComponent(lang)}`,
+    ),
+  // Each character of a word with its reading and meaning, and the HSK words built
+  // on it with the learner's own marked (the word page's Characters block, no model call).
+  dictChars: (word: string, phonetic: string, lang: string) =>
+    http<{ chars: CharInfo[]; credit?: DictCredit }>(
+      `/api/dict/chars?word=${encodeURIComponent(word)}&phonetic=${encodeURIComponent(phonetic)}&lang=${encodeURIComponent(lang)}`,
     ),
   // The add form's dictionary, both ways and with no model call: hanzi → the word
   // and the longer words it starts; Russian / English / pinyin → Chinese words.

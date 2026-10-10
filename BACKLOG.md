@@ -1060,10 +1060,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 - **Weekly recap**, reshaped as the "know → can use" report + next week's gap words. `[10]`
 - **The plan nudges when it slips** (the rest of "A plan with a date", 13g): a reminder when the
   pace in use stops reaching the date, and the bot saying the plan's line. `[competitor pass]`
-- **Stroke order and character parts on the word page.** Hanzi Writer (MIT, loads its own stroke
-  data) for the animation and a practice-writing mode — HSK 3.0 adds handwriting. Parts that give the
-  sound vs the meaning (Outlier's idea) from Make Me a Hanzi; check its dictionary licence first.
-  `[competitor pass]`
+- **Character parts and writing practice on the word page.** Stroke order shipped 2026-10-09 (the
+  word page's Characters block plays each character's strokes from the draw pad's Make Me a Hanzi
+  medians — no Hanzi Writer needed). Left: a practice-writing mode — HSK 3.0 adds handwriting — and
+  the parts that give the sound vs the meaning (Outlier's idea) from Make Me a Hanzi's dictionary.txt;
+  check its licence first. `[competitor pass]`
 - **Exam-format drills from your own words.** 选词填空 fill-the-gap and "hear a sentence, pick the
   meaning", with the exam's timer, built from target-level gap words rather than a question bank
   (HSKLord, hskmock and co. sell the bank). Base: the cloze quiz + TTS. `[competitor pass]`

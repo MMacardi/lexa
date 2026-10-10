@@ -28,6 +28,7 @@ import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, trans
 import { fillMissingPhonetic, refreshCardReadings, upgradeCard } from "../services/capture.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
+import { wordCharacters } from "../services/characters.js";
 import { prisma } from "../services/db.js";
 import { clearTopic, moreTopicWords, setTopics, topicDaily } from "../services/topic.js";
 import { isoDay, planForUser, withEstimate } from "../services/studyPlan.js";
@@ -1066,6 +1067,18 @@ wordsRouter.get("/dict/lookup", async (req, res) => {
   const lang = String(req.query.lang ?? "ru");
   const result = await lookup(q, lang);
   res.json({ ...result, ...(result.hits.length ? { credit: cedictCredit() } : {}) });
+});
+
+// GET /api/dict/chars?word=&phonetic=&lang= -> the word page's Characters block:
+// each character's reading and meaning, and the HSK words built on it with the
+// learner's own cards marked (services/characters.ts). No model call.
+wordsRouter.get("/dict/chars", async (req, res) => {
+  const telegramId = readSession(req)!;
+  const word = String(req.query.word ?? "").trim().slice(0, 16);
+  const phonetic = String(req.query.phonetic ?? "").slice(0, 80);
+  const lang = String(req.query.lang ?? "ru").slice(0, 10);
+  const chars = await wordCharacters(telegramId, word, phonetic, lang);
+  res.json({ chars, ...(chars.length ? { credit: cedictCredit() } : {}) });
 });
 
 // POST /api/dict/glosses {words, lang} -> {meanings}: the lookup rows that only have

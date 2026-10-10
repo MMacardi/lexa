@@ -24,7 +24,7 @@ import {
   type CardField,
   type CardLayout,
 } from "@/lib/learnPrefs";
-import { pairLabel } from "@/lib/langs";
+import { langLabel, pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton } from "@/components/SpeakButton";
@@ -45,7 +45,7 @@ import { previewMinutes, applyGradeLocally } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
 import { ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
-import { canSpeak, speak } from "@/lib/speak";
+import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
@@ -162,6 +162,19 @@ export default function FlashcardsPage() {
     setFlipped(true);
     if (playOnFlip) speak(w.word, w.sourceLang);
   }
+
+  // A listening card (the sound on the front) says its word as the card comes up;
+  // its play button says it again. `start` unlocks speech inside its tap for iOS.
+  const listenFront = layout.front.includes("audio");
+  const cardId = started ? deck[index]?.id : undefined;
+  useEffect(() => {
+    const w = deck[index];
+    if (!listenFront || !cardId || !w) return;
+    const id = window.setTimeout(() => speak(w.word, w.sourceLang), 120);
+    return () => window.clearTimeout(id);
+    // Keyed on the card shown, not the deck: an "Again" appended to it changes nothing on screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listenFront, cardId, index]);
 
   // The drag never goes through React state: a setState per pointermove re-rendered
   // the whole card — both stamps, every field, and the FSRS interval preview — a
@@ -420,6 +433,7 @@ export default function FlashcardsPage() {
   }
 
   function start() {
+    if (layout.front.includes("audio")) unlockSpeech();
     setDeck(buildDeck());
     setIndex(0);
     setFlipped(false);
@@ -834,6 +848,29 @@ export default function FlashcardsPage() {
             <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} />
           </div>
         );
+      case "audio":
+        // Heard, not read. With no speech engine there's nothing to hear: the word instead.
+        if (!canSpeak()) return primary ? fieldNode("word", true) : null;
+        return primary ? (
+          <div className="flex flex-col items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (!speak(word.word, word.sourceLang))
+                  show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(word.sourceLang) }) });
+              }}
+              aria-label={t("speak.play")}
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint text-sage-deep transition-colors hover:bg-sage-tint/70 active:scale-95"
+            >
+              <Volume2 className="h-9 w-9" />
+            </button>
+            <span className="text-[13px] font-medium text-ink-faint">{t("review.listenHint")}</span>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <SpeakButton text={word.word} lang={word.sourceLang} size="sm" />
+          </div>
+        );
       case "phonetic":
         if (!word.phonetic) return null;
         if (!isChineseLang(word.sourceLang)) return <div className="break-words text-[18px] text-ink-faint">{word.phonetic}</div>;
@@ -896,9 +933,13 @@ export default function FlashcardsPage() {
           <div className="space-y-3 text-left">
             {word.examples.map((ex) => (
               <div key={ex.id}>
-                <p className="whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
-                  <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
-                </p>
+                <div className="flex items-start gap-2">
+                  <p className="min-w-0 flex-1 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
+                    <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
+                  </p>
+                  {/* The sentence said aloud: listening is a third of every HSK paper. */}
+                  <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-0.5" />
+                </div>
                 {withTr && ex.sentenceZh?.trim() && (
                   <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
                     {ex.sentenceZh}

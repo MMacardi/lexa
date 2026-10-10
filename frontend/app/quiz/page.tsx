@@ -8,8 +8,11 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
-import { BookOpen, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Zap } from "lucide-react";
+import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
+import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
+import { useToast } from "@/lib/toast";
+import { Pinyin } from "@/components/Pinyin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,8 +34,10 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 
-type QKind = "choice" | "type" | "cloze";
-type QuizMode = "choice" | "type" | "cloze" | "mixed";
+// "listen": the word is played, and picked out of four written ones — the HSK
+// listening paper's skill on the learner's own words (learning audit 8e).
+type QKind = "choice" | "type" | "cloze" | "listen";
+type QuizMode = "choice" | "type" | "cloze" | "listen" | "mixed";
 
 interface Question {
   word: Word;
@@ -102,7 +107,29 @@ function uniqueOptions(correct: string, distract: string[]): string[] {
   return shuffle(out);
 }
 
+// Wrong options for a word heard: as long as it, so the length gives nothing away,
+// and never one that sounds the same (他 她 它 are all tā).
+function listenDistractors(w: Word, eligible: Word[]): Word[] {
+  const sound = (x: Word) => norm(x.phonetic ?? "").replace(/\s/g, "");
+  const heard = sound(w);
+  const audible = eligible.filter((x) => !heard || sound(x) !== heard);
+  const len = Array.from(w.word).length;
+  const sameLen = audible.filter((x) => Array.from(x.word).length === len);
+  return distractors(w, sameLen.length >= 4 ? sameLen : audible);
+}
+
 function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Question {
+  if (kind === "listen") {
+    return {
+      word: w,
+      prompt: w.word,
+      options: uniqueOptions(w.word, listenDistractors(w, eligible).map((x) => x.word)),
+      correct: w.word,
+      promptTarget: false,
+      optionsTarget: false,
+      kind,
+    };
+  }
   if (kind === "cloze") {
     const ex = w.examples[0];
     const blanked = ex.sentenceEn.replace(new RegExp(escapeRegExp(w.word), "i"), "＿＿＿");
@@ -144,6 +171,7 @@ function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Qu
 function pickKind(w: Word, eligible: Word[]): QKind {
   const opts: QKind[] = ["type"];
   if (eligible.length >= 4) opts.push("choice");
+  if (eligible.length >= 4 && canSpeak()) opts.push("listen");
   if (isClozeEligible(w)) opts.push("cloze");
   return opts[Math.floor(Math.random() * opts.length)];
 }
@@ -164,7 +192,7 @@ function buildSession(pool: Word[], flip: boolean, mode: QuizMode, decoys?: Word
     .slice(0, size)
     .map((w) => {
       let kind: QKind = mode === "mixed" ? pickKind(w, others) : mode;
-      if (kind === "choice" && others.length < 4) kind = "type"; // not enough distractors
+      if ((kind === "choice" || kind === "listen") && others.length < 4) kind = "type"; // not enough distractors
       if (kind === "cloze" && !isClozeEligible(w)) kind = "type";
       return makeQuestion(w, others, flip, kind);
     });
@@ -174,7 +202,7 @@ function buildSession(pool: Word[], flip: boolean, mode: QuizMode, decoys?: Word
 function PreviewQuestion({ q, showKind }: { q: Question; showKind: boolean }) {
   const { t } = useI18n();
   const ansLang = q.kind === "cloze" ? q.word.sourceLang : q.optionsTarget ? q.word.targetLang : q.word.sourceLang;
-  const kindLabel = q.kind === "choice" ? t("quiz.choice") : q.kind === "cloze" ? t("quiz.cloze") : t("quiz.type");
+  const kindLabel = t(`quiz.${q.kind}`);
   return (
     <div>
       {showKind && (
@@ -185,16 +213,22 @@ function PreviewQuestion({ q, showKind }: { q: Question; showKind: boolean }) {
       <div className="mb-2 text-[12px] font-semibold text-ink-muted">
         {q.kind === "cloze"
           ? t("quiz.fillBlank")
-          : q.promptTarget
+          : q.kind === "listen"
+            ? t("quiz.whichHeard")
+            : q.promptTarget
             ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
             : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) })}
       </div>
       {q.kind === "cloze" ? (
         <p className="rounded-[12px] border border-black/[0.06] bg-paper p-3 font-serif text-[15px] italic leading-snug text-ink">{q.prompt}</p>
+      ) : q.kind === "listen" ? (
+        <div className="flex justify-center rounded-[12px] border border-black/[0.06] bg-paper p-3 text-sage-deep">
+          <Volume2 className="h-6 w-6" />
+        </div>
       ) : (
         <div className="rounded-[12px] border border-black/[0.06] bg-paper p-3 text-center font-serif text-[18px] font-semibold text-ink">{q.prompt}</div>
       )}
-      {q.kind === "choice" ? (
+      {q.kind === "choice" || q.kind === "listen" ? (
         <div className="mt-2 flex flex-col gap-1.5">
           {q.options.map((o) => (
             <div key={o} className={cn("rounded-[10px] border px-3 py-1.5 text-[13px]", o === q.correct ? "border-sage bg-sage-tint font-semibold text-sage-deep" : "border-black/[0.08] text-ink-soft")}>
@@ -237,6 +271,7 @@ function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: 
     if (shuffled.length) out.push(makeQuestion(shuffled[1] ?? shuffled[0], eligible, flip, "type"));
     const clozeW = clozeEligible(pool)[0];
     if (clozeW) out.push(makeQuestion(clozeW, eligible, flip, "cloze"));
+    if (eligible.length >= 4 && canSpeak()) out.push(makeQuestion(shuffled[2] ?? shuffled[0], eligible, flip, "listen"));
     return out;
   }, [pool.length, flip, mode]);
 
@@ -250,7 +285,7 @@ function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: 
   }, [slides.length]);
 
   const q = slides.length ? slides[Math.min(slide, slides.length - 1)] : null;
-  const kindLabel = (k: QKind) => (k === "choice" ? t("quiz.choice") : k === "cloze" ? t("quiz.cloze") : t("quiz.type"));
+  const kindLabel = (k: QKind) => t(`quiz.${k}`);
 
   const content = !q ? (
     <p className="py-3 text-center text-[13px] text-ink-soft">{t("quiz.previewNeedWords")}</p>
@@ -317,6 +352,17 @@ export default function QuizPage() {
   const [misses, setMisses] = useState(0);
   const [decoys, setDecoys] = useState<Word[]>([]);
   const [listVersion, setListVersion] = useState<HskVersion | null>(null);
+  const { show } = useToast();
+  // Listening needs a speech engine; read after mount, where the browser's is.
+  const [voice, setVoice] = useState(false);
+  useEffect(() => setVoice(canSpeak()), []);
+
+  // Play a listening question's word (inside the tap that brings it up, for iOS).
+  function say(q: Question | undefined) {
+    if (q?.kind !== "listen") return;
+    if (!speak(q.word.word, q.word.sourceLang))
+      show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(q.word.sourceLang) }) });
+  }
 
   const words = allWords ?? [];
   const allPairs = Array.from(new Set(words.map(pairKey)));
@@ -372,9 +418,10 @@ export default function QuizPage() {
         setSelected(null);
         setTyped("");
         setIndex((i) => i + 1);
+        say(quiz[index + 1]);
         return;
       }
-      if (!answered && q.kind === "choice" && /^[1-4]$/.test(e.key)) {
+      if (!answered && (q.kind === "choice" || q.kind === "listen") && /^[1-4]$/.test(e.key)) {
         const opt = q.options[Number(e.key) - 1];
         if (opt === undefined) return;
         e.preventDefault();
@@ -417,6 +464,10 @@ export default function QuizPage() {
   const canStart = cram
     ? (mode === "cloze" ? clozePool : pool).length >= 1
     : mode === "cloze" ? clozePool.length >= 1 : mode === "mixed" ? pool.length >= 1 : pool.length >= 4;
+  // Back to multiple choice should a listening round be picked on a device that can't speak.
+  useEffect(() => {
+    if (mode === "listen" && !voice && !canSpeak()) setMode("choice");
+  }, [mode, voice]);
   const roundSize = cram
     ? (mode === "cloze" ? clozePool : pool).length
     : Math.min(mode === "cloze" ? clozePool.length : pool.length, 8);
@@ -424,7 +475,10 @@ export default function QuizPage() {
   function start() {
     const others = cram ? words.filter((w) => sel.includes(pairKey(w))) : [];
     setDecoys(others);
-    setQuiz(buildSession(pool, flip, mode, cram ? others : undefined));
+    const qs = buildSession(pool, flip, mode, cram ? others : undefined);
+    setQuiz(qs);
+    if (qs[0]?.kind === "listen") say(qs[0]);
+    else if (qs.some((q) => q.kind === "listen")) unlockSpeech();
     setIndex(0);
     setSelected(null);
     setTyped("");
@@ -463,8 +517,12 @@ export default function QuizPage() {
       { id: "type", icon: Keyboard },
       // Focused (F7), a round is recognise or produce — the extra formats wait.
       { id: "cloze", icon: TextCursorInput },
+      // Listening is a third of every HSK paper, so it stays in the focused build.
+      { id: "listen", icon: Headphones },
       { id: "mixed", icon: Shuffle },
-    ] as const).filter((m) => !FOCUS || m.id === "choice" || m.id === "type");
+    ] as const)
+      .filter((m) => !FOCUS || m.id === "choice" || m.id === "type" || m.id === "listen")
+      .filter((m) => m.id !== "listen" || voice);
     return (
       <div className="mx-auto max-w-[520px] space-y-5">
         <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
@@ -671,12 +729,15 @@ export default function QuizPage() {
     setSelected(null);
     setTyped("");
     setIndex((i) => i + 1);
+    say(quiz[index + 1]);
   }
 
   const promptHint =
     q.kind === "cloze"
       ? t("quiz.fillBlank")
-      : flip
+      : q.kind === "listen"
+        ? t("quiz.whichHeard")
+        : flip
         ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
         : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
 
@@ -729,7 +790,16 @@ export default function QuizPage() {
         className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-6 text-center sm:p-9"
       >
         <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
-        {q.kind === "cloze" ? (
+        {q.kind === "listen" ? (
+          <button
+            type="button"
+            onClick={() => say(q)}
+            aria-label={t("speak.play")}
+            className="mx-auto mt-4 flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint text-sage-deep transition-colors hover:bg-sage-tint/70 active:scale-95"
+          >
+            <Volume2 className="h-9 w-9" />
+          </button>
+        ) : q.kind === "cloze" ? (
           <>
             <div className={cn("mt-3 font-serif text-[24px] leading-relaxed text-ink", tFont)}>{q.prompt}</div>
             {q.clozeTranslation && (
@@ -748,7 +818,7 @@ export default function QuizPage() {
         )}
       </div>
 
-      {q.kind === "choice" ? (
+      {q.kind === "choice" || q.kind === "listen" ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {q.options.map((opt, i) => {
             const isCorrect = opt === q.correct;
@@ -775,6 +845,7 @@ export default function QuizPage() {
                   "flex items-center justify-between gap-3 rounded-[18px] border px-5 py-4 text-left text-[19px] font-semibold transition-all",
                   style,
                   q.optionsTarget && tFont,
+                  q.kind === "listen" && cn("text-[24px]", targetFont(q.word.sourceLang)),
                   !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
                 )}
               >
@@ -830,6 +901,14 @@ export default function QuizPage() {
             <p className={cn("text-base font-semibold", correct ? "text-sage-deep" : "text-warn-text")}>
               {correct ? t("quiz.right") : t("quiz.wrong", { answer: q.correct })}
             </p>
+            {/* What was heard, spelled out: the word, its pinyin and its meaning. */}
+            {q.kind === "listen" && (
+              <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[15px] text-ink">
+                <span className="font-semibold">{q.word.word}</span>
+                {q.word.phonetic && <Pinyin text={q.word.phonetic} className="text-ink-muted" />}
+                {q.word.meaningZh && <span className={cn("text-ink-soft", tFont)}>— {q.word.meaningZh}</span>}
+              </p>
+            )}
             {q.word.examples[0] && (
               <p className="mt-2.5 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
                 “<HighlightWord text={q.word.examples[0].sentenceEn} word={q.word.word} />”

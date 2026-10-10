@@ -263,7 +263,7 @@ Evidence the parts are commodity:
 | Telegram-native coach (channel) | Huge RU/CIS reach; fragile | — | High | Bot exists; Telegram throttled/blocked in RU (Apr 2026), blocked in CN | A channel, not a product | Supporting channel |
 | Intermediate plateau generalist | Large; underserved | Real but vague | — | — | Too broad to market | Framing only |
 | Tutor companion (B2B2C) | Medium; many RU tutors of Chinese/English | Tutors pay to save prep and see progress | Weekly per student | Needs the ledger first | Strong distribution later | Stage 2 |
-| Character writing | Niche; Skritter | Real | Daily | Stroke data; none in repo | Poor | **No** |
+| Character writing | Niche; Skritter | Real | Daily | Stroke medians in repo (draw pad; stroke-order view on the word page, 2026-10-09) | Poor | **No** |
 | Community decks (Quizlet-like) | Quizlet network effects | Low for our user | — | Needs scale and moderation | Poor | **No** (built: hide) |
 | "Language-learning OS" | A vision; nobody searches for it | — | — | — | End state | Stage 3 only |
 

@@ -26,6 +26,7 @@ import { MeasureWords } from "@/components/MeasureWords";
 import { Pinyin } from "@/components/Pinyin";
 import { setExamplePinyin, useExamplePinyin } from "@/lib/learnPrefs";
 import { WordSenses } from "@/components/WordSenses";
+import { WordCharacters } from "@/components/WordCharacters";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
 import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
@@ -345,9 +346,12 @@ export default function WordDetailPage() {
             key={ex.id}
             className="rounded-[18px] border border-black/[0.06] bg-surface p-5"
           >
-            <p className="whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
-              <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} />
-            </p>
+            <div className="flex items-start gap-3">
+              <p className="min-w-0 flex-1 whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
+                <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} />
+              </p>
+              <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-1" />
+            </div>
             {ex.sentenceZh && (
               <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>
                 {ex.sentenceZh}
@@ -399,6 +403,9 @@ export default function WordDetailPage() {
         ))}
         <AddExampleInline word={word} />
       </div>
+
+      {/* Each character: its reading, meaning and stroke order, and the words built on it. */}
+      <WordCharacters word={word} />
     </div>
   );
 }

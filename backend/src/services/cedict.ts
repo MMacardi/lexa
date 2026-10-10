@@ -203,7 +203,7 @@ const LEARNER_READING: Record<string, string> = { 了: "le5", 只: "zhi3" };
  * short enough for a flashcard. Pure and deterministic — `isCedictGloss` rebuilds
  * it to recognise a meaning nobody has replaced yet.
  */
-function readingGloss(r: CedictReading): string {
+export function readingGloss(r: CedictReading): string {
   const usable = r.glosses.filter((g) => !NOT_A_MEANING.test(g)).map(tidyGloss);
   const plain = usable.filter((g) => !CLASSIFIER.test(g));
   const pool = plain.length ? plain : usable;

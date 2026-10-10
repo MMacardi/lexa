@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import type { CardField, CardLayout } from "@/lib/learnPrefs";
-import { Eye, RotateCw } from "lucide-react";
+import { Eye, RotateCw, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
 
@@ -21,6 +21,7 @@ function sampleWord(locale: string, learning?: string): Sample {
   if (learning === "zh") {
     return {
       word: <span className="font-zh">坚持</span>,
+      audio: null,
       phonetic: "jiānchí",
       pos: ru ? "гл." : zh ? "动词" : "v.",
       meaning: ru ? "упорно продолжать, не сдаваться" : zh ? "一直做下去，不放弃" : "to keep at it, persist",
@@ -40,6 +41,7 @@ function sampleWord(locale: string, learning?: string): Sample {
       : "The city bounced back fast after the flood.";
   return {
     word: "resilient",
+    audio: null,
     phonetic: "/rɪˈzɪl.i.ənt/",
     pos: ru ? "прил." : zh ? "形容词" : "adj.",
     meaning,
@@ -57,6 +59,12 @@ function FieldView({ field, w, primary, t }: { field: CardField; w: Sample; prim
   switch (field) {
     case "word":
       return <div className={cn("font-serif font-semibold leading-tight text-ink", primary ? "text-[24px]" : "text-[17px]")}>{v}</div>;
+    case "audio":
+      return (
+        <span className={cn("flex items-center justify-center rounded-full bg-sage-tint text-sage-deep", primary ? "h-12 w-12" : "h-7 w-7")}>
+          <Volume2 className={primary ? "h-6 w-6" : "h-3.5 w-3.5"} />
+        </span>
+      );
     case "phonetic":
       return <div className="text-[12px] text-ink-faint">{v}</div>;
     case "pos":

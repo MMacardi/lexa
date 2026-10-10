@@ -4,6 +4,7 @@
 const BCP47: Record<string, string> = {
   en: "en-US",
   zh: "zh-CN",
+  "zh-Hant": "zh-TW",
   ru: "ru-RU",
   es: "es-ES",
   de: "de-DE",
@@ -40,19 +41,55 @@ if (typeof window !== "undefined" && canSpeak()) {
 function pickVoice(lang: string, want: string): SpeechSynthesisVoice | undefined {
   const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
   if (voices.length && !cachedVoices.length) cachedVoices = voices;
+  const base = lang.split("-")[0];
   return (
-    voices.find((v) => v.lang === want) ??
-    voices.find((v) => v.lang.replace("_", "-").startsWith(lang))
+    voices.find((v) => v.lang.replace("_", "-") === want) ??
+    voices.find((v) => v.lang.replace("_", "-").startsWith(base)) ??
+    // Some Android engines tag Mandarin by its ISO 639-3 code.
+    (base === "zh" ? voices.find((v) => /^cmn/i.test(v.lang)) : undefined)
   );
+}
+
+/**
+ * Is there a voice for this language? null while the engine hasn't listed its
+ * voices (some Android builds never do, and still speak). False means another
+ * language's voice would read it: an English voice spelling out 服务器.
+ */
+export function hasVoice(lang: string): boolean | null {
+  if (!canSpeak()) return false;
+  const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  return Boolean(pickVoice(lang, BCP47[lang] ?? lang));
+}
+
+/**
+ * Call inside the tap that starts something which will speak on its own later (a
+ * listening card, a listening quiz): iOS lets speech start only from a gesture,
+ * and once it has, from anywhere on the page.
+ */
+export function unlockSpeech() {
+  if (!canSpeak()) return;
+  try {
+    const u = new SpeechSynthesisUtterance("​");
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch {
+    /* ignore */
+  }
 }
 
 // Keep a reference to the active utterance. Chromium garbage-collects the
 // utterance mid-speech otherwise, which cuts the audio off (or never starts it).
 let keepAlive: SpeechSynthesisUtterance | null = null;
 
-/** Speak `text` in the given language code (en/zh/ru/...). */
-export function speak(text: string, lang = "en") {
-  if (!canSpeak() || !text.trim()) return;
+/**
+ * Speak `text` in the given language code (en/zh/ru/...). False when it can't:
+ * no speech engine, or no voice for the language (the caller says so rather than
+ * let another language's voice read it).
+ */
+export function speak(text: string, lang = "en"): boolean {
+  if (!canSpeak() || !text.trim()) return false;
+  if (hasVoice(lang) === false) return false;
   const synth = window.speechSynthesis;
   const want = BCP47[lang] ?? lang;
 
@@ -112,8 +149,9 @@ export function speak(text: string, lang = "en") {
     };
     synth.addEventListener?.("voiceschanged", go);
     setTimeout(go, 300); // fallback if the event never fires
-    return;
+    return true;
   }
 
   fire();
+  return true;
 }

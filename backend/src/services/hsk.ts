@@ -92,6 +92,23 @@ export function hskLevelWords(version: HskVersion, level: number): Entry[] {
   return byLevel!.get(`${version}:${level}`) ?? [];
 }
 
+let byChar: Map<string, Entry[]> | null = null;
+
+/** The words of either list that contain this character, the character itself included. */
+export function hskWordsWith(ch: string): { word: string; pinyin: string; levels: HskTag }[] {
+  if (!byChar) {
+    byChar = new Map();
+    for (const entry of idx().values()) {
+      for (const c of new Set(Array.from(entry.word))) {
+        const bucket = byChar.get(c);
+        if (bucket) bucket.push(entry);
+        else byChar.set(c, [entry]);
+      }
+    }
+  }
+  return byChar.get(ch) ?? [];
+}
+
 let freq: Map<string, number> | null = null;
 
 /** How often a word is used: its count in jieba's dictionary (data/hskFreq.ts), 0 off the lists. */
