@@ -9,7 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useClosing } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { Home, Layers, Target, Library, Folders, Sun, Moon, Type, type LucideIcon } from "lucide-react";
+import { Home, Layers, Target, PenLine, Library, Folders, Sun, Moon, Type, type LucideIcon } from "lucide-react";
 
 interface Item {
   id: string;
@@ -66,6 +66,7 @@ export function CommandPalette() {
       { id: "go-today", Icon: Home, label: t("cmd.goToday"), run: () => router.push("/") },
       { id: "go-review", Icon: Layers, label: t("cmd.openFlashcards"), run: () => router.push("/review") },
       { id: "go-quiz", Icon: Target, label: t("cmd.openRecall"), run: () => router.push("/quiz") },
+      { id: "go-write", Icon: PenLine, label: t("cmd.openWrite"), run: () => router.push("/write") },
       { id: "go-words", Icon: Library, label: t("cmd.openWords"), run: () => router.push("/words") },
       { id: "go-collections", Icon: Folders, label: t("cmd.openCollections"), run: () => router.push("/collections") },
       {

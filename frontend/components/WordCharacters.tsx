@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus } from "lucide-react";
+import { Check, PenLine, Plus } from "lucide-react";
 import { api, type CharWord, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { errText } from "@/lib/errText";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Pinyin } from "@/components/Pinyin";
 import { SpeakButton } from "@/components/SpeakButton";
 import { StrokeOrder } from "@/components/StrokeOrder";
+import { WritingTrainer } from "@/components/WritingTrainer";
 
 const HAN = /\p{Script=Han}/u;
 
@@ -21,7 +22,8 @@ const HAN = /\p{Script=Han}/u;
  * with its reading and meaning, its stroke order, and up to six HSK words built
  * on it, the easiest first. A word the learner has opens its card; any other is
  * one tap from being added. Between HSK 4 and 5 the characters are what let a
- * new word be guessed and kept. Dictionary data, no model call.
+ * new word be guessed and kept. "Write it" opens the writing trainer on the
+ * whole word. Dictionary data, no model call.
  */
 export function WordCharacters({ word }: { word: Word }) {
   const { t } = useI18n();
@@ -29,7 +31,8 @@ export function WordCharacters({ word }: { word: Word }) {
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
   const [adding, setAdding] = useState<string | null>(null);
-  const on = word.sourceLang === "zh" && HAN.test(word.word);
+  const [writing, setWriting] = useState(false);
+  const on =word.sourceLang === "zh" && HAN.test(word.word);
   const { data } = useQuery({
     queryKey: ["dictChars", accountId, word.word, word.phonetic ?? "", word.targetLang],
     queryFn: () => api.dictChars(word.word, word.phonetic ?? "", word.targetLang),
@@ -72,7 +75,26 @@ export function WordCharacters({ word }: { word: Word }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">{t("chars.title")}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-serif text-[15px] font-medium italic text-ink-soft">{t("chars.title")}</h2>
+        <button
+          type="button"
+          onClick={() => setWriting((w) => !w)}
+          aria-expanded={writing}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+            writing ? "border-sage/50 bg-sage-tint/60 text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60 hover:text-sage-deep",
+          )}
+        >
+          <PenLine className="h-3.5 w-3.5" /> {writing ? t("write.close") : t("write.open")}
+        </button>
+      </div>
+      {/* Write the whole word, stroke by stroke, checked as it's written. */}
+      {writing && (
+        <div className="anim-fade-in rounded-[18px] border border-black/[0.06] bg-surface p-4">
+          <WritingTrainer word={word.word} storeKey="word" />
+        </div>
+      )}
       {chars.map((c) => (
         <div key={c.word} className="rounded-[18px] border border-black/[0.06] bg-surface p-4">
           <div className="flex items-start gap-4">

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { UsagePill } from "@/components/UsagePill";
 import { FOCUS } from "@/lib/focus";
 import { OPEN_ADD, OPEN_BUG, OPEN_MIKA, SLOT_COUNT, DEFAULT_SLOTS, open, useLockScroll, useNavSlots, useSheetDrag } from "@/lib/mobileNav";
-import { Home, Compass, Layers, Target, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
+import { Home, Compass, Layers, Target, PenLine, BookOpen, Library, Folders, Users, Settings, MoreHorizontal, Gauge, Sparkles, Globe, Bug, Plus, SlidersHorizontal, X, Check, type LucideIcon } from "lucide-react";
 
 // The quick-add sheet's form is only needed once "+" is tapped — keep it out of
 // the shell's first-load JS. It's fetched once the page is idle, and the sheet
@@ -34,6 +34,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/mika", key: "nav.mika", Icon: Sparkles },
   { href: "/review", key: "nav.flashcards", Icon: Layers },
   { href: "/quiz", key: "nav.recall", Icon: Target },
+  { href: "/write", key: "nav.write", Icon: PenLine },
   { href: "/reader", key: "nav.reader", Icon: BookOpen },
   { href: "/words", key: "nav.words", Icon: Library },
   { href: "/collections", key: "nav.collections", Icon: Folders },
