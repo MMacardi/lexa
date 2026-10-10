@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { recorderSupported, startRecording, type Recording } from "@/lib/record";
-import { compareRead, scorePronunciation, type PronounceScore, type ReadCheck } from "@/lib/pronounce";
+import { compareRead, scorePronunciation, type PronounceScore, type ReadCheck, type ReadWord } from "@/lib/pronounce";
 import { segment } from "@/lib/segment";
-import { Pinyin } from "@/components/Pinyin";
+import { setReadAloudPinyin, useReadAloudPinyin, useToneColors } from "@/lib/learnPrefs";
+import { CLOSES, OPENS } from "@/components/ExampleText";
+import { Pinyin, toneClass } from "@/components/Pinyin";
 import { SpeakButton } from "@/components/SpeakButton";
 import { cn } from "@/lib/utils";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { Baseline, Mic, Square, Loader2 } from "lucide-react";
 
 // Read-aloud practice for the Reader: each sentence of the text gets a mic —
 // read it out loud, and the SERVER transcribes (qwen3-asr-flash via /api/coach/stt).
@@ -17,7 +19,8 @@ import { Mic, Square, Loader2 } from "lucide-react";
 // China without a VPN. Chinese gets its answer word by word (lib/pronounce.ts
 // compareRead): the words a listener would hear as other words, each with its pinyin
 // next to the pinyin of what was heard, and the words the recording doesn't have.
-// Other languages keep the overall closeness score.
+// Other languages keep the overall closeness score. Chinese sentences can carry
+// their pinyin (the card's own switch, remembered).
 type RowState =
   | { kind: "idle" }
   | { kind: "recording" }
@@ -30,6 +33,8 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
   const [ok, setOk] = useState(false);
   const [rows, setRows] = useState<RowState[]>(() => sentences.map(() => ({ kind: "idle" })));
   const recRef = useRef<{ index: number; rec: Recording } | null>(null);
+  const zh = lang === "zh" || lang === "zh-Hant";
+  const pinyinOn = useReadAloudPinyin() && zh;
 
   useEffect(() => setOk(recorderSupported()), []);
   // Sentences changed (new text) → fresh rows.
@@ -59,7 +64,6 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
           return;
         }
         const score = scorePronunciation(sentences[i], [text]);
-        const zh = lang === "zh" || lang === "zh-Hant";
         const read = zh
           ? await compareRead(await api.segment(sentences[i]).catch(() => segment(sentences[i], lang)), text).catch(() => undefined)
           : undefined;
@@ -78,7 +82,14 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
       setRow(prev.index, { kind: "idle" });
     }
     try {
-      const rec = await startRecording({ maxMs: 20000 });
+      // A minute a sentence, and checked the moment the cap is hit: at 20 s the mic
+      // went quiet while the button still pulsed, and the end of the reading was lost.
+      const rec: Recording = await startRecording({
+        maxMs: 60000,
+        onAutoStop: () => {
+          if (recRef.current?.rec === rec) void toggle(i);
+        },
+      });
       recRef.current = { index: i, rec };
       setRow(i, { kind: "recording" });
     } catch (e) {
@@ -91,6 +102,20 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
       <div className="flex items-center gap-2">
         <Mic className="h-4 w-4 text-sage-deep" />
         <h3 className="font-serif text-[17px] font-medium text-ink">{t("reader.readAloud")}</h3>
+        {zh && (
+          <button
+            type="button"
+            onClick={() => setReadAloudPinyin(!pinyinOn)}
+            aria-pressed={pinyinOn}
+            className={cn(
+              "ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              pinyinOn ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Baseline className="h-3.5 w-3.5" />
+            {t("reader.ruby")}
+          </button>
+        )}
       </div>
       <p className="mt-1 text-[12.5px] leading-snug text-ink-faint">{t("reader.readAloudHint")}</p>
 
@@ -100,21 +125,12 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
           return (
             <div key={i} className="rounded-[14px] border border-black/[0.05] bg-paper/60 px-3.5 py-2.5">
               <div className="flex items-start gap-2.5">
-                <p className="min-w-0 flex-1 text-[14.5px] leading-relaxed text-ink">
-                  {row.kind === "result" && row.read
-                    ? row.read.words.map((w, k) => (
-                        <span
-                          key={k}
-                          className={cn(
-                            w.status === "misheard" && "underline decoration-warn-text decoration-2 underline-offset-4",
-                            w.status === "missed" && "text-ink-faint",
-                          )}
-                        >
-                          {w.text}
-                        </span>
-                      ))
-                    : s}
-                </p>
+                <SentenceText
+                  text={s}
+                  words={row.kind === "result" ? row.read?.words : undefined}
+                  zh={zh}
+                  pinyin={pinyinOn}
+                />
                 <button
                   type="button"
                   onClick={() => toggle(i)}
@@ -168,6 +184,75 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
         <p className="mt-2 text-center text-[12px] text-ink-faint">{t("reader.readAloudMore", { n: String(hiddenCount) })}</p>
       )}
     </div>
+  );
+}
+
+// The sentence as its row shows it — after a check, word by word, the misheard ones
+// underlined and the missed ones grey — with, when the switch is on, the reading over
+// each character. Read from the whole sentence, as on an example, so 了 and 长 read
+// right; an explicit break chance after each character, or a phone sizes the row to
+// the sentence and scrolls sideways (see ExampleText).
+function SentenceText({ text, words, zh, pinyin: on }: { text: string; words?: ReadWord[]; zh: boolean; pinyin: boolean }) {
+  const tones = useToneColors();
+  const full = words ? words.map((w) => w.text).join("") : text;
+  const [readings, setReadings] = useState<{ of: string; list: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!on) return;
+    let cancelled = false;
+    void import("pinyin-pro").then(({ pinyin }) => {
+      if (!cancelled) setReadings({ of: full, list: pinyin(full, { type: "all" }).map((c) => (c.isZh ? c.pinyin : "")) });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [on, full]);
+
+  const chars = Array.from(full);
+  const ruby = on && readings?.of === full && readings.list.length === chars.length ? readings.list : null;
+  let at = 0;
+  const piece = (part: string) => {
+    const from = at;
+    const own = Array.from(part);
+    at += own.length;
+    if (!ruby) return part;
+    return own.map((c, k) => {
+      const i = from + k;
+      const brk = OPENS.test(c) || CLOSES.test(chars[i + 1] ?? "") ? null : <wbr />;
+      return (
+        <Fragment key={k}>
+          {ruby[i] ? (
+            <ruby>
+              {c}
+              <rt className={cn("px-px pb-0.5 font-pinyin text-[0.6em] font-normal leading-none tracking-tight text-ink-faint", tones && toneClass(ruby[i]))}>
+                {ruby[i]}
+              </rt>
+            </ruby>
+          ) : (
+            c
+          )}
+          {brk}
+        </Fragment>
+      );
+    });
+  };
+
+  return (
+    <p className={cn("min-w-0 flex-1 text-ink", zh ? "text-[18px]" : "text-[14.5px]", ruby ? "leading-[2.4]" : "leading-relaxed")}>
+      {words
+        ? words.map((w, k) => (
+            <span
+              key={k}
+              className={cn(
+                w.status === "misheard" && "underline decoration-warn-text decoration-2 underline-offset-4",
+                w.status === "missed" && "text-ink-faint",
+              )}
+            >
+              {piece(w.text)}
+            </span>
+          ))
+        : piece(text)}
+    </p>
   );
 }
 

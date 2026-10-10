@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils";
 
 // A line mustn't end on an opening bracket or quote, nor start on a comma or a
 // closing one (see the Reader's ruby).
-const OPENS = /[“‘「『《〈【（(\[]/;
-const CLOSES = /[，。！？、；：”’」』》〉】）),.!?;:\]]/;
+export const OPENS = /[“‘「『《〈【（(\[]/;
+export const CLOSES = /[，。！？、；：”’」』》〉】）),.!?;:\]]/;
 const HAN = /\p{Script=Han}/u;
 
 // A sentence's words, asked for once per page: the server's segmenter (ICU mended
@@ -191,7 +191,7 @@ export function ExampleText({
         {chars[i]}
         <rt
           className={cn(
-            "pb-0.5 font-sans text-[0.5em] font-normal not-italic leading-none tracking-tight text-ink-faint",
+            "px-px pb-0.5 font-pinyin text-[0.5em] font-normal not-italic leading-none tracking-tight text-ink-faint",
             tones && toneClass(reading),
           )}
         >

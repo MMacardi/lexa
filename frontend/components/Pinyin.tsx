@@ -29,7 +29,9 @@ export const toneClass = (syllable: string) => TONE_CLASS[toneOf(syllable)];
  */
 export function Pinyin({ text, className }: { text: string; className?: string }) {
   const on = useToneColors();
-  if (!on || !text) return <span className={className}>{text}</span>;
+  // The pinyin font: in the app's own, a syllable opening on ā or ō lost its macron.
+  const box = className ? `font-pinyin ${className}` : "font-pinyin";
+  if (!on || !text) return <span className={box}>{text}</span>;
   const parts: React.ReactNode[] = [];
   let at = 0;
   for (const m of text.matchAll(SYLLABLE)) {
@@ -47,5 +49,5 @@ export function Pinyin({ text, className }: { text: string; className?: string }
     at = m.index + m[0].length;
   }
   if (at < text.length) parts.push(text.slice(at));
-  return <span className={className}>{parts}</span>;
+  return <span className={box}>{parts}</span>;
 }

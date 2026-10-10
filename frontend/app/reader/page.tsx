@@ -366,13 +366,15 @@ export default function ReaderPage() {
   const hskTarget = profile?.hskTarget ?? null;
   const hskLevel = (tk: Token) => tk.hsk?.[hskVersion] ?? null;
 
-  // Sentences for read-aloud practice: split on terminal punctuation (incl. CJK),
-  // drop empties, cap the panel so it stays scannable. Stable across renders so
-  // the panel doesn't reset its scores on every keystroke elsewhere.
+  // Sentences for read-aloud practice: split on terminal punctuation and line breaks,
+  // drop empties, cap the panel so it stays scannable. Chinese puts no space after
+  // 。, so it splits right there (after any closing quote): a whole paragraph read as
+  // one take ran past the recorder's limit. Stable across renders so the panel
+  // doesn't reset its scores on every keystroke elsewhere.
   const { sentences: readAloudSentences, hidden: readAloudHidden } = useMemo(() => {
     if (!reading) return { sentences: [] as string[], hidden: 0 };
     const parts = text
-      .split(/(?<=[.!?。！？…])\s+/)
+      .split(/(?<=[.!?…])\s+|(?<=[。！？][”’」』）)]*)(?![。！？”’」』）)])|\n+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 1);
     const list = parts.length ? parts : text.trim() ? [text.trim()] : [];
@@ -950,7 +952,7 @@ export default function ReaderPage() {
   // only, and the transcription floats ABOVE it on the clean page background — so
   // ruby and the green selection never overlap. A word the learner knows gets no
   // pinyin unless they asked for it over every word (Du Chinese's toggle).
-  const rtClass = "pb-1 text-[0.5em] font-normal leading-none tracking-tight text-ink-faint";
+  const rtClass = "px-px pb-1 font-pinyin text-[0.5em] font-normal leading-none tracking-tight text-ink-faint";
   const wordNode = (txt: string, highlight: string, known = false) => {
     if (!(rubyOn && rubyMap[txt]) || (known && !rubyAll)) return <span className={highlight}>{txt}</span>;
     const chars = Array.from(txt);
@@ -1455,11 +1457,17 @@ export default function ReaderPage() {
         >
           {tokens.map((tk, i) => {
             // After each sentence, a play button that says it (Du Chinese plays every sentence).
+            // A full-width 。！？ is mostly empty on its right, so the button pulls into it.
             if (!tk.wordLike)
               return /[.!?。！？]/.test(tk.text) ? (
                 <span key={i}>
                   {tk.text}
-                  <SpeakButton text={sentenceAround(i)} lang={sourceLang} size="inline" />
+                  <SpeakButton
+                    text={sentenceAround(i)}
+                    lang={sourceLang}
+                    size="inline"
+                    className={/[。！？]$/.test(tk.text) ? "-ml-[0.3em]" : "ml-0.5"}
+                  />
                 </span>
               ) : (
                 <span key={i}>{tk.text}</span>

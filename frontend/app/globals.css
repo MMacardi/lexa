@@ -132,6 +132,11 @@ html {
   --font-serif: "Twemoji Country Flags", "Newsreader", Georgia, serif;
   --font-sans: "Twemoji Country Flags", "Hanken Grotesk", system-ui, sans-serif;
   --font-zh: "Twemoji Country Flags", "Noto Sans SC", "Hanken Grotesk", sans-serif;
+  /* Pinyin in system fonts: Google's split fonts carry the combining macron in their
+     basic-Latin slice but ā ō ū in another, so Chrome built ōu, xiū out of o + a loose
+     macron (Noto Sans SC for every first tone, Hanken Grotesk when it opens the text).
+     Noto Sans SC last, for Japanese kana over the Reader's kanji. */
+  --font-pinyin: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
 }
 
 :root {

@@ -44,7 +44,10 @@ export function SpeakButton({
         : cn("h-9 w-9 text-[16px]", frame);
   const label = t("speak.play");
   return (
-    <HoverTip title={label} className={cn("inline-flex shrink-0", size === "inline" && "mx-0.5 align-[-0.3em]", className)}>
+    // Inline, the box's baseline is the icon's bottom edge, so on the text's baseline
+    // the icon's middle sits ~7px up, level with a character's middle (the old -0.3em
+    // put it on the baseline). The caller sets the left margin: after 。 it pulls in.
+    <HoverTip title={label} className={cn("inline-flex shrink-0", size === "inline" && "mr-0.5 align-baseline", className)}>
       <button
         type="button"
         onClick={(e) => {

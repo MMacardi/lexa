@@ -896,6 +896,34 @@ export function useExamplePinyin(): boolean {
   return on;
 }
 
+// Pinyin over the sentences of the Reader's read-aloud practice. Its own switch: a
+// learner may read the text bare and still want the sounds while saying it out loud.
+const READ_ALOUD_PINYIN_KEY = "lexa.readAloudPinyin";
+export function setReadAloudPinyin(on: boolean) {
+  try {
+    localStorage.setItem(READ_ALOUD_PINYIN_KEY, on ? "1" : "0");
+  } catch {}
+  window.dispatchEvent(new Event(EVT));
+}
+export function useReadAloudPinyin(): boolean {
+  const [on, setState] = useState(false);
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setState(localStorage.getItem(READ_ALOUD_PINYIN_KEY) === "1");
+      } catch {}
+    };
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Pinyin coloured by tone (components/Pinyin.tsx): a second cue for the tone, as
 // Pleco and Hack Chinese do. On by default; the review screen has the switch.
 const TONE_COLORS_KEY = "lexa.toneColors";
