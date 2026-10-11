@@ -1649,6 +1649,8 @@ const DICT: Record<string, Entry> = {
   "hskList.add": { en: "Add {word}", ru: "Добавить {word}", zh: "添加 {word}" },
   "hskList.added": { en: "{word} added", ru: "Добавлено: {word}", zh: "已添加 {word}" },
   "hskList.more": { en: "Show {n} more", ru: "Показать ещё {n}", zh: "再显示 {n} 个" },
+  "hskList.search": { en: "Search: character, pinyin or meaning", ru: "Поиск: иероглиф, пиньинь или перевод", zh: "搜索：汉字、拼音或释义" },
+  "hskList.noMatch": { en: "No words match “{q}”", ru: "Ничего не найдено: «{q}»", zh: "没有找到“{q}”" },
 
   // --- Today's words: the daily drip at the learner's level ---
   "hskDaily.title": { en: "Today's words · HSK {level}", ru: "Слова на сегодня · HSK {level}", zh: "今日生词 · HSK {level}" },

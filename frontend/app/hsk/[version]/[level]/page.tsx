@@ -14,9 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ErrorState";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Check, ListChecks, Plus, Zap } from "lucide-react";
+import { CalendarDays, Check, ListChecks, Plus, Search, Zap } from "lucide-react";
 
 const PAGE = 120;
+
+// Pinyin as typed: tone marks and spaces off, ü and v as u, so "zhongguo" finds
+// zhōngguó and "lv" finds lǜ.
+const plain = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ\s]/g, "")
+    .replace(/v/g, "u");
 
 // One level of an official HSK list, read-only (BACKLOG "The official HSK lists
 // as decks you can browse"). Two ways in from here: make this level the source of
@@ -32,6 +41,7 @@ export default function HskLevelPage() {
   const { show } = useToast();
   const qc = useQueryClient();
   const [onlyNew, setOnlyNew] = useState(false);
+  const [query, setQuery] = useState("");
   const [visible, setVisible] = useState(PAGE);
   const [adding, setAdding] = useState<string | null>(null);
   const [savingDaily, setSavingDaily] = useState(false);
@@ -106,7 +116,13 @@ export default function HskLevelPage() {
   const have = data.words.filter((w) => w.status).length;
   const cards = data.words.filter((w) => w.card).length;
   const unswept = data.words.filter((w) => !w.card && !w.status && !w.toLearn).length;
-  const words = onlyNew ? data.words.filter((w) => !w.status) : data.words;
+  const q = query.trim().toLowerCase();
+  const qPinyin = plain(q);
+  const words = data.words.filter(
+    (w) =>
+      (!onlyNew || !w.status) &&
+      (!q || w.word.includes(q) || (qPinyin && plain(w.pinyin).includes(qPinyin)) || w.meaning?.toLowerCase().includes(q)),
+  );
   const statusLabel = { canUse: t("hskList.canUse"), recognise: t("hskList.known"), learning: t("hskList.learning") };
 
   return (
@@ -148,6 +164,21 @@ export default function HskLevelPage() {
         </div>
       </div>
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+        <input
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setVisible(PAGE);
+          }}
+          placeholder={t("hskList.search")}
+          className="h-10 w-full rounded-full border border-black/[0.07] bg-surface pr-4 pl-10 text-[15px] text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none"
+        />
+      </div>
+
+      {q && words.length === 0 && <p className="text-sm text-ink-soft">{t("hskList.noMatch", { q: query.trim() })}</p>}
+
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {words.slice(0, visible).map((w) => (
           <div
@@ -158,8 +189,15 @@ export default function HskLevelPage() {
             )}
           >
             <span className="min-w-0 flex-1">
-              <span className="font-zh text-[17px] text-ink">{w.word}</span>
-              <span className="ml-2 text-[12px] text-ink-faint">{w.pinyin}</span>
+              <span className="block truncate">
+                <span className="font-zh text-[17px] text-ink">{w.word}</span>
+                <span className="ml-2 text-[12px] text-ink-faint">{w.pinyin}</span>
+              </span>
+              {w.meaning && (
+                <span className="block truncate text-[13px] text-ink-soft" title={w.meaning}>
+                  {w.meaning}
+                </span>
+              )}
             </span>
             {w.status && (
               <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-sage-deep">
