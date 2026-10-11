@@ -44,7 +44,7 @@ import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
 import { MobileSheet } from "@/components/MobileSheet";
 import { SheetRow } from "@/components/SheetRow";
-import { useLockScroll } from "@/lib/mobileNav";
+import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
@@ -92,6 +92,7 @@ export default function FlashcardsPage() {
   const { t } = useI18n();
   const layout = useCardLayout();
   const activePreset = presetIdOf(layout);
+  const mobile = useIsMobile();
   const toggleField = (side: "front" | "back", field: CardField) => {
     const cur = layout[side];
     const next = cur.includes(field) ? cur.filter((f) => f !== field) : [...cur, field];
@@ -739,9 +740,13 @@ export default function FlashcardsPage() {
             </span>
           }
         >
+            {/* A phone shows every preset, two to a row: a sideways-scrolling strip
+                cut the third one off at the edge and hid the rest (the author,
+                2026-10-10: "some settings are cut ... doesn't feel good"). */}
             <Segmented
-              className="w-fit"
-              scroll
+              className={mobile ? "grid-cols-2" : "w-fit"}
+              grid={mobile}
+              shape={mobile ? "soft" : "pill"}
               size="lg"
               itemClassName="px-3 py-1"
               value={activePreset}

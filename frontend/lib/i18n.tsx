@@ -2589,6 +2589,8 @@ const DICT: Record<string, Entry> = {
   "write.modeDue": { en: "Due to write", ru: "Пора написать", zh: "待书写" },
   "write.modeDueHint": { en: "Words due to be written, and {n} you haven't written yet: a new word is traced first, then written from memory at the end.", ru: "Слова, которые пора написать, и новые ({n}): новое слово сначала обводите, а в конце пишете по памяти.", zh: "到期需要书写的词，加上 {n} 个没写过的：新词先描红，最后再默写。" },
   "write.modeDueHintNone": { en: "Words whose writing is due.", ru: "Слова, которые пора написать.", zh: "到期需要书写的词。" },
+  "write.modeDueHintCaughtUp": { en: "Everything due is written: today's writing is done. Keep going with {n} new words: each is traced first, then written from memory at the end.", ru: "Всё, что пора было написать, написано: на сегодня всё. Можно продолжить новыми словами ({n}): каждое сначала обводите, а в конце пишете по памяти.", zh: "到期的都写完了，今天的书写已完成。可以继续写 {n} 个新词：先描红，最后再默写。" },
+  "write.keepGoing": { en: "Keep going — {n} more words →", ru: "Продолжить — ещё слов: {n} →", zh: "继续 — 再写 {n} 个词 →" },
   "write.modeAllHint": { en: "Every Chinese word in the list, whether due or not.", ru: "Все китайские слова из списка, даже если их ещё рано писать.", zh: "列表中的全部中文词，不论是否到期。" },
   "write.nothingDue": { en: "Nothing to write today", ru: "На сегодня всё написано", zh: "今天的书写已完成" },
   "write.allInstead": { en: "Write all {n} words instead", ru: "Написать все слова ({n})", zh: "改为书写全部 {n} 个词" },

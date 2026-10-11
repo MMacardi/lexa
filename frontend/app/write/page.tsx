@@ -181,16 +181,21 @@ export default function WritePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck, at, result]);
 
-  function start(dueOnly = false) {
-    const picked = dueOnly
-      ? due
-      : onlyDue
-        ? [...due, ...fresh.slice(0, NEW_PER_SESSION)]
-        : [...due, ...pool.filter((w) => !isNew(w) && !isDueToWrite(w)).sort(byDue), ...fresh];
+  function begin(picked: Word[]) {
     setDeck(picked.map((w) => ({ word: w, trace: isNew(w) })));
     setAt(0);
     setResult(null);
     setTally({ graded: new Set(), clean: 0, again: 0 });
+  }
+
+  function start(dueOnly = false) {
+    begin(
+      dueOnly
+        ? due
+        : onlyDue
+          ? [...due, ...fresh.slice(0, NEW_PER_SESSION)]
+          : [...due, ...pool.filter((w) => !isNew(w) && !isDueToWrite(w)).sort(byDue), ...fresh],
+    );
   }
 
   function next() {
@@ -283,12 +288,17 @@ export default function WritePage() {
                 ),
               }))}
             />
+            {/* Nothing due but new words left: today's writing is done, and the
+                session on offer is "keep going" — "Due to write 0" over a button
+                starting 10 words read as a contradiction (the author, 2026-10-10). */}
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
               {!onlyDue
                 ? t("write.modeAllHint")
-                : fresh.length
-                  ? t("write.modeDueHint", { n: Math.min(fresh.length, NEW_PER_SESSION) })
-                  : t("write.modeDueHintNone")}
+                : !fresh.length
+                  ? t("write.modeDueHintNone")
+                  : due.length
+                    ? t("write.modeDueHint", { n: Math.min(fresh.length, NEW_PER_SESSION) })
+                    : t("write.modeDueHintCaughtUp", { n: Math.min(fresh.length, NEW_PER_SESSION) })}
             </p>
           </div>
 
@@ -321,7 +331,9 @@ export default function WritePage() {
         </div>
 
         <Button className="w-full" disabled={candidate === 0} onClick={() => start()}>
-          {candidate === 0 ? t(onlyDue ? "write.nothingDue" : "review.nothing") : t("write.start", { n: candidate })}
+          {candidate === 0
+            ? t(onlyDue ? "write.nothingDue" : "review.nothing")
+            : t(onlyDue && !due.length ? "write.keepGoing" : "write.start", { n: candidate })}
         </Button>
         {onlyDue && dueCount === 0 && pool.length > 0 && (
           <button
@@ -338,14 +350,23 @@ export default function WritePage() {
 
   // ---------------- Done ----------------
   if (at >= deck.length) {
+    // Keep going, one tap (the author, 2026-10-10: "what if I want to continue ...
+    // make the whole day for Chinese"): what's still due and the next new words in
+    // the same list, as Due to write would start them — less the words just written,
+    // whose new schedule may not be back from the server yet.
+    const left = (w: Word) => !tally.graded.has(w.id);
+    const more = [...due.filter(left), ...fresh.filter(left).slice(0, NEW_PER_SESSION)];
     return (
       <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <Check className="h-9 w-9 text-sage" />
         <h2 className="mt-4 font-serif text-[28px] font-medium text-ink">{t("write.sessionDone", { n: tally.graded.size })}</h2>
         <p className="mt-2 text-ink-soft">{t("write.sessionScore", { clean: tally.clean, again: tally.again })}</p>
-        <Button variant="dark" className="mt-7" onClick={() => setDeck(null)}>
-          {t("review.backToSetup")}
-        </Button>
+        <div className="mt-7 flex flex-wrap justify-center gap-2">
+          {more.length > 0 && <Button onClick={() => begin(more)}>{t("write.keepGoing", { n: more.length })}</Button>}
+          <Button variant="dark" onClick={() => setDeck(null)}>
+            {t("review.backToSetup")}
+          </Button>
+        </div>
       </div>
     );
   }
