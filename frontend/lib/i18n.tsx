@@ -2239,6 +2239,8 @@ const DICT: Record<string, Entry> = {
     ru: "Короткая практика со словами из этой сессии: {n}",
     zh: "用刚复习的 {n} 个词做个小练习",
   },
+  "review.keepGoing": { en: "Keep going — {n} more cards", ru: "Продолжить — ещё карточек: {n}", zh: "继续 — 再复习 {n} 张卡片" },
+  "review.keepGoingSub": { en: "What's due now and the next new words", ru: "Что пора повторить и следующие новые слова", zh: "现在到期的词和接下来的新词" },
   "review.nextRead": { en: "Read something", ru: "Почитать", zh: "读点东西" },
   "review.nextReadSub": {
     en: "A text, a photo of a page — tap the words you don't know",

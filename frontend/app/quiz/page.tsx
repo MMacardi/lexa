@@ -7,6 +7,7 @@ import { api, type HskVersion, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
+import { useFitPinned, useIsMobile } from "@/lib/mobileNav";
 import { langLabel, pairLabel } from "@/lib/langs";
 import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, X, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
@@ -253,7 +254,7 @@ function PreviewQuestion({ q, showKind }: { q: Question; showKind: boolean }) {
 // A hover/pin preview of REAL questions built from the learner's own words. A
 // single-format mode shows one sample; "Mixed" becomes a carousel that cycles
 // through each format it can produce (multiple choice, typing, fill-the-blank).
-function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: QuizMode }) {
+function QuizPreview({ pool, flip, mode, lead }: { pool: Word[]; flip: boolean; mode: QuizMode; lead?: React.ReactNode }) {
   const { t } = useI18n();
   // Keep samples stable across re-renders (pool is a fresh array each render, so
   // depend on its length — rebuild only when count/flip/mode change).
@@ -316,7 +317,7 @@ function QuizPreview({ pool, flip, mode }: { pool: Word[]; flip: boolean; mode: 
   );
 
   return (
-    <HoverPreview label={t("quiz.previewWant")} title={t("preview.title")} width={286}>
+    <HoverPreview label={t("quiz.previewWant")} title={t("preview.title")} width={286} lead={lead}>
       {content}
     </HoverPreview>
   );
@@ -365,6 +366,9 @@ export default function QuizPage() {
     window.addEventListener("resize", read);
     return () => window.removeEventListener("resize", read);
   }, []);
+  // Setup, question, end screen: each pinned on a phone while it fits.
+  const fitRef = useFitPinned();
+  const mobile = useIsMobile();
 
   // Play a listening question's word (inside the tap that brings it up, for iOS).
   function say(q: Question | undefined) {
@@ -533,13 +537,14 @@ export default function QuizPage() {
       .filter((m) => !FOCUS || m.id === "choice" || m.id === "type" || m.id === "listen")
       .filter((m) => m.id !== "listen" || voice);
     return (
-      <div className="mx-auto max-w-[520px] space-y-5">
-        <h2 className="font-serif text-[28px] font-medium text-ink">{t("quiz.title")}</h2>
+      <div ref={fitRef} className="mx-auto max-w-[520px] space-y-4 sm:space-y-5">
+        <h2 className="font-serif text-[24px] font-medium text-ink sm:text-[28px]">{t("quiz.title")}</h2>
         <OnceHint id="quiz">{t("hint.quiz")}</OnceHint>
 
-        <div className="space-y-5 rounded-[20px] border border-black/[0.06] bg-surface p-5">
-          {/* 1. language pair — the one thing a round needs */}
-          {allPairs.length > 0 && (
+        <div className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:space-y-5 sm:p-5">
+          {/* 1. language pair — the one thing a round needs. With a single pair
+              there's nothing to pick, so no row. */}
+          {allPairs.length > 1 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
@@ -563,30 +568,37 @@ export default function QuizPage() {
             </div>
           )}
 
-          {/* 2. answer mode — tiles that say what each one means */}
+          {/* 2. answer mode — tiles that say what each one means. A phone has them
+              three to a row, icon over name, and says what the picked one means
+              under them, so the setup fits one screen. */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("quiz.answerMode")}</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2 md:grid-cols-2">
               {modes.map(({ id, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setMode(id)}
                   className={cn(
-                    "flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition-colors",
+                    "flex flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-center transition-colors md:items-start md:px-3 md:py-2.5 md:text-left",
                     mode === id
                       ? "border-sage bg-sage-tint/60 text-sage-deep"
                       : "border-black/[0.08] text-ink-muted hover:border-sage/60",
                   )}
                 >
-                  <span className="flex items-center gap-1.5 text-sm font-semibold">
-                    <Icon className="h-4 w-4" /> {t(`quiz.${id}`)}
+                  <span className="flex flex-col items-center gap-1 text-[13px] font-semibold leading-tight md:flex-row md:gap-1.5 md:text-sm">
+                    <Icon className="h-4 w-4 shrink-0" /> {t(`quiz.${id}`)}
                   </span>
-                  <span className="text-[12px] leading-snug text-ink-faint">{t(`quiz.${id}Desc`)}</span>
+                  <span className="hidden text-[12px] leading-snug text-ink-faint md:block">{t(`quiz.${id}Desc`)}</span>
                 </button>
               ))}
             </div>
-            <QuizPreview pool={pool} flip={flip} mode={mode} />
+            <QuizPreview
+              pool={pool}
+              flip={flip}
+              mode={mode}
+              lead={mobile ? <span className="min-w-0 text-[12px] leading-snug text-ink-faint">{t(`quiz.${mode}Desc`)}</span> : undefined}
+            />
           </div>
 
           {/* 3. which list (optional): a collection or an HSK level */}
@@ -625,7 +637,7 @@ export default function QuizPage() {
             aria-checked={cram}
             onClick={() => setCram((v) => !v)}
             className={cn(
-              "flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors",
+              "flex w-full items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors sm:py-3",
               cram ? "border-sage bg-sage-tint/60" : "border-black/[0.08] hover:border-sage/60",
             )}
           >
@@ -634,7 +646,8 @@ export default function QuizPage() {
               <span className={cn("block text-sm font-semibold", cram ? "text-sage-deep" : "text-ink-muted")}>
                 {t("quiz.cram")}
               </span>
-              <span className="block text-[12px] leading-snug text-ink-faint">{t("quiz.cramDesc")}</span>
+              {/* A phone says what it is once it's on: the setup has one screen. */}
+              <span className={cn("block text-[12px] leading-snug text-ink-faint", !cram && "max-sm:hidden")}>{t("quiz.cramDesc")}</span>
             </span>
             <span className={cn("relative mt-0.5 h-4 w-7 shrink-0 rounded-full transition-colors", cram ? "bg-sage" : "bg-black/15")}>
               <span
@@ -659,8 +672,10 @@ export default function QuizPage() {
               : t(cram ? "quiz.cramStart" : "quiz.start", { n: roundSize })}
         </Button>
 
-        {/* direction — tucked away; word → meaning suits most people */}
+        {/* direction — tucked away; word → meaning suits most people. A phone opens
+            it as a sheet, so the setup stays one screen. */}
         <Disclosure
+          sheet={t("review.direction")}
           summary={
             <span>
               {t("review.direction")}
@@ -690,7 +705,7 @@ export default function QuizPage() {
 
   if (index >= total && cram)
     return (
-      <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+      <div ref={fitRef} className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <Confetti />
         <Zap className="mx-auto h-9 w-9 text-sage" />
         <h2 className="mt-4 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("quiz.cramDone")}</h2>
@@ -707,7 +722,7 @@ export default function QuizPage() {
 
   if (index >= total)
     return (
-      <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+      <div ref={fitRef} className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         {score / total >= 0.6 && <Confetti />}
         <Target className="mx-auto h-9 w-9 text-sage" />
         <h2 className="mt-4 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("quiz.done")}</h2>
@@ -756,6 +771,9 @@ export default function QuizPage() {
 
   return (
     <div className="mx-auto max-w-[620px]">
+      {/* The question, measured: while it fits a phone's screen the page is pinned
+          (the answer panel below docks over it, so it doesn't count). */}
+      <div ref={fitRef}>
       {/* Phones: one line — back to setup, progress, the count, edit — so the
           question, its options and the answer fit one screen. */}
       <div className="flex items-center gap-3 sm:hidden">
@@ -930,11 +948,12 @@ export default function QuizPage() {
           )}
         </form>
       )}
+      </div>
 
       {/* Phones: when the page runs past the screen, the verdict and Next dock at
           its bottom, above the tab bar, instead of waiting below the fold (the
           author, 2026-10-10). Docked, it covers the options under it; it names the
-          right answer itself, and a scroll still shows them. */}
+          right answer itself. */}
       {answered && (
         <div
           className="anim-fade-up mt-3 max-sm:sticky max-sm:z-10 max-sm:rounded-[22px] max-sm:border max-sm:border-black/[0.06] max-sm:bg-surface max-sm:p-2 max-sm:shadow-[0_-6px_24px_rgba(0,0,0,0.12)] sm:mt-4"

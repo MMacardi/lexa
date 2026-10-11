@@ -84,45 +84,6 @@ export function useTouchOnly() {
 // Written only when a value changes: this runs on every viewport scroll event, and
 // an inherited custom property set on <html> restyles the whole page — on a long
 // Reader text that is enough to leave blank tiles behind a fast swipe.
-// A practice screen that fits a phone's screen (Writing; Flashcards has its own
-// copy) is pinned while it's up: the page can't scroll, so no stray drag beside
-// the card or the writing square moves it. iOS rubber-bands even a page that
-// can't scroll, so touch scrolling is cancelled too, except inside an area whose
-// own content overflows (a sheet, a dialog), checked once per touch.
-export function usePinnedPage(on: boolean) {
-  useEffect(() => {
-    if (!on) return;
-    const html = document.documentElement;
-    const prev = html.style.overflow;
-    const prevOver = html.style.overscrollBehavior;
-    window.scrollTo(0, 0);
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "none";
-    let allow = false;
-    const onStart = (e: TouchEvent) => {
-      allow = false;
-      for (let n = e.target as Element | null; n && n !== document.body; n = n.parentElement) {
-        const oy = getComputedStyle(n).overflowY;
-        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
-          allow = true;
-          return;
-        }
-      }
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!allow && e.cancelable) e.preventDefault();
-    };
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchmove", onMove, { passive: false });
-    return () => {
-      html.style.overflow = prev;
-      html.style.overscrollBehavior = prevOver;
-      document.removeEventListener("touchstart", onStart);
-      document.removeEventListener("touchmove", onMove);
-    };
-  }, [on]);
-}
-
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -178,6 +139,78 @@ export function useLockScroll(active: boolean) {
       document.body.style.overflow = prev;
     };
   }, [active]);
+}
+
+// A training screen that fits a phone's screen is pinned while it's up: the page
+// can't scroll, so no drag beside the card or the writing square, or anywhere on
+// a setup, moves it (the author, 2026-10-10: no scrolling in any mode or setup).
+// iOS rubber-bands even a page that can't scroll, so touch scrolling is cancelled
+// too, except inside an area whose own content overflows (a sheet, a dialog),
+// checked once per touch. Counted, so a setup handing over to its session (both
+// pinned, in either order) never leaves the page locked or unlocked by mistake.
+let pins = 0;
+export function usePinnedPage(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const html = document.documentElement;
+    if (pins++ === 0) {
+      window.scrollTo(0, 0);
+      html.style.overflow = "hidden";
+      html.style.overscrollBehavior = "none";
+    }
+    let allow = false;
+    const onStart = (e: TouchEvent) => {
+      allow = false;
+      for (let n = e.target as Element | null; n && n !== document.body; n = n.parentElement) {
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+          allow = true;
+          return;
+        }
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!allow && e.cancelable) e.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      if (--pins === 0) {
+        html.style.overflow = "";
+        html.style.overscrollBehavior = "";
+      }
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+    };
+  }, [on]);
+}
+
+// Pins a phone screen (usePinnedPage) while the element given to the returned ref
+// ends above the tab bar: a setup, an end screen, a quiz question. Measured again
+// whenever it changes size (a hint dismissed, a list picked) and on resize; a
+// screen too tall for the phone scrolls as before.
+export function useFitPinned(on = true) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  const [fits, setFits] = useState(false);
+  useEffect(() => {
+    if (!on || !el) return setFits(false);
+    const measure = () => {
+      if (!window.matchMedia("(max-width: 639px)").matches) return setFits(false);
+      const view = window.visualViewport?.height ?? window.innerHeight;
+      const bar = document.querySelector("[data-tabbar]")?.getBoundingClientRect().height ?? 0;
+      setFits(el.getBoundingClientRect().bottom + window.scrollY <= view - bar - 8);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [el, on]);
+  usePinnedPage(on && !!el && fits);
+  return setEl;
 }
 
 // Swipe a bottom sheet down to close it, the way iOS sheets go. The grip (grab

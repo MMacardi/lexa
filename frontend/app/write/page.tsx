@@ -8,7 +8,7 @@ import { api, type HskVersion, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { usePinnedPage } from "@/lib/mobileNav";
+import { useFitPinned, usePinnedPage } from "@/lib/mobileNav";
 import { errText } from "@/lib/errText";
 import { fmtInterval, previewWriteMinutes } from "@/lib/fsrsPreview";
 import { canWrite, isDueToWrite, isNewToWrite as isNew, WRITE_NEW_PER_SESSION as NEW_PER_SESSION } from "@/lib/writing";
@@ -122,6 +122,8 @@ export default function WritePage() {
     };
   }, [onCard, at, result]);
   usePinnedPage(onCard && pinned);
+  // The setup and the end screen: pinned too whenever they fit.
+  const fitRef = useFitPinned(!onCard);
 
   // ?coll=<id> / ?hsk=<level> preset the list, as in Quiz.
   useEffect(() => {
@@ -267,7 +269,7 @@ export default function WritePage() {
   if (!deck) {
     const candidate = onlyDue ? dueCount : pool.length;
     return (
-      <div className="mx-auto max-w-[520px] space-y-5">
+      <div ref={fitRef} className="mx-auto max-w-[520px] space-y-5">
         {header}
         <div className="space-y-5 rounded-[20px] border border-black/[0.06] bg-surface p-5">
           {/* 1. which words: due to write vs all of them */}
@@ -357,7 +359,7 @@ export default function WritePage() {
     const left = (w: Word) => !tally.graded.has(w.id);
     const more = [...due.filter(left), ...fresh.filter(left).slice(0, NEW_PER_SESSION)];
     return (
-      <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+      <div ref={fitRef} className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
         <Check className="h-9 w-9 text-sage" />
         <h2 className="mt-4 font-serif text-[28px] font-medium text-ink">{t("write.sessionDone", { n: tally.graded.size })}</h2>
         <p className="mt-2 text-ink-soft">{t("write.sessionScore", { clean: tally.clean, again: tally.again })}</p>

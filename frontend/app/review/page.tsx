@@ -44,7 +44,7 @@ import { QuickChip } from "@/components/ui/QuickChip";
 import { OnceHint } from "@/components/OnceHint";
 import { MobileSheet } from "@/components/MobileSheet";
 import { SheetRow } from "@/components/SheetRow";
-import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { useFitPinned, useIsMobile, useLockScroll, usePinnedPage } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
@@ -337,50 +337,14 @@ export default function FlashcardsPage() {
   }, [started]);
   // A phone whose session fits the screen (see `pinned`): the page itself can't
   // scroll, so no swipe or thumb arc can move it, and every drag belongs to the card.
-  // The end-of-session screen is free to scroll.
+  // iOS still rubber-bands a page that can't scroll (a drag slid the whole screen
+  // down and, held, pushed it around), so usePinnedPage also cancels the browser's
+  // touch scrolling. The card scrolls a long answer itself (touch-action none), and
+  // a sheet or dialog whose content overflows keeps its own scroll.
   const onCard = started && index < deck.length;
-  useEffect(() => {
-    if (!onCard || !pinned) return;
-    const html = document.documentElement;
-    const prev = html.style.overflow;
-    const prevOver = html.style.overscrollBehavior;
-    window.scrollTo(0, 0);
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "none";
-    return () => {
-      html.style.overflow = prev;
-      html.style.overscrollBehavior = prevOver;
-    };
-  }, [onCard, pinned]);
-  // iOS still rubber-bands a page that can't scroll: a drag slid the whole screen
-  // down and, held, pushed it around. So on the pinned card screen the browser gets
-  // no touch scrolling at all. The card scrolls a long answer itself, and a sheet or
-  // dialog whose content overflows (checked once per touch) keeps its own scroll.
-  useEffect(() => {
-    if (!onCard || !pinned) return;
-    let allow = false;
-    const onStart = (e: TouchEvent) => {
-      allow = false;
-      const target = e.target as Element;
-      if (cardRef.current?.contains(target)) return;
-      for (let n: Element | null = target; n && n !== document.body; n = n.parentElement) {
-        const oy = getComputedStyle(n).overflowY;
-        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
-          allow = true;
-          return;
-        }
-      }
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!allow && e.cancelable) e.preventDefault();
-    };
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchmove", onMove, { passive: false });
-    return () => {
-      document.removeEventListener("touchstart", onStart);
-      document.removeEventListener("touchmove", onMove);
-    };
-  }, [onCard, pinned]);
+  usePinnedPage(onCard && pinned);
+  // The setup and the end screen: pinned too whenever they fit.
+  const fitRef = useFitPinned(!onCard);
 
   // Anki's keys: 1–4 grade from either face, space/enter reveals the back — and
   // once the back is up, space is Good.
@@ -515,9 +479,9 @@ export default function FlashcardsPage() {
     return onlyDue ? capNewCards(filtered) : filtered;
   }
 
-  function start() {
+  function start(list: Word[] = buildDeck()) {
     if (layout.front.includes("audio")) unlockSpeech();
-    setDeck(buildDeck());
+    setDeck(list);
     setIndex(0);
     setFlipped(false);
     setKnown(0);
@@ -631,13 +595,14 @@ export default function FlashcardsPage() {
     const pairCount = (pk: string) =>
       capNewCards(words.filter((w) => pairKey(w) === pk && inColl(w) && isDue(w))).length;
     return (
-      <div className="mx-auto max-w-[520px] space-y-5">
-        <h2 className="font-serif text-[28px] font-medium text-ink">{t("review.title")}</h2>
+      <div ref={fitRef} className="mx-auto max-w-[520px] space-y-4 sm:space-y-5">
+        <h2 className="font-serif text-[24px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
         <OnceHint id="review">{t("hint.review")}</OnceHint>
 
-        <div className="space-y-5 rounded-[20px] border border-black/[0.06] bg-surface p-5">
-          {/* 1. language pair — the one thing a session needs */}
-          {allPairs.length > 0 && (
+        <div className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:space-y-5 sm:p-5">
+          {/* 1. language pair — the one thing a session needs. With a single pair
+              there's nothing to pick (an HSK learner has just zh → ru), so no row. */}
+          {allPairs.length > 1 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.pairs")}
@@ -712,7 +677,7 @@ export default function FlashcardsPage() {
           )}
         </div>
 
-        <Button className="w-full" disabled={candidate === 0} onClick={start}>
+        <Button className="w-full" disabled={candidate === 0} onClick={() => start()}>
           {sel.length === 0
             ? t("review.pickPair")
             : candidate === 0
@@ -731,8 +696,10 @@ export default function FlashcardsPage() {
           </button>
         )}
 
-        {/* card layout — tucked away; the defaults work for most people */}
+        {/* card layout — tucked away; the defaults work for most people. A phone
+            opens it as a sheet, so the setup stays one screen. */}
         <Disclosure
+          sheet={t("review.cardLayout")}
           summary={
             <span>
               {t("review.cardLayout")}
@@ -825,18 +792,38 @@ export default function FlashcardsPage() {
     { href: "/reader", Icon: BookOpen, title: t("review.nextRead"), sub: t("review.nextReadSub"), onClick: undefined },
   ];
 
-  if (done)
+  if (done) {
+    // Keep going, one tap (the author, 2026-10-10: "what if I want to continue
+    // learning ... make the whole day for Chinese"): what's due now in the same
+    // pairs and list, and the next new words, as the setup's Due now would start.
+    // Grades land in the cache as they're given, so the cards just done aren't in it.
+    const more = capNewCards(words.filter((w) => sel.includes(pairKey(w)) && inColl(w) && isDue(w)));
+    const steps = [
+      ...(more.length
+        ? [{ href: "", Icon: Repeat, title: t("review.keepGoing", { n: more.length }), sub: t("review.keepGoingSub"), onClick: () => start(more) }]
+        : []),
+      ...nextSteps,
+    ];
     return (
-      <div className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-10 text-center">
+      <div
+        ref={fitRef}
+        className="anim-pop mx-auto flex max-w-[480px] flex-col items-center rounded-[24px] border border-black/[0.06] bg-surface p-6 text-center sm:p-10"
+      >
         {known > 0 && <Confetti />}
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint">
+        {/* A phone keeps it to one screen: no check badge, the two counts on one
+            line, the next steps by name only. */}
+        <div className="hidden h-20 w-20 items-center justify-center rounded-full bg-sage-tint sm:flex">
           <svg width="40" height="40" viewBox="0 0 34 34" fill="none">
             <path d="M9 17.5l5 5L25 11" stroke="#7c9885" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="mt-5 font-serif text-[28px] font-medium text-ink sm:text-[32px]">{t("review.complete")}</h2>
-        <p className="mt-2 text-ink-soft">{t("review.reviewed", { n: total })}</p>
-        <div className="mt-6 flex gap-3.5">
+        <h2 className="font-serif text-[26px] font-medium text-ink sm:mt-5 sm:text-[32px]">{t("review.complete")}</h2>
+        <p className="mt-1 text-ink-soft sm:mt-2">{t("review.reviewed", { n: total })}</p>
+        <p className="mt-1 text-[14px] text-ink-soft sm:hidden">
+          <b className="font-serif text-[18px] text-sage">{known}</b> {t("review.known")} ·{" "}
+          <b className="font-serif text-[18px] text-warn">{learning}</b> {t("review.learningCount")}
+        </p>
+        <div className="mt-6 hidden gap-3.5 sm:flex">
           <div className="rounded-[18px] border border-black/[0.07] bg-paper px-7 py-4">
             <div className="font-serif text-[30px] font-bold text-sage">{known}</div>
             <div className="mt-0.5 text-[13px] font-medium text-ink-soft">{t("review.known")}</div>
@@ -847,27 +834,35 @@ export default function FlashcardsPage() {
           </div>
         </div>
         {/* The loop, one tap at a time (BACKLOG "End of review → the next step"):
-            today's new words while some are left, then using what was just
-            reviewed, then reading. The first is the one to take. */}
-        <div className="mt-7 w-full space-y-2 text-left">
-          {nextSteps.map(({ href, Icon, title, sub, onClick }, i) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClick}
-              className={cn(
-                "flex items-center gap-3 rounded-[16px] px-4 py-3 transition-colors",
-                i === 0 ? "bg-sage text-white hover:bg-sage-deep" : "border border-black/[0.08] bg-paper text-ink hover:border-sage/60",
-              )}
-            >
-              <Icon className={cn("h-5 w-5 shrink-0", i === 0 ? "text-white" : "text-sage")} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold">{title}</span>
-                <span className={cn("block text-[12px]", i === 0 ? "text-white/80" : "text-ink-faint")}>{sub}</span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />
-            </Link>
-          ))}
+            more cards while some are due, today's new words while some are left,
+            then using what was just reviewed, then reading. The first is the one
+            to take. */}
+        <div className="mt-5 w-full space-y-2 text-left sm:mt-7">
+          {steps.map(({ href, Icon, title, sub, onClick }, i) => {
+            const cls = cn(
+              "flex w-full items-center gap-3 rounded-[16px] px-4 py-3 text-left transition-colors",
+              i === 0 ? "bg-sage text-white hover:bg-sage-deep" : "border border-black/[0.08] bg-paper text-ink hover:border-sage/60",
+            );
+            const inner = (
+              <>
+                <Icon className={cn("h-5 w-5 shrink-0", i === 0 ? "text-white" : "text-sage")} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold">{title}</span>
+                  <span className={cn("hidden text-[12px] sm:block", i === 0 ? "text-white/80" : "text-ink-faint")}>{sub}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />
+              </>
+            );
+            return href ? (
+              <Link key={href} href={href} onClick={onClick} className={cls}>
+                {inner}
+              </Link>
+            ) : (
+              <button key="more" type="button" onClick={onClick} className={cls}>
+                {inner}
+              </button>
+            );
+          })}
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button
@@ -880,6 +875,7 @@ export default function FlashcardsPage() {
         </div>
       </div>
     );
+  }
 
   const word = deck[index];
   const iv = previewMinutes(word); // FSRS "next due" for each grade
