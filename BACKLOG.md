@@ -360,7 +360,16 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        conjunction is "(literary)" in CC-CEDICT and 牛 «классный» is slang, so their pages leave
        them out while the cards still say them.
 
-1e. **The next word: frequent, built from what you know, one situation at a time.** Two sessions.
+1e. **New words that learn well together, straight from the dictionary.** **Top priority** (the author,
+   2026-10-10). Was "The next word: frequent, built from what you know, one situation at a time"; the
+   author's request extends it. A day's new words become one group that is easier to learn together (one
+   situation, like transport; one character's family, like the 坐 words; words that share sentences),
+   the same choice for Today, Flashcards and Writing. And a new word can be learned from Flashcards or
+   Writing without adding it first: a ready-made card from the dictionary, with a ready example sentence
+   and no personalised one. **The plan, the verified numbers and four parts (one session each, in order)
+   are in `PLAN-word-groups.md`. Work from there.** Parts: 1 the group (`services/wordGroups.ts` + a check
+   script), 2 Today shows the named group and taking it is instant, 3 new words in Flashcards and Writing
+   without adding first, 4 the 7-day proof. The notes below are the first half, done.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
    carry a level and nothing else. So 入乡随俗 can come on the same day as 地图.
    - **Frequency data:** jieba's dictionary ships word frequencies under MIT; SUBTLEX-CH is better,
@@ -382,7 +391,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      `scripts/check-next-word.ts`: HSK 3.0 L4, the first 100 words cover 45.9% of the level's usage
      vs 10.5% shuffled, 0.38 vs 0.68 new characters per word; 分之 moves 17 → 2 once 之一 is a card;
      the day holds still; `check-gap-deck` and `check-sweep` still pass.
-   - **Left for session 2:** one situation at a time (every HSK word's situation tag comes from
+   - **Left for session 2 (now parts 1 and 4 of `PLAN-word-groups.md`):** one situation at a time (every HSK word's situation tag comes from
      1d's pass; near-synonyms kept apart, e.g. by shared CEDICT glosses). And weigh what the first half surfaced: jieba's corpus is written, so a level now
      opens with abstract connectors (HSK 3.0 L4: 而 此 自 以及 却 曾; 2.0 L4: 对 而 以 等 过), and a
      single character's count spans senses the learner may know from a lower level. Situation days
