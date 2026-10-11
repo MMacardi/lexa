@@ -285,21 +285,23 @@ export default function WritePage() {
                 label: (
                   <>
                     {t(d ? "write.modeDue" : "review.modeAll")}
-                    <span className="-ml-0.5 opacity-70">{d ? due.length : pool.length}</span>
+                    <span className="-ml-0.5 opacity-70">{d ? dueCount : pool.length}</span>
                   </>
                 ),
               }))}
             />
-            {/* Nothing due but new words left: today's writing is done, and the
-                session on offer is "keep going" — "Due to write 0" over a button
-                starting 10 words read as a contradiction (the author, 2026-10-10). */}
+            {/* The count is what the session starts, as Flashcards' Due now: the
+                words due plus the next ones never written. "Due to write 0" over a
+                button starting 10, and those 10 called new words when they're your
+                own words not yet written, read as a contradiction (the author,
+                2026-10-10). The line says what's in it. */}
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
               {!onlyDue
                 ? t("write.modeAllHint")
                 : !fresh.length
                   ? t("write.modeDueHintNone")
                   : due.length
-                    ? t("write.modeDueHint", { n: Math.min(fresh.length, NEW_PER_SESSION) })
+                    ? t("write.modeDueHint", { due: due.length, n: Math.min(fresh.length, NEW_PER_SESSION) })
                     : t("write.modeDueHintCaughtUp", { n: Math.min(fresh.length, NEW_PER_SESSION) })}
             </p>
           </div>
@@ -335,7 +337,7 @@ export default function WritePage() {
         <Button className="w-full" disabled={candidate === 0} onClick={() => start()}>
           {candidate === 0
             ? t(onlyDue ? "write.nothingDue" : "review.nothing")
-            : t(onlyDue && !due.length ? "write.keepGoing" : "write.start", { n: candidate })}
+            : t("write.start", { n: candidate })}
         </Button>
         {onlyDue && dueCount === 0 && pool.length > 0 && (
           <button
