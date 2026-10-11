@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, PenLine, X } from "lucide-react";
@@ -8,7 +8,6 @@ import { api, type HskVersion, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { usePinnedPage } from "@/lib/mobileNav";
 import { errText } from "@/lib/errText";
 import { fmtInterval, previewWriteMinutes } from "@/lib/fsrsPreview";
 import { canWrite, isDueToWrite, isNewToWrite as isNew, WRITE_NEW_PER_SESSION as NEW_PER_SESSION } from "@/lib/writing";
@@ -31,10 +30,6 @@ import { cn } from "@/lib/utils";
  * how it went (a hint → Again, a mistake → Hard, clean → Good) and the learner
  * can pick another. Again brings the word back at the end, as in Flashcards.
  */
-
-// The writing square on a phone, fitted to the screen (see `side`).
-const MIN_SIDE = 170;
-const MAX_SIDE = 360;
 
 const GRADES = [
   { g: 1, name: "again", tone: "bg-warn-bg text-warn-text" },
@@ -77,51 +72,11 @@ export default function WritePage() {
   const [result, setResult] = useState<WriteResult | null>(null);
   // This session: words graded (once each), clean on the first graded try, Agains.
   const [tally, setTally] = useState({ graded: new Set<string>(), clean: 0, again: 0 });
+  // On a phone the grades land under the square, below the fold: bring them up.
   const doneRef = useRef<HTMLDivElement>(null);
-  // Phones: the square is sized so the card ends just above the tab bar, with no
-  // scroll. The grades used to land below the fold once the word was written (the
-  // author, 2026-10-10). While writing, nothing is under the square, so it's as big
-  // as the screen allows; once the word is written it eases smaller to make room for
-  // the word and its grades. When the card fits, the page is pinned as in
-  // Flashcards. A screen too short for a 170px square keeps scrolling, and the
-  // grades are scrolled up into view, as on a desktop.
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [side, setSide] = useState<number | null>(null);
-  const [pinned, setPinned] = useState(false);
-  const onCard = !!deck && at < deck.length;
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    const fit = (land: boolean) => {
-      const sq = card.querySelector<HTMLElement>("[data-square]");
-      if (!sq) return;
-      let fits = false;
-      if (window.matchMedia("(min-width: 640px)").matches) setSide(null);
-      else {
-        const view = window.visualViewport?.height ?? window.innerHeight;
-        const bar = document.querySelector("[data-tabbar]")?.getBoundingClientRect().height ?? 0;
-        const over = card.getBoundingClientRect().bottom + window.scrollY - (view - bar - 12);
-        // offsetWidth: the square as it is now, mid-ease too.
-        const want = sq.offsetWidth - over;
-        fits = want >= MIN_SIDE;
-        setSide(Math.round(Math.min(MAX_SIDE, Math.max(MIN_SIDE, want))));
-      }
-      setPinned(fits);
-      if (land && result && !fits)
-        requestAnimationFrame(() => doneRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-    };
-    fit(true);
-    // The characters' row appears once the stroke data is in, a long meaning wraps.
-    const ro = new ResizeObserver(() => fit(false));
-    ro.observe(card);
-    const onResize = () => fit(false);
-    window.addEventListener("resize", onResize);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", onResize);
-    };
-  }, [onCard, at, result]);
-  usePinnedPage(onCard && pinned);
+  useEffect(() => {
+    if (result) doneRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [result]);
 
   // ?coll=<id> / ?hsk=<level> preset the list, as in Quiz.
   useEffect(() => {
@@ -358,8 +313,7 @@ export default function WritePage() {
   const iv = previewWriteMinutes(live);
   const pick = result ? suggest(result) : 0;
   return (
-    <div className="mx-auto max-w-[560px] space-y-3 sm:space-y-4">
-      {/* One line: back, progress, a new word's "trace it", the count. */}
+    <div className="mx-auto max-w-[560px] space-y-4">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -370,35 +324,35 @@ export default function WritePage() {
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="h-1.5 min-w-[40px] flex-1 overflow-hidden rounded-full bg-ink/10">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
           <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${(at / deck.length) * 100}%` }} />
         </div>
-        {item.trace && (
-          <span className="shrink-0 rounded-full bg-sage-tint px-2.5 py-0.5 text-[11px] font-semibold text-sage-deep">{t("write.newTrace")}</span>
-        )}
-        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-faint">
+        <span className="text-[13px] font-semibold tabular-nums text-ink-faint">
           {at + 1} / {deck.length}
         </span>
       </div>
 
-      <div ref={cardRef} className="space-y-3 rounded-[20px] border border-black/[0.06] bg-surface p-3 sm:space-y-4 sm:p-5">
+      <div className="space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:p-5">
         {/* What to write: the meaning and the sound, never the characters. */}
-        <div className="space-y-0.5 sm:space-y-1">
-          <p className="break-words text-[18px] font-semibold leading-snug text-ink sm:text-[20px]">{w.meaningZh}</p>
+        <div className="space-y-1">
+          {item.trace && (
+            <span className="inline-block rounded-full bg-sage-tint px-2.5 py-0.5 text-[11px] font-semibold text-sage-deep">{t("write.newTrace")}</span>
+          )}
+          <p className="break-words text-[20px] font-semibold leading-snug text-ink">{w.meaningZh}</p>
           <div className="flex items-center gap-2">
-            {w.phonetic && <Pinyin text={w.phonetic} className="text-[15px] text-ink-muted sm:text-[16px]" />}
+            {w.phonetic && <Pinyin text={w.phonetic} className="text-[16px] text-ink-muted" />}
             <SpeakButton text={w.word} lang={w.sourceLang} size="sm" />
           </div>
         </div>
-        <WritingTrainer key={at} word={w.word} fixedMode={item.trace ? "trace" : "memory"} side={side ?? undefined} onFinish={setResult} />
+        <WritingTrainer key={at} word={w.word} fixedMode={item.trace ? "trace" : "memory"} onFinish={setResult} />
 
         {/* Once it's written: the word, and how it went — a grade, or on to the next.
             Its scroll margin keeps it clear of the phone's tab bar. */}
         {result && (
-          <div ref={doneRef} className="anim-fade-in scroll-mb-28 space-y-2 border-t border-black/[0.06] pt-2.5 sm:space-y-3 sm:pt-3 md:scroll-mb-6">
+          <div ref={doneRef} className="anim-fade-in scroll-mb-28 space-y-3 border-t border-black/[0.06] pt-3 md:scroll-mb-6">
             <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1">
-              <span className="font-zh text-[22px] text-ink sm:text-[26px]">{w.word}</span>
-              {w.phonetic && <Pinyin text={w.phonetic} className="text-[14px] text-ink-muted sm:text-[15px]" />}
+              <span className="font-zh text-[26px] text-ink">{w.word}</span>
+              {w.phonetic && <Pinyin text={w.phonetic} className="text-[15px] text-ink-muted" />}
               <Link href={`/word/${w.id}`} className="text-[13px] font-semibold text-ink-muted underline-offset-2 hover:text-sage-deep hover:underline">
                 {t("write.openWord")}
               </Link>
@@ -416,7 +370,7 @@ export default function WritePage() {
                     onClick={() => grade(g)}
                     aria-label={g === pick ? `${t(`review.${name}`)} — ${t("write.suggested")}` : t(`review.${name}`)}
                     className={cn(
-                      "relative flex flex-col items-center rounded-2xl py-2 font-bold transition-transform active:scale-95 sm:py-2.5",
+                      "relative flex flex-col items-center rounded-2xl py-2.5 font-bold transition-transform active:scale-95",
                       tone,
                       // the grade the writing earned, picked by Enter
                       g === pick ? "ring-2 ring-ink/70 ring-offset-2 ring-offset-surface" : "opacity-75",
