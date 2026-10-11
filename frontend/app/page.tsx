@@ -17,10 +17,11 @@ import { FeatureTour } from "@/components/FeatureTour";
 import { HskReadiness } from "@/components/HskReadiness";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { useNewPerDay } from "@/lib/learnPrefs";
+import { canWrite, isDueToWrite, writeMinutes } from "@/lib/writing";
 import { ErrorState } from "@/components/ErrorState";
 import { FOCUS } from "@/lib/focus";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, PartyPopper, ArrowRight, BarChart3 } from "lucide-react";
+import { BookOpen, PartyPopper, ArrowRight, BarChart3, PenLine } from "lucide-react";
 
 // Highlight the target word (and simple inflections) inside a news sentence.
 function Highlight({ text, word }: { text: string; word: string }) {
@@ -124,6 +125,10 @@ export default function TodayPage() {
   const session = reviewedDue + Math.min(newDue, newPerDay);
   const minutes = Math.max(1, Math.round((session * 8) / 60));
   const weakIds = list.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id);
+  // Words due on the writing schedule — the /write setup's "Due to write". Never-
+  // written words aren't due (every Chinese word starts out that way), so the row
+  // shows up once the learner writes, and only when something is due.
+  const writeDue = list.filter((w) => canWrite(w) && isDueToWrite(w)).length;
   const onTrack = profile?.hskTarget != null;
   const practiseWeak = () => {
     try {
@@ -201,6 +206,30 @@ export default function TodayPage() {
             </Link>
           )}
         </div>
+      )}
+
+      {/* writing that's due: second to the review, one tap into it */}
+      {writeDue > 0 && (
+        <Link
+          href="/write?go=1"
+          className="anim-fade-up group flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-surface px-5 py-4 transition-colors hover:border-sage/50"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-deep">
+            <PenLine className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("nav.write")}</span>
+            <span className="mt-0.5 block text-[15px] font-semibold text-ink">
+              {t("today.writeDue", { n: writeDue })}
+              <span className="font-medium text-ink-faint"> · {t("today.writeMin", { m: writeMinutes(writeDue) })}</span>
+            </span>
+          </span>
+          {/* a phone has room for the arrow, not the word */}
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-sage text-sm font-semibold text-white transition-colors group-hover:bg-sage-deep sm:h-auto sm:w-auto sm:px-4 sm:py-2">
+            <span className="hidden sm:inline">{t("today.writeStart")}</span>
+            <ArrowRight className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-label={t("today.writeStart")} />
+          </span>
+        </Link>
       )}
 
       {/* install to the home screen: only where it applies, once dismissed never again */}
