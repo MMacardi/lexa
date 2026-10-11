@@ -84,6 +84,45 @@ export function useTouchOnly() {
 // Written only when a value changes: this runs on every viewport scroll event, and
 // an inherited custom property set on <html> restyles the whole page — on a long
 // Reader text that is enough to leave blank tiles behind a fast swipe.
+// A practice screen that fits a phone's screen (Writing; Flashcards has its own
+// copy) is pinned while it's up: the page can't scroll, so no stray drag beside
+// the card or the writing square moves it. iOS rubber-bands even a page that
+// can't scroll, so touch scrolling is cancelled too, except inside an area whose
+// own content overflows (a sheet, a dialog), checked once per touch.
+export function usePinnedPage(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    const prevOver = html.style.overscrollBehavior;
+    window.scrollTo(0, 0);
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    let allow = false;
+    const onStart = (e: TouchEvent) => {
+      allow = false;
+      for (let n = e.target as Element | null; n && n !== document.body; n = n.parentElement) {
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+          allow = true;
+          return;
+        }
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!allow && e.cancelable) e.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      html.style.overflow = prev;
+      html.style.overscrollBehavior = prevOver;
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+    };
+  }, [on]);
+}
+
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;

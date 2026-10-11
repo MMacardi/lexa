@@ -701,6 +701,11 @@ html.dark .graph-center { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6); }
 }
 .anim-collapse > * {
   min-height: 0;
+  /* Once it's open and its overflow is visible, the grid column grows to the
+     content's min-content width: a sideways-scrolling row (Flashcards' card
+     layout presets) made the whole panel wider than a phone, and the chips
+     under it wrapped off the screen. */
+  min-width: 0;
   overflow: hidden;
 }
 .anim-collapse[data-open][data-settled] > * {

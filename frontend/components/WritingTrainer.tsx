@@ -57,6 +57,7 @@ export function WritingTrainer({
   storeKey = "word",
   defaultMode = "trace",
   fixedMode,
+  side,
   onFinish,
   children,
 }: {
@@ -64,10 +65,14 @@ export function WritingTrainer({
   /** Where the learner's Trace / From memory choice is remembered. */
   storeKey?: string;
   defaultMode?: WriteMode;
-  /** The drill decides the mode per card: no switch, no "Write again". */
+  /** The drill decides the mode per card: no switch, no "Write again", and the
+   *  score goes on the line under the square instead of a line of its own. */
   fixedMode?: WriteMode;
+  /** The square's side in px (the drill fits it to a phone's screen); 300 by default. */
+  side?: number;
   onFinish?: (r: WriteResult) => void;
-  /** Shown beside the result once the word is written. */
+  /** Shown beside the result once the word is written (in the drill, on the line
+   *  under the square, where the Hint button was). */
   children?: React.ReactNode;
 }) {
   const { t } = useI18n();
@@ -97,7 +102,15 @@ export function WritingTrainer({
   }, [word]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  if (!data) return <div className="mx-auto aspect-square w-full max-w-[300px] rounded-[16px] border border-black/[0.08] bg-paper" aria-hidden />;
+  if (!data)
+    return (
+      <div
+        data-square
+        className="mx-auto aspect-square w-full max-w-[300px] rounded-[16px] border border-black/[0.08] bg-paper"
+        style={side ? { maxWidth: side } : undefined}
+        aria-hidden
+      />
+    );
   if (!data.some(Boolean)) return <p className="text-[14px] text-ink-muted">{t("write.noData")}</p>;
 
   function charDone(r: WriteResult) {
@@ -171,23 +184,32 @@ export function WritingTrainer({
         </div>
       )}
 
-      {strokes && <WriteChar key={`${run}-${at}`} strokes={strokes} mode={mode} onDone={charDone} />}
+      {strokes && (
+        <WriteChar
+          key={`${run}-${at}`}
+          strokes={strokes}
+          mode={mode}
+          side={side}
+          settle={finished}
+          doneNote={fixedMode && finished ? { text: clean ? t("write.clean") : t("write.score", { m: total.mistakes, h: total.hints }), clean } : undefined}
+          doneAside={fixedMode && finished ? children : undefined}
+          onDone={charDone}
+        />
+      )}
 
-      {finished && (
+      {finished && !fixedMode && (
         <div className="anim-fade-in flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
           <p className={cn("inline-flex items-center gap-1.5 text-[14px] font-semibold", clean ? "text-sage-deep" : "text-ink-soft")}>
             {clean && <Check className="h-4 w-4" />}
             {clean ? t("write.clean") : t("write.score", { m: total.mistakes, h: total.hints })}
           </p>
-          {!fixedMode && (
-            <button
-              type="button"
-              onClick={again}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
-            >
-              <RotateCcw className="h-3.5 w-3.5" /> {t("write.again")}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={again}
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:border-sage/60 hover:text-sage-deep"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> {t("write.again")}
+          </button>
           {children}
         </div>
       )}
@@ -197,7 +219,27 @@ export function WritingTrainer({
 
 // One character's square: the strokes written so far, the learner's pen, and a
 // line under it saying which stroke is next or what was wrong with the last.
-function WriteChar({ strokes, mode, onDone }: { strokes: Stroke[]; mode: WriteMode; onDone: (r: WriteResult) => void }) {
+// `settle`: the word is written, so a new `side` is eased into (the drill's square
+// gives up room to the grades) rather than jumped to.
+function WriteChar({
+  strokes,
+  mode,
+  side,
+  settle,
+  doneNote,
+  doneAside,
+  onDone,
+}: {
+  strokes: Stroke[];
+  mode: WriteMode;
+  side?: number;
+  settle?: boolean;
+  /** Said once the character is written, in place of "Written". */
+  doneNote?: { text: string; clean: boolean };
+  /** In the Hint button's place once the character is written. */
+  doneAside?: React.ReactNode;
+  onDone: (r: WriteResult) => void;
+}) {
   const { t } = useI18n();
   const svgRef = useRef<SVGSVGElement>(null);
   const inkRef = useRef<SVGPathElement>(null);
@@ -259,7 +301,7 @@ function WriteChar({ strokes, mode, onDone }: { strokes: Stroke[]; mode: WriteMo
   const want = strokes[next];
   const wantLen = want ? lengthOf(want) : 0;
   const status = done
-    ? t("write.charDone")
+    ? (doneNote?.text ?? t("write.charDone"))
     : note === "miss"
       ? t("write.miss")
       : note === "order"
@@ -272,7 +314,14 @@ function WriteChar({ strokes, mode, onDone }: { strokes: Stroke[]; mode: WriteMo
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative aspect-square w-full max-w-[300px] select-none rounded-[16px] border border-black/[0.08] bg-paper [-webkit-touch-callout:none]">
+      <div
+        data-square
+        className={cn(
+          "relative aspect-square w-full max-w-[300px] select-none rounded-[16px] border border-black/[0.08] bg-paper [-webkit-touch-callout:none]",
+          settle && "transition-[max-width] duration-300 ease-out",
+        )}
+        style={side ? { maxWidth: side } : undefined}
+      >
         {/* data-own-touch: a downward stroke isn't a swipe to close a sheet. */}
         <svg
           ref={svgRef}
@@ -339,8 +388,18 @@ function WriteChar({ strokes, mode, onDone }: { strokes: Stroke[]; mode: WriteMo
           </g>
         </svg>
       </div>
-      <div className="flex w-full max-w-[300px] items-center justify-between gap-2">
-        <p aria-live="polite" className={cn("min-w-0 text-[13px] leading-snug", note ? "text-warn-text" : done ? "text-sage-deep" : "text-ink-muted")}>
+      {/* A fixed height, one line or two: a note that wraps mustn't move the
+          square while it's being written on (the drill sizes it to the screen). */}
+      <div className="flex min-h-[36px] w-full max-w-[300px] items-center justify-between gap-2" style={side ? { maxWidth: Math.max(side, 300) } : undefined}>
+        <p
+          aria-live="polite"
+          className={cn(
+            "inline-flex min-w-0 items-center gap-1.5 text-[13px] leading-snug",
+            note ? "text-warn-text" : done ? (doneNote && !doneNote.clean ? "text-ink-soft" : "text-sage-deep") : "text-ink-muted",
+            doneNote && "font-semibold",
+          )}
+        >
+          {doneNote?.clean && <Check className="h-4 w-4 shrink-0" />}
           {status}
         </p>
         {!done && (
@@ -352,6 +411,7 @@ function WriteChar({ strokes, mode, onDone }: { strokes: Stroke[]; mode: WriteMo
             <Lightbulb className="h-3.5 w-3.5" /> {t("write.hint")}
           </button>
         )}
+        {done && doneAside}
       </div>
     </div>
   );

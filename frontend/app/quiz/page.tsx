@@ -8,7 +8,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useFlip } from "@/lib/prefs";
 import { langLabel, pairLabel } from "@/lib/langs";
-import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, Zap } from "lucide-react";
+import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, X, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { SpeakingIcon } from "@/components/SpeakButton";
@@ -357,6 +357,14 @@ export default function QuizPage() {
   // Listening needs a speech engine; read after mount, where the browser's is.
   const [voice, setVoice] = useState(false);
   useEffect(() => setVoice(canSpeak()), []);
+  // The phone's tab bar, which the answer panel docks above (0 where there's none).
+  const [barH, setBarH] = useState(0);
+  useEffect(() => {
+    const read = () => setBarH(document.querySelector("[data-tabbar]")?.getBoundingClientRect().height ?? 0);
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
 
   // Play a listening question's word (inside the tap that brings it up, for iOS).
   function say(q: Question | undefined) {
@@ -742,9 +750,41 @@ export default function QuizPage() {
         ? t("quiz.whichWord", { lang: langLabel(q.word.sourceLang) })
         : t("quiz.pickMeaning", { lang: langLabel(q.word.targetLang) });
 
+  const progress = (
+    <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${(index / total) * 100}%` }} />
+  );
+
   return (
     <div className="mx-auto max-w-[620px]">
-      <div className="flex items-center justify-between gap-2">
+      {/* Phones: one line — back to setup, progress, the count, edit — so the
+          question, its options and the answer fit one screen. */}
+      <div className="flex items-center gap-3 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setStarted(false)}
+          aria-label={t("review.backToSetup")}
+          title={t("review.backToSetup")}
+          className="rounded-full p-1.5 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        {cram && <Zap className="h-4 w-4 shrink-0 text-sage" aria-label={t("quiz.cram")} />}
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-track">{progress}</div>
+        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-faint">
+          {index + 1} / {total}
+        </span>
+        <button
+          type="button"
+          onClick={() => setEditing(q.word)}
+          aria-label={t("edit.editCard")}
+          title={t("edit.editCard")}
+          className="rounded-full p-1.5 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="hidden items-center justify-between gap-2 sm:flex">
         <h2 className="flex items-center gap-2 font-serif text-[22px] font-medium text-ink sm:text-[28px]">
           {cram && <Zap className="h-5 w-5 text-sage" />}
           {cram ? t("quiz.cram") : t("quiz.title")}
@@ -779,16 +819,11 @@ export default function QuizPage() {
         />
       )}
 
-      <div className="mt-4 h-[7px] overflow-hidden rounded-full bg-track">
-        <div
-          className="h-full rounded-full bg-sage transition-[width] duration-300"
-          style={{ width: `${(index / total) * 100}%` }}
-        />
-      </div>
+      <div className="mt-4 hidden h-[7px] overflow-hidden rounded-full bg-track sm:block">{progress}</div>
 
       <div
         key={index}
-        className="anim-pop mt-5 rounded-[24px] border border-black/[0.06] bg-surface p-6 text-center sm:p-9"
+        className="anim-pop mt-3 rounded-[24px] border border-black/[0.06] bg-surface p-5 text-center sm:mt-5 sm:p-9"
       >
         <div className="text-sm font-medium text-ink-soft">{promptHint}</div>
         {q.kind === "listen" ? (
@@ -820,7 +855,7 @@ export default function QuizPage() {
       </div>
 
       {q.kind === "choice" || q.kind === "listen" ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-3">
           {q.options.map((opt, i) => {
             const isCorrect = opt === q.correct;
             const isChosen = opt === selected;
@@ -843,10 +878,10 @@ export default function QuizPage() {
                 onClick={() => choose(opt)}
                 disabled={answered}
                 className={cn(
-                  "flex items-center justify-between gap-3 rounded-[18px] border px-5 py-4 text-left text-[19px] font-semibold transition-all",
+                  "flex items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-left text-[17px] font-semibold transition-all sm:px-5 sm:py-4 sm:text-[19px]",
                   style,
                   q.optionsTarget && tFont,
-                  q.kind === "listen" && cn("text-[24px]", targetFont(q.word.sourceLang)),
+                  q.kind === "listen" && cn("text-[22px] sm:text-[24px]", targetFont(q.word.sourceLang)),
                   !answered && "hover:border-sage hover:bg-sage-tint/40 active:scale-[0.99]",
                 )}
               >
@@ -870,7 +905,7 @@ export default function QuizPage() {
         </div>
       ) : (
         <form
-          className="mt-4 flex gap-2"
+          className="mt-3 flex gap-2 sm:mt-4"
           onSubmit={(e) => {
             e.preventDefault();
             submitTyped();
@@ -896,9 +931,16 @@ export default function QuizPage() {
         </form>
       )}
 
+      {/* Phones: when the page runs past the screen, the verdict and Next dock at
+          its bottom, above the tab bar, instead of waiting below the fold (the
+          author, 2026-10-10). Docked, it covers the options under it; it names the
+          right answer itself, and a scroll still shows them. */}
       {answered && (
-        <div className="anim-fade-up mt-4">
-          <div className="rounded-[18px] bg-sage-tint p-5">
+        <div
+          className="anim-fade-up mt-3 max-sm:sticky max-sm:z-10 max-sm:rounded-[22px] max-sm:border max-sm:border-black/[0.06] max-sm:bg-surface max-sm:p-2 max-sm:shadow-[0_-6px_24px_rgba(0,0,0,0.12)] sm:mt-4"
+          style={{ bottom: barH + 8 }}
+        >
+          <div className="rounded-[18px] bg-sage-tint p-4 max-sm:max-h-[36vh] max-sm:overflow-y-auto sm:p-5">
             <p className={cn("text-base font-semibold", correct ? "text-sage-deep" : "text-warn-text")}>
               {correct ? t("quiz.right") : t("quiz.wrong", { answer: q.correct })}
             </p>
@@ -911,7 +953,7 @@ export default function QuizPage() {
               </p>
             )}
             {q.word.examples[0] && (
-              <p className="mt-2.5 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
+              <p className="mt-2 whitespace-pre-line font-serif text-[16px] leading-relaxed text-quote sm:mt-2.5 sm:text-[17px]">
                 “<HighlightWord text={q.word.examples[0].sentenceEn} word={q.word.word} />”
                 {q.word.examples[0].sentenceZh && (
                   <span className={cn("mt-1 block whitespace-pre-line text-sm not-italic text-ink-soft", tFont)}>
@@ -921,7 +963,7 @@ export default function QuizPage() {
               </p>
             )}
           </div>
-          <Button variant="dark" className="mt-4 w-full" onClick={next}>
+          <Button variant="dark" className="mt-2 w-full sm:mt-4" onClick={next}>
             {index + 1 >= total ? t("quiz.seeResults") : t("quiz.next")}
           </Button>
           <p className="mt-2 hidden text-center text-[12px] text-ink-faint sm:block">
