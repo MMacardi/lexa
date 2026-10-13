@@ -32,7 +32,7 @@ import { ArrowRight, CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucid
 export function HskDaily() {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
-  const { show, trackImport } = useToast();
+  const { show, startAdd } = useToast();
   const qc = useQueryClient();
   const [known, setKnown] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -83,6 +83,14 @@ export function HskDaily() {
   async function take() {
     if (busy || !data) return;
     setBusy(true);
+    // Instant capture makes the HSK words reviewable at once; a topic word
+    // brings its own meaning, so it is reviewable at once too. Details follow.
+    const items = [
+      ...toAdd.map((w) => ({ word: w.word })),
+      ...topicToAdd.map((w) => ({ word: w.word, meaning: w.meaning })),
+    ];
+    // The bar says they're on their way from the tap, so a slow answer isn't a dead button.
+    const adding = addCount ? startAdd(items.map((i) => i.word)) : null;
     try {
       const level = CEFR_FOR_HSK[data.level];
       // "I know it" first: saved as a placement answer, so the next fetch fills
@@ -93,17 +101,10 @@ export function HskDaily() {
       if (known.size || toAdd.length) {
         await api.savePlacement({ sourceLang: "zh", targetLang: native, level, known: [...known], unknown: [], took: toAdd.map((w) => w.word) });
       }
-      if (addCount) {
-        // Instant capture makes the HSK words reviewable at once; a topic word
-        // brings its own meaning, so it is reviewable at once too. Details follow.
-        const items = [
-          ...toAdd.map((w) => ({ word: w.word })),
-          ...topicToAdd.map((w) => ({ word: w.word, meaning: w.meaning })),
-        ];
+      if (adding) {
         // The cards are made at the HSK level ("4"); the placement keeps its CEFR field.
         const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, items, level: String(data.level), enrich: true });
-        const words = items.map((i) => i.word);
-        if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
+        adding.done(r.job);
         show({ icon: "📚", title: t("hskDaily.added", { n: r.created }) });
       }
       setKnown(new Set());
@@ -113,6 +114,7 @@ export function HskDaily() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["hskReadiness"] });
     } catch (e) {
+      adding?.fail();
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setBusy(false);

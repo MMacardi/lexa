@@ -2046,6 +2046,9 @@ const DICT: Record<string, Entry> = {
   "import.removedN": { en: "{n} cards removed", ru: "Убрано карточек: {n}", zh: "已移除 {n} 张卡片" },
   "import.keptReviewed": { en: "{n} you'd already reviewed stay.", ru: "Уже повторённые остались: {n}.", zh: "已复习的 {n} 张保留。" },
   "import.trackRunning": { en: "Filling in your cards", ru: "Дополняем карточки", zh: "正在补全卡片" },
+  // The add itself still on its way: the bar shows from the tap, and the app stays usable.
+  "import.trackAdding": { en: "Adding {n} words…", ru: "Добавляем слова: {n}…", zh: "正在添加 {n} 个词…" },
+  "import.trackAddingSub": { en: "Carry on — we'll say when they're in", ru: "Можно продолжать, мы сообщим", zh: "可以继续使用，添加好了会告诉你" },
   "import.trackDone": { en: "Cards filled in", ru: "Карточки дополнены", zh: "卡片已补全" },
   "import.trackFailed": { en: "Filling in stopped on an error", ru: "Дополнение прервалось из-за ошибки", zh: "补全因出错中断" },
   "import.trackCards": { en: "{done} / {total} cards", ru: "{done} / {total} карточек", zh: "{done} / {total} 张卡片" },

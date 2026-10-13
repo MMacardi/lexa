@@ -105,7 +105,7 @@ const COMPACT_COUNT = 4;
 export function CoachPicks({ compact = false }: { compact?: boolean }) {
   const { accountId, profile } = useAccount();
   const { t } = useI18n();
-  const { show, trackImport } = useToast();
+  const { show, startAdd } = useToast();
   const qc = useQueryClient();
 
   const [pair, setPair] = useState(() => readPair());
@@ -227,6 +227,8 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
     const words = selected.map((p) => p.word);
     if (!words.length || adding) return;
     setAdding(true);
+    // The bar from the tap, as on Today: the add is on its way and the app is free.
+    const bar = startAdd(words);
     try {
       const r = await api.batchAddWords({
         telegramId: accountId,
@@ -239,12 +241,13 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
       });
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
-      if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words, total: r.job.total, processed: 0 });
+      bar.done(r.job);
       show({ icon: "🌱", title: t("word.cardsCreated", { n: r.created }) });
       // Drop the added ones from the cached picks.
       const added = new Set(words);
       qc.setQueryData<PicksData>(picksKey, (old) => (old ? { ...old, picks: old.picks.filter((x) => !added.has(x.word)) } : old));
     } catch (e) {
+      bar.fail();
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setAdding(false);

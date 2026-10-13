@@ -15,7 +15,7 @@
 const { cedictCard, cedictLookup, mainReading, toneMarked } = await import("../src/services/cedict.js");
 const { HSK_WORDS } = await import("../src/data/hskWords.js");
 const { hskPage, readsAs } = await import("../src/services/wordPages.js");
-const { defaultMeaning, refreshDefaultMeanings } = await import("../src/services/lookup.js");
+const { cardMeaning, defaultMeaning, refreshDefaultMeanings } = await import("../src/services/lookup.js");
 const { refreshCardReadings } = await import("../src/services/capture.js");
 const { prisma } = await import("../src/services/db.js");
 const { deleteAccount } = await import("../src/services/accountData.js");
@@ -144,7 +144,8 @@ async function cards() {
   check((await get(made.fresh.id)).phonetic === "dōng xi", "a card already right is left alone");
   const ladle = await get(made.oldDefault.id);
   check(
-    ladle.phonetic === "chéng" && ladle.meaningZh === ru("盛") && ladle.partOfSpeech === "глагол",
+    // The current default, in its page's wording (scripts/check-card-meaning.ts).
+    ladle.phonetic === "chéng" && ladle.meaningZh === cardMeaning("盛", "ru") && ladle.partOfSpeech === "глагол",
     `盛 shèng «процветающий, бурный» (прилагательное) → ${ladle.phonetic} «${ladle.meaningZh}» (${ladle.partOfSpeech})`,
   );
   check((await get(made.teach.id)).partOfSpeech === null, "a card with no part of speech isn't given one");

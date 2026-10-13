@@ -43,15 +43,24 @@ type ImportTracker = {
   words: string[];
   total: number;
   processed: number;
-  status: ImportJob["status"];
+  // "adding": the add itself is still on its way, so there is no job to poll yet.
+  status: ImportJob["status"] | "adding";
   errors: string[];
   errorMessage: string | null;
   removed?: number; // cards Stop took back (undo the add)
 };
 
-const ToastCtx = createContext<{ show: (t: ShowInput) => void; trackImport: (t: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => void }>({
+/** An add on its way (`startAdd`): `done` hands the bar the job that fills the cards in, `fail` takes it down. */
+export type AddHandle = { done: (job: { id: string; total: number } | null | undefined) => void; fail: () => void };
+
+const ToastCtx = createContext<{
+  show: (t: ShowInput) => void;
+  trackImport: (t: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => void;
+  startAdd: (words: string[]) => AddHandle;
+}>({
   show: () => {},
   trackImport: () => {},
+  startAdd: () => ({ done: () => {}, fail: () => {} }),
 });
 export const useToast = () => useContext(ToastCtx);
 
@@ -75,7 +84,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Stop = undo the add: every running job stops and takes back its cards, bar
   // any the learner has already reviewed (the server keeps those).
   const stopTracker = useCallback(async () => {
-    const active = jobs.filter((j) => !isTerminal(j.status));
+    const active = jobs.filter((j) => !isTerminal(j.status) && j.status !== "adding");
     const results = await Promise.all(active.map((j) => api.cancelImportJob(j.jobId).catch(() => null)));
     setJobs((cur) =>
       cur.map((x) => {
@@ -101,7 +110,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [remove],
   );
 
-  const isTerminal = (s: ImportJob["status"]) => s === "completed" || s === "failed" || s === "cancelled";
+  const isTerminal = (s: ImportTracker["status"]) => s === "completed" || s === "failed" || s === "cancelled";
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
     setTrackerOpen(false);
@@ -118,9 +127,36 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Poll every active job and update it in place.
+  // The bar from the moment an add is tapped, not from the server's answer: on a
+  // slow connection 19 words sat behind a spinner with nothing saying they were on
+  // their way or that the app was free meanwhile (the author, 2026-10-13).
+  const startAdd = useCallback(
+    (words: string[]): AddHandle => {
+      const key = `adding-${++counter}`;
+      setTrackerOpen(false);
+      setJobs((cur) => {
+        const active = cur.filter((j) => !isTerminal(j.status));
+        if (active.length === 0) {
+          setWordIds({});
+          mappedRef.current = new Set();
+        }
+        return [...active, { jobId: key, telegramId: accountId, words, total: words.length, processed: 0, status: "adding", errors: [], errorMessage: null }];
+      });
+      const drop = () => setJobs((cur) => cur.filter((j) => j.jobId !== key));
+      return {
+        done: (job) => {
+          if (!job) return drop();
+          setJobs((cur) => cur.map((j) => (j.jobId === key ? { ...j, jobId: job.id, total: job.total, status: "queued" } : j)));
+        },
+        fail: drop,
+      };
+    },
+    [accountId],
+  );
+
+  // Poll every active job and update it in place (an add still on its way has none yet).
   useEffect(() => {
-    const active = jobs.filter((j) => !isTerminal(j.status));
+    const active = jobs.filter((j) => !isTerminal(j.status) && j.status !== "adding");
     if (active.length === 0) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -187,7 +223,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const tracker = useMemo(() => {
     if (jobs.length === 0) return null;
     const allTerminal = jobs.every((j) => isTerminal(j.status));
-    const status: ImportJob["status"] = allTerminal
+    const status: ImportTracker["status"] = allTerminal
       ? jobs.every((j) => j.status === "failed")
         ? "failed"
         : jobs.some((j) => j.status === "cancelled")
@@ -195,7 +231,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           : "completed"
       : jobs.some((j) => j.status === "processing")
         ? "processing"
-        : "queued";
+        : jobs.some((j) => j.status === "queued")
+          ? "queued"
+          : "adding";
     return {
       total: jobs.reduce((s, j) => s + j.total, 0),
       processed: jobs.reduce((s, j) => s + j.processed, 0),
@@ -214,7 +252,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [jobs]);
 
   return (
-    <ToastCtx.Provider value={{ show, trackImport }}>
+    <ToastCtx.Provider value={{ show, trackImport, startAdd }}>
       {children}
       <div className="pointer-events-none fixed right-4 top-4 z-[70] flex w-[330px] max-w-[calc(100vw-2rem)] flex-col gap-2.5">
         {toasts.map((t) => (
@@ -226,6 +264,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           phone screen to say "1 / 20". The word list opens from the bar. */}
       {tracker && (() => {
         const running = !isTerminal(tracker.status);
+        const adding = tracker.status === "adding";
         const title =
           tracker.status === "completed"
             ? t("import.trackDone")
@@ -233,17 +272,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               ? t("import.trackFailed")
               : tracker.status === "cancelled"
                 ? t("import.stoppedTitle")
-                : t("import.trackRunning");
+                : adding
+                  ? t("import.trackAdding", { n: tracker.total })
+                  : t("import.trackRunning");
         const sub =
           tracker.status === "cancelled"
             ? [t("import.removedN", { n: tracker.removed }), tracker.removed < tracker.total ? t("import.keptReviewed", { n: tracker.total - tracker.removed }) : ""]
                 .filter(Boolean)
                 .join(" · ")
-            : running && tracker.processed === 0
-              ? t("import.trackPreparing")
-              : [t("import.trackCards", { done: tracker.processed, total: tracker.total }), running && currentWord ? currentWord : ""]
-                  .filter(Boolean)
-                  .join(" · ");
+            : adding
+              ? t("import.trackAddingSub")
+              : running && tracker.processed === 0
+                ? t("import.trackPreparing")
+                : [t("import.trackCards", { done: tracker.processed, total: tracker.total }), running && currentWord ? currentWord : ""]
+                    .filter(Boolean)
+                    .join(" · ");
         return (
           <div className="pointer-events-none fixed inset-x-3 top-3 z-[75] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[340px]">
             <div className="pointer-events-auto overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface/95 shadow-[0_10px_28px_rgba(46,42,38,0.18)] backdrop-blur">
@@ -273,7 +316,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform", trackerOpen && "rotate-180")} />
                   )}
                 </button>
-                {running && (
+                {running && !adding && (
                   <button
                     type="button"
                     onClick={() => void stopTracker()}
@@ -307,7 +350,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     <div className="max-h-40 space-y-1.5 overflow-auto pr-1">
                       {tracker.words.map((word, index) => {
                         const done = index < tracker.processed;
-                        const active = index === tracker.processed && tracker.status !== "completed";
+                        const active = index === tracker.processed && tracker.status !== "completed" && !adding;
                         const id = wordIds[word.trim().toLowerCase()];
                         const label = (
                           <span className={done ? "text-sage-deep" : active ? "font-semibold text-ink" : "text-ink-soft"}>

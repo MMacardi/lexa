@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading, type CedictEntry } from "./cedict.js";
 import { hskFrequency, hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
-import { hskPage, readsAs } from "./wordPages.js";
+import { headGloss, hskPage, readsAs, type WordPage } from "./wordPages.js";
 import { prisma } from "./db.js";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -72,24 +72,24 @@ function ruIndex(): Map<string, string> {
 /**
  * Cards still carrying a default the list has since corrected (热 «нагревать; горячий»
  * → «горячий; нагревать», 之所以 «поэтому» → «причина того, что») move to the current
- * one; a hand pick of senses made for the old wording goes along. A meaning the
- * learner wrote is never an old default, so it stays. Called before a card or the
- * list is read.
+ * one, in its page's wording (`cardMeaning`) — as do cards made before cards took that
+ * wording, still on the one-line default; a hand pick of senses made for the old
+ * wording goes along. A meaning the learner wrote is never a default, so it stays.
+ * Called before a card or the list is read.
  */
 export async function refreshDefaultMeanings(where: Prisma.WordWhereInput): Promise<number> {
   ruIndex();
-  if (!oldRu.size) return 0;
   const cards = await prisma.word.findMany({
-    where: { ...where, targetLang: "ru", word: { in: [...oldRu.keys()] } },
-    select: { id: true, word: true, sourceLang: true, meaningZh: true, senses: true },
+    where: { ...where, targetLang: "ru" },
+    select: { id: true, word: true, sourceLang: true, meaningZh: true },
   });
   let n = 0;
   for (const c of cards) {
     const m = c.meaningZh?.trim();
-    if (!m || !isChinese(c.sourceLang) || !oldRu.get(c.word)?.has(m)) continue;
-    const next = defaultMeaning(c.word, "ru");
+    if (!m || !isChinese(c.sourceLang) || !(oldRu.get(c.word)?.has(m) || defaultMeaning(c.word, "ru") === m)) continue;
+    const next = cardMeaning(c.word, "ru");
     if (!next || next === m) continue;
-    const senses = c.senses as { for?: string } | null;
+    const senses = (await prisma.word.findUnique({ where: { id: c.id }, select: { senses: true } }))?.senses as { for?: string } | null;
     const carried = senses && typeof senses === "object" && senses.for === m ? { senses: { ...senses, for: next } as Prisma.InputJsonValue } : {};
     // Compare-and-set on the meaning read: an edit made meanwhile wins.
     n += (await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: next, ...carried } })).count;
@@ -108,14 +108,89 @@ export function defaultMeaning(word: string, lang: string | null | undefined): s
   return head.length > 1 && head.endsWith("儿") ? (ruIndex().get(head.slice(0, -1)) ?? null) : null;
 }
 
+// A gloss's terms without its usage hints, and the hint: the word page's own split
+// (components/WordSenses.tsx), so a card and its page agree on what they say.
+const bareGloss = (s: string) => s.replace(/\s*[(（][^)）]*[)）]/g, "").trim();
+const glossHint = (s: string) => s.match(/[(（][^)）]*[)）]/)?.[0] ?? "";
+const glossTerms = (s: string) =>
+  bareGloss(s)
+    .split(/[;；,，、/]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
 /**
- * Is this card's meaning still the shared default? Derived on read like
- * `dictMeaning`: the upgrade may replace it with the sense of the sentence the
- * word was met in, and the client keeps polling until the rest of the card lands.
+ * Page senses as one card meaning, worded as the word page words a pick
+ * (`composeMeaning` in components/WordSenses.tsx, for a Russian card): a term an
+ * earlier sense said is dropped, the usage hint stays.
+ */
+function composeSenses(glosses: string[]): string {
+  const said = new Set<string>();
+  return glosses
+    .map((g) => {
+      const all = glossTerms(g);
+      const kept = all.filter((x) => {
+        const k = x.toLowerCase();
+        if (said.has(k)) return false;
+        said.add(k);
+        return true;
+      });
+      if (!kept.length || kept.length === all.length) return g.trim();
+      const h = glossHint(g);
+      return kept.join(", ") + (h ? " " : "") + h;
+    })
+    .join("; ");
+}
+
+// A meaning's segments by their head glosses, in its own order.
+const heads = (meaning: string) => meaning.split(/[;；]/).map(headGloss).filter(Boolean);
+// The page senses a meaning ticks, as the word page ticks the ones a card tests
+// (services/vocab.ts, flagByMeaning): every sense whose head gloss is one of its heads.
+const ticked = (page: WordPage, meaning: string) => {
+  const hs = new Set(heads(meaning));
+  return page.s.flatMap((s, i) => (hs.has(headGloss(s.m)) ? [i] : []));
+};
+
+const wording = new Map<string, string | null>();
+
+/**
+ * The meaning a new card is written with: the shared default, in its word page's
+ * wording of the same senses. The default is one line (进行 «проводить, осуществлять»),
+ * the page glosses each sense in full («проводить, осуществлять, идти (о процессе)»),
+ * so the page offered "Update the card" on 7,400 of the 11,404 fresh HSK cards — and
+ * the learner read the card as added half-done (the author, 2026-10-13). Only a fuller
+ * wording of the same senses, in the same order, which ticks the same senses again;
+ * otherwise the default as it is.
+ */
+export function cardMeaning(word: string, lang: string | null | undefined): string | null {
+  const m = defaultMeaning(word, lang);
+  if (!m) return null;
+  const key = `${lang}|${m}|${word}`;
+  if (wording.has(key)) return wording.get(key)!;
+  const page = hskPage(word, lang);
+  let out = m;
+  const picked = page ? ticked(page, m) : [];
+  if (page && picked.length) {
+    const full = composeSenses(picked.map((i) => page.s[i].m));
+    const has = new Set(glossTerms(full).map((x) => x.toLowerCase()));
+    // The default's senses in the page's order: a default that leads with another
+    // sense (海 «море») keeps its lead.
+    const order = heads(m).map((h) => page.s.findIndex((s) => headGloss(s.m) === h)).filter((i) => i >= 0);
+    const inOrder = order.every((i, k) => k === 0 || i >= order[k - 1]);
+    if (inOrder && ticked(page, full).join() === picked.join() && glossTerms(m).every((x) => has.has(x.toLowerCase()))) out = full;
+  }
+  wording.set(key, out);
+  return out;
+}
+
+/**
+ * Is this card's meaning still the shared default (one-line, or in its page's
+ * wording)? Derived on read like `dictMeaning`: the upgrade may replace it with the
+ * sense of the sentence the word was met in, and the client keeps polling until the
+ * rest of the card lands.
  */
 export function isDefaultMeaning(w: { word: string; sourceLang: string; targetLang: string; meaningZh: string | null }): boolean {
   const m = w.meaningZh?.trim();
-  return Boolean(m) && isChinese(w.sourceLang) && defaultMeaning(w.word, w.targetLang) === m;
+  return Boolean(m) && isChinese(w.sourceLang) && (defaultMeaning(w.word, w.targetLang) === m || cardMeaning(w.word, w.targetLang) === m);
 }
 
 /**

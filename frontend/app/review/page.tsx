@@ -20,6 +20,8 @@ import {
   togglePinyinFront,
   useToneColors,
   setToneColors,
+  useExamplePinyin,
+  setExamplePinyin,
   CARD_PRESETS,
   CARD_FIELDS,
   type CardField,
@@ -49,7 +51,7 @@ import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowLeft, ArrowRight, BookOpen, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
@@ -149,6 +151,7 @@ export default function FlashcardsPage() {
 
   const swipeUpDown = useSwipeUpDown();
   const toneColors = useToneColors();
+  const examplePinyin = useExamplePinyin();
   const playOnFlip = usePlayOnFlip();
   // Phones: the session's switches live behind the gear, so the card and the
   // grades have the screen to themselves.
@@ -1402,6 +1405,24 @@ export default function FlashcardsPage() {
                       {i > 0 && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
                         {t(`field.${f}`)}
+                        {/* Pinyin over the sentences, switched where it shows (also behind the
+                            gear and in Settings); a button, so the tap doesn't flip the card. */}
+                        {f === "example" && isChineseLang(word.sourceLang) && (
+                          <button
+                            type="button"
+                            onClick={() => setExamplePinyin(!examplePinyin)}
+                            aria-pressed={examplePinyin}
+                            title={t("exPinyin.label")}
+                            className={cn(
+                              "ml-2 inline-flex items-center rounded-full border px-2.5 py-0.5 align-middle text-[11px] font-semibold normal-case tracking-normal transition-colors",
+                              examplePinyin
+                                ? "border-sage bg-sage-tint text-sage-deep"
+                                : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+                            )}
+                          >
+                            {t("exPinyin.toggle")}
+                          </button>
+                        )}
                       </p>
                       {fieldNode(f, false, backTr, true)}
                     </div>
@@ -1491,6 +1512,23 @@ export default function FlashcardsPage() {
               {t("review.toneColors")}
             </button>
           )}
+          {isChineseLang(word.sourceLang) && (
+            <button
+              type="button"
+              onClick={() => setExamplePinyin(!examplePinyin)}
+              aria-pressed={examplePinyin}
+              title={t("exPinyin.hint")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                examplePinyin
+                  ? "border-sage bg-sage-tint text-sage-deep"
+                  : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+              )}
+            >
+              <Captions className="h-3.5 w-3.5" />
+              {t("exPinyin.label")}
+            </button>
+          )}
           {canSpeak() && (
             <button
               type="button"
@@ -1539,6 +1577,15 @@ export default function FlashcardsPage() {
                   hint={t("review.toneColorsHint")}
                   on={toneColors}
                   onClick={() => setToneColors(!toneColors)}
+                />
+              )}
+              {isChineseLang(word.sourceLang) && (
+                <SheetRow
+                  Icon={Captions}
+                  label={t("exPinyin.label")}
+                  hint={t("exPinyin.hint")}
+                  on={examplePinyin}
+                  onClick={() => setExamplePinyin(!examplePinyin)}
                 />
               )}
               {canSpeak() && (

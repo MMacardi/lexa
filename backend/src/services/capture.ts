@@ -9,7 +9,7 @@ import { runExampleSearch } from "../agents/exampleSearch.js";
 import { langName } from "../lib/langs.js";
 import { hasLocalPhonetic, localPhonetic } from "../lib/transcribe.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
-import { defaultMeaning, isDefaultMeaning } from "./lookup.js";
+import { cardMeaning, isDefaultMeaning } from "./lookup.js";
 import {
   addPoolExample,
   exampleBrief,
@@ -40,8 +40,9 @@ const AI_SOURCE = "Onomika AI";
 
 /**
  * The fields the dictionary fills with no model call, or null (not Chinese, not
- * in the subset). The meaning is the shared default in the learner's language
- * when there is one (services/lookup.ts), else the dictionary's English.
+ * in the subset). The meaning is the shared default in the learner's language,
+ * worded as its word page words it, when there is one (`cardMeaning` in
+ * services/lookup.ts), else the dictionary's English.
  */
 export async function dictCardFields(
   word: string,
@@ -50,7 +51,7 @@ export async function dictCardFields(
 ): Promise<{ phonetic: string; meaningZh: string } | null> {
   if (!isChinese(sourceLang)) return null;
   const card = await cedictCard(word);
-  return card ? { phonetic: card.phonetic, meaningZh: defaultMeaning(word, targetLang) ?? card.gloss } : null;
+  return card ? { phonetic: card.phonetic, meaningZh: cardMeaning(word, targetLang) ?? card.gloss } : null;
 }
 
 /**
