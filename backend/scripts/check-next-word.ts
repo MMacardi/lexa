@@ -12,7 +12,8 @@
 // Run against a DEV database — it creates throwaway users and deletes them:
 //   cd backend && npx tsx scripts/check-next-word.ts
 import { prisma } from "../src/services/db.js";
-import { hskDailyWords, hskFrequency, hskGapWords, hskGuestDeck, hskLevelWords, nextWordValue } from "../src/services/hsk.js";
+import { hskFrequency, hskGapWords, hskGuestDeck, hskLevelWords, nextWordValue } from "../src/services/hsk.js";
+import { hskDailyWords } from "../src/services/wordGroups.js";
 import { savePlacementAnswers } from "../src/services/learnerPrefs.js";
 import { deleteAccount } from "../src/services/accountData.js";
 

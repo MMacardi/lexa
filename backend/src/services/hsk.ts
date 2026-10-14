@@ -385,8 +385,8 @@ export function frontierOrder(
   return [...first, ...rest];
 }
 
-/** What the ordering needs beyond the status map: who, what they tapped, what they added today, what they had before. */
-async function frontierInputs(telegramId: string) {
+/** What the ordering needs beyond the status map: who, what they tapped, what they added or said known today, what they had before. */
+export async function frontierInputs(telegramId: string) {
   const user = await prisma.user.findUnique({
     where: { telegramId },
     select: { id: true, hskVersion: true, hskTarget: true, dailyGoal: true },
@@ -413,6 +413,9 @@ async function frontierInputs(telegramId: string) {
     // "Don't know" said, not a daily word merely taken (`took`).
     tapped: new Set(answers.filter((a) => !a.known && !a.took).map((a) => normalizeHanzi(a.word))),
     addedToday: new Set(cards.filter((c) => c.createdAt >= today).map((c) => normalizeHanzi(c.word))),
+    // An "I know it" from today, on a word with nothing before it: the day's group
+    // still counts it as offered, so it leaves the day without reshuffling the rest.
+    knownToday: new Set(answers.filter((a) => a.known && a.createdAt >= today).map((a) => normalizeHanzi(a.word)).filter((w) => !have.has(w))),
     have,
   };
 }
@@ -445,33 +448,6 @@ export function hskGuestDeck(version: HskVersion, level: number, known: string[]
   const knew = new Set(known.map(normalizeHanzi));
   const tapped = new Set(unknown.map(normalizeHanzi));
   return frontierOrder(version, target, (w) => knew.has(w), tapped, []).slice(0, limit);
-}
-
-// The daily goal the web app starts from (lib/learnPrefs DEFAULT_GOAL) when the
-// account has never saved one.
-const DEFAULT_DAILY = 5;
-
-export type DailyWord = HskWord & { added: boolean };
-
-/**
- * Today's new words at the learner's level — a daily drip, not a one-off build:
- * "I thought it would always give me some words for my level." The first
- * `dailyGoal` words of the frontier, counting the cards made today as still in
- * it, so once today's words are in review the offer reads "done" until tomorrow
- * instead of refilling forever. A word rejected as known drops out and the next
- * one takes its place; it never comes back, because "known" is a status.
- */
-export async function hskDailyWords(
-  telegramId: string,
-): Promise<{ version: HskVersion; level: number; size: number; words: DailyWord[] }> {
-  const input = await frontierInputs(telegramId);
-  const version = asHskVersion(input?.user.hskVersion) ?? "3.0";
-  const level = clampLevel(version, input?.user.hskTarget ?? 4);
-  const size = Math.min(Math.max(input?.user.dailyGoal ?? DEFAULT_DAILY, 1), 50);
-  if (!input) return { version, level, size, words: [] };
-  const { status, addedToday } = input;
-  const order = frontierOrder(version, level, (w) => status.has(w) && !addedToday.has(w), input.tapped, input.have);
-  return { version, level, size, words: order.slice(0, size).map((w) => ({ ...w, added: addedToday.has(w.word) })) };
 }
 
 export function clampLevel(version: HskVersion, level: number): number {

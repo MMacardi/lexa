@@ -369,7 +369,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    and no personalised one. **The plan, the verified numbers and four parts (one session each, in order)
    are in `PLAN-word-groups.md`. Work from there.** Parts: 1 the group (`services/wordGroups.ts` + a check
    script), 2 Today shows the named group and taking it is instant, 3 new words in Flashcards and Writing
-   without adding first, 4 the 7-day proof. The notes below are the first half, done.
+   without adding first, 4 the 7-day proof. **Parts 1 and 2 done 2026-10-14** (Today reads «Сегодня: офис ·
+   5 слов», taking them is instant and free). The notes below are the first half, done.
    - **Part 1 done 2026-10-14, slim** (the author chose it over the full design): a day leads with one
      situation, near-synonyms never share a day, words with no situation come ~40% of a day; no character
      families or sentence links. `services/wordGroups.ts` `nextGroup` + `scripts/check-word-groups.ts`; not

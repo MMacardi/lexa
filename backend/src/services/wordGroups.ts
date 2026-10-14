@@ -1,7 +1,7 @@
 import { cedictLookup, isMeaningGloss } from "./cedict.js";
 import { defaultMeaning } from "./lookup.js";
 import { hskSituations, type Situation } from "./wordPages.js";
-import type { HskWord } from "./hsk.js";
+import { asHskVersion, clampLevel, frontierInputs, frontierOrder, type HskVersion, type HskWord } from "./hsk.js";
 
 /**
  * A day's new words as one group that is easier to learn together (BACKLOG 1e,
@@ -129,8 +129,8 @@ function fill(
 
   for (const s of themes)
     for (const w of pool)
-      if (count(false) < size - abstractCap && hskSituations(w.word).includes(s) && fits(w)) put(w, s);
-  for (const w of pool) if (count(true) < abstractCap && !concrete(w) && fits(w)) put(w, null);
+      if (out.length < size && count(false) < size - abstractCap && hskSituations(w.word).includes(s) && fits(w)) put(w, s);
+  for (const w of pool) if (out.length < size && count(true) < abstractCap && !concrete(w) && fits(w)) put(w, null);
   for (const w of pool) if (out.length < size && concrete(w) && fits(w)) put(w, hskSituations(w.word)[0]);
   for (const strict of [true, false])
     for (const w of order) if (out.length < size && fits(w, strict)) put(w, hskSituations(w.word)[0] ?? null);
@@ -142,11 +142,56 @@ function fill(
  * stood when the day began — words said known today still in it — and `dropped`
  * those words: they leave the day, the rest stay put, and each gap fills as the day
  * itself would have (a theme word by the theme's next word). So the day holds still
- * under the learner's thumb, as the order does.
+ * under the learner's thumb, as the order does. `first`: words the learner said they
+ * don't know (the check, a sweep's "to learn"). They lead the day as they lead the
+ * order — they told us — and the themes fill what is left of it.
  */
-export function nextGroup(order: HskWord[], size: number, dropped: ReadonlySet<string> = new Set()): WordGroup {
-  const themes = chooseThemes(order.slice(0, POOL), size - abstractSlots(size));
-  let words = fill(order, size, themes, [], new Set());
+export function nextGroup(
+  order: HskWord[],
+  size: number,
+  dropped: ReadonlySet<string> = new Set(),
+  first: ReadonlySet<string> = new Set(),
+): WordGroup {
+  const lead = order.filter((w) => first.has(w.word)).slice(0, size);
+  const open = order.slice(0, POOL).filter((w) => !lead.includes(w));
+  const themes = chooseThemes(open, Math.min(size - lead.length, size - abstractSlots(size) - lead.filter(concrete).length));
+  const situationOf = (w: HskWord) => themes.find((s) => hskSituations(w.word).includes(s)) ?? hskSituations(w.word)[0] ?? null;
+  let words = fill(order, size, themes, lead.map((w) => ({ ...w, situation: situationOf(w) })), new Set());
   if (words.some((w) => dropped.has(w.word))) words = fill(order, size, themes, words.filter((w) => !dropped.has(w.word)), dropped);
   return { theme: themes.find((s) => words.some((w) => w.situation === s)) ?? null, words };
+}
+
+// The daily goal the web app starts from (lib/learnPrefs DEFAULT_GOAL) when the
+// account has never saved one.
+const DEFAULT_DAILY = 5;
+
+export type DailyWord = GroupWord & { added: boolean };
+export type DailyGroup = { version: HskVersion; level: number; size: number; theme: Situation | null; words: DailyWord[] };
+
+/**
+ * Today's new words at the learner's level — a daily drip, not a one-off build:
+ * "I thought it would always give me some words for my level." `dailyGoal` words
+ * of the frontier as one group (`nextGroup`), named after its situation. The cards
+ * made today and today's "I know it"s stay in the order, so the day holds still:
+ * once its words are in review it reads "done" until tomorrow instead of refilling,
+ * and a word said known leaves while the rest stay. It never comes back, because
+ * "known" is a status.
+ */
+export async function hskDailyWords(telegramId: string): Promise<DailyGroup> {
+  const input = await frontierInputs(telegramId);
+  const version = asHskVersion(input?.user.hskVersion) ?? "3.0";
+  const level = clampLevel(version, input?.user.hskTarget ?? 4);
+  const size = Math.min(Math.max(input?.user.dailyGoal ?? DEFAULT_DAILY, 1), 50);
+  if (!input) return { version, level, size, theme: null, words: [] };
+  const { status, addedToday, knownToday } = input;
+  const order = frontierOrder(version, level, (w) => status.has(w) && !addedToday.has(w) && !knownToday.has(w), input.tapped, input.have);
+  const group = nextGroup(order, size, knownToday, input.tapped);
+  const added = (w: GroupWord) => ({ ...w, added: addedToday.has(w.word) });
+  // A day's worth of frontier words already taken another way (onboarding's deck
+  // is the first day's words, or the HSK list page): the day reads done over them
+  // rather than offering a second group beside them.
+  const taken = order.filter((w) => addedToday.has(w.word));
+  if (taken.length >= size && group.words.some((w) => !addedToday.has(w.word)))
+    return { version, level, size, theme: null, words: taken.slice(0, size).map((w) => added({ ...w, situation: hskSituations(w.word)[0] ?? null })) };
+  return { version, level, size, theme: group.theme, words: group.words.map(added) };
 }

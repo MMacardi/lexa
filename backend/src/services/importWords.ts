@@ -94,6 +94,9 @@ export async function importWordsForUser(params: {
   keepProvidedExtras?: boolean;
   generateDetails?: boolean;
   generateExamples?: boolean;
+  // The pool's sentence on each fresh HSK card (no model call). Defaults to
+  // `generateExamples`; a ready-made card (Today's words) has it with no upgrade.
+  poolExamples?: boolean;
   level?: string;
   exampleStyle?: string;
   exampleSource?: string; // ai | web
@@ -177,7 +180,7 @@ export async function importWordsForUser(params: {
   // With no model call, each HSK card gets the pool sentence at this learner's level
   // (services/sentences.ts), so the day's words arrive with an example; the queued
   // upgrade writes one at their level where the pool's is well under it.
-  if (created.length && params.generateExamples && params.exampleSource !== "web" && params.sourceLang === "zh" && poolRegister(params.exampleStyle)) {
+  if (created.length && (params.poolExamples ?? params.generateExamples) && params.exampleSource !== "web" && params.sourceLang === "zh" && poolRegister(params.exampleStyle)) {
     await placePoolExamples(user.id, created.map((c) => ({ ...c, targetLang: params.targetLang })));
   }
 

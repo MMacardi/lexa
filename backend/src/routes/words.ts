@@ -22,7 +22,8 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskDailyWords, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
+import { asHskVersion, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
+import { hskDailyWords } from "../services/wordGroups.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
@@ -1035,6 +1036,9 @@ wordsRouter.post("/words/batch", async (req, res) => {
       keepProvidedExtras: useContext,
       generateDetails: b.enrich,
       generateExamples: b.enrich && !useContext,
+      // `enrich: false` with no sentence of its own is a ready-made card: the
+      // dictionary's meaning and the pool's sentence, and no model call at all.
+      poolExamples: !useContext,
       exampleSourceName: b.source,
       level: b.level,
       exampleStyle: b.exampleStyle,

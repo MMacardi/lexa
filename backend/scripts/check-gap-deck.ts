@@ -9,7 +9,8 @@
 // Run against a DEV database — it creates a throwaway user and deletes it:
 //   cd backend && npx tsx scripts/check-gap-deck.ts
 import { prisma } from "../src/services/db.js";
-import { hskDailyWords, hskGapWords, hskLevelWords } from "../src/services/hsk.js";
+import { hskGapWords, hskLevelWords } from "../src/services/hsk.js";
+import { hskDailyWords } from "../src/services/wordGroups.js";
 import { savePlacementAnswers } from "../src/services/learnerPrefs.js";
 import { deleteAccount } from "../src/services/accountData.js";
 

@@ -96,7 +96,20 @@ days. Each day has most of its words in one situation or family; no near-synonym
 100 words still cover at least ~90% of the level usage the frequency-only order covers; the day holds still;
 `check-next-word`, `check-gap-deck` and `check-sweep` still pass. Print a few days so a person can read them.
 
-## Part 2 — Today shows the group, and taking it is instant
+## Part 2 — Today shows the group, and taking it is instant — done 2026-10-14
+
+**What shipped:** `hskDailyWords` moved to `services/wordGroups.ts` (hsk.ts importing wordGroups would close an
+import cycle through cedict/wordPages) and returns `{ theme, words[].situation }`. The order keeps today's cards
+*and* today's "I know it"s (`frontierInputs().knownToday`), and the latter go to `nextGroup` as `dropped`, so a
+known word leaves and the theme fills its slot. Words tapped as unknown (the check, a sweep's "to learn") lead
+the day (`nextGroup`'s `first`; `check-sweep` caught the group dropping them), the themes fill the rest. Once
+`dailyGoal` frontier words were taken another way today (onboarding's deck) the day reads done over them.
+Today reads «Сегодня: офис · 5 слов» (47 `situation.*` labels, en/ru/zh); "В повторение" sends the HSK words
+with `enrich: false` and the batch route places the pool sentence anyway (`poolExamples`), so no job is queued;
+topic words still go with `enrich: true` (they have no pool sentence). `scripts/check-daily-group.ts`; a local
+run as a fresh HSK 4 learner: 主席 大会 机构 + 而 此, taken in ~0.5 s, each card with its pool sentence.
+
+The plan as written:
 
 - `hskDailyWords` returns the group and its name; Today reads "Сегодня: транспорт · 8 слов".
 - The situation names in en/ru/zh (47 labels in `lib/i18n.tsx`).

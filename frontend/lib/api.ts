@@ -1074,7 +1074,10 @@ export const api = {
   // Today's new words at the saved target — the daily drip. Stable through the
   // day; `added` marks the ones already in review, `size` is the daily goal.
   hskDaily: () =>
-    http<{ version: HskVersion; level: number; size: number; words: (HskWord & { added: boolean })[] }>(`/api/hsk/daily`),
+    // `theme`: the situation the day's group is named after (i18n `situation.<key>`), null when none.
+    http<{ version: HskVersion; level: number; size: number; theme: string | null; words: (HskWord & { added: boolean; situation: string | null })[] }>(
+      `/api/hsk/daily`,
+    ),
   // Topic words beside the exam ones: today's few (a field with no words yet is
   // listed on the way — one model call), picking the fields (= the interests, and
   // on), more words once the day's fields run dry, off.

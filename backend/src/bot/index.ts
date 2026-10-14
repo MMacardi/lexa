@@ -9,7 +9,7 @@ import { transcribeAudio, ocrImage } from "../services/llm.js";
 import { bindLoginToken } from "../services/loginLink.js";
 import { langName } from "../lib/langs.js";
 import { prisma } from "../services/db.js";
-import { hskDailyWords } from "../services/hsk.js";
+import { hskDailyWords } from "../services/wordGroups.js";
 import { topicDaily } from "../services/topic.js";
 import { cedictCard, isChinese } from "../services/cedict.js";
 import { defaultMeaning } from "../services/lookup.js";

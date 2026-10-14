@@ -21,8 +21,8 @@ import { ArrowRight, CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucid
 // It replaced F11's "add more gap words" button — a learner shouldn't have to
 // remember to ask; the words should just be there each morning ("I thought it
 // would always give me some words for my level"). The server decides the day's
-// set (hskDailyWords): target level first, the words tapped as unknown before
-// that, `dailyGoal` of them, stable through the day.
+// set (hskDailyWords): `dailyGoal` words from the top of the frontier as one group,
+// named after its situation ("Сегодня: офис · 5 слов"), stable through the day.
 //
 // Beside them, a few words of a field the learner follows (BACKLOG "Topic words
 // beside the exam words"): the same card, the same taps, one "Add" — not a third
@@ -85,12 +85,8 @@ export function HskDaily() {
     setBusy(true);
     // Instant capture makes the HSK words reviewable at once; a topic word
     // brings its own meaning, so it is reviewable at once too. Details follow.
-    const items = [
-      ...toAdd.map((w) => ({ word: w.word })),
-      ...topicToAdd.map((w) => ({ word: w.word, meaning: w.meaning })),
-    ];
     // The bar says they're on their way from the tap, so a slow answer isn't a dead button.
-    const adding = addCount ? startAdd(items.map((i) => i.word)) : null;
+    const adding = addCount ? startAdd([...toAdd, ...topicToAdd].map((w) => w.word)) : null;
     try {
       const level = CEFR_FOR_HSK[data.level];
       // "I know it" first: saved as a placement answer, so the next fetch fills
@@ -103,9 +99,19 @@ export function HskDaily() {
       }
       if (adding) {
         // The cards are made at the HSK level ("4"); the placement keeps its CEFR field.
-        const r = await api.batchAddWords({ telegramId: accountId, sourceLang: "zh", targetLang: native, items, level: String(data.level), enrich: true });
-        adding.done(r.job);
-        show({ icon: "📚", title: t("hskDaily.added", { n: r.created }) });
+        const base = { telegramId: accountId, sourceLang: "zh", targetLang: native, level: String(data.level) };
+        // The day's HSK words are ready-made cards: the dictionary's meaning and the
+        // pool's sentence at their level, no model call, so they are in review at once
+        // and cost nothing; a sentence of their own is a tap away on the card. A topic
+        // word brings only its meaning, so its example is still written for it.
+        const [hsk, topical] = await Promise.all([
+          toAdd.length ? api.batchAddWords({ ...base, items: toAdd.map((w) => ({ word: w.word })), enrich: false }) : null,
+          topicToAdd.length
+            ? api.batchAddWords({ ...base, items: topicToAdd.map((w) => ({ word: w.word, meaning: w.meaning })), enrich: true })
+            : null,
+        ]);
+        adding.done(topical?.job);
+        show({ icon: "📚", title: t("hskDaily.added", { n: (hsk?.created ?? 0) + (topical?.created ?? 0) }) });
       }
       setKnown(new Set());
       qc.invalidateQueries({ queryKey: ["hskDaily"] });
@@ -217,7 +223,9 @@ export function HskDaily() {
         </p>
       ) : (
         <p className="mt-1.5 max-w-[560px] text-[13px] leading-relaxed text-ink-soft">
-          {t("hskDaily.sub", { n: data.size })}{" "}
+          {data.theme
+            ? `${t("hskDaily.theme", { theme: t(`situation.${data.theme}`), n: data.words.length })} ${t("hskDaily.tapKnown")}`
+            : t("hskDaily.sub", { n: data.size })}{" "}
           {/* Tapping "I know it" on most of them every day is the sign a sweep would save time. */}
           <Link href={`/hsk/${data.version}/${data.level}/sweep`} className="font-semibold text-sage-deep hover:text-sage">
             {t("sweep.offer", { level: levelName })}
