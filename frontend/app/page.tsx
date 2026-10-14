@@ -152,9 +152,11 @@ export default function TodayPage() {
             {t("today.greeting")}
           </h1>
         </div>
+        {/* Beside the greeting on a wide screen; on a phone it wrapped under it,
+            alone, with the Reader one tap away in the bottom bar anyway. */}
         <Link
           href="/reader"
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-surface px-4 py-2.5 text-[14px] font-semibold text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
+          className="hidden shrink-0 items-center gap-2 rounded-full sm:inline-flex border border-black/[0.08] bg-surface px-4 py-2.5 text-[14px] font-semibold text-ink-muted transition-colors hover:border-sage hover:text-sage-deep"
         >
           <BookOpen className="h-4 w-4" /> {t("nav.reader")}
         </Link>

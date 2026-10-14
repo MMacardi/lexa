@@ -30,7 +30,6 @@ export default function PrivacyPage() {
       <p>Мы не продаём ваши данные. Для работы Сервиса мы используем сторонних обработчиков:</p>
       <ul>
         <li><strong>Alibaba Cloud (Bailian / Qwen)</strong> — обработка текста (слова, примеры, чат с ИИ) для генерации ответов.</li>
-        <li><strong>Tavily</strong> — веб-поиск примеров, только когда вы выбрали источник примеров «из интернета».</li>
         <li><strong>Google</strong> — если вы входите через Google (получаем подтверждённый email, имя, аватар).</li>
         <li><strong>Telegram</strong> — вход через Telegram и бот-репетитор.</li>
         <li><strong>Хостинг</strong>: Railway (сервер и база данных), Vercel (веб-интерфейс).</li>

@@ -1,6 +1,7 @@
 import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { coachChatSchema, type CoachChatResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { chatGuard, noEmoji, noVendor, stripEmoji } from "../lib/persona.js";
 import { levelGuide } from "./levelGuide.js";
 import { track } from "./analytics.js";
 
@@ -46,8 +47,10 @@ export async function coachChat(params: {
         level +
         `\n\nThis is a RELAXED CHAT, not a lesson or a quiz. The whole point is that it feels fun and ` +
         `natural, and the learner picks up words without it feeling like studying.\n\n` +
+        chatGuard({ role: ", here the learner's relaxed chat partner" }) +
+        `\n\n` +
         `How to chat:\n` +
-        `1) Talk like a real person: react to what they say, share a tiny opinion or a light joke, ask ONE ` +
+        `1) Talk like a real person: react to what they say, share a tiny opinion or a light joke (in words, never emoji), ask ONE ` +
         `engaging follow-up question. Length and vocabulary come from the LEVEL block above — obey it exactly. ` +
         `Lead the conversation somewhere fun; never let it stall.\n` +
         `2) IMMERSION: write mostly in ${source}. ` +
@@ -92,7 +95,7 @@ export async function coachChat(params: {
     ? await chatJsonConversationStream({
         messages,
         schema: coachChatSchema,
-        onDelta: params.onDelta,
+        onDelta: (chunk) => params.onDelta!(stripEmoji(chunk)),
         signal: params.signal,
         timeoutMs: 60000,
         label: "coachChat.stream",
@@ -124,7 +127,7 @@ export async function coachChat(params: {
   const used = clean(result.used ?? []);
   track("use_step", { props: { kind: "chat", used: used.length } });
   return {
-    say: result.say.trim(),
+    say: noVendor(noEmoji(result.say)),
     used,
     seeded: clean(result.seeded ?? []),
     newWords,

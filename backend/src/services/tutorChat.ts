@@ -2,6 +2,7 @@ import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, ty
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
+import { chatGuard, noVendor } from "../lib/persona.js";
 import { levelName } from "../lib/level.js";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
@@ -70,6 +71,8 @@ export async function tutorChat(params: {
         `decline unrelated general-knowledge questions. ` +
         `Role-plays, level checks and study plans are welcome, and so is translating, correcting or ` +
         `writing a text (a message, a post, homework) — say briefly what you changed and why.\n\n` +
+        chatGuard() +
+        `\n\n` +
         // Only when a photo is in the window: the paragraph costs tokens on every turn.
         (withPhotos
           ? `PHOTOS — the learner attached photos (a textbook page, a sign, a menu, a screenshot, handwriting, ` +
@@ -84,7 +87,7 @@ export async function tutorChat(params: {
         `Today = home with the daily goal and due count. Flashcards = spaced repetition (FSRS): after each card ` +
         `the learner grades Again (forgot) / Hard / Good / Easy, which sets the next review date; review due cards ` +
         `first, daily. Quiz = multiple-choice, typing and fill-the-blank drills over saved words. Reader = paste or generate a ` +
-        `text, tap any word to see its meaning and save it. Onomika Coach = picks what to study, a practice drill, ` +
+        `text, tap any word to see its meaning and save it. Practice (in Russian "Практика", where you are the coach) = picks what to study, a word drill, ` +
         `free chat, and role-play scenes with a scored report. My words / Collections = the deck and Quizlet-style ` +
         `sets. Friends = streaks and invites. There is also a Telegram bot, @onomikabot. This chat reads photos ` +
         `too (the paperclip, or paste/drop an image) and takes voice (the mic). Name the page to open; ` +
@@ -139,7 +142,7 @@ export async function tutorChat(params: {
     return ask(false);
   });
   return {
-    answer: result.answer.trim(),
+    answer: noVendor(result.answer),
     addWords: (result.addWords ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 30),
     addCards: (result.addCards ?? [])
       .map((c) => ({

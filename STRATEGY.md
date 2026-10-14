@@ -610,6 +610,12 @@ Classes: **A** core to the wedge · **B** supporting · **C** commodity · **D**
 
 ## Languages: hide the extra ones, delete nothing
 
+> **2026-10-14, the author:** one pair — Chinese, explained in Russian. "We got the whole dictionary
+> only in russian", so the English "I know" side below is dropped while focused: `FIXED_PAIR` in
+> `frontend/lib/langs.ts`, every pair picker hidden, nothing deleted (old cards in other pairs still
+> render). Coming back for English speakers means a Chinese–English dictionary first (CC-CEDICT is
+> half of it), then the constant becomes a setting again. The reasoning below stands for that day.
+
 **Question:** should Spanish, Korean and the rest be deleted so the platform is only for English and Russian speakers?
 
 **Answer: no — narrow what's *offered*, keep what's *supported*.** These are two different axes, and the app already blurs them (the "which language is which" confusion was fixed three times):

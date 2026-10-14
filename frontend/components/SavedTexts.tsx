@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ReaderTextFull } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
-import { langLabel } from "@/lib/langs";
+import { isFixedPair, langLabel } from "@/lib/langs";
 import { getShowTextLevel } from "@/lib/learnPrefs";
 import { Select } from "@/components/ui/Select";
 import { SaveModal } from "@/components/ReaderTextTools";
@@ -89,7 +89,8 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
 
   if (!items || items.length === 0) return null;
 
-  const pair = (s?: string | null, tg?: string | null) => (s && tg ? `${langLabel(s)} → ${langLabel(tg)}` : "");
+  // Stated only when it says something: not on the fixed Chinese → Russian pair.
+  const pair = (s?: string | null, tg?: string | null) => (s && tg && !isFixedPair(s, tg) ? `${langLabel(s)} → ${langLabel(tg)}` : "");
   const statusIcon = (st: string) =>
     st === "generating" ? <Clock className="h-3.5 w-3.5 text-ink-faint" /> : st === "failed" ? <TriangleAlert className="h-3.5 w-3.5 text-warn-text" /> : null;
 

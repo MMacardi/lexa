@@ -1,6 +1,7 @@
 import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { coachSceneTurnSchema, type CoachSceneTurn } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { chatGuard, noEmoji, noVendor, stripEmoji } from "../lib/persona.js";
 import { levelGuide } from "./levelGuide.js";
 import { track } from "./analytics.js";
 
@@ -71,6 +72,8 @@ export async function coachSceneTurn(params: {
         `You are ${params.scene.characterName || "a character"} in a language-practice roleplay. You are a warm, ` +
         `natural conversation partner — NOT a teacher reading a script and NOT a quiz. The learner is practising ` +
         `${source}; their own language is ${target}.${level}\n\n` +
+        chatGuard({ character: params.scene.characterName || "a character" }) +
+        `\n\n` +
         `How to play your turn:\n` +
         `1) STAY IN CHARACTER and keep the scene moving. Write "say" mostly in ${source}, obeying the LEVEL block ` +
         `above exactly, and end with something that invites their reply. Never write ${target} inside "say" — no ` +
@@ -132,7 +135,7 @@ export async function coachSceneTurn(params: {
     ? await chatJsonConversationStream({
         messages,
         schema: coachSceneTurnSchema,
-        onDelta: params.onDelta,
+        onDelta: (chunk) => params.onDelta!(stripEmoji(chunk)),
         signal: params.signal,
         timeoutMs: 60000,
         label: "coachSceneTurn.stream",
@@ -166,7 +169,7 @@ export async function coachSceneTurn(params: {
 
   track("use_step", { props: { kind: "scene", used: used.length, corrected: corrections.length } });
   return {
-    say: result.say.trim(),
+    say: noVendor(noEmoji(result.say)),
     used,
     corrections,
     sceneDone: result.sceneDone ?? false,

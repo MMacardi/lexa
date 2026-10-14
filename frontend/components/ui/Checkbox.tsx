@@ -60,7 +60,9 @@ export function Checkbox({
         e.preventDefault();
         onChange?.(!checked);
       }}
-      className={boxClass}
+      // A 20 px box is a hard target for a thumb: the tap area reaches 10 px past it
+      // on every side (an invisible ::before), the box itself looks the same.
+      className={cn(boxClass, "relative before:absolute before:-inset-2.5 before:content-['']")}
     >
       {icon}
     </button>

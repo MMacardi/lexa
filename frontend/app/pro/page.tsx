@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useIsPro } from "@/lib/useIsPro";
+import { FOCUS } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import { Infinity as InfinityIcon, Globe, Sparkles, BookOpen, PackageOpen, Star, Check, ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -35,7 +36,8 @@ export default function ProPage() {
 
   const benefits: { Icon: LucideIcon; title: string; desc: string }[] = [
     { Icon: InfinityIcon, title: t("pro.b1"), desc: t("pro.b1d") },
-    { Icon: Globe, title: t("pro.b2"), desc: t("pro.b2d") },
+    // Web examples come from the Tavily miner, which is off while focused.
+    ...(FOCUS ? [] : [{ Icon: Globe, title: t("pro.b2"), desc: t("pro.b2d") }]),
     { Icon: Sparkles, title: t("pro.b3"), desc: t("pro.b3d") },
     { Icon: BookOpen, title: t("pro.b4"), desc: t("pro.b4d") },
     { Icon: PackageOpen, title: t("pro.b6"), desc: t("pro.b6d") },
@@ -46,7 +48,7 @@ export default function ProPage() {
     [t("pro.rCore"), "✓", "✓"],
     [t("pro.rDaily"), "20", "∞"],
     [t("pro.rMeaning"), t("pro.rMeaningFree"), t("pro.rMeaningPro")],
-    [t("pro.rExamples"), "2", t("pro.rExamplesPro")],
+    ...(FOCUS ? [] : [[t("pro.rExamples"), "2", t("pro.rExamplesPro")] as [string, string, string]]),
     [t("pro.rTutor"), t("pro.rLimited"), "∞"],
     [t("pro.rReaderGen"), "3 / " + t("pro.perMonth"), "∞"],
     [t("pro.rOcr"), "5 / " + t("pro.perMonth"), "∞"],

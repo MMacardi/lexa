@@ -112,7 +112,7 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 - ⏭ **Launch cluster C**: payment (YooKassa/TG), domain+transactional email, fill
   Legal placeholders, bump Next.js (audit), gate Coach behind Pro Plus + flip
   `BETA_ALL_PRO=false`.
-- ⏭ **AI prompt-injection hardening** (deferred 2026-09-13; audit findings H2/M1) —
+- 🟡 **AI prompt-injection hardening** (deferred 2026-09-13; audit findings H2/M1; the chats done 2026-10-14 — `chatGuard`, `check-chat-identity.ts`; one-shot prompts left, BACKLOG item 19) —
   the AI endpoints splice user free-text (the word, a custom meaning style, reader
   text, coach/scene messages) straight into LLM prompts. An invited user could try to
   override the system prompt, exfiltrate it, or coerce off-task generation that spends

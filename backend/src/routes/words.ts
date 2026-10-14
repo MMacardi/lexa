@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { readSession } from "../lib/auth.js";
 import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeature, importAllowance, callerId } from "../lib/entitlements.js";
-import { env } from "../lib/env.js";
+import { env, FOCUS } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
 import { tutorChat } from "../services/tutorChat.js";
@@ -73,6 +73,11 @@ import { rateLimit } from "../lib/rateLimit.js";
 import { VISIBILITIES } from "../services/community.js";
 
 // REST API consumed by the Next.js frontend. All word endpoints live here.
+// The learner's own language. While focused the app is Chinese explained in Russian
+// (the frontend's FIXED_PAIR), so an account saved as English before that still gets
+// the Russian meanings — the only shared ones there are.
+const learnerNative = (lang: string | null | undefined) => (FOCUS ? "ru" : lang ?? undefined);
+
 export const wordsRouter = Router();
 
 // Cost guard: throttle only the expensive LLM-backed POSTs (per caller). A human
@@ -271,7 +276,7 @@ wordsRouter.post("/hsk/check", async (req, res) => {
     version,
     target: b.target,
     claimed: b.claimed,
-    native: user?.nativeLang ?? b.native,
+    native: learnerNative(user?.nativeLang ?? b.native),
     done: b.done,
     skip: (w) => status.has(w) || seen.has(w),
   });
@@ -339,7 +344,7 @@ wordsRouter.get("/hsk/list", async (req, res) => {
   const level = Number(req.query.level) || 1;
   // Each word's shared meaning in the learner's language where there is one (Russian
   // today) — the sweep's spot check asks for it, with no model call.
-  const native = (await prisma.user.findUnique({ where: { telegramId }, select: { nativeLang: true } }))?.nativeLang;
+  const native = learnerNative((await prisma.user.findUnique({ where: { telegramId }, select: { nativeLang: true } }))?.nativeLang);
   const words = (await hskListWords(telegramId, version, level)).map((w) => ({ ...w, meaning: defaultMeaning(w.word, native) }));
   res.json({ version, level, words });
 });

@@ -8,6 +8,7 @@ import { getLearnerLevel, levelName, usesHsk } from "@/lib/learnPrefs";
 import { type TutorCardCtx } from "@/lib/useTutorChat";
 import { useSharedTutorChat, useReportPanelOpen } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
+import { FIXED_PAIR } from "@/lib/langs";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
@@ -224,7 +225,7 @@ export function GlobalTutor() {
               </div>
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              <ChatPairPicker pair={pair} onChange={changePair} />
+              {!FIXED_PAIR && <ChatPairPicker pair={pair} onChange={changePair} />}
               {/* Past chats sit next to the pair, where the eye already is, rather
                   than as one more grey icon among the window controls. */}
               <ChatHistoryMenu chat={chat} compact />

@@ -35,6 +35,21 @@ export const LEARNING_LANGS = FOCUS
 // The learning language onboarding starts on; null = keep the old guess.
 export const DEFAULT_LEARNING_LANG: string | null = FOCUS ? "zh" : null;
 
+// The one study pair while focused: Chinese, explained in Russian (the author,
+// 2026-10-14: the dictionary is Russian only — "we can do just russian to chinese
+// and chinese to russian"). Every pair picker hides behind it and every reader of
+// the stored pair returns it: the pair lived in localStorage only, so on a second
+// device the Reader, Mika and the coach opened on "learning English, I know
+// Chinese" (the add form, mounted on every page, saved its en → zh default first).
+// Cards saved in another pair still render and review in their own.
+export const FIXED_PAIR: { sourceLang: string; targetLang: string } | null = FOCUS
+  ? { sourceLang: "zh", targetLang: "ru" }
+  : null;
+
+// "Chinese → Russian" on a card says nothing when every card is that.
+export const isFixedPair = (sourceLang: string, targetLang: string) =>
+  !!FIXED_PAIR && displayCode(sourceLang) === FIXED_PAIR.sourceLang && targetLang === FIXED_PAIR.targetLang;
+
 // Display-only code mapping: legacy `zh-Hant` records render as plain Chinese.
 export function displayCode(code: string): string {
   return code === "zh-Hant" ? "zh" : code;

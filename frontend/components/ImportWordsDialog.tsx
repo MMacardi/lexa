@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { PairChip } from "@/components/PairChip";
+import { FIXED_PAIR } from "@/lib/langs";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { cn } from "@/lib/utils";
 import { HoverPreview } from "@/components/HoverPreview";
@@ -378,18 +379,21 @@ export function ImportWordsDialog({
                 }}
               >
                 {/* The account's pair, stated; an "English → Russian / Russian → English"
-                    switch used to open this dialog in an app about Chinese. */}
-                <PairChip
-                  source={sourceLang}
-                  target={targetLang}
-                  onSource={setSourceLang}
-                  onTarget={setTargetLang}
-                  onSwap={() => {
-                    setSourceLang(targetLang);
-                    setTargetLang(sourceLang);
-                  }}
-                  menuClassName="z-[240]"
-                />
+                    switch used to open this dialog in an app about Chinese. None while
+                    the pair is fixed. */}
+                {!FIXED_PAIR && (
+                  <PairChip
+                    source={sourceLang}
+                    target={targetLang}
+                    onSource={setSourceLang}
+                    onTarget={setTargetLang}
+                    onSwap={() => {
+                      setSourceLang(targetLang);
+                      setTargetLang(sourceLang);
+                    }}
+                    menuClassName="z-[240]"
+                  />
+                )}
                 <textarea
                   value={text}
                   onChange={(event) => setText(event.target.value)}

@@ -11,7 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
 import { useToast } from "@/lib/toast";
-import { pairLabel } from "@/lib/langs";
+import { isFixedPair, pairLabel } from "@/lib/langs";
 import { AddWordForm } from "@/components/AddWordForm";
 import { ImportWordsDialog, exportWords } from "@/components/ImportWordsDialog";
 import { CollectionSelect } from "@/components/CollectionSelect";
@@ -368,7 +368,7 @@ export default function WordsPage() {
                     </span>{" "}
                     {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
                     <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-                      {pairLabel(w.sourceLang, w.targetLang)}
+                      {!isFixedPair(w.sourceLang, w.targetLang) && pairLabel(w.sourceLang, w.targetLang)}
                       <HskBadge hsk={w.hsk} />
                     </span>
                     <span className={cn("mt-0.5 block truncate text-sm text-sage sm:hidden", targetFont(w.targetLang))}>
@@ -400,7 +400,7 @@ export default function WordsPage() {
                         )
                           del.mutate(w.id);
                       }}
-                      className="text-ink-faint opacity-100 transition-opacity hover:text-warn-text md:opacity-0 md:group-hover:opacity-100"
+                      className="-m-2.5 p-2.5 text-ink-faint opacity-100 transition-opacity hover:text-warn-text md:opacity-0 md:group-hover:opacity-100"
                     >
                       <X className="h-4 w-4" />
                     </button>

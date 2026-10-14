@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, type HskVersion, type LearnerPrefs } from "@/lib/api";
+import { FIXED_PAIR } from "@/lib/langs";
 
 // Learner preferences. Most are local-only display settings (example style, card
 // layout, reader source). Four of them — level, native language, daily goal and
@@ -393,6 +394,7 @@ const NATIVE_KEY = "lexa.nativeLang";
 // The pair every surface shares (Add form, Reader, Coach, Mika), as last set —
 // onboarding writes it, so on the HSK track it is Chinese → your language.
 export function getStudyPair(): { sourceLang: string; targetLang: string } | null {
+  if (FIXED_PAIR) return { ...FIXED_PAIR };
   if (typeof window === "undefined") return null;
   try {
     const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string; targetLang?: string } | null;
@@ -403,6 +405,7 @@ export function getStudyPair(): { sourceLang: string; targetLang: string } | nul
 }
 
 export function getNativeLang(): string | null {
+  if (FIXED_PAIR) return FIXED_PAIR.targetLang;
   if (typeof window === "undefined") return null;
   return localStorage.getItem(NATIVE_KEY) || null;
 }

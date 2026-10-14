@@ -15,6 +15,7 @@ import {
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { langLabel } from "@/lib/langs";
+import { FOCUS } from "@/lib/focus";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { useIsPro } from "@/lib/useIsPro";
@@ -39,7 +40,7 @@ export function AddExampleInline({ word }: { word: Word }) {
   // AI-example knobs (local: tweaking here doesn't change the add-word default).
   const pro = useIsPro();
   const upsell = useUpsell();
-  const [src, setSrc] = useState<"ai" | "web">(() => getExampleSource());
+  const [src, setSrc] = useState<"ai" | "web">(() => (FOCUS ? "ai" : getExampleSource()));
   const [style, setStyle] = useState<ExampleStyle>(() => {
     const s = getExampleStyle();
     return s === "none" ? "casual" : s;
@@ -131,7 +132,8 @@ export function AddExampleInline({ word }: { word: Word }) {
           another AI example (only web ones are Pro): every card comes with two, and
           the old cap of two was spent before the learner asked for one. */}
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented
+        {/* Focused, the only source is AI (the web miner is off): no switch with one side. */}
+        {!FOCUS && <Segmented
           size="sm"
           value={pro ? src : "ai"}
           onChange={(m) => (m === "web" && !pro ? upsell() : setSrc(m))}
@@ -152,7 +154,7 @@ export function AddExampleInline({ word }: { word: Word }) {
               ),
             };
           })}
-        />
+        />}
         {src === "ai" && (
           <Select
             value={style}

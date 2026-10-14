@@ -1,6 +1,7 @@
 import { chatJsonConversation, type ChatMessage } from "./llm.js";
 import { coachDrillSchema, type CoachDrillResult } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
+import { chatGuard, noVendor } from "../lib/persona.js";
 import { levelGuide } from "./levelGuide.js";
 import { asProductionError } from "./production.js";
 import { track } from "./analytics.js";
@@ -40,6 +41,8 @@ export async function coachDrill(params: {
         (params.profileNote ?? "") +
         `You are an adaptive, warm ${source} practice coach. The learner's own language is ${target}.` +
         level +
+        `\n\n` +
+        chatGuard({ role: ", here the learner's practice coach" }) +
         `\n\nYour job: run a short, lively workout over EXACTLY these words the learner is studying:\n` +
         `${wordList}\n\n` +
         `How the session goes:\n` +
@@ -92,7 +95,7 @@ export async function coachDrill(params: {
   // A graded answer is a use-step: the learner produced the word, not recognised it.
   if (grade !== "none") track("use_step", { props: { kind: "drill", grade } });
   return {
-    say: result.say.trim(),
+    say: noVendor(result.say),
     drillWord: (result.drillWord ?? "").trim(),
     grade,
     gradedWord: (result.gradedWord ?? "").trim(),

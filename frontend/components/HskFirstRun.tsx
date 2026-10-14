@@ -22,7 +22,7 @@ import {
   type ExampleStyle,
 } from "@/lib/learnPrefs";
 import { LangSelect } from "@/components/LangSelect";
-import { langFlag, langLabel } from "@/lib/langs";
+import { FIXED_PAIR, langFlag, langLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { HskWordChip } from "@/components/HskWordChip";
@@ -90,10 +90,13 @@ const DECK_SIZE = 20;
 export { CEFR_FOR_HSK };
 
 type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done" | "building" | "ready";
-const STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"];
+// With the pair fixed there is no "which language do you speak" to ask.
+const asked = (steps: Step[]) => (FIXED_PAIR ? steps.filter((s) => s !== "lang") : steps);
+const FIRST_STEP: Step = FIXED_PAIR ? "goal" : "lang";
+const STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"]);
 // Before sign-in the whole first five minutes happen here: the questions, the
 // check, the plan being built, the words — and the account comes last, to keep them.
-const GUEST_STEPS: Step[] = ["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready"];
+const GUEST_STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready"]);
 // Lines on the "building your plan" screen, ticked off one by one.
 const BUILD_STEPS = 4;
 const BUILD_STEP_MS = 850;
@@ -299,7 +302,9 @@ export function HskFirstRun({
   const [saved] = useState(() => (guest ? null : readAnswers()));
   // "I already know" — Russian by default, and only overridden by the browser's
   // own language. The learning side is never a picker here: it is Chinese.
-  const [native, setNative] = useState(saved?.native ?? (locale === "zh" ? "en" : locale === "en" ? "en" : "ru"));
+  const [native, setNative] = useState(
+    FIXED_PAIR?.targetLang ?? saved?.native ?? (locale === "zh" ? "en" : locale === "en" ? "en" : "ru"),
+  );
   const [goals, setGoals] = useState<Set<string>>(new Set(saved?.goals ?? ["exam"]));
   const [known, setKnown] = useState<number | null>(saved?.known ?? null); // self-rated level, 0–5
   const [version, setVersion] = useState<HskVersion>(saved?.version ?? "3.0");
@@ -309,7 +314,7 @@ export function HskFirstRun({
   const exampleStyle = useExampleStyle();
   const [daily, setDaily] = useState(saved?.daily ?? wordsFor(15));
 
-  const [step, setStep] = useState<Step>(saved ? "plan" : "lang");
+  const [step, setStep] = useState<Step>(saved ? "plan" : FIRST_STEP);
   const [busy, setBusy] = useState(false);
   // What the check found, once its screens are over.
   const [result, setResult] = useState<CheckResult | null>(null);
@@ -999,7 +1004,7 @@ export function HskFirstRun({
 
       {/* The textbook path: this week's list, photographed or pasted, becomes
           cards in the same pair — a way in that skips the questions. */}
-      {step === "lang" && !guest && !onFinish && (
+      {step === FIRST_STEP && !guest && !onFinish && (
         <div className="rounded-[22px] border border-black/[0.06] bg-surface p-5">
           <p className="text-[15px] font-semibold text-ink">{t("hskFirst.textbookTitle")}</p>
           <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.textbookSub")}</p>

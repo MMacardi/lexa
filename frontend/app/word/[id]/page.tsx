@@ -9,7 +9,7 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
-import { isAiSupported, pairLabel } from "@/lib/langs";
+import { isAiSupported, isFixedPair, pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
@@ -227,9 +227,11 @@ export default function WordDetailPage() {
               {word.partOfSpeech}
             </span>
           )}
-          <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
-            {pairLabel(word.sourceLang, word.targetLang)}
-          </span>
+          {!isFixedPair(word.sourceLang, word.targetLang) && (
+            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
+              {pairLabel(word.sourceLang, word.targetLang)}
+            </span>
+          )}
           <HskBadge hsk={word.hsk} />
         </div>
         {shownMeaning(word) && (

@@ -11,7 +11,8 @@ import { isOnline, queueAdd } from "@/lib/sync";
 import { errText } from "@/lib/errText";
 import { X, Plus, Sparkles, PenLine, Globe, Ban, ChevronDown, Languages, Brush, Check, ArrowRight } from "lucide-react";
 import { useDialog } from "@/lib/dialog";
-import { displayCode, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
+import { FOCUS } from "@/lib/focus";
+import { displayCode, FIXED_PAIR, isAiSupported, isAmbiguousHan, langLabel, sampleWord, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import {
   CEFR_LEVELS,
   EXAMPLE_STYLES,
@@ -72,6 +73,7 @@ const REVERSE_INPUT_KEY = "lexa.reverseInput";
 let skipDupWarn = false;
 
 function readStoredPair() {
+  if (FIXED_PAIR) return { ...FIXED_PAIR };
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(PAIR_KEY);
@@ -133,8 +135,8 @@ export function AddWordForm({
 
   const [mode, setMode] = useState<Mode>("auto");
   const [word, setWord] = useState("");
-  const [sourceLang, setSourceLang] = useState("en");
-  const [targetLang, setTargetLang] = useState("zh");
+  const [sourceLang, setSourceLang] = useState(FIXED_PAIR?.sourceLang ?? "en");
+  const [targetLang, setTargetLang] = useState(FIXED_PAIR?.targetLang ?? "zh");
   const [pairReady, setPairReady] = useState(false);
   const [modeReady, setModeReady] = useState(false);
   const [resolvedSourceLang, setResolvedSourceLang] = useState<string | null>(null);
@@ -227,7 +229,9 @@ export function AddWordForm({
   const exSource = useExampleSource();
   // One control for where examples come from: AI-composed, mined from the web, or
   // none. Derived from the style/source prefs so it stays a single source of truth.
-  const exMode: "ai" | "web" | "none" = style === "none" ? "none" : exSource === "web" ? "web" : "ai";
+  // Focused, the backend composes every example (the web miner is off), so "web"
+  // isn't offered — a stored "web" from before reads as AI.
+  const exMode: "ai" | "web" | "none" = style === "none" ? "none" : exSource === "web" && !FOCUS ? "web" : "ai";
   const setExMode = (m: "ai" | "web" | "none") => {
     if (m === "none") {
       setExampleStyle("none");
@@ -1171,7 +1175,7 @@ export function AddWordForm({
       {compose && wordBlock}
       {modeBlock}
       {compose && manualBlock}
-      {pairBlock}
+      {!FIXED_PAIR && pairBlock}
       {recentBlock}
       {inputPickerBlock}
       {!compose && wordBlock}
@@ -1193,7 +1197,7 @@ export function AddWordForm({
                 ["ai", Sparkles],
                 ["web", Globe],
                 ["none", Ban],
-              ] as const).map(([m, Icon]) => {
+              ] as const).filter(([m]) => m !== "web" || !FOCUS).map(([m, Icon]) => {
                 const locked = m === "web" && !pro; // web-sourced examples are Pro
                 return {
                   value: m,

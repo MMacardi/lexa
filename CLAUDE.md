@@ -56,7 +56,9 @@ Not a full HSK exam app (no mock tests): the list is the source of words, the po
 complete the flow as a learner would — local Docker only, never prod (it holds real data, backups
 are still item 1, and account delete is irreversible). For backend logic a throwaway
 `backend/scripts/check-*.ts` that seeds a user and asserts the output is cheaper than a browser run
-and survives as a regression guard; `check-account-delete.ts` is the pattern.
+and survives as a regression guard; `check-account-delete.ts` is the pattern. Layout on phones: `node frontend/scripts/phone-audit.mjs <out>`
+(every page × WebKit/Chrome/Firefox phones). A changed chat prompt: `backend/scripts/check-chat-identity.ts`
+(Mika never names the model) and `check-chat-format.ts`.
 
 Why this is a rule: on 2026-09-23 two tasks shipped clean builds on top of a step that was broken
 underneath — the gap deck hands an HSK 4 learner the alphabetical head of HSK 1 and ignores the

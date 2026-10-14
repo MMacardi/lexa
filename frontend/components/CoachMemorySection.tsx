@@ -8,6 +8,7 @@ import { translationsOf, useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { LangSelect } from "@/components/LangSelect";
+import { FIXED_PAIR } from "@/lib/langs";
 import { ExamPlan } from "@/components/ExamPlan";
 import { GOALS, INTERESTS } from "@/components/HskFirstRun";
 import { cn } from "@/lib/utils";
@@ -107,12 +108,13 @@ export function CoachMemorySection() {
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState(FIXED_PAIR?.sourceLang ?? "en");
 
   // Start on the pair the learner actually uses, so the section opens on the language
   // they care about rather than always English.
   useEffect(() => {
     try {
+      if (FIXED_PAIR) return;
       const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string } | null;
       if (p?.sourceLang) setLang(p.sourceLang);
     } catch {
@@ -177,10 +179,12 @@ export function CoachMemorySection() {
       <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">{t("coachmem.hint")}</p>
 
       <div className="mt-4 space-y-3">
-        <div>
-          <label className="text-[13px] font-semibold text-ink">{t("coachmem.lang")}</label>
-          <LangSelect value={lang} onChange={setLang} className="mt-1" />
-        </div>
+        {!FIXED_PAIR && (
+          <div>
+            <label className="text-[13px] font-semibold text-ink">{t("coachmem.lang")}</label>
+            <LangSelect value={lang} onChange={setLang} className="mt-1" />
+          </div>
+        )}
         {lang === "zh" ? (
           <>
             <div id="plan" className="scroll-mt-24">

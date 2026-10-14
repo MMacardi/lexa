@@ -7,7 +7,7 @@ import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
-import { displayCode, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
+import { displayCode, FIXED_PAIR, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
 import { getExampleSource, getExampleStyle, getLearnerLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { downscaleImage } from "@/lib/image";
@@ -127,6 +127,7 @@ function payloadMessages(msgs: TutorMsg[]): { role: "user" | "assistant"; conten
 
 // The learner's current pair (shared with Add/Reader). Tutor adds words to it.
 function readPair(): { source: string; target: string } {
+  if (FIXED_PAIR) return { source: FIXED_PAIR.sourceLang, target: FIXED_PAIR.targetLang };
   if (typeof window === "undefined") return { source: "en", target: "zh" };
   try {
     const p = JSON.parse(localStorage.getItem(PAIR_KEY) ?? "null") as { sourceLang?: string; targetLang?: string };

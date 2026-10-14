@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLearnerLevel, getExampleStyle, getNativeLang, levelName } from "@/lib/learnPrefs";
-import { isAiSupported, langLabel } from "@/lib/langs";
+import { FIXED_PAIR, isAiSupported, langLabel } from "@/lib/langs";
 import { PairChip } from "@/components/PairChip";
 import { HskBadge } from "@/components/HskBadge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ function writePicksLS(account: string, source: string, target: string, data: Pic
 // The shared pair (the Add form and the Reader write it). With none yet, the pair
 // the app is built for: Chinese, explained in the learner's own language.
 export function readPair(): { source: string; target: string } {
+  if (FIXED_PAIR) return { source: FIXED_PAIR.sourceLang, target: FIXED_PAIR.targetLang };
   const fallback = () => ({ source: "zh", target: getNativeLang() || "ru" });
   if (typeof window === "undefined") return { source: "zh", target: "ru" };
   try {
@@ -282,14 +283,16 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
 
       {!compact && (
         <>
-          {/* language pair: stated as a chip, changed from it */}
-          <PairChip
-            source={pair.source}
-            target={pair.target}
-            onSource={(source) => changePair({ ...pair, source })}
-            onTarget={(target) => changePair({ ...pair, target })}
-            onSwap={() => changePair({ source: pair.target, target: pair.source })}
-          />
+          {/* language pair: stated as a chip, changed from it (none while it's fixed) */}
+          {!FIXED_PAIR && (
+            <PairChip
+              source={pair.source}
+              target={pair.target}
+              onSource={(source) => changePair({ ...pair, source })}
+              onTarget={(target) => changePair({ ...pair, target })}
+              onSwap={() => changePair({ source: pair.target, target: pair.source })}
+            />
+          )}
 
           <div className="space-y-3 rounded-[14px] bg-black/[0.025] p-3.5">
             {/* The goal: saved, and behind every set. A saved one is stated in a line

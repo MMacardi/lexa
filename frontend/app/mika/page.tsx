@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { getLearnerLevel, levelName, usesHsk } from "@/lib/learnPrefs";
 import { useSharedTutorChat, useTutorLastPath } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
+import { FIXED_PAIR } from "@/lib/langs";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
@@ -125,7 +126,7 @@ export default function MikaPage() {
               {t("common.back")}
             </Link>
           ) : null}
-          <ChatPairPicker pair={pair} onChange={changePair} className="inline-block" />
+          {!FIXED_PAIR && <ChatPairPicker pair={pair} onChange={changePair} className="inline-block" />}
         </div>
       </div>
 

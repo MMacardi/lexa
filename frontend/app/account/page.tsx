@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Segmented";
 import { LangSelect } from "@/components/LangSelect";
-import { langLabel } from "@/lib/langs";
+import { FIXED_PAIR, langLabel } from "@/lib/langs";
 import {
   RETENTION_OPTIONS,
   DEFAULT_RETENTION,
@@ -57,7 +57,7 @@ import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
 import { FOCUS } from "@/lib/focus";
-import { Sun, Moon, X, Pencil, Check, Eye, EyeOff, Sparkles, PenLine, type LucideIcon } from "lucide-react";
+import { Sun, Moon, X, Pencil, Check, Eye, EyeOff } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -107,13 +107,16 @@ function LevelsSection() {
         </ul>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-medium text-ink">{t("native.label")}</p>
-          <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{t("native.hint")}</p>
+      {/* Nothing to choose while the pair is fixed: meanings are in Russian. */}
+      {!FIXED_PAIR && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-medium text-ink">{t("native.label")}</p>
+            <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{t("native.hint")}</p>
+          </div>
+          <LangSelect value={native ?? ""} onChange={setNativeLang} placeholder={t("native.unset")} className="w-[180px]" />
         </div>
-        <LangSelect value={native ?? ""} onChange={setNativeLang} placeholder={t("native.unset")} className="w-[180px]" />
-      </div>
+      )}
 
       {hanLang && (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
@@ -319,10 +322,10 @@ function TextLevelSection() {
 function GraphAddSection() {
   const { t } = useI18n();
   const method = useGraphAddMethod();
-  const opts: { id: GraphAddMethod; label: string; icon?: LucideIcon }[] = [
+  const opts: { id: GraphAddMethod; label: string }[] = [
     { id: "ask", label: t("graphadd.ask") },
-    { id: "ai", label: t("add.auto"), icon: Sparkles },
-    { id: "manual", label: t("add.manual"), icon: PenLine },
+    { id: "ai", label: t("exmode.ai") },
+    { id: "manual", label: t("add.manual") },
   ];
   return (
     <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
@@ -334,7 +337,9 @@ function GraphAddSection() {
         size="lg"
         value={method}
         onChange={setGraphAddMethod}
-        options={opts.map((o) => ({ value: o.id, label: o.label, Icon: o.icon }))}
+        // Short labels, no icons: "Авто (ИИ)" with icons overran a 320 px phone
+        // and the page scrolled sideways (iPhone SE, 2026-10-14).
+        options={opts.map((o) => ({ value: o.id, label: o.label }))}
       />
     </section>
   );

@@ -7,6 +7,7 @@ import { chatJson, chatJsonConversation, chatJsonConversationStream, type ChatMe
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
+import { chatGuard, noVendor } from "../lib/persona.js";
 import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
 import { copiedCredits, mintShareCode, type Visibility } from "./community.js";
@@ -1203,6 +1204,8 @@ export async function askAboutWord(
         `(meaning, usage, grammar, nuance, related words, pronunciation, examples). If the learner ` +
         `asks about anything unrelated (general knowledge, tech, people, etc.), politely decline in ` +
         `${targetName} and steer back to the word.\n\n` +
+        chatGuard({ role: ", here answering questions about one word" }) +
+        `\n\n` +
         `SELF-TEST: if the learner asks you to test/quiz them (or says they'll try to recall it), ask ONE ` +
         `short question about this word — e.g. use it in a sentence, give its meaning, or when to use it — ` +
         `and wait. When they answer, GRADE it warmly: say what was right, gently correct mistakes, and ` +
@@ -1242,7 +1245,7 @@ export async function askAboutWord(
   const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
   const self = word.word.trim().toLowerCase();
   return {
-    answer: result.answer.trim(),
+    answer: noVendor(result.answer),
     addSynonyms: (result.addSynonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addAntonyms: (result.addAntonyms ?? []).filter((s) => s.trim() && !have.has(s.trim().toLowerCase())),
     addWords: (result.addWords ?? []).filter((s) => s.trim() && s.trim().toLowerCase() !== self),

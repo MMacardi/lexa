@@ -12,7 +12,7 @@ import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
-import { detectDominantLang, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
+import { detectDominantLang, FIXED_PAIR, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
   getReaderSource,
   hasTranscription,
@@ -119,8 +119,8 @@ export default function ReaderPage() {
   const autoGloss = useAutoGloss();
   const rubyAll = useRubyAll();
 
-  const [sourceLang, setSourceLang] = useState("en");
-  const [targetLang, setTargetLang] = useState("zh");
+  const [sourceLang, setSourceLang] = useState(FIXED_PAIR?.sourceLang ?? "en");
+  const [targetLang, setTargetLang] = useState(FIXED_PAIR?.targetLang ?? "zh");
   const swapLangs = () => {
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
@@ -257,7 +257,7 @@ export default function ReaderPage() {
   // Restore the shared pair (Reader needs a concrete source language, not auto).
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(PAIR_KEY);
+      const raw = FIXED_PAIR ? null : localStorage.getItem(PAIR_KEY);
       if (raw) {
         const p = JSON.parse(raw) as { sourceLang?: string; targetLang?: string };
         if (p.sourceLang && p.sourceLang !== "auto") setSourceLang(p.sourceLang);
@@ -1112,7 +1112,7 @@ export default function ReaderPage() {
 
         <div className="space-y-3 rounded-[20px] border border-black/[0.06] bg-surface p-4 sm:p-5">
           {/* The pair stated, not asked; the pickers open from the chip. */}
-          <PairChip source={sourceLang} target={targetLang} onSource={setSourceLang} onTarget={setTargetLang} onSwap={swapLangs} />
+          {!FIXED_PAIR && <PairChip source={sourceLang} target={targetLang} onSource={setSourceLang} onTarget={setTargetLang} onSwap={swapLangs} />}
 
           {/* Quick switches to other recent pairs: another "which language?" in a
               one-pair app, so hidden while focused (F17); the chip still changes it. */}

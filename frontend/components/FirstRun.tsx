@@ -9,7 +9,7 @@ import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { setLearnerLevel, pushRecentPair, getNativeLang, setNativeLang, levelOptions, usesHsk, CEFR_FOR_HSK, type CefrLevel } from "@/lib/learnPrefs";
 import { starterWords } from "@/lib/starterDecks";
-import { DEFAULT_LEARNING_LANG, LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
+import { DEFAULT_LEARNING_LANG, FIXED_PAIR, LEARNING_LANGS, langFlag, langLabel } from "@/lib/langs";
 import { useCustomLangs } from "@/lib/customLangs";
 import { LangSelect } from "@/components/LangSelect";
 import { Select } from "@/components/ui/Select";
@@ -66,7 +66,9 @@ function dropCache(id: string) {
 // placement-test call is never spent on a learner who never sees it.
 export function FirstRun() {
   // "I'm learning another language", tapped in the questions before sign-in.
+  // With the pair fixed there is no other language to take that path to.
   const [other, setOther] = useState(() => {
+    if (FIXED_PAIR) return false;
     try {
       return localStorage.getItem(OTHER_LANGUAGE_KEY) === "1";
     } catch {
