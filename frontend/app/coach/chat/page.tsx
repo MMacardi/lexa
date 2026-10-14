@@ -147,15 +147,16 @@ export default function CoachChatPage() {
       return 0;
     }
   });
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Aborts an in-flight streamed reply (unmount, or sending while one is streaming).
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // The thread grows with the page (BACKLOG 1j), so the page follows the newest line.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [turns, busy, finished]);
+    if (!started || turns.length === 0) return;
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  }, [started, turns, busy, finished]);
 
   function addLifetime(delta: number) {
     setLifetime((cur) => {
@@ -439,8 +440,11 @@ export default function CoachChatPage() {
   const srcFontCls = pair && (pair.source === "zh" || pair.source === "zh-Hant" || pair.source === "ja") ? "font-zh" : "";
   const level = levelFor(lifetime);
 
+  // One page scroll, setup and conversation alike, with the composer pinned above the bottom
+  // bar: a viewport-tall box with its own scroll left a small phone a ~300 px window for the
+  // setup and a ~30 px one for the thread (BACKLOG 1j).
   return (
-    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-176px)] max-w-[720px] flex-col md:h-[calc(100dvh-140px)]">
+    <div className="anim-fade-up mx-auto flex max-w-[720px] flex-col">
       <div className="mb-3">
         <Link href="/mika" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
           <ArrowLeft className="h-4 w-4" /> {t("nav.mika")}
@@ -467,7 +471,7 @@ export default function CoachChatPage() {
       </div>
 
       {!started ? (
-        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 text-center">
+        <div className="flex flex-col items-center rounded-[22px] border border-black/[0.06] bg-surface p-7 text-center">
           <h2 className="font-serif text-[22px] font-semibold text-ink">{t("chat.heroTitle")}</h2>
           <p className="mt-2 max-w-[460px] text-[14px] leading-relaxed text-ink-soft">{t("chat.heroSub")}</p>
           {lifetime > 0 && (
@@ -571,7 +575,7 @@ export default function CoachChatPage() {
             </div>
           )}
 
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
+          <div className="space-y-4 rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
               <Bubble
                 key={i}
@@ -625,7 +629,8 @@ export default function CoachChatPage() {
           </div>
 
           {!finished && (
-            <div className="mt-3">
+            // Pinned above the bottom bar while the thread scrolls under it.
+            <div className="sticky bottom-[calc(60px+env(safe-area-inset-bottom))] z-10 bg-paper pb-2 pt-3 md:bottom-0">
               <div className="mb-2 flex items-center gap-2">
                 <button
                   type="button"

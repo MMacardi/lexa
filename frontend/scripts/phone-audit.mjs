@@ -3,7 +3,6 @@
 // scrolling sideways, an element past the screen edge, tap targets under 28 px, inputs
 // under 16 px (iOS Safari zooms the page on focus), controls left under the bottom bar
 // at the end of the page, console errors. Screenshots per page (full-page on iPhone 13).
-// "Under the bar" on the Practice pages is their inner scroll box, not the bar.
 //
 // Local Docker only (it signs in with /api/auth/dev). Needs the Playwright CLI installed
 // globally (npm i -g @playwright/cli) and its browsers (… playwright-core/cli.js install

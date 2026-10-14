@@ -222,7 +222,6 @@ export default function CoachScenePage() {
   const [corrections, setCorrections] = useState<SceneCorrection[]>([]);
   const [reviewedCount, setReviewedCount] = useState(0);
   const gradedRef = useRef<Set<string>>(new Set()); // mission words already logged as produced this session
-  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Aborts an in-flight streamed reply (unmount, or sending while one is streaming).
@@ -272,9 +271,11 @@ export default function CoachScenePage() {
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
 
+  // The thread grows with the page (BACKLOG 1j), so the page follows the newest line.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [turns, busy, done]);
+    if (!started || turns.length === 0) return;
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  }, [started, turns, busy, done]);
 
   // Client backstop: catch inflected mission-word uses the model may under-report.
   function scanMessage(text: string): string[] {
@@ -711,8 +712,11 @@ export default function CoachScenePage() {
   // real blocker now; an empty candidate pool is fine, the scene runs on new words.
   const hasWords = deck.length > 0;
 
+  // One page scroll, setup and conversation alike, with the composer pinned above the bottom
+  // bar: a viewport-tall box with its own scroll left a small phone a ~300 px window for the
+  // setup and a ~30 px one for the thread (BACKLOG 1j).
   return (
-    <div className="anim-fade-up mx-auto flex h-[calc(100dvh-176px)] max-w-[720px] flex-col md:h-[calc(100dvh-140px)]">
+    <div className="anim-fade-up mx-auto flex max-w-[720px] flex-col">
       <div className="mb-3">
         <Link href="/mika" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
           <ArrowLeft className="h-4 w-4" /> {t("nav.mika")}
@@ -748,7 +752,7 @@ export default function CoachScenePage() {
 
       {/* ---------- 1. SETUP: pick pair/scope/idea, then generate the scene ---------- */}
       {!scene ? (
-        <div className="flex flex-1 flex-col items-center overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-7 py-8 text-center">
+        <div className="flex flex-col items-center rounded-[22px] border border-black/[0.06] bg-surface p-7 py-8 text-center">
           <p className="max-w-[460px] text-[14.5px] leading-relaxed text-ink-soft">{t("scene.heroSub")}</p>
 
           {!hasWords ? (
@@ -936,7 +940,7 @@ export default function CoachScenePage() {
         </div>
       ) : !started ? (
         /* ---------- 2. BRIEFING: the premise card the learner reads, then "Begin" ---------- */
-        <div className="flex flex-1 flex-col overflow-y-auto rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface p-6 sm:p-8">
+        <div className="flex flex-col rounded-[22px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface p-6 sm:p-8">
           <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-sage-deep">
             <Clapperboard className="h-4 w-4" /> {t("scene.badge")}
           </div>
@@ -1097,7 +1101,7 @@ export default function CoachScenePage() {
             </div>
           )}
 
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
+          <div className="space-y-4 rounded-[22px] border border-black/[0.06] bg-surface p-4 sm:p-5">
             {turns.map((turn, i) => (
               <Bubble
                 key={i}
@@ -1134,7 +1138,8 @@ export default function CoachScenePage() {
           </div>
 
           {!done && (
-            <div className="mt-3">
+            // Pinned above the bottom bar while the thread scrolls under it.
+            <div className="sticky bottom-[calc(60px+env(safe-area-inset-bottom))] z-10 bg-paper pb-2 pt-3 md:bottom-0">
               <div className="mb-2 flex items-center gap-2">
                 <button
                   type="button"

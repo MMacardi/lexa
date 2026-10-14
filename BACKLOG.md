@@ -554,12 +554,17 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    chat as a "situation" option. **Also found:** a scene turn's `used` credits the character's words
    too (4/5 after the learner said one, `coachSceneTurn.ts`); it should count the learner's line only.
 
-1j. **The practice pages on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
+1j. [x] **The practice pages on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
    `/coach/chat` and `/coach/practice` are full-height with an inner scroll card: at 320×568 the
    setup (level, tap-translation, the presets) lives in a ~300 px window under the header and the
    title (`frontend/scripts/phone-audit.mjs` read the presets as "under the bottom bar" in WebKit,
    Chrome and Firefox). The setup should scroll with the page; the composer pinned only once the
-   conversation starts.
+   conversation starts. **Done 2026-10-14:** the three pages are one page scroll in every phase; in
+   the conversation the thread grows with the page and the composer is `sticky` above the bottom bar
+   (the window's bottom on desktop), the page following the newest line. Running it showed the
+   conversation was the worse half: at 320×568 the thread was a ~30 px box under the title, the
+   level/tap bar and the word chips. SE audit: nothing under the bar on the three pages; a resumed
+   scene and a fresh chat at 320×568 keep the composer at the same place scrolled top or bottom.
 
 1k. **Today, shorter again, and the small fixes the audit found.** At 390×844 Today is still about
    five screens: the review, Пропись, 24 words of the day (each chip repeats "HSK 5" under a header
