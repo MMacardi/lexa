@@ -47,7 +47,9 @@ const ALL_NAV: NavItem[] = [
 // Everything still in the build — coach, flashcards, recall, sets, friends — moves
 // under "More". Only Community (public discovery) stays off: friends came back on
 // 2026-09-26 — classmates on the same lesson are the one group that sharing serves.
-const FOCUS_HIDDEN = ["/community"];
+// Практика (/coach) went into Mika on 2026-10-14: its chat, scenes and drill are on
+// her sheet and page, its word picks behind Today's "more words".
+const FOCUS_HIDDEN = ["/community", "/coach"];
 const FOCUS_MAIN = ["/", "/words", "/reader"];
 
 const NAV = FOCUS ? ALL_NAV.filter((n) => !FOCUS_HIDDEN.includes(n.href)) : ALL_NAV;

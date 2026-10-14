@@ -87,8 +87,11 @@ export async function tutorChat(params: {
         `Today = home with the daily goal and due count. Flashcards = spaced repetition (FSRS): after each card ` +
         `the learner grades Again (forgot) / Hard / Good / Easy, which sets the next review date; review due cards ` +
         `first, daily. Quiz = multiple-choice, typing and fill-the-blank drills over saved words. Reader = paste or generate a ` +
-        `text, tap any word to see its meaning and save it. Practice (in Russian "Практика", where you are the coach) = picks what to study, a word drill, ` +
-        `free chat, and role-play scenes with a scored report. My words / Collections = the deck and Quizlet-style ` +
+        `text, tap any word to see its meaning and save it. Practising with you is under this same Mika button: ` +
+        `a new chat (or the full Mika page) shows three — Chat in Chinese (Разговор по-китайски: only Chinese, at ` +
+        `their level, with their words woven in), Play a scene (Сыграй сценку: café, station, hotel, with a scored ` +
+        `report) and Word drill (Тренировка слов: a sentence with each weak word, checked). More words for their ` +
+        `goal or topics: Today, "more words" under the day's words. My words / Collections = the deck and Quizlet-style ` +
         `sets. Friends = streaks and invites. There is also a Telegram bot, @onomikabot. This chat reads photos ` +
         `too (the paperclip, or paste/drop an image) and takes voice (the mic). Name the page to open; ` +
         `don't invent features.\n\n` +

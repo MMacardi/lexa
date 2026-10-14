@@ -113,7 +113,7 @@ export function SceneReportCard({
           <RotateCcw className="h-4 w-4" /> {t("scene.reportAgain")}
         </button>
         <Link
-          href="/coach"
+          href="/mika"
           className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-surface px-4 py-2 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/50"
         >
           <ArrowLeft className="h-4 w-4" /> {t("scene.reportBack")}

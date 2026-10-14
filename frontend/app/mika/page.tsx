@@ -13,8 +13,9 @@ import { FIXED_PAIR } from "@/lib/langs";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
+import { MikaPracticeCards, MikaPracticeLinks } from "@/components/MikaPractice";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Tags, Scale, Layers, BookOpen, MessagesSquare, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
+import { GraduationCap, Tags, Scale, Layers, BookOpen, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
 
 // Welcome-screen presets. Each fills the input (editable, not sent) and doubles as
 // a tour: the blurb says which part of the app it relates to, `href` links there.
@@ -27,7 +28,6 @@ const PRESETS: { key: string; Icon: LucideIcon; href?: string; nav?: string; ope
   { key: "compare", Icon: Scale, open: true },
   { key: "reviews", Icon: Layers, href: "/review", nav: "nav.flashcards" },
   { key: "reader", Icon: BookOpen, href: "/reader", nav: "nav.reader" },
-  { key: "scene", Icon: MessagesSquare, href: "/coach/scene", nav: "scene.heroTitle" },
   { key: "today", Icon: CalendarCheck, href: "/", nav: "nav.today" },
 ];
 
@@ -139,8 +139,17 @@ export default function MikaPage() {
         )}
       >
         {messages.length === 0 ? (
+          <div className="space-y-6">
+          {/* Practice first: it is what a learner can't find anywhere else (they leave
+              the chat), and the ask presets below it are a long list on a phone */}
+          <div className="sm:hidden">
+            <MikaPracticeLinks page />
+          </div>
+          <div className="hidden sm:block">
+            <MikaPracticeCards />
+          </div>
           <section className="space-y-3">
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("mika.tryThese")}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-ink-faint">{t("mika.askGroup")}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {PRESETS.map(({ key, Icon, href, nav, open }) => (
                 <div
@@ -165,6 +174,7 @@ export default function MikaPage() {
               ))}
             </div>
           </section>
+          </div>
         ) : (
           <TutorThread chat={chat} large />
         )}

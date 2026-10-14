@@ -10,7 +10,8 @@ import { useI18n } from "@/lib/i18n";
 import { langLabel } from "@/lib/langs";
 import { CoachPicks, readPair } from "@/components/CoachPicks";
 import { cn } from "@/lib/utils";
-import { Compass, MessageCircle, Clapperboard, ArrowRight } from "lucide-react";
+import { Compass, MessageCircle, Clapperboard, ArrowRight, ArrowLeft } from "lucide-react";
+import { FOCUS } from "@/lib/focus";
 
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
 
@@ -170,6 +171,22 @@ export default function CoachPage() {
     const remark = opts[seed % opts.length];
     return `${greeting} ${remark}`;
   }, [weak, due, weakTop, deck, profile?.goal, pair.source, stats, bestStreak, hskTarget, readiness, t]);
+
+  // Focused, practice is part of Mika (her sheet and page) and Today greets and points
+  // at the slipping words, so what's left here is the word picks behind Today's "more
+  // words" link.
+  if (FOCUS)
+    return (
+      <div className="anim-fade-up mx-auto max-w-[760px] space-y-5">
+        <div>
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
+            <ArrowLeft className="h-4 w-4" /> {t("nav.today")}
+          </Link>
+          <h1 className="mt-3 font-serif text-[30px] font-medium tracking-[-0.01em] text-ink">{t("coach.morePage")}</h1>
+        </div>
+        <CoachPicks />
+      </div>
+    );
 
   return (
     <div className="anim-fade-up mx-auto max-w-[760px] space-y-6">

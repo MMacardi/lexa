@@ -119,9 +119,9 @@ const DICT: Record<string, Entry> = {
   // --- mika page ---
   "mika.title": { en: "Mika", ru: "Мика", zh: "米卡" },
   "mika.subtitle": {
-    en: "Your AI tutor. Ask about words and grammar, get vocabulary for your goal, or let Mika show you around the app.",
-    ru: "Твой AI-репетитор. Спрашивай про слова и грамматику, подбирай лексику под цель — или попроси Мику показать приложение.",
-    zh: "你的 AI 导师。问单词和语法、按目标挑选词汇，或让米卡带你了解这个应用。",
+    en: "Your AI tutor: ask her anything, or practise with her.",
+    ru: "Твой ИИ-репетитор: спроси о чём угодно или попрактикуйся с ней.",
+    zh: "你的 AI 导师：有问题尽管问，也可以和她一起练习。",
   },
   "mika.newChat": { en: "New chat", ru: "Новый чат", zh: "新对话" },
   "mika.history": { en: "History", ru: "История", zh: "历史" },
@@ -132,6 +132,25 @@ const DICT: Record<string, Entry> = {
   "mika.answersIn": { en: "Answers in", ru: "Отвечает на", zh: "回答用" },
   "mika.pairLabel": { en: "Chat languages", ru: "Языки чата", zh: "对话语言" },
   "mika.tryThese": { en: "Try one of these", ru: "Попробуй что-нибудь из этого", zh: "试试这些" },
+  // Mika's two jobs on her start screen and in the sheet: answer, and practise with you.
+  "mika.askGroup": { en: "Ask", ru: "Спросить", zh: "提问" },
+  "mika.practiceGroup": { en: "Practise with Mika", ru: "Попрактиковаться", zh: "和米卡练习" },
+  "mika.pr.chat": {
+    en: "Mika chats in Chinese at your level and slips in your words.",
+    ru: "Мика болтает по-китайски на твоём уровне и вплетает твои слова.",
+    zh: "米卡用你这个水平的中文和你聊天，顺便用上你的单词。",
+  },
+  "mika.pr.scene": {
+    en: "A café, a station, a hotel: Mika plays the other person, you lead the talk.",
+    ru: "Кафе, вокзал, отель: Мика играет собеседника, ты ведёшь диалог.",
+    zh: "咖啡馆、车站、酒店：米卡扮演对方，你来主导对话。",
+  },
+  "mika.pr.drill": {
+    en: "A sentence with each of your words, checked — like HSK writing.",
+    ru: "Фраза с каждым твоим словом, с проверкой — как письменная часть HSK.",
+    zh: "用你的每个词造句并批改——就像 HSK 书写。",
+  },
+  "coach.morePage": { en: "More words", ru: "Больше слов", zh: "更多单词" },
   "mika.p.photo.title": { en: "A photo of a page", ru: "Фото страницы", zh: "拍一页课本" },
   "mika.p.photo.desc": {
     en: "A textbook page, a sign, a menu, a screenshot — Mika reads it, explains it and offers the words as cards.",
@@ -184,17 +203,6 @@ const DICT: Record<string, Entry> = {
     en: "Write me a short text (about 120 words) at {level} level about: ",
     ru: "Напиши короткий текст (около 120 слов) уровня {level} на тему: ",
     zh: "写一篇 {level} 水平的短文（约 120 词），主题是：",
-  },
-  "mika.p.scene.title": { en: "Role-play a scene", ru: "Разыграть сценку", zh: "情景对话" },
-  "mika.p.scene.desc": {
-    en: "Practise a real conversation here — or in a full scene with a scored report at the end.",
-    ru: "Потренируй живой диалог здесь — или в полноценной сценке с разбором и оценкой в конце.",
-    zh: "在这里练习真实对话——或进入完整情景，结束时有评分报告。",
-  },
-  "mika.p.scene.prompt": {
-    en: "Let's role-play: I'm ordering at a café and you're the waiter. You start.",
-    ru: "Давай разыграем сценку: я заказываю в кафе, а ты официант. Начинай.",
-    zh: "我们来情景对话：我在咖啡馆点单，你是服务员。你先开始。",
   },
   "mika.p.today.title": { en: "What should I study today?", ru: "Что мне сегодня учить?", zh: "今天该学什么？" },
   "mika.p.today.desc": {
@@ -831,7 +839,7 @@ const DICT: Record<string, Entry> = {
     zh: "把新词和你已经会的东西联系起来，记得更快。",
   },
   // Casual "learn by chatting" mode — the relaxed, gamified counterpart to the drill
-  "chat.title": { en: "Free chat", ru: "Свободная беседа", zh: "自由聊天" },
+  "chat.title": { en: "Chat in Chinese", ru: "Разговор по-китайски", zh: "用中文聊天" },
   "chat.badge": { en: "Casual", ru: "Легко", zh: "轻松" },
   "chat.card": {
     en: "Just chat with Mika — your words slip into the talk and you score points for using them.",
@@ -899,7 +907,7 @@ const DICT: Record<string, Entry> = {
   "scene.fbWrong": { en: "Needs work", ru: "Есть ошибка", zh: "有错误" },
   "scene.reportDelta": { en: "+{n} words used", ru: "+{n} слов использовано", zh: "+{n} 个词已运用" },
   "scene.reportAgain": { en: "Play another scene", ru: "Ещё одну сцену", zh: "再演一个" },
-  "scene.reportBack": { en: "Back to Practice", ru: "К практике", zh: "返回练习" },
+  "scene.reportBack": { en: "Back to Mika", ru: "К Мике", zh: "返回米卡" },
   "scene.presetsLabel": { en: "Pick a scene", ru: "Выбери сцену", zh: "选一个场景" },
   "scene.preset.bakery": { en: "Bakery", ru: "Пекарня", zh: "面包店" },
   "scene.preset.cinema": { en: "Cinema", ru: "Кинотеатр", zh: "电影院" },
@@ -985,7 +993,7 @@ const DICT: Record<string, Entry> = {
   "coach.pReview": { en: "Start review", ru: "Повторять", zh: "开始复习" },
   "coach.drillWeak": { en: "Drill your weak words", ru: "Тренировать слабые слова", zh: "训练你的薄弱词" },
   // Coach practice (the adaptive drill) — the differentiator vs a flashcard app
-  "coach.practiceTitle": { en: "Word drill", ru: "Тренировка", zh: "单词训练" },
+  "coach.practiceTitle": { en: "Word drill", ru: "Тренировка слов", zh: "单词训练" },
   "coach.practiceHeroTitle": { en: "Drill with Mika", ru: "Тренировка с Микой", zh: "和米卡一起训练" },
   "coach.practiceHeroSub": {
     en: "A live workout on your own words: Mika asks you to use each one, checks your answer, corrects you and adapts — and your results update your review schedule.",
@@ -1408,7 +1416,7 @@ const DICT: Record<string, Entry> = {
   "tour.coach": { en: "Practice", ru: "Практика", zh: "练习" },
   "tour.coach.d": { en: "More words for your goal and topics, chat, scenes", ru: "Больше слов под цель и темы, чат, сценки", zh: "按目标和话题选更多词、聊天、情景" },
   "tour.mika": { en: "Mika", ru: "Мика", zh: "米卡" },
-  "tour.mika.d": { en: "Ask about any word or grammar, or send a photo", ru: "Спроси про слово или грамматику, пришли фото", zh: "问任何词或语法，也可以发照片" },
+  "tour.mika.d": { en: "Ask about a word, send a photo, chat in Chinese, play a scene", ru: "Спроси про слово, пришли фото, поболтай по-китайски, сыграй сценку", zh: "问词、发照片、用中文聊天、演情景" },
   "tour.reader": { en: "Reader", ru: "Читалка", zh: "阅读" },
   "tour.reader.d": { en: "A text at your level — tap a word to save it", ru: "Текст под твой уровень — нажми на слово, и оно в карточках", zh: "适合你水平的文章——点词即可收藏" },
   "tour.hsk": { en: "HSK lists", ru: "Списки HSK", zh: "HSK 词表" },

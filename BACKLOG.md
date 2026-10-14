@@ -539,21 +539,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      explanation language from the browser. (The language question is gone since 2026-10-14:
      the pair is fixed to Chinese → Russian, so the questions open on "Зачем тебе китайский?".)
 
-1i. **Two places to talk to the AI, not five.** From the phone audit (2026-10-14, the author: "do
-   you think somebody will use this feature", of scenes). A learner meets Mika (the centre tab and a
-   floating window), a card's own chat, and under Ещё → Практика a free chat, scenes and a drill —
-   five chat screens with five prompts, and until that day two names for the same AI. Scenes are
-   three taps deep and on a phone they mean typing Chinese with a pinyin keyboard; the drill
-   ("use 坚持 in a sentence") is the one that matches the exam (HSK 4–5 writing: a sentence with a
-   given word). Proposal: Mika stays the place to ask; Практика becomes one conversation screen
-   where a scene is an optional situation on the chat ("просто поболтать" or "в отеле"), opened
-   with the day's word group (1e: one situation a day — the transport day gets the station scene);
-   the drill stays as Тренировка. No new presets (STRATEGY §G). Also: Практика's "Слова для тебя"
-   (goal + topic picks) is a second word-suggestion system beside Today's daily words — fold it
-   into Today's "more words" link. Check what the funnel/admin numbers say first: if nobody has
-   opened a scene in the beta, that settles it.
+1i. **One Mika: practice inside her tab.** **Shape shipped 2026-10-14** — see Done. From the phone
+   audit (the author: "do you think somebody will use this feature", of scenes; then "we have many
+   mika's with kinda similar but with different features"). Offered "one Mika, practice inside" vs
+   "Mika asks, Практика trains" vs "cut to the drill", the author chose the first. **Left:** a scene
+   opened with the day's word group (1e: one situation a day — the transport day gets the station
+   scene) instead of a preset grid; and look at the admin numbers once the beta runs — if nobody
+   opens a scene from Mika's sheet either, fold scenes into the chat as a "situation" option.
 
-1j. **Практика on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
+1j. **The practice pages on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
    `/coach/chat` and `/coach/practice` are full-height with an inner scroll card: at 320×568 the
    setup (level, tap-translation, the presets) lives in a ~300 px window under the header and the
    title (`frontend/scripts/phone-audit.mjs` read the presets as "under the bottom bar" in WebKit,
@@ -1151,6 +1145,30 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   edge over SmallTalk2Me and co. is calibration against users' real band scores. `[S3]`
 
 ## Done
+
+### One Mika: practice inside her tab (2026-10-14, asked for directly)
+- The author, after the rename to Mika: "we have many mika's with kinda similar but with different
+  features, doesn't sound well". Mika was the centre button's sheet and her page, and under Ещё →
+  Практика three more chats also spoke as Mika (a chat in Chinese, scenes, the word drill), with a
+  greeting and word picks on the section's own page. Chosen from three shapes: **one Mika, practice
+  inside** (`components/MikaPractice.tsx`).
+  - Mika's sheet (what the centre button opens) shows the four "ask" chips and under them
+    **Попрактиковаться**: Разговор по-китайски · Сыграй сценку · Тренировка слов, each leaving for
+    its page; her page shows the same at phone width (cards on a wide screen) above "Спросить", and
+    its subtitle says both jobs ("спроси о чём угодно или попрактикуйся с ней"). The scene preset
+    that filled the input with a café role-play is gone (the real scene is one tap away).
+  - The practice pages lead back to "← Мика"; their titles are what the entries say (the free chat is
+    "Разговор по-китайски", the drill "Тренировка слов"); a scene's report goes back to Mika.
+  - Практика left the menu while focused (`FOCUS_HIDDEN`), the Today tour's row with it (Mika's row
+    now says "поболтай по-китайски, сыграй сценку"); `/coach` is **Больше слов** — the goal/topic
+    picks behind Today's "more words" link, with a way back to Today; its greeting and week recap
+    repeated Today, which already links the slipping words to the drill. Settings' coach-memory
+    group is headed "Мика". Mika's prompt tells a learner where practice is now: asked "где
+    потренировать разговор", she said "в чате с Микой, нажав кнопку «Разговор по-китайски»".
+  - Local run as ux-learner on the iPhone SE (WebKit) and a 360 px Galaxy (Chrome), 18 checks each:
+    the centre button → the sheet's practice row → a scene → "← Мика" → her page; the chat's and the
+    drill's titles and back links; Ещё and Today without Практика; `/coach` as "Больше слов" with no
+    sideways scroll. Frontend and backend tsc pass.
 
 ### Mika says she is Mika, one study pair, and a phone pass in three engines (2026-10-14, asked for directly)
 - Asked: "on the question who are you and what llm do you use they answer like i am your tutor mika

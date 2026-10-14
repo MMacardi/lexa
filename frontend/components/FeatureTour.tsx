@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { OPEN_ADD, open } from "@/lib/mobileNav";
+import { FOCUS } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -42,7 +43,8 @@ export function FeatureTour() {
     // The quick-add sheet is phone-only; a desktop gets the full form at the top of My words.
     { key: "add", Icon: Plus, href: "/words", onPhone: () => open(OPEN_ADD) },
     { key: "review", Icon: Layers, href: "/review" },
-    { key: "coach", Icon: Compass, href: "/coach" },
+    // Focused, practice is part of Mika (the next row says so).
+    ...(FOCUS ? [] : [{ key: "coach", Icon: Compass, href: "/coach" }]),
     { key: "mika", Icon: Sparkles, href: "/mika" },
     { key: "reader", Icon: BookOpen, href: "/reader" },
     { key: "hsk", Icon: GraduationCap, href: `/hsk/${version}/${level}` },

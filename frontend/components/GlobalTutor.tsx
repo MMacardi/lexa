@@ -9,6 +9,7 @@ import { type TutorCardCtx } from "@/lib/useTutorChat";
 import { useSharedTutorChat, useReportPanelOpen } from "@/components/TutorChatProvider";
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { FIXED_PAIR } from "@/lib/langs";
+import { MikaPracticeLinks } from "@/components/MikaPractice";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
@@ -256,6 +257,8 @@ export function GlobalTutor() {
                   </Chip>
                   <Chip onClick={() => fillTemplate(t("tutor.explainTemplate"))}>{t("tutor.suggestExplain")}</Chip>
                 </div>
+                {/* Practice, beside asking — not when the chat is about one card */}
+                {!card && <MikaPracticeLinks onGo={close} />}
               </div>
             )}
 

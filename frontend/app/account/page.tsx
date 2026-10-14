@@ -679,7 +679,7 @@ export default function AccountPage() {
       </Section>
 
       {/* ── Coach: your personal mentor's memory ── */}
-      <GroupHeading>{t("coach.title")}</GroupHeading>
+      <GroupHeading>{t("nav.mika")}</GroupHeading>
       <CoachMemorySection />
       {/* which engine transcribes voice answers + pronunciation checks */}
       <MicSection />

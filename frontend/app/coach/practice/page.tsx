@@ -255,8 +255,8 @@ export default function CoachPracticePage() {
   return (
     <div className="anim-fade-up mx-auto flex h-[calc(100dvh-176px)] max-w-[720px] flex-col md:h-[calc(100dvh-140px)]">
       <div className="mb-3">
-        <Link href="/coach" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
-          <ArrowLeft className="h-4 w-4" /> {t("coach.title")}
+        <Link href="/mika" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink">
+          <ArrowLeft className="h-4 w-4" /> {t("nav.mika")}
         </Link>
         <div className="mt-1 flex items-center justify-between gap-3">
           <h1 className="flex items-center gap-2 font-serif text-[26px] font-medium tracking-[-0.01em] text-ink">
