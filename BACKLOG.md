@@ -370,6 +370,10 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    are in `PLAN-word-groups.md`. Work from there.** Parts: 1 the group (`services/wordGroups.ts` + a check
    script), 2 Today shows the named group and taking it is instant, 3 new words in Flashcards and Writing
    without adding first, 4 the 7-day proof. The notes below are the first half, done.
+   - **Part 1 done 2026-10-14, slim** (the author chose it over the full design): a day leads with one
+     situation, near-synonyms never share a day, words with no situation come ~40% of a day; no character
+     families or sentence links. `services/wordGroups.ts` `nextGroup` + `scripts/check-word-groups.ts`; not
+     wired into Today yet (part 2). Numbers and the wiring notes in `PLAN-word-groups.md`.
    The daily words are the target level shuffled (`frontierOrder` in `services/hsk.ts`); HSK words
    carry a level and nothing else. So 入乡随俗 can come on the same day as 地图.
    - **Frequency data:** jieba's dictionary ships word frequencies under MIT; SUBTLEX-CH is better,

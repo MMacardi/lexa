@@ -360,8 +360,9 @@ export function nextWordValue(word: string, met: (ch: string) => boolean): numbe
  * level below. It replaced a shuffle, which gave a rare word the odds of a common one.
  * The order is a pure function of `have`, so a word skipped mid-day only lets the
  * next one up; `have` itself must not change during the day (frontierInputs).
+ * A day's words are a group chosen from its top (services/wordGroups.ts).
  */
-function frontierOrder(
+export function frontierOrder(
   version: HskVersion,
   target: number,
   skip: (word: string) => boolean,

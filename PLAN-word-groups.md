@@ -16,6 +16,11 @@ tree: stage your own files by name.
 - **A dictionary word comes as a ready-made card**: meaning, pinyin, page and a ready example sentence.
   **No personalised sentence** at that point (no AI call); it can be asked for later on the card.
 - **Top priority** (2026-10-10): this goes before everything else in §Open.
+- **Slim groups** (2026-10-14, asked "do we need it at all"; shown the frequency order's first days, 而 此 自
+  以及 却 / 曾 作为 应 处 根据, it chose this): a day leads with one situation and is named after it,
+  near-synonyms never share a day, the words with no situation come a couple a day. **No character families
+  and no sentence links**: a known character's words (二手 分手 手套) share little meaning, and the ranking
+  already prefers words made of known characters.
 
 ## What is there today (verified 2026-10-10, no code changed)
 
@@ -43,7 +48,28 @@ tree: stage your own files by name.
   `capNewCards` (`newPerDay`); Writing's "not yet written" are the learner's own words (`lib/writing.ts`).
   When those run out, the only way to more new words is adding them by hand or from Today.
 
-## Part 1 — The group (backend + a check script)
+## Part 1 — The group (backend + a check script) — done 2026-10-14, slim
+
+**What shipped** (`services/wordGroups.ts`, `scripts/check-word-groups.ts`, no database needed):
+`nextGroup(order, size, dropped)` is pure. Pool = the top **200** of `frontierOrder` (now exported; at 120 half
+of 30 days found no situation with 3 words). A day of N: `round(0.4 N)` slots for words with no situation (none
+for N < 3), the rest from the best situation (score = Σ (POOL − rank) of its words, 3 at least), then the next
+situation for a big day, then the pool's other concrete words, then anything. Near-synonyms = a shared term of
+the hsk-ru meaning (else CC-CEDICT's English), hints in brackets dropped. Measured on HSK 3.0 L4, a learner who
+knows 1–3: 30 of 30 days of 5 themed (office: 主席 大会 机构 + 而 此; history: 历史 公元 传统 + 却 曾); the
+frequency order's first 4 days held 而/以及, 而/却, 材料/资料, the groups none; ≤ 2 abstract a day, 40% overall;
+the first 100 words cover 42.9% of the level's usage vs 46.1% (93%); 20-word days carry a theme every day
+(business: 企业 行业 项目 形势 实施 扩大 利益 考察 合同 进口 促进 + 8 abstract + 1). The last ~15 of the
+level's 195 days at 5 a day are mostly abstract (40% < their 51% share of the level): accepted.
+`check-next-word`, `check-gap-deck`, `check-sweep` pass.
+
+**For part 2 (wiring):** `order` must be the frontier as the day began, so build it with words said known
+*today* still in it (skip = status from before today, plus today's cards as now) and pass those words as
+`dropped`: the rest of the day stays and the gap fills from the same theme. `frontierInputs` needs the
+known-today set for that. Mind day one after onboarding: the guest deck's 20 cards are today's adds, and Today
+should still read "done" over them rather than offer a group beside them.
+
+The original design, kept for reference:
 
 A function, say `nextGroup` in a new `services/wordGroups.ts`, that turns the frontier into days:
 
