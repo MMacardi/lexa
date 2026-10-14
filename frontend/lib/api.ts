@@ -875,6 +875,18 @@ export const api = {
     }),
   // Take back the card's last grade: the schedule as it was, the log row gone.
   undoReview: (id: string) => http<Word>(`/api/words/${id}/undo`, { method: "POST" }),
+  // New words without adding them first (BACKLOG 1e part 3): dictionary words as
+  // ready-made cards (id "new:<word>", nothing on the account), what's left of today's
+  // group first. A word becomes a card on its first grade; "Easy" in Flashcards is
+  // "I know it" and makes none.
+  hskNext: (n = 8) =>
+    http<{ version: HskVersion; level: number; theme: string | null; words: (Word & { situation: string | null })[] }>(`/api/hsk/next?n=${n}`),
+  learnWord: (word: string, grade: number, source: "review" | "write" = "review") =>
+    http<{ known: true } | { card: Word }>(`/api/hsk/learn`, {
+      method: "POST",
+      body: JSON.stringify({ word, grade, source, retention: readRetention() }),
+    }),
+  unlearnWord: (word: string) => http<{ ok: true }>(`/api/hsk/learn/undo`, { method: "POST", body: JSON.stringify({ word }) }),
   // A writing drill grade (1–4): moves the word's writing schedule, never its reading one.
   writeWord: (id: string, grade: number) =>
     http<Word>(`/api/words/${id}/write`, { method: "POST", body: JSON.stringify({ grade, retention: readRetention() }) }),
@@ -1492,6 +1504,9 @@ async function downloadExport(): Promise<void> {
 
 // A word is "due" if it has never been reviewed, or its scheduled review time
 // has passed. Used for the due badges and the header counter.
+/** A dictionary word handed out by `hskNext`, not yet a card on the account. */
+export const isNewWord = (word: Word) => word.id.startsWith("new:");
+
 export function isDue(word: Word): boolean {
   if (!word.nextReviewAt) return true;
   return new Date(word.nextReviewAt).getTime() <= Date.now();

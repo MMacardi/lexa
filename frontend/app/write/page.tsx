@@ -3,8 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, PenLine, X } from "lucide-react";
-import { api, type HskVersion, type Word } from "@/lib/api";
+import { ArrowRight, Check, PenLine, Sparkles, X } from "lucide-react";
+import { api, isNewWord, type HskVersion, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
@@ -69,9 +69,21 @@ export default function WritePage() {
     queryKey: ["collections", accountId],
     queryFn: () => api.collections(accountId),
   });
+  // New words straight from the dictionary (BACKLOG 1e part 3), as in Flashcards:
+  // what's left of today's group, then the next. Traced first like any word never
+  // written; the first graded write makes the card.
+  const onTrack = profile?.hskTarget != null;
+  const { data: dictNext } = useQuery({
+    queryKey: ["hskNext", accountId],
+    queryFn: () => api.hskNext(8),
+    enabled: onTrack,
+  });
+  const newWords = (dictNext?.words ?? []).filter(canWrite);
+  const newTheme = dictNext?.theme ? t(`situation.${dictNext.theme}`) : null;
 
   const [selColl, setSelColl] = useState("all");
   const [onlyDue, setOnlyDue] = useState(true);
+  const [newMode, setNewMode] = useState(false);
   const [deck, setDeck] = useState<Item[] | null>(null);
   const [at, setAt] = useState(0);
   const [result, setResult] = useState<WriteResult | null>(null);
@@ -191,6 +203,7 @@ export default function WritePage() {
   }
 
   function start(dueOnly = false) {
+    if (newMode && !dueOnly) return begin(newWords);
     begin(
       dueOnly
         ? due
@@ -225,12 +238,18 @@ export default function WritePage() {
         again: s.again + (g === 1 ? 1 : 0),
       };
     });
-    api
-      .writeWord(w.id, g)
-      .then((updated) =>
-        qc.setQueryData<Word[]>(["words", accountId], (prev) => (prev ?? []).map((x) => (x.id === updated.id ? { ...x, ...updated } : x))),
-      )
-      .catch((e) => show({ icon: "⚠️", title: t("write.saveFailed"), subtitle: errText(e, t) }));
+    const saved = isNewWord(w)
+      ? // A new word's first graded write makes its card; reading starts as a new card.
+        api.learnWord(w.word, g, "write").then((r) => {
+          if ("card" in r) qc.setQueryData<Word[]>(["words", accountId], (prev) => [r.card, ...(prev ?? []).filter((x) => x.id !== r.card.id)]);
+          for (const key of ["hskDaily", "hskNext", "stats"]) qc.invalidateQueries({ queryKey: [key] });
+        })
+      : api
+          .writeWord(w.id, g)
+          .then((updated) =>
+            qc.setQueryData<Word[]>(["words", accountId], (prev) => (prev ?? []).map((x) => (x.id === updated.id ? { ...x, ...updated } : x))),
+          );
+    saved.catch((e) => show({ icon: "⚠️", title: t("write.saveFailed"), subtitle: errText(e, t) }));
     next();
   }
 
@@ -267,7 +286,7 @@ export default function WritePage() {
 
   // ---------------- Setup ----------------
   if (!deck) {
-    const candidate = onlyDue ? dueCount : pool.length;
+    const candidate = newMode ? newWords.length : onlyDue ? dueCount : pool.length;
     return (
       <div ref={fitRef} className="mx-auto max-w-[520px] space-y-5">
         {header}
@@ -278,8 +297,11 @@ export default function WritePage() {
             <Segmented
               grow
               size="lg"
-              value={onlyDue ? "due" : "all"}
-              onChange={(v) => setOnlyDue(v === "due")}
+              value={newMode ? null : onlyDue ? "due" : "all"}
+              onChange={(v) => {
+                setNewMode(false);
+                setOnlyDue(v === "due");
+              }}
               options={([true, false] as const).map((d) => ({
                 value: d ? "due" : "all",
                 label: (
@@ -295,8 +317,29 @@ export default function WritePage() {
                 button starting 10, and those 10 called new words when they're your
                 own words not yet written, read as a contradiction (the author,
                 2026-10-10). The line says what's in it. */}
+            {/* The third choice, on its own row, as in Flashcards. */}
+            {onTrack && (
+              <button
+                type="button"
+                aria-pressed={newMode}
+                onClick={() => setNewMode(true)}
+                className={cn(
+                  "mt-2 flex w-full items-center gap-2.5 rounded-[16px] border px-4 py-2.5 text-left text-sm font-semibold transition-colors",
+                  newMode ? "border-sage bg-sage text-white" : "border-black/[0.07] bg-paper/60 text-ink-muted hover:border-sage/50",
+                )}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  {t("review.modeNew")}
+                  {newTheme && <span className="font-medium opacity-80"> · {newTheme}</span>}
+                </span>
+                <span className="opacity-70">{newWords.length}</span>
+              </button>
+            )}
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
-              {!onlyDue
+              {newMode
+                ? t("write.modeNewHint")
+                : !onlyDue
                 ? t("write.modeAllHint")
                 : !fresh.length
                   ? t("write.modeDueHintNone")
@@ -307,7 +350,7 @@ export default function WritePage() {
           </div>
 
           {/* 2. which list (optional): a collection or an HSK level */}
-          {((collections && collections.length > 0) || hskLevels.length > 0) && (
+          {!newMode && ((collections && collections.length > 0) || hskLevels.length > 0) && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("review.collection")}</p>
               <div className="flex flex-wrap gap-1.5">
@@ -336,10 +379,20 @@ export default function WritePage() {
 
         <Button className="w-full" disabled={candidate === 0} onClick={() => start()}>
           {candidate === 0
-            ? t(onlyDue ? "write.nothingDue" : "review.nothing")
+            ? t(onlyDue && !newMode ? "write.nothingDue" : "review.nothing")
             : t("write.start", { n: candidate })}
         </Button>
-        {onlyDue && dueCount === 0 && pool.length > 0 && (
+        {/* Nothing due: new words when there are some, else all of them anyway. */}
+        {onlyDue && !newMode && dueCount === 0 && newWords.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setNewMode(true)}
+            className="-mt-2 w-full text-center text-[13px] font-semibold text-sage hover:text-sage-deep"
+          >
+            {newTheme ? t("review.keepNewTheme", { theme: newTheme, n: newWords.length }) : t("review.keepNew", { n: newWords.length })}
+          </button>
+        )}
+        {onlyDue && !newMode && dueCount === 0 && newWords.length === 0 && pool.length > 0 && (
           <button
             type="button"
             onClick={() => setOnlyDue(false)}
@@ -366,7 +419,15 @@ export default function WritePage() {
         <h2 className="mt-4 font-serif text-[28px] font-medium text-ink">{t("write.sessionDone", { n: tally.graded.size })}</h2>
         <p className="mt-2 text-ink-soft">{t("write.sessionScore", { clean: tally.clean, again: tally.again })}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-2">
-          {more.length > 0 && <Button onClick={() => begin(more)}>{t("write.keepGoing", { n: more.length })}</Button>}
+          {more.length > 0 ? (
+            <Button onClick={() => begin(more)}>{t("write.keepGoing", { n: more.length })}</Button>
+          ) : (
+            newWords.length > 0 && (
+              <Button onClick={() => begin(newWords)}>
+                {newTheme ? t("review.keepNewTheme", { theme: newTheme, n: newWords.length }) : t("review.keepNew", { n: newWords.length })}
+              </Button>
+            )
+          )}
           <Button variant="dark" onClick={() => setDeck(null)}>
             {t("review.backToSetup")}
           </Button>
@@ -418,9 +479,11 @@ export default function WritePage() {
         <WritingTrainer key={at} word={w.word} fixedMode={item.trace ? "trace" : "memory"} side={side ?? undefined} onFinish={setResult}>
           {/* Phones: the characters' boxes already show the word, so no word row
               under the square — its link goes here, by the score. */}
-          <Link href={`/word/${w.id}`} className="shrink-0 text-[13px] font-semibold text-ink-muted underline-offset-2 hover:text-sage-deep hover:underline sm:hidden">
-            {t("write.openWord")}
-          </Link>
+          {!isNewWord(w) && (
+            <Link href={`/word/${w.id}`} className="shrink-0 text-[13px] font-semibold text-ink-muted underline-offset-2 hover:text-sage-deep hover:underline sm:hidden">
+              {t("write.openWord")}
+            </Link>
+          )}
         </WritingTrainer>
 
         {/* Once it's written: the word, and how it went — a grade, or on to the next.
@@ -430,9 +493,11 @@ export default function WritePage() {
             <div className="hidden flex-wrap items-baseline justify-center gap-x-3 gap-y-1 sm:flex">
               <span className="font-zh text-[26px] text-ink">{w.word}</span>
               {w.phonetic && <Pinyin text={w.phonetic} className="text-[15px] text-ink-muted" />}
-              <Link href={`/word/${w.id}`} className="text-[13px] font-semibold text-ink-muted underline-offset-2 hover:text-sage-deep hover:underline">
-                {t("write.openWord")}
-              </Link>
+              {!isNewWord(w) && (
+                <Link href={`/word/${w.id}`} className="text-[13px] font-semibold text-ink-muted underline-offset-2 hover:text-sage-deep hover:underline">
+                  {t("write.openWord")}
+                </Link>
+              )}
             </div>
             {item.trace ? (
               <Button className="w-full" onClick={traced}>

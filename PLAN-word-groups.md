@@ -117,7 +117,22 @@ The plan as written:
   learner's level, no Qwen call, so it is instant and free. The card's own "write an example for me" stays.
 - Run it: Today on the author's level shows a named group, the cards appear at once with an example.
 
-## Part 3 — New words in Flashcards and Writing without adding them first
+## Part 3 — New words in Flashcards and Writing without adding them first — done 2026-10-14
+
+**What shipped** (`services/newWords.ts`, `scripts/check-new-words.ts`): `GET /api/hsk/next?n=8` gives what is
+left of today's group first (the same choice Today offers), then the group after it, as ready-made cards
+(id `new:<word>`; dictionary meaning, page details, the pool sentence; nothing written). `POST /api/hsk/learn`
+makes the card on the first grade and grades it (reading from Flashcards, writing from Writing, whose reading
+schedule stays new); a first "Easy" in Flashcards is "I know it" (placement answer, no card); a word that is a
+card already (an earlier "Again") is just graded. `POST /api/hsk/learn/undo` takes it back card and all.
+Flashcards: a «Новые слова · офис 5» row under Due now / All words (three labels don't fit one row on a phone),
+offered when nothing is due and on the end screen then; first grades go through the offline queue (`learn` op);
+Undo works; the Easy button reads «Знаю»; no open/edit until a card exists. Writing: the same row; traced first,
+written from memory at the end. Local run as a fresh HSK 4 learner: 5 offered, Good/Hard/Again then quit = 3
+cards; Writing traced 而 and 此, wrote 而 = 1 card (writing scheduled, reading new), 此 none; «Знаю» on 此 = no
+card and Today swapped it, Undo put it back, Good made it; then «Новые слова · новости и политика 8».
+
+The plan as written:
 
 - `GET /api/hsk/next?n=` returns the next group as ready-made cards: dictionary data, no database write.
 - **Flashcards:** a third choice on the setup ("Новые слова", beside Due now and All words), and the end

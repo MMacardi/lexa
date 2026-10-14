@@ -290,7 +290,7 @@ export const poolRegister = (style?: string | null) => !style || style === "casu
 // A formal word's sentences are formal ("news" reads «Формальный» on the page).
 // The pool was read by the editor (build-hsk-sentences.ts --judge): stamped as read.
 // The label is how hard the sentence reads on the learner's list ("HSK 1–4").
-function poolExample(word: string, p: Pick) {
+export function poolExample(word: string, p: Pick) {
   return {
     sentenceEn: p.s.zh,
     sentenceZh: p.s.ru,

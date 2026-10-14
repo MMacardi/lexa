@@ -4,7 +4,8 @@ import { api, type ReviewSource, type Word } from "./api";
 import { kvGet, kvSet, outboxAdd, outboxAll, outboxCount, outboxDelete } from "./idb";
 
 // Offline sync: mirror the words list for offline review, queue mutations made
-// offline (review grades, word adds), and flush the queue when back online.
+// offline (review grades, new words' first grades, word adds), and flush the queue
+// when back online.
 
 const wordsKey = (accountId: string) => `words:${accountId}`;
 
@@ -67,6 +68,40 @@ export async function undoReview(wordId: string): Promise<boolean> {
   }
 }
 
+/** A new word's first grade (`api.learnWord`: the card is made then), sent now or
+ *  queued. Returns the server's answer, or null when it was queued. */
+export async function submitLearn(word: string, grade: number, source: "review" | "write" = "review") {
+  if (isOnline()) {
+    try {
+      return await api.learnWord(word, grade, source);
+    } catch {
+      /* fall through to queue */
+    }
+  }
+  await outboxAdd({ kind: "learn", word, grade, source, at: Date.now() });
+  notify();
+  return null;
+}
+
+/** Take a new word's first grade back: dropped from the queue, or undone on the
+ *  server, card and all. Returns false if there was nothing to take back. */
+export async function undoLearn(word: string): Promise<boolean> {
+  const queued = (await outboxAll())
+    .filter((op) => op.kind === "learn" && op.word === word)
+    .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))[0];
+  if (queued?.id != null) {
+    await outboxDelete(queued.id);
+    notify();
+    return true;
+  }
+  try {
+    await api.unlearnWord(word);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Queue a word to be added (with AI enrichment) once back online. */
 export async function queueAdd(word: string, sourceLang: string, targetLang: string, notes?: string): Promise<void> {
   await outboxAdd({ kind: "add", word, sourceLang, targetLang, notes, at: Date.now() });
@@ -86,6 +121,8 @@ export async function flushOutbox(accountId: string): Promise<number> {
       try {
         if (op.kind === "review") {
           await api.reviewWord(op.wordId, op.grade, op.source ?? "review");
+        } else if (op.kind === "learn") {
+          await api.learnWord(op.word, op.grade, op.source);
         } else {
           await api.addWord({ telegramId: accountId, word: op.word, sourceLang: op.sourceLang, targetLang: op.targetLang, notes: op.notes });
         }

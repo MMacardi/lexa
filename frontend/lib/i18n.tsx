@@ -2303,6 +2303,21 @@ const DICT: Record<string, Entry> = {
     ru: "Все слова пары, даже те, что ещё рано повторять, — удобно перед тестом.",
     zh: "该语言对的全部单词，包括还没到复习时间的——适合考前冲刺。",
   },
+  // New words straight from the dictionary (BACKLOG 1e part 3).
+  "review.modeNew": { en: "New words", ru: "Новые слова", zh: "新词" },
+  "review.modeNewHint": {
+    en: "Today's words straight from the dictionary: a word joins your cards once you grade it, and Easy on first sight means you know it.",
+    ru: "Слова на сегодня прямо из словаря: слово станет карточкой, когда ты его оценишь, а «Легко» с первого раза — значит, знаешь.",
+    zh: "今天的词，直接来自词典：评分后才会成为你的卡片；第一次就选“简单”表示你已经认识。",
+  },
+  "review.keepNew": { en: "New words ({n})", ru: "Новые слова ({n})", zh: "新词（{n} 个）" },
+  "review.keepNewTheme": { en: "New words: {theme} ({n})", ru: "Новые слова: {theme} ({n})", zh: "新词：{theme}（{n} 个）" },
+  "review.keepNewSub": {
+    en: "Straight from the dictionary — a card once you grade it",
+    ru: "Прямо из словаря — карточкой станет после оценки",
+    zh: "直接来自词典——评分后成为卡片",
+  },
+  "review.newBadge": { en: "New word", ru: "Новое слово", zh: "新词" },
   "review.pickPair": { en: "Choose a language pair above", ru: "Выберите языковую пару выше", zh: "请先在上方选择语言对" },
   "review.nothingDue": { en: "All caught up for today", ru: "На сегодня всё повторено", zh: "今天的复习已完成" },
   "review.reviewAllInstead": { en: "Review all {n} words anyway", ru: "Всё равно повторить все слова ({n})", zh: "仍然复习全部 {n} 个单词" },
@@ -2677,6 +2692,11 @@ const DICT: Record<string, Entry> = {
   "write.modeDueHintNone": { en: "Words whose writing is due.", ru: "Слова, которые пора написать.", zh: "到期需要书写的词。" },
   "write.modeDueHintCaughtUp": { en: "Nothing is due to write today. Next: {n} of your words you haven't written yet, the ones you already read well first: traced first, then written from memory at the end.", ru: "По расписанию писать сегодня нечего. Дальше — {n} ваших слов, которые вы ещё не писали, сначала те, что уже хорошо читаете: обводите, а в конце пишете по памяти.", zh: "今天没有到期要写的。接下来是 {n} 个你还没写过的词，先写已经认得的：先描红，最后再默写。" },
   "write.keepGoing": { en: "Keep going — {n} more words →", ru: "Продолжить — ещё слов: {n} →", zh: "继续 — 再写 {n} 个词 →" },
+  "write.modeNewHint": {
+    en: "Today's words straight from the dictionary: trace each once, then write it from memory; it joins your cards once you grade it.",
+    ru: "Слова на сегодня прямо из словаря: сначала обведи, потом напиши по памяти — карточкой слово станет после оценки.",
+    zh: "今天的词，直接来自词典：先描一遍，再凭记忆写；评分后成为你的卡片。",
+  },
   "write.modeAllHint": { en: "Every Chinese word in the list, whether due or not.", ru: "Все китайские слова из списка, даже если их ещё рано писать.", zh: "列表中的全部中文词，不论是否到期。" },
   "write.nothingDue": { en: "Nothing to write today", ru: "На сегодня всё написано", zh: "今天的书写已完成" },
   "write.allInstead": { en: "Write all {n} words instead", ru: "Написать все слова ({n})", zh: "改为书写全部 {n} 个词" },

@@ -356,7 +356,12 @@ export async function listWordsForUser(telegramId: string) {
       collections: { select: { id: true, name: true } },
     },
   });
-  return words.map((w) => ({ ...withDerived(w), cardSenses: cardSenses(w) }));
+  return words.map(shapeWord);
+}
+
+/** A card as the list sends it: the row and what the server derives from it. */
+export function shapeWord<T extends Parameters<typeof withDerived>[0] & Parameters<typeof sensesAtHand>[0]>(w: T) {
+  return { ...withDerived(w), cardSenses: cardSenses(w) };
 }
 
 /** A single word by id, with its examples. */

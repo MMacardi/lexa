@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { api, isDue, type Word } from "@/lib/api";
+import { api, isDue, isNewWord, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { isChineseLang } from "@/lib/dictEntry";
 import { useI18n } from "@/lib/i18n";
@@ -49,7 +49,7 @@ import { SheetRow } from "@/components/SheetRow";
 import { useFitPinned, useIsMobile, useLockScroll, usePinnedPage } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
-import { fetchWordsCached, mirrorWords, submitReview, undoReview } from "@/lib/sync";
+import { fetchWordsCached, mirrorWords, submitLearn, submitReview, undoLearn, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
 import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
@@ -118,10 +118,23 @@ export default function FlashcardsPage() {
     enabled: profile?.hskTarget != null,
   });
 
+  // New words straight from the dictionary (BACKLOG 1e part 3): the setup's third
+  // choice, and the finish screen's next step once nothing is due. What's left of
+  // today's group first, then the next; each joins the cards on its first grade.
+  const onTrack = profile?.hskTarget != null;
+  const { data: fresh } = useQuery({
+    queryKey: ["hskNext", accountId],
+    queryFn: () => api.hskNext(8),
+    enabled: onTrack,
+  });
+  const freshWords = fresh?.words ?? [];
+  const freshTheme = fresh?.theme ? t(`situation.${fresh.theme}`) : null;
+
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
   const [selColl, setSelColl] = useState<string>("all");
   const [onlyDue, setOnlyDue] = useState(true);
+  const [newMode, setNewMode] = useState(false);
 
   const inColl = (w: Word) =>
     selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
@@ -142,6 +155,12 @@ export default function FlashcardsPage() {
   // grade in review"): the card as it was, where it sat in the deck, and the send
   // that has to land before it can be undone.
   const [lastGrade, setLastGrade] = useState<{ before: Word; grade: number; at: number; sent: Promise<boolean> } | null>(null);
+  // A session's graded new words are cards (or known) now, whether it was finished
+  // or left half-way: the next ones offered are others.
+  const sessionDone = started && deck.length > 0 && index >= deck.length;
+  useEffect(() => {
+    if (!started || sessionDone) qc.invalidateQueries({ queryKey: ["hskNext"] });
+  }, [started, sessionDone, qc]);
   // The session's pace, for the time-left estimate.
   const startedAt = useRef(0);
   const graded = useRef(0);
@@ -426,6 +445,16 @@ export default function FlashcardsPage() {
   // reflects it instantly and survives with no network, then send it to the
   // server or queue it for sync. The server recomputes authoritatively on sync.
   async function recordGrade(word: Word, grade: number) {
+    // A new word becomes a card here, with this grade on it ("Easy": known, no card).
+    if (isNewWord(word)) {
+      const r = await submitLearn(word.word, grade);
+      if (r && "card" in r) {
+        qc.setQueryData<Word[]>(["words", accountId], (prev) => [r.card, ...(prev ?? []).filter((w) => w.id !== r.card.id)]);
+        void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
+      }
+      if (r) for (const key of ["stats", "hskDaily"]) qc.invalidateQueries({ queryKey: [key] });
+      return r != null;
+    }
     const updated = applyGradeLocally(word, grade as 1 | 2 | 3 | 4);
     qc.setQueryData<Word[]>(["words", accountId], (prev) => (prev ?? []).map((w) => (w.id === word.id ? updated : w)));
     void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
@@ -443,15 +472,22 @@ export default function FlashcardsPage() {
     setUndoing(true);
     try {
       await last.sent;
-      if (!(await undoReview(last.before.id))) {
+      const isNew = isNewWord(last.before);
+      if (!(await (isNew ? undoLearn(last.before.word) : undoReview(last.before.id)))) {
         setLastGrade(null);
         show({ icon: "⚠️", title: t("review.undoFailed") });
         return;
       }
-      qc.setQueryData<Word[]>(["words", accountId], (prev) =>
-        (prev ?? []).map((w) => (w.id === last.before.id ? last.before : w)),
-      );
-      void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
+      if (isNew) {
+        // The card that grade made is gone again, or back to the grades before it.
+        qc.invalidateQueries({ queryKey: ["words"] });
+        qc.invalidateQueries({ queryKey: ["hskDaily"] });
+      } else {
+        qc.setQueryData<Word[]>(["words", accountId], (prev) =>
+          (prev ?? []).map((w) => (w.id === last.before.id ? last.before : w)),
+        );
+        void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
+      }
       qc.invalidateQueries({ queryKey: ["stats"] });
       if (last.grade >= 3) setKnown((k) => Math.max(0, k - 1));
       else setLearning((l) => Math.max(0, l - 1));
@@ -476,6 +512,7 @@ export default function FlashcardsPage() {
   }
 
   function buildDeck() {
+    if (newMode) return freshWords;
     const filtered = words.filter(
       (w) => sel.includes(pairKey(w)) && inColl(w) && (onlyDue ? isDue(w) : true),
     );
@@ -594,7 +631,7 @@ export default function FlashcardsPage() {
     const inSel = (w: Word) => sel.includes(pairKey(w)) && inColl(w);
     const dueCount = capNewCards(words.filter((w) => inSel(w) && isDue(w))).length;
     const allCount = words.filter(inSel).length;
-    const candidate = onlyDue ? dueCount : allCount;
+    const candidate = newMode ? freshWords.length : onlyDue ? dueCount : allCount;
     const pairCount = (pk: string) =>
       capNewCards(words.filter((w) => pairKey(w) === pk && inColl(w) && isDue(w))).length;
     return (
@@ -638,8 +675,11 @@ export default function FlashcardsPage() {
             <Segmented
               grow
               size="lg"
-              value={onlyDue ? "due" : "all"}
-              onChange={(v) => setOnlyDue(v === "due")}
+              value={newMode ? null : onlyDue ? "due" : "all"}
+              onChange={(v) => {
+                setNewMode(false);
+                setOnlyDue(v === "due");
+              }}
               options={([true, false] as const).map((due) => ({
                 value: due ? "due" : "all",
                 label: (
@@ -650,13 +690,32 @@ export default function FlashcardsPage() {
                 ),
               }))}
             />
+            {/* The third choice, on its own row: three labels don't fit one on a phone. */}
+            {onTrack && (
+              <button
+                type="button"
+                aria-pressed={newMode}
+                onClick={() => setNewMode(true)}
+                className={cn(
+                  "mt-2 flex w-full items-center gap-2.5 rounded-[16px] border px-4 py-2.5 text-left text-sm font-semibold transition-colors",
+                  newMode ? "border-sage bg-sage text-white" : "border-black/[0.07] bg-paper/60 text-ink-muted hover:border-sage/50",
+                )}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  {t("review.modeNew")}
+                  {freshTheme && <span className="font-medium opacity-80"> · {freshTheme}</span>}
+                </span>
+                <span className="opacity-70">{freshWords.length}</span>
+              </button>
+            )}
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
-              {t(onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
+              {t(newMode ? "review.modeNewHint" : onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
             </p>
           </div>
 
           {/* 3. collection (optional) */}
-          {collections && collections.length > 0 && (
+          {collections && collections.length > 0 && !newMode && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.collection")}
@@ -684,12 +743,22 @@ export default function FlashcardsPage() {
           {sel.length === 0
             ? t("review.pickPair")
             : candidate === 0
-              ? t(onlyDue ? "review.nothingDue" : "review.nothing")
+              ? t(onlyDue && !newMode ? "review.nothingDue" : "review.nothing")
               : candidate === 1
                 ? t("review.startOne", { n: candidate })
                 : t("review.start", { n: candidate })}
         </Button>
-        {sel.length > 0 && onlyDue && dueCount === 0 && allCount > 0 && (
+        {/* Nothing due: new words when there are some, else everything anyway. */}
+        {sel.length > 0 && onlyDue && !newMode && dueCount === 0 && freshWords.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setNewMode(true)}
+            className="-mt-2 w-full text-center text-[13px] font-semibold text-sage hover:text-sage-deep"
+          >
+            {freshTheme ? t("review.keepNewTheme", { theme: freshTheme, n: freshWords.length }) : t("review.keepNew", { n: freshWords.length })}
+          </button>
+        )}
+        {sel.length > 0 && onlyDue && !newMode && dueCount === 0 && freshWords.length === 0 && allCount > 0 && (
           <button
             type="button"
             onClick={() => setOnlyDue(false)}
@@ -773,7 +842,10 @@ export default function FlashcardsPage() {
   const done = index >= total;
 
   const dailyLeft = daily?.words.filter((w) => !w.added).length ?? 0;
-  const reviewedIds = Array.from(new Set(deck.map((w) => w.id)));
+  // A new word's id is the card its first grade made (none for one known on sight).
+  const reviewedIds = Array.from(
+    new Set(deck.map((w) => (isNewWord(w) ? words.find((x) => x.word === w.word)?.id : w.id)).filter((id): id is string => !!id)),
+  );
   const nextSteps = [
     ...(dailyLeft > 0
       ? [{ href: "/#daily", Icon: Sparkles, title: t("review.nextDaily", { n: dailyLeft }), sub: t("review.nextDailySub"), onClick: undefined }]
@@ -801,11 +873,25 @@ export default function FlashcardsPage() {
     // pairs and list, and the next new words, as the setup's Due now would start.
     // Grades land in the cache as they're given, so the cards just done aren't in it.
     const more = capNewCards(words.filter((w) => sel.includes(pairKey(w)) && inColl(w) && isDue(w)));
+    // Nothing due: the next new words, straight from the dictionary. They are what
+    // is left of today's, so Today's own row would only repeat them.
+    const newStep =
+      !more.length && freshWords.length > 0
+        ? {
+            href: "",
+            Icon: Sparkles,
+            title: freshTheme ? t("review.keepNewTheme", { theme: freshTheme, n: freshWords.length }) : t("review.keepNew", { n: freshWords.length }),
+            sub: t("review.keepNewSub"),
+            onClick: () => start(freshWords),
+          }
+        : null;
     const steps = [
       ...(more.length
         ? [{ href: "", Icon: Repeat, title: t("review.keepGoing", { n: more.length }), sub: t("review.keepGoingSub"), onClick: () => start(more) }]
-        : []),
-      ...nextSteps,
+        : newStep
+          ? [newStep]
+          : []),
+      ...nextSteps.filter((s) => !(newStep && s.href === "/#daily")),
     ];
     return (
       <div
@@ -1257,20 +1343,29 @@ export default function FlashcardsPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <a
-            href={`/word/${word.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-          >
-            {t("review.openCard")} <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-          <button
-            onClick={() => setEditing(word)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-          >
-            <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("edit.editCard")}</span>
-          </button>
+          {/* A new word has no card to open or edit until its first grade makes one. */}
+          {isNewWord(word) ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-tint px-3 py-1.5 text-xs font-semibold text-sage-deep">
+              <Sparkles className="h-3.5 w-3.5" /> {t("review.newBadge")}
+            </span>
+          ) : (
+            <>
+              <a
+                href={`/word/${word.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+              >
+                {t("review.openCard")} <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <button
+                onClick={() => setEditing(word)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+              >
+                <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("edit.editCard")}</span>
+              </button>
+            </>
+          )}
           <button
             onClick={() => setStarted(false)}
             className="hidden items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] sm:inline-flex"
@@ -1452,7 +1547,9 @@ export default function FlashcardsPage() {
               {g}
             </span>
             <span className="text-sm">{t(`review.${name}`)}</span>
-            <span className={cn("text-[11px] font-medium", dim)}>{fmtInterval(iv[name], t)}</span>
+            <span className={cn("text-[11px] font-medium", dim)}>
+              {g === 4 && isNewWord(word) ? t("hskDaily.known") : fmtInterval(iv[name], t)}
+            </span>
           </button>
         ))}
       </div>

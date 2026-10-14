@@ -55,7 +55,9 @@ export type OutboxOp =
   // `source` is the surface that graded it; absent on ops queued before it was
   // logged, which only ever came from the review page.
   | { id?: number; kind: "review"; wordId: string; grade: number; source?: ReviewSource; at: number }
-  | { id?: number; kind: "add"; word: string; sourceLang: string; targetLang: string; notes?: string; at: number };
+  | { id?: number; kind: "add"; word: string; sourceLang: string; targetLang: string; notes?: string; at: number }
+  // A new word's first grade (it becomes a card then).
+  | { id?: number; kind: "learn"; word: string; grade: number; source: "review" | "write"; at: number };
 
 export async function outboxAdd(op: OutboxOp): Promise<void> {
   try {

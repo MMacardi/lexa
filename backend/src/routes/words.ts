@@ -25,6 +25,7 @@ import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
 import { hskDailyWords } from "../services/wordGroups.js";
+import { hskNextWords, learnWord, readyCards, unlearnWord } from "../services/newWords.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
@@ -302,6 +303,44 @@ wordsRouter.get("/hsk/gap", async (req, res) => {
 wordsRouter.get("/hsk/daily", async (req, res) => {
   const telegramId = readSession(req)!;
   res.json(await hskDailyWords(telegramId));
+});
+
+// New words in Flashcards and Writing without adding them first (BACKLOG 1e part 3).
+// GET /api/hsk/next?n=8 -> the next new words as ready-made cards, nothing written:
+// what is left of today's group, then the group after it.
+wordsRouter.get("/hsk/next", async (req, res) => {
+  const telegramId = readSession(req)!;
+  const n = Math.min(Math.max(Number(req.query.n) || 8, 1), 20);
+  const next = await hskNextWords(telegramId, n);
+  res.json({ ...next, words: await readyCards(telegramId, next.words) });
+});
+
+// POST /api/hsk/learn {word, grade, source} -> a new word's first grade: the card is
+// made then, and graded in the same call ("Easy" in Flashcards: known, no card).
+const learnBody = z.object({
+  word: z.string().trim().min(1).max(40),
+  grade: z.number().int().min(1).max(4),
+  source: z.enum(["review", "write"]).default("review"),
+  retention: z.number().optional(),
+});
+wordsRouter.post("/hsk/learn", async (req, res) => {
+  const parsed = learnBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { grade, ...rest } = parsed.data;
+  res.json(await learnWord(readSession(req)!, { ...rest, grade: grade as 1 | 2 | 3 | 4 }));
+});
+
+// POST /api/hsk/learn/undo {word} -> take that first grade back, card and all.
+wordsRouter.post("/hsk/learn/undo", async (req, res) => {
+  const word = typeof req.body?.word === "string" ? req.body.word.trim() : "";
+  if (!word || !(await unlearnWord(readSession(req)!, word))) {
+    res.status(409).json({ error: "Nothing to undo" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 // Topic words beside the exam words: GET today's few (a field with no words yet is
