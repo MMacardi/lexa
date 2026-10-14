@@ -23,8 +23,9 @@ import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { ExampleText } from "@/components/ExampleText";
 import { MeasureWords } from "@/components/MeasureWords";
-import { Pinyin } from "@/components/Pinyin";
-import { setExamplePinyin, useExamplePinyin } from "@/lib/learnPrefs";
+import { Pinyin, ToneLegend } from "@/components/Pinyin";
+import { OnceHint } from "@/components/OnceHint";
+import { setExamplePinyin, useExamplePinyin, useToneColors } from "@/lib/learnPrefs";
 import { WordSenses } from "@/components/WordSenses";
 import { WordCharacters } from "@/components/WordCharacters";
 import { AddExampleInline } from "@/components/AddExampleInline";
@@ -88,6 +89,7 @@ export default function WordDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [filling, setFilling] = useState(false);
   const examplePinyin = useExamplePinyin();
+  const toneColors = useToneColors();
   const { accountId } = useAccount();
   const { data: word, isLoading, isError, refetch } = useQuery({
     queryKey: ["word", id],
@@ -237,6 +239,14 @@ export default function WordDetailPage() {
         )}
         <DictMeaningLabel word={word} className="block" />
         <MeasureWords word={word.word} items={word.measureWords} />
+        {/* The first coloured pinyin a learner meets says what the colours are, once. */}
+        {toneColors && word.phonetic && isChineseLang(word.sourceLang) && (
+          <OnceHint id="tones">
+            {t("hint.tones").split("{legend}")[0]}
+            <ToneLegend />
+            {t("hint.tones").split("{legend}")[1]}
+          </OnceHint>
+        )}
         {needsFill && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <button

@@ -22,6 +22,20 @@ export function toneOf(syllable: string): number {
 const TONE_CLASS = ["", "text-tone1", "text-tone2", "text-tone3", "text-tone4", ""];
 export const toneClass = (syllable: string) => TONE_CLASS[toneOf(syllable)];
 
+/** mā má mǎ mà in their tones' colours, whatever the setting: what the colours mean, for a hint to show. */
+export function ToneLegend() {
+  return (
+    <span className="font-pinyin font-semibold">
+      {["mā", "má", "mǎ", "mà"].map((s, i) => (
+        <span key={s} className={toneClass(s)}>
+          {i ? " " : ""}
+          {s}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /**
  * Tone-marked pinyin with each syllable in its tone's colour, while the learner
  * keeps tone colours on (the default). Anything that isn't pinyin — a learner's

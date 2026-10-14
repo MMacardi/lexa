@@ -2195,6 +2195,11 @@ const DICT: Record<string, Entry> = {
     ru: "Оцените карточку свайпом или кнопкой (Снова → Легко) — Onomika назначит повторение как раз перед тем, как вы забудете.",
     zh: "滑动或点按给卡片评分（重来 → 简单）——Onomika 会在你快忘记时安排下次复习。",
   },
+  "hint.tones": {
+    en: "The colours are the tones: {legend}, 1st to 4th; the light tone has no colour. You can turn them off in Flashcards settings.",
+    ru: "Цвета — это тоны: {legend}, с 1-го по 4-й; лёгкий тон без цвета. Отключить их можно в настройках карточек.",
+    zh: "颜色表示声调：{legend}，一声到四声；轻声不上色。可在闪卡设置中关闭。",
+  },
   "hint.quiz": {
     en: "Pick how to answer — choice or typing. A round needs at least 4 words; Cram takes a list of any size.",
     ru: "Выберите формат ответа — выбор или ввод. Для раунда нужно минимум 4 слова; зубрёжка подходит для списка любого размера.",
