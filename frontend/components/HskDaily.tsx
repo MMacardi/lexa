@@ -157,7 +157,7 @@ export function HskDaily() {
           onClick={() => setEditingTopic(true)}
           aria-label={t("topic.change")}
           title={t("topic.change")}
-          className="rounded-full p-1 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
+          className="-my-2 rounded-full p-2.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
         >
           <Pencil className="h-3 w-3" />
         </button>
@@ -240,7 +240,8 @@ export function HskDaily() {
               key={w.word}
               word={w.word}
               pinyin={w.pinyin}
-              level={w.level}
+              // The header names the level; a chip says it only when it differs (a word tapped below it).
+              level={w.level === data.level ? null : w.level}
               added={w.added}
               known={known.has(w.word)}
               onToggle={() => toggle(w.word)}

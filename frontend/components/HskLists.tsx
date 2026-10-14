@@ -36,7 +36,7 @@ export function HskLists() {
               onClick={() => setVersion(v)}
               aria-pressed={v === version}
               className={cn(
-                "rounded-full px-3 py-1 text-[13px] font-semibold transition",
+                "rounded-full px-3 py-1.5 text-[13px] font-semibold transition",
                 v === version ? "bg-sage text-white" : "bg-paper text-ink-muted hover:bg-black/[0.04]",
               )}
             >

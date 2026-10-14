@@ -55,7 +55,7 @@ export function OnceHint({
         type="button"
         onClick={dismiss}
         aria-label={t("hint.dismiss")}
-        className="-mr-1 mt-[1px] shrink-0 rounded-full p-1 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
+        className="-my-1.5 -mr-2 shrink-0 rounded-full p-2 text-ink-faint transition-colors hover:bg-black/[0.04] hover:text-ink"
       >
         <X className="h-3.5 w-3.5" />
       </button>

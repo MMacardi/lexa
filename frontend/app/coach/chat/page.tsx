@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { goalInLocale } from "@/lib/goalText";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLearnerLevel, useTapAnyGloss } from "@/lib/learnPrefs";
@@ -74,9 +75,9 @@ export default function CoachChatPage() {
 
   // Prefill the topic with the learner's saved goal — a natural thing to chat about.
   useEffect(() => {
-    const g = profile?.goal?.trim();
+    const g = goalInLocale(profile?.goal?.trim() ?? "", t);
     if (g) setTopic((cur) => cur || g);
-  }, [profile?.goal]);
+  }, [profile?.goal, t]);
 
   // Candidate words for the conversation: weak → due → the rest, capped. These are
   // CANDIDATES, not a checklist — the model weaves in only the ones that fit what you

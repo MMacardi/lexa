@@ -194,13 +194,13 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                   )}
                 </div>
               </button>
-              <div className="absolute right-2 top-2 flex gap-0.5 hover-reveal">
+              <div className="absolute right-1 top-1 flex hover-reveal">
                 {it.status === "ready" && (
                   <button
                     type="button"
                     onClick={() => edit(it.id)}
                     aria-label={t("reader.editAction")}
-                    className="rounded-md p-1 text-ink-faint hover:text-sage-deep"
+                    className="rounded-md p-2 text-ink-faint hover:text-sage-deep"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -208,8 +208,8 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <button
                   type="button"
                   onClick={() => remove(it.id)}
-                  aria-label={t("friends.remove")}
-                  className="rounded-md p-1 text-ink-faint hover:text-warn-text"
+                  aria-label={t("common.delete")}
+                  className="rounded-md p-2 text-ink-faint hover:text-warn-text"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -241,13 +241,13 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <span className="hidden w-[190px] truncate text-right font-medium text-ink-faint sm:block">{pair(it.sourceLang, it.targetLang)}</span>
                 {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-ink-muted md:inline">{it.collection}</span>}
               </div>
-              <div className="flex shrink-0 gap-0.5 hover-reveal">
+              <div className="-my-1 flex shrink-0 hover-reveal">
                 {it.status === "ready" && (
                   <button
                     type="button"
                     onClick={() => edit(it.id)}
                     aria-label={t("reader.editAction")}
-                    className="rounded-md p-1 text-ink-faint hover:text-sage-deep"
+                    className="rounded-md p-2 text-ink-faint hover:text-sage-deep"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -255,8 +255,8 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <button
                   type="button"
                   onClick={() => remove(it.id)}
-                  aria-label={t("friends.remove")}
-                  className="rounded-md p-1 text-ink-faint hover:text-warn-text"
+                  aria-label={t("common.delete")}
+                  className="rounded-md p-2 text-ink-faint hover:text-warn-text"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

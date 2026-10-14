@@ -107,8 +107,8 @@ export function SceneHistory({ onOpen }: { onOpen: (id: string) => void }) {
               <button
                 type="button"
                 onClick={() => remove(it.id)}
-                aria-label={t("friends.remove")}
-                className="absolute right-2 top-2 rounded-md p-1 text-ink-faint hover-reveal hover:text-warn-text"
+                aria-label={t("common.delete")}
+                className="absolute right-1 top-1 rounded-md p-2 text-ink-faint hover-reveal hover:text-warn-text"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

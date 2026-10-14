@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { OPEN_ADD, open } from "@/lib/mobileNav";
@@ -34,8 +36,10 @@ type Tile = { key: string; Icon: LucideIcon; href: string; onPhone?: () => void;
 // Labels only — no counts, no model call. A list in a card like the rest of
 // Today, not a grid of tiles: the tiles read as a landing page (2026-10-10).
 export function FeatureTour() {
-  const { profile } = useAccount();
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
+  // Same cache as the goal card above it.
+  const { data: stats } = useQuery({ queryKey: ["stats", accountId], queryFn: () => api.stats(accountId) });
   const version = profile?.hskVersion ?? "3.0";
   const level = profile?.hskTarget ?? 1;
 
@@ -54,6 +58,10 @@ export function FeatureTour() {
     { key: "collections", Icon: Folders, href: "/collections" },
     ...(BOT_USERNAME ? [{ key: "bot", Icon: Send, href: `https://t.me/${BOT_USERNAME}`, external: true }] : []),
   ];
+
+  // A newcomer's map only (BACKLOG 1k): after three days of study the bottom bar is
+  // known, and at the foot of a long Today the list only repeated it.
+  if (!stats || stats.heat.filter((d) => d.count > 0).length >= 3) return null;
 
   const body = (tile: Tile) => (
     <>

@@ -2624,6 +2624,7 @@ const DICT: Record<string, Entry> = {
   "coachmem.saved": { en: "Saved", ru: "Сохранено", zh: "已保存" },
   "coachmem.clear": { en: "Clear", ru: "Очистить", zh: "清除" },
   // Settings group headings + the graph "adding method" control
+  "settings.more": { en: "More settings", ru: "Ещё настройки", zh: "更多设置" },
   "settings.groupAdding": { en: "Adding words", ru: "Добавление слов", zh: "添加单词" },
   "settings.groupStudy": { en: "Study", ru: "Обучение", zh: "学习" },
   "settings.groupReading": { en: "Reading", ru: "Чтение", zh: "阅读" },
@@ -2816,6 +2817,12 @@ const DICT: Record<string, Entry> = {
   "privacy.profile": { en: "My profile", ru: "Мой профиль", zh: "我的主页" },
   "privacy.profileHint": { en: "Who sees your progress: words, streak, activity graph, languages.", ru: "Кто видит ваш прогресс: слова, серию, график активности, языки.", zh: "谁能看到你的进度：单词、连续天数、活动图、语言。" },
   "privacy.decks": { en: "My decks", ru: "Мои наборы", zh: "我的词组" },
+  // Focused, Community is hidden: the decks show on the profile only.
+  "privacy.decksHintFocus": {
+    en: "Who sees the decks you share, on your profile. Each deck's own sharing setting still applies.",
+    ru: "Кто видит ваши общие наборы в профиле. Настройка доступа каждого набора тоже действует.",
+    zh: "谁能在你的主页上看到你分享的词组。每个词组自己的分享设置仍然有效。",
+  },
   "privacy.decksHint": { en: "Who sees your shared decks on your profile and in friends' Community feed. Each deck's own sharing setting still applies.", ru: "Кто видит ваши общие наборы в профиле и в ленте друзей в «Сообществе». Настройка доступа каждого набора тоже действует.", zh: "谁能在你的主页和好友的社区动态中看到你分享的词组。每个词组自己的分享设置仍然有效。" },
   "privacy.hidden": { en: "Nobody", ru: "Никто", zh: "不公开" },
   "privacy.friends": { en: "Friends", ru: "Друзья", zh: "好友" },

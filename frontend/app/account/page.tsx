@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type PrivacyLevel } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -57,7 +57,8 @@ import { useUpsell } from "@/lib/useUpsell";
 import { ProTag } from "@/components/ProTag";
 import { cn } from "@/lib/utils";
 import { FOCUS } from "@/lib/focus";
-import { Sun, Moon, X, Pencil, Check, Eye, EyeOff } from "lucide-react";
+import { Sun, Moon, X, Pencil, Check, Eye, EyeOff, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Collapse } from "@/components/ui/Collapse";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { BotInfo } from "@/components/BotInfo";
 import { PlanUsage } from "@/components/PlanUsage";
@@ -515,6 +516,18 @@ export default function AccountPage() {
   }
   const initial = (fullName || emailLocal || accountId || "?").charAt(0).toUpperCase();
 
+  // Five sections first, the rest folded (BACKLOG 1k): on a phone the page was ~13
+  // sections, the graph's add method and the mic engine between a learner and the
+  // language switch. A link to one of the folded ones (/account#privacy) opens it.
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (window.location.hash !== "#privacy") return;
+    setMore(true);
+    // The fold opens by height; land on the section once it has one.
+    const timer = setTimeout(() => document.getElementById("privacy")?.scrollIntoView({ behavior: "smooth" }), 400);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Sign-in method → label + status-dot colour.
   const method =
     via === "telegram"
@@ -610,36 +623,6 @@ export default function AccountPage() {
         </div>
       </Section>
 
-      {/* social privacy: who sees my profile page and my shared decks */}
-      <div id="privacy" className="scroll-mt-6">
-        <Section title={t("privacy.title")}>
-          <div className="space-y-4">
-            <PrivacyRow
-              label={t("privacy.profile")}
-              hint={t("privacy.profileHint")}
-              value={profile?.profileVisibility ?? "friends"}
-              onChange={(v) => togglePrivacy({ profileVisibility: v })}
-              t={t}
-            />
-            <PrivacyRow
-              label={t("privacy.decks")}
-              hint={t("privacy.decksHint")}
-              value={profile?.decksVisibility ?? "friends"}
-              onChange={(v) => togglePrivacy({ decksVisibility: v })}
-              t={t}
-            />
-            {profile?.id && (
-              <Link href={`/profile/${profile.id}`} className="inline-block text-sm font-semibold text-sage-deep hover:underline">
-                {t("privacy.viewMine")} →
-              </Link>
-            )}
-          </div>
-        </Section>
-      </div>
-
-      {/* plan + today's AI usage */}
-      <PlanUsage />
-
       {/* sign-in methods (link Telegram / Google / email to one account) */}
       <ConnectedAccounts />
 
@@ -681,33 +664,77 @@ export default function AccountPage() {
       {/* ── Coach: your personal mentor's memory ── */}
       <GroupHeading>{t("nav.mika")}</GroupHeading>
       <CoachMemorySection />
-      {/* which engine transcribes voice answers + pronunciation checks */}
-      <MicSection />
 
-      {/* ── Adding words: how new cards are created ── */}
-      <GroupHeading>{t("settings.groupAdding")}</GroupHeading>
-      {/* where example sentences come from (AI vs web) */}
-      <ExampleSourceSection />
-      {/* how card meanings are written (learner-editable prompt) */}
-      <MeaningStyleSection />
-      {/* default method when adding a synonym/antonym from the graph */}
-      <GraphAddSection />
+      <button
+        type="button"
+        aria-expanded={more}
+        onClick={() => setMore((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 rounded-[20px] border border-black/[0.06] bg-surface px-5 py-4 text-left text-[15px] font-semibold text-ink"
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-sage" /> {t("settings.more")}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-ink-faint transition-transform duration-300", more && "rotate-180")} />
+      </button>
+      <Collapse open={more} className="space-y-6">
+        {/* social privacy: who sees my profile page and my shared decks */}
+        <div id="privacy" className="scroll-mt-6">
+          <Section title={t("privacy.title")}>
+            <div className="space-y-4">
+              <PrivacyRow
+                label={t("privacy.profile")}
+                hint={t("privacy.profileHint")}
+                value={profile?.profileVisibility ?? "friends"}
+                onChange={(v) => togglePrivacy({ profileVisibility: v })}
+                t={t}
+              />
+              <PrivacyRow
+                label={t("privacy.decks")}
+                hint={t(FOCUS ? "privacy.decksHintFocus" : "privacy.decksHint")}
+                value={profile?.decksVisibility ?? "friends"}
+                onChange={(v) => togglePrivacy({ decksVisibility: v })}
+                t={t}
+              />
+              {profile?.id && (
+                <Link href={`/profile/${profile.id}`} className="inline-block text-sm font-semibold text-sage-deep hover:underline">
+                  {t("privacy.viewMine")} →
+                </Link>
+              )}
+            </div>
+          </Section>
+        </div>
 
-      {/* ── Study: scheduling + levels ── */}
-      <GroupHeading>{t("settings.groupStudy")}</GroupHeading>
-      {/* review scheduling (FSRS desired retention) */}
-      <RetentionSection />
-      {/* language levels */}
-      <LevelsSection />
+        {/* plan + today's AI usage */}
+        <PlanUsage />
 
-      {/* ── Reading: how words/texts are shown ── */}
-      <GroupHeading>{t("settings.groupReading")}</GroupHeading>
-      {/* transcription (pinyin/romaji) in quick tap lookups */}
-      <TranscriptionSection />
-      <TextLevelSection />
+        {/* which engine transcribes voice answers + pronunciation checks */}
+        <MicSection />
 
-      {/* take a copy of everything, or delete the account — last on the page on purpose */}
-      <AccountDataSection />
+        {/* ── Adding words: how new cards are created ── */}
+        <GroupHeading>{t("settings.groupAdding")}</GroupHeading>
+        {/* where example sentences come from (AI vs web) */}
+        <ExampleSourceSection />
+        {/* how card meanings are written (learner-editable prompt) */}
+        <MeaningStyleSection />
+        {/* default method when adding a synonym/antonym from the graph */}
+        <GraphAddSection />
+
+        {/* ── Study: scheduling + levels ── */}
+        <GroupHeading>{t("settings.groupStudy")}</GroupHeading>
+        {/* review scheduling (FSRS desired retention) */}
+        <RetentionSection />
+        {/* language levels */}
+        <LevelsSection />
+
+        {/* ── Reading: how words/texts are shown ── */}
+        <GroupHeading>{t("settings.groupReading")}</GroupHeading>
+        {/* transcription (pinyin/romaji) in quick tap lookups */}
+        <TranscriptionSection />
+        <TextLevelSection />
+
+        {/* take a copy of everything, or delete the account — last on the page on purpose */}
+        <AccountDataSection />
+      </Collapse>
     </div>
   );
 }

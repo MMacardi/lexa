@@ -6,6 +6,7 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
+import { goalInLocale } from "@/lib/goalText";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { getLearnerLevel, getExampleStyle, getNativeLang, levelName } from "@/lib/learnPrefs";
@@ -144,7 +145,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
   const allPicks = picksQuery.data?.picks ?? [];
   const picks = compact ? allPicks.slice(0, COMPACT_COUNT) : allPicks;
   const topic = picksQuery.data?.topic?.trim() ?? "";
-  const goal = memory?.goal?.trim() ?? "";
+  const goal = goalInLocale(memory?.goal?.trim() ?? "", t);
   const loading = picksQuery.isFetching || fetching;
   const shownTopic = pendingTopic ?? topic;
 

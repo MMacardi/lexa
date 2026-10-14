@@ -566,7 +566,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    level/tap bar and the word chips. SE audit: nothing under the bar on the three pages; a resumed
    scene and a fresh chat at 320×568 keep the composer at the same place scrolled top or bottom.
 
-1k. **Today, shorter again, and the small fixes the audit found.** At 390×844 Today is still about
+1k. [x] **Today, shorter again, and the small fixes the audit found.** At 390×844 Today is still about
    five screens: the review, Пропись, 24 words of the day (each chip repeats "HSK 5" under a header
    that says HSK 5), the goal ring, the 7-day strip, the progress fold and an "Все разделы" menu
    that repeats the bottom bar. Drop the per-chip level when it equals the header's; show "Все
@@ -576,6 +576,20 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    render it; Settings mention «Сообщество», which focus hides; Settings is ~13 sections on a phone
    (the graph's add method, the mic engine, transcription…) — the five that matter first, the
    rest under "Ещё настройки".
+   **Done 2026-10-14:** a chip names its level only when it differs from the header's; «Все разделы»
+   shows until the learner has studied on 3 days (`stats.heat`); the goal card keeps an 88 px ring
+   beside the text and the 7-day strip on a phone. Today as ux-learner at 390×844: 1,736 px, about two
+   screens. Tap targets: the topic pencil, the readiness/list pills, the plan line, the tone hint's ×,
+   «На карточке», the word page's back link and the Reader's saved-text buttons (whose delete was
+   labelled «Удалить из друзей» for screen readers; now «Удалить») are 30 px or more; left are inline
+   text links (the credit line, "Мика подберёт…"), exempt as inline. The goal is rendered, not
+   migrated: `lib/goalText.ts` reads the saved labels back to their ids in any language and names
+   them in today's («Pass the HSK, Travel» → «Сдать HSK, Путешествия» on «Больше слов» and as the
+   chat's topic). Under focus the decks row's hint leaves out «Сообщество». Settings opens on
+   Account, sign-in, the bot, Appearance and Mika; the rest folds under «Ещё настройки»
+   (`/account#privacy` opens it). **Left, found on the way:** /words has 33 targets under 28 px and
+   Settings 5 (the name pencil, the 3.0/2.0 toggle); /mika's «Проверить мой уровень» sits under the
+   bottom bar on the SE (it did before this pass too).
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than

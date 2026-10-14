@@ -10,7 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, PartyPopper, Target } from "lucide-react";
 
 // A standalone, prominent daily-goal panel: a big progress ring, encouragement,
-// a 7-day "goal met" strip, and +/- to tune the target.
+// a 7-day "goal met" strip, and +/- to tune the target. On a phone the ring sits
+// beside the rest, smaller: stacked, the card alone was most of a screen (BACKLOG 1k).
 export function DailyGoalCard() {
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
@@ -25,8 +26,8 @@ export function DailyGoalCard() {
   if (isLoading)
     return (
       <section className="anim-fade-up overflow-hidden rounded-[24px] border border-black/[0.06] bg-surface">
-        <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-          <Skeleton className="mx-auto h-[140px] w-[140px] shrink-0 rounded-full sm:mx-0" />
+        <div className="flex items-start gap-4 p-5 sm:items-center sm:gap-6 sm:p-6">
+          <Skeleton className="h-[88px] w-[88px] shrink-0 rounded-full sm:h-[140px] sm:w-[140px]" />
           <div className="min-w-0 flex-1 space-y-3">
             <Skeleton className="h-6 w-40" />
             <Skeleton className="h-4 w-64" />
@@ -54,9 +55,9 @@ export function DailyGoalCard() {
 
   return (
     <section className="anim-fade-up overflow-hidden rounded-[24px] border border-black/[0.06] bg-surface">
-      <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
+      <div className="flex items-start gap-4 p-5 sm:items-center sm:gap-6 sm:p-6">
         {/* ring */}
-        <div className="relative mx-auto h-[140px] w-[140px] shrink-0 sm:mx-0">
+        <div className="relative h-[88px] w-[88px] shrink-0 sm:h-[140px] sm:w-[140px]">
           <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
             <circle cx="70" cy="70" r={r} fill="none" stroke="var(--color-track)" strokeWidth="13" />
             <circle
@@ -73,16 +74,16 @@ export function DailyGoalCard() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-serif text-[34px] font-bold leading-none text-ink">{done}</span>
-            <span className="text-[12px] font-medium text-ink-faint">/ {goal}</span>
-            <span className="mt-1 text-[11px] font-semibold text-sage-deep">{percent}%</span>
+            <span className="font-serif text-[24px] font-bold leading-none text-ink sm:text-[34px]">{done}</span>
+            <span className="text-[11px] font-medium text-ink-faint sm:text-[12px]">/ {goal}</span>
+            <span className="mt-1 hidden text-[11px] font-semibold text-sage-deep sm:block">{percent}%</span>
           </div>
         </div>
 
         {/* right side */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-serif text-[22px] font-medium text-ink">{t("stats.goal")}</h3>
+            <h3 className="font-serif text-[19px] font-medium text-ink sm:text-[22px]">{t("stats.goal")}</h3>
             {hit ? <PartyPopper className="h-5 w-5 text-sage" /> : <Target className="h-5 w-5 text-ink-faint" />}
             {/* The streak lived only in the stats panel, which focus mode hides. */}
             {data.streak > 0 && (
@@ -91,7 +92,7 @@ export function DailyGoalCard() {
               </span>
             )}
           </div>
-          <p className="mt-1 text-[15px] text-ink-soft">
+          <p className="mt-1 text-[14px] text-ink-soft sm:text-[15px]">
             {hit
               ? t("stats.goalGreat")
               : done === 0 && data.streak > 0
@@ -100,7 +101,7 @@ export function DailyGoalCard() {
           </p>
 
           {/* 7-day strip */}
-          <div className="mt-4">
+          <div className="mt-3 sm:mt-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
               {t("stats.last7")}
             </p>

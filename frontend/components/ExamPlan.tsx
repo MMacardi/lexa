@@ -292,7 +292,7 @@ export function PlanLine({ open, onToggle }: { open: boolean; onToggle: () => vo
       onClick={onToggle}
       aria-expanded={open}
       className={cn(
-        "mt-1 inline-flex max-w-full items-center gap-1.5 text-left text-[13px] font-semibold transition-colors",
+        "mt-0.5 inline-flex min-h-[30px] max-w-full items-center gap-1.5 text-left text-[13px] font-semibold transition-colors",
         warn ? "text-warn-text hover:opacity-80" : "text-sage-deep hover:text-sage",
       )}
     >

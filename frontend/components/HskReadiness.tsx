@@ -144,7 +144,7 @@ export function HskReadiness() {
             <button
               key={v}
               onClick={() => pick(v, Math.min(data.level, LEVELS[v].length))}
-              className={`rounded-full px-3 py-1 text-[13px] font-semibold transition ${
+              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${
                 data.version === v ? "bg-sage text-white" : "bg-paper text-ink-muted hover:bg-black/[0.04]"
               }`}
             >
@@ -162,7 +162,7 @@ export function HskReadiness() {
             <button
               key={n}
               onClick={() => pick(data.version, n)}
-              className={`rounded-full px-3 py-1 text-[13px] font-semibold transition ${
+              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${
                 data.level === n ? "bg-sage text-white" : "bg-paper text-ink-muted hover:bg-black/[0.04]"
               }`}
             >

@@ -142,7 +142,7 @@ export default function WordDetailPage() {
   if (isLoading)
     return (
       <div className="space-y-6">
-        <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
+        <Link href="/words" className="inline-flex min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink">
           {t("word.back")}
         </Link>
         <Skeleton className="h-10 w-52" />
@@ -153,7 +153,7 @@ export default function WordDetailPage() {
   if (isError || !word)
     return (
       <div className="space-y-4">
-        <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
+        <Link href="/words" className="inline-flex min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink">
           {t("word.back")}
         </Link>
         <ErrorState
@@ -175,7 +175,7 @@ export default function WordDetailPage() {
   return (
     <div className="anim-fade-up space-y-7">
       <div className="flex items-center justify-between">
-        <Link href="/words" className="text-sm font-semibold text-ink-soft hover:text-ink">
+        <Link href="/words" className="inline-flex min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink">
           {t("word.back")}
         </Link>
         {!editing && (

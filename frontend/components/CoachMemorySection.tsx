@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { translationsOf, useI18n } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
+import { parseChips } from "@/lib/goalText";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { LangSelect } from "@/components/LangSelect";
@@ -15,27 +16,6 @@ import { cn } from "@/lib/utils";
 import { Compass, Trash2, X, type LucideIcon } from "lucide-react";
 
 type ChipOption = { id: string; key: string; Icon: LucideIcon | React.ComponentType<{ className?: string }> };
-
-// The goal and interests are text in the coach memory (the model reads text), but
-// for Chinese they are picked the way onboarding picks them: chips. The text is
-// read back into chips by matching the labels in any interface language; what
-// matches none stays as a chip of its own, so nothing typed earlier is lost. The
-// old "HSK 4 (in 1–3 months)" is the exam reason — the level and day live in the
-// plan above now, and the coach reads them from there.
-function parseChips(text: string, options: ChipOption[]) {
-  const on = new Set<string>();
-  const extra: string[] = [];
-  for (const piece of text.split(/\s*[,，、;；]\s*/).map((p) => p.trim()).filter(Boolean)) {
-    if (/^HSK\s*[\d–-]/i.test(piece) && options.some((o) => o.id === "exam")) {
-      on.add("exam");
-      continue;
-    }
-    const hit = options.find((o) => translationsOf(o.key).some((l) => l.toLowerCase() === piece.toLowerCase()));
-    if (hit) on.add(hit.id);
-    else if (!extra.includes(piece)) extra.push(piece);
-  }
-  return { on, extra };
-}
 
 // Also Today's field picker (TopicEditor): the interests are the topic words' fields.
 export function ChipField({

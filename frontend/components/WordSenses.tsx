@@ -192,7 +192,7 @@ export function WordSenses({ word }: { word: Word }) {
                       onClick={() => toggle(i)}
                       aria-pressed={on}
                       className={cn(
-                        "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                        "inline-flex min-h-[30px] shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
                         on
                           ? "bg-sage text-white hover:bg-sage-deep"
                           : "border border-black/[0.1] text-ink-soft hover:border-sage/60 hover:text-sage-deep",
