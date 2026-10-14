@@ -1298,6 +1298,7 @@ export const api = {
     idea?: string;
     avoid?: string[];
     telegramId?: string;
+    today?: boolean; // the scene of the day: the server builds it around today's word group
   }) =>
     http<{
       title: string;

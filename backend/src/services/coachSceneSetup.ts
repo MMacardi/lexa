@@ -23,24 +23,37 @@ export async function coachSceneSetup(params: {
   profileNote?: string;
   idea?: string;
   avoid?: string[]; // recent scene themes/settings to steer clear of (variety)
+  // Today's new words (the day's group, services/wordGroups.ts): the scene is built
+  // for them, so they lead the pool and the model is asked to place most of them.
+  today?: { word: string; meaning: string }[];
 }): Promise<CoachSceneSetup> {
   const source = langName(params.sourceLang ?? "en");
   const target = langName(params.targetLang ?? "zh");
   const level = `\n\n${levelGuide(params.level, source, params.sourceLang)}`;
-  const pool = params.words.slice(0, 24);
+  const today = params.today ?? [];
+  const todayKeys = new Set(today.map((w) => w.word.trim().toLowerCase()));
+  const pool = [...today, ...params.words.filter((w) => !todayKeys.has(w.word.trim().toLowerCase()))].slice(0, 24);
+  const line = (w: { word: string; meaning: string }) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`;
   const wordList = pool.length
-    ? pool.map((w) => `- ${w.word}${w.meaning ? ` (${w.meaning})` : ""}`).join("\n")
+    ? pool.slice(today.length).map(line).join("\n") || "(none beyond today's words)"
     : "(none — the learner has no cards yet, so build the scene entirely around new words)";
+  const todayNote = today.length
+    ? `TODAY'S NEW WORDS — the learner is learning these today, and this scene is made for them: give as many as\n` +
+      `genuinely fit a natural place (most of them, in a scene of their situation), and list each one you use in\n` +
+      `"missionWords" (verbatim, with its meaning). They are for the learner to say over the scene, not for you to\n` +
+      `pack into the opening, which stays one short line entirely in ${source}:\n${today.map(line).join("\n")}\n\n`
+    : "";
   const idea = params.idea?.trim();
   const avoid = (params.avoid ?? []).map((a) => a.trim()).filter(Boolean).slice(0, 12);
   const avoidNote = avoid.length
     ? ` Do NOT reuse these recent scene themes/settings — pick something clearly different: ${avoid.join("; ")}.`
     : "";
 
-  const result = await chatJson({
+  const ask = (user: string) => chatJson({
     system:
       (params.profileNote ?? "") +
       `You design short, engaging roleplay SCENES for a ${source} learner whose own language is ${target}.${level}\n\n` +
+      todayNote +
       `These are words the learner happens to be reviewing — a CANDIDATE pool, not a checklist:\n${wordList}\n\n` +
       `Create ONE scene that:\n` +
       `1) Is a concrete, plausible situation` +
@@ -77,13 +90,20 @@ export async function coachSceneSetup(params: {
       ` Respond as JSON: {"title": string, "setting": string, "character": string, "characterName": string, ` +
       `"learnerRole": string, "goal": string, "briefing": string, ` +
       `"missionWords": [{"word": string, "meaning": string}], ` +
-      `"newWords": [{"word": string, "meaning": string}], "opening": string, "twist": string}.`,
+      `"newWords": [{"word": string, "meaning": string}], "opening": string (in ${source} only), "twist": string}.`,
     // The pool is already in the system prompt; repeating it here only cost tokens.
-    user: "Design the scene.",
+    user,
     schema: coachSceneSetupSchema,
     label: "coachSceneSetup",
     timeoutMs: 45000,
   });
+  // The opening is spoken, so it is in the studied language. Asked once, mid-prompt,
+  // after seven fields in the learner's own language, Qwen wrote it in Russian with the
+  // Chinese words dropped in («станет主席 этого大会», 2026-10-14): said again in the
+  // request, and a Chinese opening that comes back mostly in letters is asked for once more.
+  const spoken = `Design the scene. Everything the learner reads is in ${target}; the character's "opening" is spoken, in ${source} only.`;
+  let result = await ask(spoken);
+  if (offScript(result.opening ?? "", params.sourceLang)) result = await ask(`${spoken} Your last "opening" was not in ${source}.`);
 
   // Post-filter: keep only mission words genuinely in the pool (models sometimes invent),
   // and prefer the pool's stored meaning so the chip/translation stays consistent.
@@ -94,8 +114,9 @@ export async function coachSceneSetup(params: {
     .map((w) => ({ word: w, meaning: allowed.get(w.toLowerCase()) ?? "" }));
   // No fallback: an empty list means nothing in the pool fit the scene, which is the
   // correct answer. Backfilling the whole pool here is what used to drag unrelated
-  // words into the dialogue. Cap at 8.
-  const missionWords = filtered.slice(0, 8);
+  // words into the dialogue. Cap at 8, today's words first.
+  const isToday = (w: { word: string }) => todayKeys.has(w.word.toLowerCase());
+  const missionWords = [...filtered.filter(isToday), ...filtered.filter((w) => !isToday(w))].slice(0, 8);
 
   // New words must be genuinely new: not in the learner's pool and not a mission word.
   const missionSet = new Set(missionWords.map((w) => w.word.trim().toLowerCase()));
@@ -128,4 +149,12 @@ export async function coachSceneSetup(params: {
     opening,
     twist: (result.twist ?? "").trim(),
   };
+}
+
+// A Chinese or Japanese line written mostly in letters (Cyrillic, Latin) is in the wrong language.
+function offScript(text: string, sourceLang?: string): boolean {
+  if (!/^(zh|ja)/.test(sourceLang ?? "")) return false;
+  const han = (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu) ?? []).length;
+  const letters = (text.match(/\p{L}/gu) ?? []).length - han;
+  return letters > han;
 }

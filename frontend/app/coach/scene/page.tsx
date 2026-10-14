@@ -105,7 +105,7 @@ function pushRecent(theme: string) {
 }
 
 export default function CoachScenePage() {
-  const { accountId } = useAccount();
+  const { accountId, profile } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
@@ -197,6 +197,18 @@ export default function CoachScenePage() {
   }, [pairWords]);
 
   const wordPayload = useMemo(() => poolWords.map((w) => ({ word: w.word, meaning: w.meaningZh ?? "" })), [poolWords]);
+
+  // The scene of the day (BACKLOG 1i): today's words are one group in one situation
+  // (the transit day, the office day), so the setup leads with that scene instead of
+  // a grid of presets to choose from. The presets stay behind "Another scene".
+  const { data: daily } = useQuery({
+    queryKey: ["hskDaily", accountId],
+    queryFn: () => api.hskDaily(),
+    enabled: profile?.hskTarget != null && pair?.source === "zh",
+  });
+  const dayTheme = pair?.source === "zh" && !focusSet ? (daily?.theme ?? null) : null;
+  const [otherOpen, setOtherOpen] = useState(false);
+  const todayRef = useRef(false); // the briefing's "regenerate" makes the same kind of scene
 
   // ---- scene session state ----
   const [scene, setScene] = useState<Scene | null>(null);
@@ -299,13 +311,15 @@ export default function CoachScenePage() {
     }
   }
 
-  async function generate() {
+  // `today`: the scene of the day; the server builds it from today's group.
+  async function generate(today = false) {
     if (!pair || generating) return;
     // Difficulty is never random: if no level is set for this language yet, ask once.
     const { ok } = await ensureLevel(pair.source);
     if (!ok) return;
     setGenerating(true);
-    const preset = selectedPreset ? ALL_PRESETS.find((p) => p.id === selectedPreset) : null;
+    todayRef.current = today;
+    const preset = !today && selectedPreset ? ALL_PRESETS.find((p) => p.id === selectedPreset) : null;
     const effectiveIdea = preset ? preset.idea : undefined;
     try {
       const res = await api.coachSceneSetup({
@@ -316,8 +330,9 @@ export default function CoachScenePage() {
         idea: effectiveIdea,
         // Only steer away from recent themes when the learner didn't ask for a specific
         // scene — an explicit pick/preset should always be honoured.
-        avoid: effectiveIdea ? undefined : recentThemes,
+        avoid: effectiveIdea || today ? undefined : recentThemes,
         telegramId: accountId,
+        today: today || undefined,
       });
       const next: Scene = { ...res, missionWords: res.missionWords ?? [], newWords: res.newWords ?? [] };
       setScene(next);
@@ -334,7 +349,7 @@ export default function CoachScenePage() {
         const creating = api.createSceneSession({
           telegramId: accountId,
           title: next.title,
-          sceneKey: preset?.id,
+          sceneKey: preset?.id ?? (today && dayTheme ? `day.${dayTheme}` : undefined),
           sourceLang: pair.source,
           targetLang: pair.target,
           bible: next,
@@ -790,6 +805,42 @@ export default function CoachScenePage() {
                 <PracticeBar lang={pair?.source ?? "en"} />
               </div>
 
+              {dayTheme && daily && (
+                <div className="mt-5 w-full max-w-[440px] rounded-[18px] border border-sage/30 bg-sage-tint/40 p-4 text-left">
+                  <div className="text-[12px] font-semibold uppercase tracking-wide text-sage-deep">{t("scene.today.label")}</div>
+                  <p className="mt-1 font-serif text-[20px] font-medium text-ink first-letter:uppercase">{t(`situation.${dayTheme}`)}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-ink-soft">{t("scene.today.sub")}</p>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {daily.words.map((w) => (
+                      <span key={w.word} className="font-zh rounded-full border border-black/[0.06] bg-surface px-2.5 py-0.5 text-[15px] text-ink">
+                        {w.word}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => generate(true)}
+                    disabled={generating}
+                    className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-sage px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
+                  >
+                    {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+                    {generating ? t("common.loading") : t("scene.today.play")}
+                  </button>
+                </div>
+              )}
+              {dayTheme && (
+                <button
+                  type="button"
+                  onClick={() => setOtherOpen((v) => !v)}
+                  aria-expanded={otherOpen}
+                  className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", otherOpen && "rotate-180")} />
+                  {t("scene.today.other")}
+                </button>
+              )}
+
+              <Collapse open={!dayTheme || otherOpen} className="flex flex-col items-center">
               {/* quick-start scene presets — all visible at once, tap to select */}
               <div className="mt-5 w-full max-w-[540px]">
                 <div className="mb-2 text-center text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -869,13 +920,14 @@ export default function CoachScenePage() {
               )}
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => generate()}
                 disabled={generating}
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-sage px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
               >
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
                 {generating ? t("common.loading") : t("scene.generate")}
               </button>
+              </Collapse>
             </>
           )}
 
@@ -963,7 +1015,7 @@ export default function CoachScenePage() {
             </button>
             <button
               type="button"
-              onClick={generate}
+              onClick={() => generate(todayRef.current)}
               disabled={generating}
               className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:border-sage/50 disabled:opacity-50"
             >

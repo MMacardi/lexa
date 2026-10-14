@@ -10,6 +10,7 @@ import { checkLanguage } from "../services/langCheck.js";
 import { coachDrill } from "../services/coachDrill.js";
 import { coachChat } from "../services/coachChat.js";
 import { coachSceneSetup } from "../services/coachSceneSetup.js";
+import { SITUATIONS } from "../services/wordPages.js";
 import { coachSceneTurn } from "../services/coachSceneTurn.js";
 import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
@@ -1514,6 +1515,8 @@ const coachSceneSetupBody = z.object({
   idea: z.string().max(200).optional(),
   avoid: z.array(z.string().max(120)).max(12).optional(),
   telegramId: z.string().optional(),
+  // The scene of the day: built around today's word group, in its situation (BACKLOG 1i).
+  today: z.boolean().optional(),
 });
 wordsRouter.post("/coach/scene/setup", async (req, res) => {
   const parsed = coachSceneSetupBody.safeParse(req.body);
@@ -1524,7 +1527,18 @@ wordsRouter.post("/coach/scene/setup", async (req, res) => {
   const telegramId = readSession(req) ?? parsed.data.telegramId;
   try {
     const profileNote = await coachNote(telegramId, parsed.data.sourceLang);
-    res.json(await coachSceneSetup({ ...parsed.data, profileNote }));
+    // The day's group names the situation (transit: the station) and brings its words,
+    // with the meanings their word pages give, whether or not they are cards yet.
+    const { today: wantToday, ...body } = parsed.data;
+    const day = wantToday && telegramId ? await hskDailyWords(telegramId) : null;
+    const today = day?.theme
+      ? {
+          idea: SITUATIONS[day.theme],
+          avoid: undefined,
+          today: day.words.map((w) => ({ word: w.word, meaning: defaultMeaning(w.word, parsed.data.targetLang ?? "ru") ?? "" })),
+        }
+      : {};
+    res.json(await coachSceneSetup({ ...body, ...today, profileNote }));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

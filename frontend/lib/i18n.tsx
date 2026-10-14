@@ -923,6 +923,15 @@ const DICT: Record<string, Entry> = {
   "scene.preset.hairdresser": { en: "Hairdresser", ru: "Парикмахер", zh: "理发店" },
   "scene.moreScenes": { en: "More scenes", ru: "Ещё сцены", zh: "更多场景" },
   "scene.fewerScenes": { en: "Fewer scenes", ru: "Свернуть", zh: "收起" },
+  // The scene of the day (BACKLOG 1i): built from today's word group, in its situation.
+  "scene.today.label": { en: "Today's scene", ru: "Сцена дня", zh: "今日场景" },
+  "scene.today.sub": {
+    en: "Built from today's words — use them in a real conversation.",
+    ru: "Из сегодняшних слов — используй их в живом разговоре.",
+    zh: "用今天的生词编的场景——在对话里用上它们。",
+  },
+  "scene.today.play": { en: "Play it", ru: "Сыграть", zh: "开始" },
+  "scene.today.other": { en: "Another scene", ru: "Другая сцена", zh: "换个场景" },
   "scene.preset.neighbour": { en: "Neighbour", ru: "Сосед", zh: "邻居" },
   "scene.preset.delivery": { en: "Lost parcel", ru: "Потерянная посылка", zh: "丢失的包裹" },
   "scene.preset.directions": { en: "Asking the way", ru: "Спросить дорогу", zh: "问路" },

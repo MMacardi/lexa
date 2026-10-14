@@ -543,10 +543,16 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 1i. **One Mika: practice inside her tab.** **Shape shipped 2026-10-14** — see Done. From the phone
    audit (the author: "do you think somebody will use this feature", of scenes; then "we have many
    mika's with kinda similar but with different features"). Offered "one Mika, practice inside" vs
-   "Mika asks, Практика trains" vs "cut to the drill", the author chose the first. **Left:** a scene
-   opened with the day's word group (1e: one situation a day — the transport day gets the station
-   scene) instead of a preset grid; and look at the admin numbers once the beta runs — if nobody
-   opens a scene from Mika's sheet either, fold scenes into the chat as a "situation" option.
+   "Mika asks, Практика trains" vs "cut to the drill", the author chose the first. **The scene of the
+   day shipped 2026-10-14:** when Today's words have a theme, the scene page leads with «Сцена дня ·
+   Офис» and the day's words, "Сыграть" asks `/coach/scene/setup` with `today: true` and the server
+   builds the scene in that situation around the group (the transit day gets the station); the preset
+   grid folds behind "Другая сцена". Found on the way and fixed: scene openings came back in Russian
+   with the Chinese words dropped in (3 of 3 plain scenes) — the request now restates it and a
+   mostly-letters opening is asked for once more (5 of 5 Chinese after). **Left:** look at the admin
+   numbers once the beta runs — if nobody opens a scene from Mika's sheet either, fold scenes into the
+   chat as a "situation" option. **Also found:** a scene turn's `used` credits the character's words
+   too (4/5 after the learner said one, `coachSceneTurn.ts`); it should count the learner's line only.
 
 1j. **The practice pages on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
    `/coach/chat` and `/coach/practice` are full-height with an inner scroll card: at 320×568 the
