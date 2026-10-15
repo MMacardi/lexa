@@ -65,7 +65,7 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
     <div>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("stats.activity")}</p>
-        <p className="text-[12px] font-medium text-ink-soft">{t("stats.activeDays", { n: activeDays })}</p>
+        <p className="text-[13px] font-medium text-ink-soft">{t("stats.activeDays", { n: activeDays })}</p>
       </div>
 
       <div className="overflow-x-auto pb-1">
@@ -76,7 +76,7 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
               const m = monthOf(wk);
               const prev = i > 0 ? monthOf(weeks[i - 1]) : -1;
               return (
-                <span key={i} className="w-[11px] text-[9px] font-medium text-ink-faint">
+                <span key={i} className="w-[11px] text-[11px] font-medium text-ink-faint">
                   {m !== prev && m >= 0 ? new Date(2000, m, 1).toLocaleDateString("en-US", { month: "short" }) : ""}
                 </span>
               );
@@ -85,7 +85,7 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
 
           <div className="flex gap-[3px]">
             {/* weekday labels */}
-            <div className="mr-0.5 flex w-5 shrink-0 flex-col gap-[3px] text-[9px] font-medium text-ink-faint">
+            <div className="mr-0.5 flex w-5 shrink-0 flex-col gap-[3px] text-[11px] font-medium text-ink-faint">
               {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
                 <span key={i} className="h-[11px] leading-[11px]">{d}</span>
               ))}
@@ -116,7 +116,7 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
       </div>
 
       {/* legend */}
-      <div className="mt-2.5 flex items-center justify-end gap-1.5 text-[10px] font-medium text-ink-faint">
+      <div className="mt-2.5 flex items-center justify-end gap-1.5 text-[11px] font-medium text-ink-faint">
         <span>{t("stats.less")}</span>
         {LEVEL_CLS.map((c, i) => (
           <span key={i} className={cn("h-[10px] w-[10px] rounded-[2px]", c)} />
@@ -135,7 +135,7 @@ export function ActivityHeatmap({ heat }: { heat: Stats["heat"] }) {
             <div className="text-[12px] font-semibold text-white">
               {hover.count > 0 ? t("stats.reviewsCount", { n: hover.count }) : t("stats.noReviews")}
             </div>
-            <div className="text-[10px] font-medium text-white/60">
+            <div className="text-[11px] font-medium text-white/60">
               {new Date(hover.date + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}
             </div>
           </div>,

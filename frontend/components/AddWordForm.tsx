@@ -754,7 +754,7 @@ export function AddWordForm({
       {/* recently used pairs — quick re-select */}
       {recentPairs.filter((p) => !(p.s === sourceLang && p.t === targetLang)).length > 0 && (
         <div className="scroll-row flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.recent")}</span>
+          <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("add.recent")}</span>
           {recentPairs
             .filter((p) => !(p.s === sourceLang && p.t === targetLang))
             .map((p) => (
@@ -795,7 +795,7 @@ export function AddWordForm({
               }))}
             />
           </div>
-          <p className="text-[12px] leading-snug text-ink-faint">
+          <p className="text-[13px] leading-snug text-ink-faint">
             {typingKnown
               ? t("add.inputKnownDesc", { known: langLabel(targetLang), studied: langLabel(sourceLang) })
               : t("add.inputStudiedDesc", { studied: langLabel(sourceLang) })}
@@ -890,7 +890,7 @@ export function AddWordForm({
       ) : (
         zhMode &&
         lookupHits.length === 0 &&
-        !lookupMissed && <p className="-mt-1 px-1 text-[12px] leading-snug text-ink-faint">{t("add.zhHint")}</p>
+        !lookupMissed && <p className="-mt-1 px-1 text-[13px] leading-snug text-ink-faint">{t("add.zhHint")}</p>
       )}
 
       {zhMode && lookupHits.length > 0 && (
@@ -916,7 +916,7 @@ export function AddWordForm({
                         {h.register && (
                           <span
                             title={t(`lookup.regTitle.${h.register}`)}
-                            className="shrink-0 self-center rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint"
+                            className="shrink-0 self-center rounded-full bg-black/[0.05] px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint"
                           >
                             {t(`lookup.reg.${h.register}`)}
                           </span>
@@ -950,7 +950,7 @@ export function AddWordForm({
           </ul>
           {/* BY-SA: the source and its licence wherever its data shows. */}
           {looked?.credit && (
-            <p className="px-1 text-[11px] text-ink-faint">
+            <p className="px-1 text-[13px] text-ink-faint">
               <a href={looked.credit.url} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink-soft">
                 {looked.credit.source}
               </a>
@@ -964,7 +964,7 @@ export function AddWordForm({
           )}
         </div>
       )}
-      {lookupMissed && <p className="-mt-1 px-1 text-[12px] leading-snug text-ink-faint">{t("lookup.none")}</p>}
+      {lookupMissed && <p className="-mt-1 px-1 text-[13px] leading-snug text-ink-faint">{t("lookup.none")}</p>}
 
       {flipCandidate && (
         <div className="anim-fade-up -mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13px] leading-snug">
@@ -1007,7 +1007,7 @@ export function AddWordForm({
                   <span>{l === "zh" ? "中文" : "日本語"}</span>
                   <span
                     className={cn(
-                      "text-[10px] font-medium transition-colors duration-200",
+                      "text-[11px] font-medium transition-colors duration-200",
                       hanChoice === l ? "text-white/80" : "text-ink-faint",
                     )}
                   >
@@ -1119,7 +1119,7 @@ export function AddWordForm({
           {manualEx.map((row, i) => (
             <div key={i} className="space-y-2 rounded-[14px] border border-black/[0.06] bg-paper/40 p-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                   {t("add.exampleN", { n: i + 1 })}
                 </span>
                 {manualEx.length > 1 && (
@@ -1217,7 +1217,7 @@ export function AddWordForm({
           {/* Plain-language description of the chosen example source — sits directly
               under the "Примеры" picker so it reads as a caption for that control, and
               stays visible even with Advanced collapsed. */}
-          <p className="text-[12px] leading-snug text-ink-faint">
+          <p className="text-[13px] leading-snug text-ink-faint">
             {exMode === "ai" ? t(`style.desc.${style}`) : exMode === "web" ? t("exmode.webDesc") : t("style.desc.none")}
             {exMode !== "none" && sourceLang !== "auto" && currentLevel
               ? ` · ${t("level.forLevel", { level: levelName(sourceLang, currentLevel) })}`
@@ -1282,7 +1282,7 @@ export function AddWordForm({
               </div>
             )}
           </div>
-          {!usesHsk(sourceLang) && <p className="text-[12px] leading-snug text-ink-faint">{t("syn.desc")}</p>}
+          {!usesHsk(sourceLang) && <p className="text-[13px] leading-snug text-ink-faint">{t("syn.desc")}</p>}
 
           <label className="block space-y-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("edit.notes")}</span>

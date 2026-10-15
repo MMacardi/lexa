@@ -48,7 +48,7 @@ export function HoverPreview({
           className="anim-popover mt-2 w-full rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]"
           style={{ maxWidth: width + 40 }}
         >
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{title}</p>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{title}</p>
           {children}
         </div>
       )}

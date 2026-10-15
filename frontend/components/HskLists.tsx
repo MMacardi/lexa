@@ -59,7 +59,7 @@ export function HskLists() {
               <span className="block text-[12px] text-ink-faint">{t("hskList.words", { n: l.total })}</span>
               <span className="block text-[12px] text-ink-soft">{t("hskList.yours", { n: l.recognise + l.learning })}</span>
               {daily && (
-                <span className="mt-1 inline-block rounded-full bg-sage-tint px-2 py-0.5 text-[10px] font-semibold text-sage-deep">
+                <span className="mt-1 inline-block rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">
                   {t("hskList.dailyTag")}
                 </span>
               )}

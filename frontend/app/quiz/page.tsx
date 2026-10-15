@@ -212,7 +212,7 @@ function PreviewQuestion({ q, showKind }: { q: Question; showKind: boolean }) {
   return (
     <div>
       {showKind && (
-        <div className="mb-2 inline-flex rounded-full bg-sage-tint/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sage-deep">
+        <div className="mb-2 inline-flex rounded-full bg-sage-tint/60 px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-sage-deep">
           {kindLabel}
         </div>
       )}
@@ -961,7 +961,7 @@ export default function QuizPage() {
             );
           })}
           {!answered && (
-            <p className="col-span-full hidden text-center text-[12px] text-ink-faint sm:block">
+            <p className="col-span-full hidden text-center text-[13px] text-ink-faint sm:block">
               {t("quiz.hotkeysPick")}
             </p>
           )}
@@ -1030,7 +1030,7 @@ export default function QuizPage() {
           <Button variant="dark" className="mt-2 w-full sm:mt-4" onClick={next}>
             {index + 1 >= total ? t("quiz.seeResults") : t("quiz.next")}
           </Button>
-          <p className="mt-2 hidden text-center text-[12px] text-ink-faint sm:block">
+          <p className="mt-2 hidden text-center text-[13px] text-ink-faint sm:block">
             {t("quiz.hotkeysNext")}
           </p>
         </div>

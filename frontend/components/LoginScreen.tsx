@@ -228,7 +228,7 @@ export function LoginScreen() {
                   <TelegramGlyph />
                   {t("login.telegram")}
                 </button>
-                <p className="mt-2 text-xs text-ink-faint">{t("login.telegramHint")}</p>
+                <p className="mt-2 text-[13px] text-ink-faint">{t("login.telegramHint")}</p>
               </>
             ) : (
               <div className="rounded-[16px] border border-black/[0.06] bg-paper/60 p-4">
@@ -236,7 +236,7 @@ export function LoginScreen() {
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-sage border-t-transparent" />
                   {t("login.waiting")}
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-ink-soft">{t("login.waitingHint")}</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">{t("login.waitingHint")}</p>
                 {tgUrl && (
                   <a
                     href={tgUrl}
@@ -317,13 +317,13 @@ export function LoginScreen() {
               {busy ? "…" : t("login.enter")}
             </Button>
           </div>
-          <p className="mt-2 text-xs text-ink-faint">{t("login.devNote")}</p>
+          <p className="mt-2 text-[13px] text-ink-faint">{t("login.devNote")}</p>
         </details>
         )}
 
         {err && <p className="mt-3 text-sm text-warn-text">{err}</p>}
 
-        <p className="mt-6 text-[11px] leading-relaxed text-ink-faint">
+        <p className="mt-6 text-[13px] leading-relaxed text-ink-faint">
           {t("login.agree")}{" "}
           <a href="/terms" className="font-semibold text-ink-soft hover:text-ink hover:underline">
             {t("login.terms")}

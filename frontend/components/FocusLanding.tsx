@@ -265,7 +265,7 @@ function ReadinessMark({ L }: { L: Copy }) {
       </div>
 
       <div className="mt-6">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{L.mark.byLevel}</p>
+        <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{L.mark.byLevel}</p>
         <div className="space-y-1.5">
           {SAMPLE_LEVELS.map((l) => (
             <div key={l.level} className="flex items-center gap-3 rounded-[12px] bg-paper px-2 py-1.5">

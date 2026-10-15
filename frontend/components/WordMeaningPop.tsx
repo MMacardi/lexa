@@ -85,7 +85,7 @@ export function WordMeaningPop({
           <span className={cn("select-text text-[15px] font-semibold text-ink", srcFont(sourceLang))}>{word}</span>
           <SpeakButton text={word} lang={sourceLang} size="sm" />
           {isNew && (
-            <span className="ml-auto rounded-full bg-warn-bg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn-text">
+            <span className="ml-auto rounded-full bg-warn-bg px-1.5 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-warn-text">
               {t("pop.new")}
             </span>
           )}

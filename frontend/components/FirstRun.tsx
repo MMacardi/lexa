@@ -242,7 +242,7 @@ function GenericFirstRun() {
         <p className="mt-1.5 max-w-[520px] text-[15px] leading-relaxed text-ink-soft">{t("first.sub")}</p>
 
         {/* what you're learning — a friendly flag grid */}
-        <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.pickLang")}</p>
+        <p className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.pickLang")}</p>
         <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
           {learningOptions.map((l) => {
             const active = l.code === source;
@@ -269,11 +269,11 @@ function GenericFirstRun() {
         {/* what you already know + your level */}
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
             <LangSelect value={target} onChange={setTarget} className="w-[168px]" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.level")}</span>
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.level")}</span>
             <Select
               value={level}
               onChange={setLevel}

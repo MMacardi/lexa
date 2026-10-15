@@ -27,7 +27,7 @@ export function HskBadge({ hsk, className }: { hsk?: HskTag | null; className?: 
     <span
       title={title}
       className={cn(
-        "shrink-0 rounded-full bg-sage-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sage-deep",
+        "shrink-0 rounded-full bg-sage-tint px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-sage-deep",
         className,
       )}
     >

@@ -292,7 +292,7 @@ function PracticeScene({ locale }: { locale: string }) {
               <CoachDot />
               <div className="max-w-[82%]">
                 {t.role === "grade" && (
-                  <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint px-1.5 py-0.5 text-[10px] font-semibold text-sage-deep">
+                  <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-sage/40 bg-sage-tint px-1.5 py-0.5 text-[11px] font-semibold text-sage-deep">
                     <Check className="h-2.5 w-2.5" strokeWidth={3} /> {ru ? "Верно" : zh ? "正确" : "Correct"}
                   </span>
                 )}
@@ -357,7 +357,7 @@ function ReaderScene({ locale }: { locale: string }) {
 
   return (
     <DemoCard>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни подчёркнутое слово" : zh ? "阅读 · 点击带下划线的词" : "Reader · tap an underlined word"}</div>
+      <div className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Чтение · тапни подчёркнутое слово" : zh ? "阅读 · 点击带下划线的词" : "Reader · tap an underlined word"}</div>
       <div className="relative">
         {open && <button type="button" aria-hidden className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(null)} />}
         <p className="relative z-0 min-h-[132px] rounded-[16px] border border-black/[0.06] bg-paper p-4 font-serif text-[17px] leading-relaxed text-ink">
@@ -424,7 +424,7 @@ function FlashcardScene({ locale }: { locale: string }) {
   }, []);
   return (
     <DemoCard>
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Карточки · нажми, чтобы перевернуть" : zh ? "卡片 · 点击翻转" : "Flashcards · tap to flip"}</div>
+      <div className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{ru ? "Карточки · нажми, чтобы перевернуть" : zh ? "卡片 · 点击翻转" : "Flashcards · tap to flip"}</div>
       <div className="flip-scene cursor-pointer" onClick={() => setFlipped((f) => !f)}>
         <div className={`flip-card ${flipped ? "is-flipped" : ""}`}>
           <div className="flip-face flex min-h-[204px] flex-col items-center justify-center rounded-[16px] border border-black/[0.06] bg-paper p-6 text-center">
@@ -472,7 +472,7 @@ function MemoryScene({ locale }: { locale: string }) {
       <div className="flex min-h-[168px] flex-col gap-2">
         {rows.slice(0, step).map((r, i) => (
           <div key={i} className="anim-fade-up rounded-[12px] border border-black/[0.07] bg-paper px-3.5 py-2.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{r.k}</div>
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{r.k}</div>
             <div className="mt-0.5 text-[14px] font-medium text-ink">{r.v}</div>
           </div>
         ))}

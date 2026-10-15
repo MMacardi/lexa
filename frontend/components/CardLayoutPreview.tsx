@@ -129,7 +129,7 @@ export function CardLayoutPreview({ layout, learning }: { layout: CardLayout; le
 
       {menu.mounted && (
         <div data-closing={menu.closing || undefined} className="anim-popover mt-2 w-full max-w-[320px] rounded-[18px] border border-black/[0.08] bg-surface p-3 shadow-[0_12px_30px_rgba(46,42,38,0.12)]">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</p>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("preview.title")}</p>
 
           <div className="flip-scene cursor-pointer" onClick={manualFlip}>
             <div className={cn("flip-card", flipped && "is-flipped")}>

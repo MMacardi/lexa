@@ -852,7 +852,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("word.family")}</p>
-        <span className="text-[11px] text-ink-faint">{t("word.familyHint")}</span>
+        <span className="text-[13px] text-ink-faint">{t("word.familyHint")}</span>
       </div>
 
       <div

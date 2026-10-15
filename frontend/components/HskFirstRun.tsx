@@ -256,7 +256,7 @@ function Choice({
         {desc && <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft">{desc}</span>}
       </span>
       {tag && (
-        <span className="shrink-0 rounded-full bg-sage px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">{tag}</span>
+        <span className="shrink-0 rounded-full bg-sage px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-white">{tag}</span>
       )}
       {multi && (
         <span
@@ -625,7 +625,7 @@ export function HskFirstRun({
               style={{ width: `${((idx + 1) / steps.length) * 100}%` }}
             />
           </div>
-          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("onb.eyebrow")}</span>
+          <span className="shrink-0 text-[12px] font-semibold uppercase tracking-wide text-sage-deep">{t("onb.eyebrow")}</span>
         </div>
 
         {step === "lang" && (
@@ -718,12 +718,12 @@ export function HskFirstRun({
               ))}
             </div>
 
-            <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("onb.examTitle")}</p>
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("onb.examTitle")}</p>
             <div className="mt-2 max-w-[360px]">
               <ExamCalendar value={examDate} onChange={setExamDate} />
             </div>
 
-            <p className="mt-5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("hsk.list")}</p>
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("hsk.list")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(["3.0", "2.0"] as HskVersion[]).map((v) => (
                 <button
@@ -743,7 +743,7 @@ export function HskFirstRun({
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">{t("hsk.listHint")}</p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-faint">{t("hsk.listHint")}</p>
 
             <Button className="mt-5 w-full sm:w-auto" onClick={() => go("interests")}>
               {t("onb.continue")}

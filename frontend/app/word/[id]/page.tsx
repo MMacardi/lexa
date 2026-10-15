@@ -397,7 +397,7 @@ export default function WordDetailPage() {
               {ex.level && (
                 <span
                   title={/^HSK/.test(ex.level) ? t("example.aroundHint", { level: ex.level }) : undefined}
-                  className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[11px] font-semibold text-ink-faint"
+                  className="rounded-full border border-black/[0.08] px-2 py-0.5 text-[12px] font-semibold text-ink-faint"
                 >
                   {/^HSK/.test(ex.level) ? t("example.around", { level: ex.level }) : ex.level}
                 </span>

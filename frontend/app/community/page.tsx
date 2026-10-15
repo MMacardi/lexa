@@ -143,7 +143,7 @@ export default function CommunityPage() {
         )
       )}
 
-      <p className="text-center text-xs text-ink-faint">{t("community.shareHint")}</p>
+      <p className="text-center text-[13px] text-ink-faint">{t("community.shareHint")}</p>
     </div>
   );
 }

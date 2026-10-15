@@ -135,7 +135,7 @@ export function WordSenses({ word }: { word: Word }) {
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("word.meanings")}</p>
         <Skeleton className="h-24 rounded-[18px]" />
-        <p className="text-[12px] text-ink-faint">{t("word.meaningsLoading")}</p>
+        <p className="text-[13px] text-ink-faint">{t("word.meaningsLoading")}</p>
       </div>
     );
 
@@ -239,7 +239,7 @@ export function WordSenses({ word }: { word: Word }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {dirty ? (
             <>
-              <p className="min-w-0 text-[12px] text-ink-faint">
+              <p className="min-w-0 text-[13px] text-ink-faint">
                 {t("word.meaningsPreview")}{" "}
                 <span className={cn("font-semibold text-ink-soft", tgtFont(word.targetLang))}>{preview || "—"}</span>
               </p>
@@ -253,14 +253,14 @@ export function WordSenses({ word }: { word: Word }) {
               </button>
             </>
           ) : (
-            <p className="text-[12px] text-ink-faint">{t("word.meaningsHint")}</p>
+            <p className="text-[13px] text-ink-faint">{t("word.meaningsHint")}</p>
           )}
         </div>
       )}
       {/* The dictionary behind the senses. Its licence asks for the name and a link
           to the licence wherever the data appears, which is here. */}
       {credit && (
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-[13px] text-ink-faint">
           <a
             href={credit.url}
             target="_blank"

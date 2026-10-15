@@ -83,7 +83,7 @@ export function ExamCalendar({ value, onChange }: { value: string | null; onChan
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center">
         {weekdays.map((w, i) => (
-          <span key={i} className="pb-1 text-[11px] font-semibold uppercase text-ink-faint">
+          <span key={i} className="pb-1 text-[12px] font-semibold uppercase text-ink-faint">
             {w.replace(".", "")}
           </span>
         ))}

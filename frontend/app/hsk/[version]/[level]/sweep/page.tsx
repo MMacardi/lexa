@@ -279,8 +279,8 @@ export default function SweepPage() {
                 )}
               >
                 <span className="font-zh text-[19px] leading-tight">{w.word}</span>
-                {showPinyin && <span className="mt-0.5 text-[10px] leading-tight text-ink-faint">{w.pinyin}</span>}
-                {off && <span className="mt-0.5 text-[10px] font-semibold">{t("sweep.toLearn")}</span>}
+                {showPinyin && <span className="mt-0.5 text-[11px] leading-tight text-ink-faint">{w.pinyin}</span>}
+                {off && <span className="mt-0.5 text-[11px] font-semibold">{t("sweep.toLearn")}</span>}
               </button>
             );
           })}

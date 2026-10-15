@@ -151,7 +151,7 @@ export function Sidebar() {
           })}
           {REST_NAV.length > 0 && (
             <>
-              <div className="mt-4 px-3.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+              <div className="mt-4 px-3.5 pb-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                 {t("nav.more")}
               </div>
               {REST_NAV.map((n) => {
@@ -320,7 +320,7 @@ export function Sidebar() {
               if (!pathname.startsWith("/mika")) open(OPEN_MIKA);
             }}
             aria-label={t("tutor.open")}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10.5px] font-semibold text-sage-deep"
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-semibold text-sage-deep"
           >
             <span className="flex h-8 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sage to-sage-deep text-white shadow-[0_6px_16px_rgba(63,90,74,0.35)] transition-transform active:scale-95">
               <Sparkles className="h-[19px] w-[19px]" strokeWidth={2.1} />
@@ -338,7 +338,7 @@ export function Sidebar() {
               setSheet("more");
             }}
             className={cn(
-              "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10.5px] font-semibold transition-colors",
+              "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold transition-colors",
               moreActive || sheet === "more" ? "text-sage-deep" : "text-ink-faint",
             )}
           >
@@ -358,7 +358,7 @@ function TabLink({ item, active, label, onClick }: { item: NavItem; active: bool
       href={item.href}
       onClick={onClick}
       className={cn(
-        "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10.5px] font-semibold transition-colors",
+        "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold transition-colors",
         active ? "text-sage-deep" : "text-ink-faint",
       )}
     >

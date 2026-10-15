@@ -430,7 +430,7 @@ export function ImportWordsDialog({
                       <span className="text-ink-muted">{` ${sample.synonyms}`}</span>
                     </div>
                   </pre>
-                  <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">{t("import.fmtFree")}</p>
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink-faint">{t("import.fmtFree")}</p>
                   <ImportCardPreview text={text} />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-surface/70 p-3">
@@ -497,7 +497,7 @@ export function ImportWordsDialog({
                   <div className="mt-5 space-y-3.5 border-t border-black/[0.07] pt-4">
                     {/* what each card stores from the pasted list */}
                     <div>
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
+                      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
                         {t("import.contentTitle")}
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -514,17 +514,17 @@ export function ImportWordsDialog({
 
                     {/* optional AI steps that run AFTER the cards are added */}
                     <div className="rounded-[14px] border border-black/[0.06] bg-paper/60 p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
+                      <p className="text-[12px] font-semibold uppercase tracking-[0.11em] text-ink-faint">
                         {t("import.enrichTitle")}
                       </p>
-                      <p className="mt-0.5 mb-2.5 text-[12px] leading-snug text-ink-faint">{t("import.enrichHint")}</p>
+                      <p className="mt-0.5 mb-2.5 text-[13px] leading-snug text-ink-faint">{t("import.enrichHint")}</p>
                       <div className="space-y-2">
                         <Toggle checked={generateDetails} onChange={setGenerateDetails} label={t("import.details")} hint={t("import.detailsHint")} />
                         <Toggle checked={generateExamples} onChange={setGenerateExamples} label={t("import.examples")} hint={t("import.examplesHint")} />
                       </div>
                       {generateExamples && (
                         <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-black/[0.06] pt-2.5">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
+                          <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("style.label")}</span>
                           <Select
                             value={exampleStyle}
                             onChange={(v) => setExampleStyle(v as ExampleStyle)}
@@ -532,7 +532,7 @@ export function ImportWordsDialog({
                             className="w-[150px]"
                             options={EXAMPLE_STYLES.map((s) => ({ value: s, label: t(`style.${s}`), hint: t(`style.hint.${s}`) }))}
                           />
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
+                          <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("level.pick")}</span>
                           <Select
                             value={level ?? ""}
                             onChange={(v) => setLearnerLevel(sourceLang, v)}

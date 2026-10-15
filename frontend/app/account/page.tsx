@@ -432,7 +432,7 @@ function PrivacyRow({
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-ink">{label}</p>
-        <p className="text-[12px] text-ink-soft">{hint}</p>
+        <p className="text-[13px] text-ink-soft">{hint}</p>
       </div>
       {/* self-start: stacked on a phone, the row would stretch the track to the
           card's full width with the options bunched at its left end */}

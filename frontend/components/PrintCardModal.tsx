@@ -101,7 +101,7 @@ export function PrintCardModal({ word, onClose }: { word: Word; onClose: () => v
         <div className="space-y-1.5 overflow-y-auto">
           {(["front", "back"] as const).map((side) => (
             <div key={side} className="flex flex-wrap items-center gap-1.5">
-              <span className="w-11 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t(`layout.${side}`)}</span>
+              <span className="w-11 shrink-0 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t(`layout.${side}`)}</span>
               {CARD_FIELDS.filter((f) => f !== "audio").map((f) => {
                 const on = layout[side].includes(f);
                 return (

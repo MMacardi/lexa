@@ -231,7 +231,7 @@ export default function CollectionDetailPage() {
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex min-w-0 items-baseline gap-2">
                     <span className="truncate font-serif text-[18px] font-semibold text-ink">{w.word}</span>
-                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    <span className="shrink-0 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                       {pairLabel(w.sourceLang, w.targetLang)}
                     </span>
                   </span>

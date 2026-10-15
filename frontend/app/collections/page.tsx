@@ -273,7 +273,7 @@ function CollectionCard({
                 {!!collection.learners && <span className="text-ink-faint">{t("community.addedBy", { n: collection.learners })}</span>}
               </p>
               {collection.copiedFrom && (
-                <p className="text-[12px] text-ink-faint">
+                <p className="text-[13px] text-ink-faint">
                   {t("community.creditFrom")}{" "}
                   {t("community.credit", { author: collection.copiedFrom.author, deck: collection.copiedFrom.deck })}
                 </p>

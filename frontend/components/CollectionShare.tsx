@@ -48,7 +48,7 @@ export function CollectionShare({
   return (
     <div className="mt-3 space-y-3 rounded-[14px] border border-black/[0.06] bg-paper/60 p-3">
       <div>
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("share.whoCanSee")}</p>
+        <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("share.whoCanSee")}</p>
         <Segmented
           grid
           tone="chips"
@@ -64,7 +64,7 @@ export function CollectionShare({
             disabled: m === "public" && collection.delisted,
           }))}
         />
-        <p className="mt-1.5 text-[12px] text-ink-soft">{t(`share.${visibility}Hint`)}</p>
+        <p className="mt-1.5 text-[13px] text-ink-soft">{t(`share.${visibility}Hint`)}</p>
         {collection.delisted && <p className="mt-1 text-[12px] font-medium text-warn-text">{t("share.delistedNote")}</p>}
       </div>
 

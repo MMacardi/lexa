@@ -156,7 +156,7 @@ export default function ProPage() {
           </div>
           {/* annual — highlighted */}
           <div className="relative flex flex-col rounded-[20px] border-2 border-sage bg-gradient-to-br from-sage-tint/50 to-surface p-6 shadow-[0_18px_44px_rgba(46,42,38,0.12)]">
-            <span className="absolute right-5 top-5 rounded-full bg-sage px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+            <span className="absolute right-5 top-5 rounded-full bg-sage px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-wide text-white">
               {t("pro.save")}
             </span>
             <div className="text-[13px] font-semibold uppercase tracking-wide text-sage-deep">{t("pro.annual")}</div>
@@ -178,7 +178,7 @@ export default function ProPage() {
             {t("pro.soon")}
           </p>
         )}
-        <p className="mt-4 text-center text-[12px] leading-snug text-ink-faint">{t("pro.footnote")}</p>
+        <p className="mt-4 text-center text-[13px] leading-snug text-ink-faint">{t("pro.footnote")}</p>
       </div>
     </div>
   );

@@ -81,7 +81,7 @@ export function HoverTip({
             style={{ left: pos.x, top: pos.y - 8 }}
           >
             <div className="text-[12px] font-semibold text-white">{title}</div>
-            {subtitle && <div className="text-[10px] font-medium text-white/60">{subtitle}</div>}
+            {subtitle && <div className="text-[11px] font-medium text-white/60">{subtitle}</div>}
           </div>,
           document.body,
         )}

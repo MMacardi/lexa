@@ -122,7 +122,7 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
             return (
               <span
                 key={i}
-                className="absolute right-0 -translate-y-1/2 text-[10px] font-medium text-ink-faint"
+                className="absolute right-0 -translate-y-1/2 text-[11px] font-medium text-ink-faint"
                 style={{ top: `${(i / ticks) * 100}%` }}
               >
                 {val}
@@ -190,7 +190,7 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
             style={{ left: tip.x, top: tip.y - 8 }}
           >
             <div className="text-[12px] font-semibold text-white">{t("stats.wordsCount", { n: tip.value })}</div>
-            <div className="text-[10px] font-medium text-white/60">{dayLabel(tip.date, false)}</div>
+            <div className="text-[11px] font-medium text-white/60">{dayLabel(tip.date, false)}</div>
           </div>,
           document.body,
         )}
@@ -207,7 +207,7 @@ function LearningCurve({ words, days }: { words: Word[]; days: number }) {
             <span
               key={p.date}
               className={cn(
-                "absolute whitespace-nowrap text-[10px] font-medium text-ink-faint",
+                "absolute whitespace-nowrap text-[11px] font-medium text-ink-faint",
                 isEnd ? "-translate-x-full text-right" : "-translate-x-1/2",
                 i === 0 && "translate-x-0",
               )}
@@ -365,7 +365,7 @@ export function StatsPanel() {
           <span className="font-serif text-[26px] font-bold leading-none text-sage">{data.canUse ?? 0}</span>
           <span className="text-[13px] text-ink-soft">{t("stats.canUse.ofTried", { n: data.tried ?? 0 })}</span>
         </div>
-        <p className="mt-1.5 text-[12px] text-ink-faint">{t("stats.canUse.hint")}</p>
+        <p className="mt-1.5 text-[13px] text-ink-faint">{t("stats.canUse.hint")}</p>
       </div>
 
       {/* learning curve: metric toggle + date-range selector */}

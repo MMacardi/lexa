@@ -191,7 +191,7 @@ export default function HskLevelPage() {
             <span className="min-w-0 flex-1">
               <span className="block truncate">
                 <span className="font-zh text-[17px] text-ink">{w.word}</span>
-                <span className="ml-2 text-[12px] text-ink-faint">{w.pinyin}</span>
+                <span className="ml-2 text-[13px] text-ink-faint">{w.pinyin}</span>
               </span>
               {w.meaning && (
                 <span className="block truncate text-[13px] text-ink-soft" title={w.meaning}>

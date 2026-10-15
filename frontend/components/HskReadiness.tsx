@@ -152,7 +152,7 @@ export function HskReadiness() {
             </button>
           ))}
         </div>
-        <p className="text-[12px] text-ink-faint">{t("hsk.listHint")}</p>
+        <p className="text-[13px] text-ink-faint">{t("hsk.listHint")}</p>
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
@@ -174,7 +174,7 @@ export function HskReadiness() {
 
       {/* the ladder, so the target is a choice and not a guess */}
       <div className="mt-6">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+        <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
           {t("hsk.byLevel")}
         </p>
         <div className="space-y-1.5">
@@ -196,7 +196,7 @@ export function HskReadiness() {
                   <span className="absolute inset-y-0 left-0 bg-sage" style={{ width: `${pct}%` }} />
                 </span>
                 {/* Under the bar on a phone: the estimated row's text doesn't fit beside it. */}
-                <span className="w-full pl-[70px] text-[11px] text-ink-faint sm:w-auto sm:shrink-0 sm:pl-0">
+                <span className="w-full pl-[70px] text-[12px] text-ink-faint sm:w-auto sm:shrink-0 sm:pl-0">
                   {l.estimate > l.recognise
                     ? t("hsk.levelRowEst", { e: l.estimate, a: l.recognise, b: l.total, c: l.canUse })
                     : t("hsk.levelRow", { a: l.recognise, b: l.total, c: l.canUse })}

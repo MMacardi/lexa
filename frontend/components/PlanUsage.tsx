@@ -62,7 +62,7 @@ export function PlanUsage() {
       )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12px] leading-snug text-ink-faint">{t("plan.footnote")}</p>
+        <p className="text-[13px] leading-snug text-ink-faint">{t("plan.footnote")}</p>
         <Link
           href="/pro"
           className={cn(

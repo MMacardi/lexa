@@ -181,7 +181,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-soft">
                   {it.status === "generating" ? t("reader.generating") : it.snippet}
                 </p>
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold">
+                <div className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold">
                   {it.collection && <span className="shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-ink-muted">{it.collection}</span>}
                   {pair(it.sourceLang, it.targetLang) && <span className="truncate text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
                   {it.knownPct != null && (
@@ -231,15 +231,15 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <span className="min-w-0 truncate text-[14px] font-semibold text-ink">{it.title}</span>
               </button>
               {/* Fixed right-hand columns so level + language pair line up across rows. */}
-              <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold">
+              <div className="flex shrink-0 items-center gap-2 text-[12px] font-semibold">
                 <span title={t("reader.knownPctHint")} className="w-[4.5rem] text-right text-ink-muted">
                   {it.knownPct != null && t("reader.knownPctShort", { n: it.knownPct })}
                 </span>
                 <span className="flex w-9 justify-end">
-                  {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-[10px] text-sage-deep">~{it.level}</span>}
+                  {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-[11px] text-sage-deep">~{it.level}</span>}
                 </span>
                 <span className="hidden w-[190px] truncate text-right font-medium text-ink-faint sm:block">{pair(it.sourceLang, it.targetLang)}</span>
-                {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-ink-muted md:inline">{it.collection}</span>}
+                {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[11px] text-ink-muted md:inline">{it.collection}</span>}
               </div>
               <div className="-my-1 flex shrink-0 hover-reveal">
                 {it.status === "ready" && (

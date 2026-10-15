@@ -811,7 +811,7 @@ export default function FlashcardsPage() {
                 <span className="opacity-70">{levelWords.length}</span>
               </button>
             )}
-            <p className="mt-2 text-[12px] leading-snug text-ink-faint">
+            <p className="mt-2 text-[13px] leading-snug text-ink-faint">
               {t(levelMode ? "review.modeLevelHint" : newMode ? "review.modeNewHint" : onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
             </p>
           </div>
@@ -911,7 +911,7 @@ export default function FlashcardsPage() {
             <div className="mt-3 space-y-2">
               {(["front", "back"] as const).map((side) => (
                 <div key={side} className="flex flex-wrap items-center gap-1.5">
-                  <span className="w-12 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                  <span className="w-12 shrink-0 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                     {t(`layout.${side}`)}
                   </span>
                   {CARD_FIELDS.map((f) => {
@@ -1622,7 +1622,7 @@ export default function FlashcardsPage() {
                   {backFields.map((f, i) => (
                     <div key={f} className="text-center">
                       {i > 0 && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${f}`)}</p>
+                      <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${f}`)}</p>
                       {fieldNode(f, false, backTr, true)}
                     </div>
                   ))}
@@ -1647,11 +1647,11 @@ export default function FlashcardsPage() {
             )}
           >
             {/* the key that fires it, where there's a keyboard to fire it from */}
-            <span className="absolute left-2 top-1.5 hidden text-[10px] font-semibold opacity-40 sm:block">
+            <span className="absolute left-2 top-1.5 hidden text-[11px] font-semibold opacity-40 sm:block">
               {g}
             </span>
             <span className="text-sm">{t(`review.${name}`)}</span>
-            <span className={cn("text-[11px] font-medium", dim)}>
+            <span className={cn("text-[12px] font-medium", dim)}>
               {g === 4 && isNewWord(word) ? t("hskDaily.known") : fmtInterval(iv[name], t)}
             </span>
           </button>
@@ -1672,7 +1672,7 @@ export default function FlashcardsPage() {
             aria-pressed={swipeUpDown}
             title={t("review.swipeUpDownHint")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors sm:text-[13px]",
               swipeUpDown
                 ? "border-sage bg-sage-tint text-sage-deep"
                 : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
@@ -1688,7 +1688,7 @@ export default function FlashcardsPage() {
               aria-pressed={pinyinOn}
               title={t("exPinyin.hint")}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors sm:text-[13px]",
                 pinyinOn
                   ? "border-sage bg-sage-tint text-sage-deep"
                   : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
@@ -1705,7 +1705,7 @@ export default function FlashcardsPage() {
               aria-pressed={toneColors}
               title={t("review.toneColorsHint")}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors sm:text-[13px]",
                 toneColors
                   ? "border-sage bg-sage-tint text-sage-deep"
                   : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
@@ -1721,7 +1721,7 @@ export default function FlashcardsPage() {
               onClick={() => setPlayOnFlip(!playOnFlip)}
               aria-pressed={playOnFlip}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors sm:text-[13px]",
                 playOnFlip
                   ? "border-sage bg-sage-tint text-sage-deep"
                   : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",

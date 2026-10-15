@@ -273,7 +273,7 @@ export function CheckSummary({
     : null;
   return (
     <div className="mb-5 rounded-[16px] border border-black/[0.06] bg-surface p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("check.resultTitle")}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("check.resultTitle")}</p>
       <div className="mt-2 space-y-1.5">
         {result.levels.map((l) => (
           <div key={l.level} className="flex items-center gap-3">

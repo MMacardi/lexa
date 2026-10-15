@@ -336,7 +336,7 @@ export default function WritePage() {
                 <span className="opacity-70">{newWords.length}</span>
               </button>
             )}
-            <p className="mt-2 text-[12px] leading-snug text-ink-faint">
+            <p className="mt-2 text-[13px] leading-snug text-ink-faint">
               {newMode
                 ? t("write.modeNewHint")
                 : !onlyDue
@@ -518,7 +518,7 @@ export default function WritePage() {
                       g === pick ? "ring-2 ring-ink/70 ring-offset-2 ring-offset-surface" : "opacity-75",
                     )}
                   >
-                    <span className="absolute left-2 top-1.5 hidden text-[10px] font-semibold opacity-40 sm:block">{g}</span>
+                    <span className="absolute left-2 top-1.5 hidden text-[11px] font-semibold opacity-40 sm:block">{g}</span>
                     <span className="text-sm">{t(`review.${name}`)}</span>
                     <span className="text-[11px] font-medium opacity-80">{fmtInterval(iv[name], t)}</span>
                   </button>

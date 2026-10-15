@@ -80,7 +80,7 @@ export function HskTrack({ withReadiness = true }: { withReadiness?: boolean } =
     <section className="anim-fade-up overflow-hidden rounded-[24px] border border-sage/25 bg-gradient-to-br from-sage-tint/50 via-surface to-surface p-6">
       <div className="flex items-center gap-2 text-sage-deep">
         <GraduationCap className="h-5 w-5" />
-        <span className="text-[11px] font-semibold uppercase tracking-wide">HSK</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wide">HSK</span>
       </div>
       <h3 className="mt-1.5 font-serif text-[22px] font-medium text-ink">{t("hskTrack.offerTitle")}</h3>
       <p className="mt-1.5 max-w-[540px] text-[15px] leading-relaxed text-ink-soft">{t("hskTrack.offerSub")}</p>

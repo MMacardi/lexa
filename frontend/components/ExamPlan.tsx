@@ -203,7 +203,7 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
 
       {plan.status !== "done" && plan.status !== "close" && (
         <>
-          <p className="mt-4 mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("plan.pace")}</p>
+          <p className="mt-4 mb-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("plan.pace")}</p>
           <div className="grid grid-cols-2 gap-2">
             {plan.paces.map((p) => {
               const on = p.words === plan.current.words;
@@ -233,7 +233,7 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
             })}
           </div>
           {!onPaces && (
-            <p className="mt-2 text-[12px] text-ink-soft">
+            <p className="mt-2 text-[13px] text-ink-soft">
               {t("plan.now", { n: plan.current.words, m: plan.current.minutes, date: short(plan.current.finish, locale) })}
             </p>
           )}
@@ -243,7 +243,7 @@ function PlanBody({ plan, onPace, onLevel }: { plan: StudyPlan; onPace: (p: Stud
       {/* An estimate says so, with the two ways to firm it up: the 2-minute check,
           and the sweep of the level where the guess is biggest. */}
       {!plan.exact && plan.status !== "tight" && (
-        <p className="mt-3 text-[12px] text-ink-soft">
+        <p className="mt-3 text-[13px] text-ink-soft">
           {t("plan.estimate")}{" "}
           <Link href={`/hsk/${plan.version}/${plan.level}/check`} className="font-semibold text-sage-deep hover:text-sage">
             {t("check.again")}

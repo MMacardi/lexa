@@ -1068,7 +1068,7 @@ export default function ReaderPage() {
         {glossCedict && !glossCedict.meaning && (targetLang === "en" || (!glossLoading && (!glossText || glossText === t("reader.translateFailed")))) && (
           <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
             {glossCedict.gloss}
-            <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+            <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
           </div>
         )}
         <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
@@ -1094,7 +1094,7 @@ export default function ReaderPage() {
           <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
             {knownPop.meaning}
             {knownPop.dictMeaning && (
-              <span className="ml-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
+              <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
             )}
           </div>
         )}
@@ -1508,7 +1508,7 @@ export default function ReaderPage() {
           {newForTarget > 0 && hskTarget && `, ${t("reader.newForTarget", { n: newForTarget, level: hskTarget === 7 ? "7–9" : hskTarget })}`}
         </p>
         {(levelsHere.length > 0 || knownMap.size > 0) && (
-          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] font-medium text-ink-muted">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] font-medium text-ink-muted">
             {levelsHere.map((n) => (
               <span key={n} className={cn("underline decoration-2 underline-offset-[3px]", HSK_DECOR[n])}>
                 {n === 7 ? t("hsk.band79") : t("hsk.level", { n })}
@@ -1789,7 +1789,7 @@ export default function ReaderPage() {
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
                 {w.partOfSpeech && (
-                  <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{w.partOfSpeech}</div>
+                  <div className="mt-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{w.partOfSpeech}</div>
                 )}
                 {w.meaningZh && (
                   <div className={cn("mt-1.5 text-[18px] font-semibold text-sage-deep", sourceFont(w.targetLang))}>{w.meaningZh}</div>
@@ -1803,7 +1803,7 @@ export default function ReaderPage() {
                     ] as const).map(([key, items, tone]) =>
                       items.length ? (
                         <div key={key}>
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${key}`)}</span>
+                          <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${key}`)}</span>
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {items.map((it) => (
                               <span

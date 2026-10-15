@@ -949,20 +949,20 @@ export default function CoachScenePage() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-[16px] border border-black/[0.06] bg-surface/70 p-3.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.character")}</div>
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.character")}</div>
               <div className="mt-1 text-[14px] font-semibold text-ink">{scene.characterName || scene.character}</div>
               {scene.characterName && scene.character && scene.character !== scene.characterName && (
                 <div className="mt-0.5 text-[13px] text-ink-soft">{scene.character}</div>
               )}
             </div>
             <div className="rounded-[16px] border border-black/[0.06] bg-surface/70 p-3.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.yourRole")}</div>
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.yourRole")}</div>
               <div className="mt-1 text-[14px] text-ink">{scene.learnerRole}</div>
             </div>
           </div>
 
           <div className="mt-3 rounded-[16px] border border-black/[0.06] bg-surface/70 p-3.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.goal")}</div>
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.goal")}</div>
             <div className="mt-1 text-[14px] leading-relaxed text-ink">{scene.goal}</div>
           </div>
 
@@ -1077,16 +1077,16 @@ export default function CoachScenePage() {
               <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{scene.setting}</p>
               <div className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
                 <div className="rounded-[12px] bg-surface/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.character")}</span>
+                  <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.character")}</span>
                   <div className="mt-0.5 font-semibold text-ink">{scene.characterName || scene.character}</div>
                 </div>
                 <div className="rounded-[12px] bg-surface/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.yourRole")}</span>
+                  <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.yourRole")}</span>
                   <div className="mt-0.5 text-ink">{scene.learnerRole}</div>
                 </div>
               </div>
               <div className="mt-2 rounded-[12px] bg-surface/70 px-3 py-2 text-[13px]">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.goal")}</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.goal")}</span>
                 <div className="mt-0.5 leading-relaxed text-ink">{scene.goal}</div>
               </div>
               {scene.missionWords.length > 0 && (
@@ -1333,7 +1333,7 @@ function Bubble({
         <SceneAvatar />
         <div className="max-w-[82%]">
           {characterName && (
-            <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{characterName}</div>
+            <div className="mb-0.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{characterName}</div>
           )}
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">
             {turn.content}
@@ -1347,7 +1347,7 @@ function Bubble({
       <SceneAvatar />
       <div className="max-w-[82%]">
         {characterName && (
-          <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{characterName}</div>
+          <div className="mb-0.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{characterName}</div>
         )}
         <div className="group flex items-end gap-1.5">
           <div className="whitespace-pre-wrap rounded-[16px] rounded-bl-md border border-black/[0.06] bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink">

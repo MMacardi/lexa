@@ -22,7 +22,7 @@ export function MeasureWords({
   if (!items?.length) return null;
   return (
     <div className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-1", className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("word.measure")}</span>
+      <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("word.measure")}</span>
       {items.slice(0, 3).map((m) => (
         <span key={m.word} className="whitespace-nowrap">
           <span className="font-zh text-[17px] text-ink">

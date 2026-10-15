@@ -343,7 +343,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
                     {t("common.save")}
                   </button>
                 </div>
-                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+                <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-faint">
                   <Compass className="h-3.5 w-3.5 shrink-0 text-sage" />
                   {goalDraft.trim() ? t("coach.themeRemembers") : t("coach.themeHint")}
                 </p>
@@ -431,7 +431,7 @@ export function CoachPicks({ compact = false }: { compact?: boolean }) {
                   </>
                 )}
               </div>
-              <p className="mt-1.5 text-[12px] text-ink-faint">{t("coach.topicHint")}</p>
+              <p className="mt-1.5 text-[13px] text-ink-faint">{t("coach.topicHint")}</p>
             </div>
           </div>
         </>

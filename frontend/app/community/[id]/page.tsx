@@ -223,7 +223,7 @@ function WordRow({ w, canAdd, pending, onAdd }: { w: DeckWord; canAdd: boolean; 
           <span className="font-serif text-[18px] font-semibold text-ink">{w.word}</span>
           {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
           {w.partOfSpeech && (
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{w.partOfSpeech}</span>
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{w.partOfSpeech}</span>
           )}
         </div>
         {w.meaning && <p className={cn("text-sm text-sage-deep", targetFont(w.targetLang))}>{w.meaning}</p>}
@@ -234,7 +234,7 @@ function WordRow({ w, canAdd, pending, onAdd }: { w: DeckWord; canAdd: boolean; 
           </p>
         )}
         {w.synonyms.length > 0 && (
-          <p className="mt-0.5 text-[12px] text-ink-faint">≈ {w.synonyms.join(", ")}</p>
+          <p className="mt-0.5 text-[13px] text-ink-faint">≈ {w.synonyms.join(", ")}</p>
         )}
       </div>
       {canAdd &&

@@ -263,14 +263,14 @@ export function BugReport() {
                     <span>{t("bug.attachShot")}</span>
                   </button>
                   {attachShot && (
-                    <p className="mb-1 pl-7 text-[12px] text-ink-faint">
+                    <p className="mb-1 pl-7 text-[13px] text-ink-faint">
                       {shotState === "capturing" && t("bug.shotCapturing")}
                       {shotState === "ready" && `✓ ${t("bug.shotReady")}`}
                       {shotState === "failed" && t("bug.shotFailed")}
                     </p>
                   )}
                   {errorsRef.current.length > 0 && (
-                    <p className="mb-1 pl-7 text-[12px] text-ink-faint">
+                    <p className="mb-1 pl-7 text-[13px] text-ink-faint">
                       {t("bug.errorsCaptured", { n: errorsRef.current.length })}
                     </p>
                   )}

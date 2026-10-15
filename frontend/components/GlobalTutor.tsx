@@ -288,7 +288,7 @@ export function GlobalTutor() {
                 <PenLine className="h-3.5 w-3.5" /> {t("word.testMe")}
               </button>
             )}
-            {unfinished && <p className="mb-1.5 px-1 text-[12px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
+            {unfinished && <p className="mb-1.5 px-1 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
             <TutorComposer chat={chat} inputRef={inputRef} fileRef={fileRef} />
           </div>
         </div>

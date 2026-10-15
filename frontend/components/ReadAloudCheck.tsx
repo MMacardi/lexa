@@ -181,7 +181,7 @@ export function ReadAloudCheck({ sentences, lang, hiddenCount = 0 }: { sentences
         })}
       </div>
       {hiddenCount > 0 && (
-        <p className="mt-2 text-center text-[12px] text-ink-faint">{t("reader.readAloudMore", { n: String(hiddenCount) })}</p>
+        <p className="mt-2 text-center text-[13px] text-ink-faint">{t("reader.readAloudMore", { n: String(hiddenCount) })}</p>
       )}
     </div>
   );
@@ -292,8 +292,8 @@ function ReadResult({ read, heard, lang, again }: { read: ReadCheck; heard: stri
           ))}
         </ul>
       )}
-      {missed && <p className="mt-1 text-[12px] text-ink-faint">{t("pron.missedHint")}</p>}
-      {heard && <p className="mt-0.5 text-[12px] text-ink-faint">{t("pron.heard", { heard })}</p>}
+      {missed && <p className="mt-1 text-[13px] text-ink-faint">{t("pron.missedHint")}</p>}
+      {heard && <p className="mt-0.5 text-[13px] text-ink-faint">{t("pron.heard", { heard })}</p>}
     </div>
   );
 }

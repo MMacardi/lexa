@@ -170,7 +170,7 @@ function Tile({
     <div className="rounded-[18px] border border-black/[0.06] bg-surface p-4">
       <Icon className={`h-4 w-4 ${iconCls}`} />
       <p className="mt-2 font-serif text-[28px] font-semibold leading-none text-ink">{value}</p>
-      <p className="mt-1 text-[12px] font-medium text-ink-soft">{label}</p>
+      <p className="mt-1 text-[13px] font-medium text-ink-soft">{label}</p>
     </div>
   );
 }

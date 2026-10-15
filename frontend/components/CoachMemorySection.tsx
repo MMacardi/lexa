@@ -233,7 +233,7 @@ export function CoachMemorySection() {
             placeholder={t("coachmem.notesEmpty")}
             className="mt-1 w-full resize-y rounded-[12px] border border-black/[0.08] bg-surface px-3.5 py-2.5 text-[14px] leading-snug text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
           />
-          <p className="mt-1 text-[12px] text-ink-faint">{t("coachmem.notesHint")}</p>
+          <p className="mt-1 text-[13px] text-ink-faint">{t("coachmem.notesHint")}</p>
         </div>
       </div>
 

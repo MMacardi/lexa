@@ -367,7 +367,7 @@ export default function WordsPage() {
                       {w.word}
                     </span>{" "}
                     {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
-                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                       {!isFixedPair(w.sourceLang, w.targetLang) && pairLabel(w.sourceLang, w.targetLang)}
                       <HskBadge hsk={w.hsk} />
                     </span>

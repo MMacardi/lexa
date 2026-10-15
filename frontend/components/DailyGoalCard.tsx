@@ -102,7 +102,7 @@ export function DailyGoalCard() {
 
           {/* 7-day strip */}
           <div className="mt-3 sm:mt-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+            <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
               {t("stats.last7")}
             </p>
             <div className="flex gap-1.5">
@@ -132,7 +132,7 @@ export function DailyGoalCard() {
                     >
                       {met ? "✓" : some ? d.reviews : ""}
                     </HoverTip>
-                    <span className="text-[9px] font-medium text-ink-faint">{letter}</span>
+                    <span className="text-[11px] font-medium text-ink-faint">{letter}</span>
                   </div>
                 );
               })}

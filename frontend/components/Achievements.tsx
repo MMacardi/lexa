@@ -79,7 +79,7 @@ export function Achievements({ stats, goal }: { stats: Stats; goal: number }) {
               >
                 {t(b.labelKey)}
               </span>
-              <span className="-mt-1 h-[13px] text-[10px] font-semibold tabular-nums text-ink-faint">
+              <span className="-mt-1 h-[13px] text-[11px] font-semibold tabular-nums text-ink-faint">
                 {!b.done && b.target > 1 ? `${cur}/${b.target}` : ""}
               </span>
             </HoverTip>

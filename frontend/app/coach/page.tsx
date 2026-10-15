@@ -200,7 +200,7 @@ export default function CoachPage() {
             <Compass className="h-[17px] w-[17px]" />
           </span>
           <div className="min-w-0">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.name")}</div>
+            <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.name")}</div>
             <p className="rounded-[16px] rounded-tl-[4px] border border-sage/20 bg-sage-tint px-3.5 py-2 text-[14px] leading-relaxed text-ink shadow-sm">
               {coachLine}
             </p>
@@ -215,7 +215,7 @@ export default function CoachPage() {
       {/* This week — a token-free recap: activity bars + the words slipping right now */}
       {stats && ((weekAdded + weekReviewed > 0) || weakTop.length > 0) && (
         <section className="rounded-[20px] border border-black/[0.07] bg-surface p-4 sm:p-5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.weekTitle")}</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-sage-deep">{t("coach.weekTitle")}</div>
           <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
             {t("coach.weekLine", {
               added: String(weekAdded),
@@ -239,7 +239,7 @@ export default function CoachPage() {
           {weakTop.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-3.5">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-warn-text">
+                <span className="mr-1 text-[12px] font-semibold uppercase tracking-wide text-warn-text">
                   {t("coach.weekWatch")}
                 </span>
                 {weakTop.map((w) => (

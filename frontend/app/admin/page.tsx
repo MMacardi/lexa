@@ -21,9 +21,9 @@ const fmtCny = (n: number) => (n === 0 ? "¥0" : n < 0.01 ? `¥${n.toFixed(4)}` 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-[16px] border border-black/[0.06] bg-surface px-4 py-3.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-faint">{label}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-[0.09em] text-ink-faint">{label}</p>
       <p className="mt-1 font-serif text-[26px] font-semibold leading-none text-ink">{value}</p>
-      {sub && <p className="mt-1.5 text-[12px] text-ink-soft">{sub}</p>}
+      {sub && <p className="mt-1.5 text-[13px] text-ink-soft">{sub}</p>}
     </div>
   );
 }
@@ -42,7 +42,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
     <div className="overflow-x-auto">
       <table className="w-full text-[13px]">
         <thead>
-          <tr className="border-b border-black/[0.07] text-left text-[11px] uppercase tracking-[0.07em] text-ink-faint">
+          <tr className="border-b border-black/[0.07] text-left text-[12px] uppercase tracking-[0.07em] text-ink-faint">
             {head.map((h, i) => (
               <th key={h} className={cn("py-2 font-semibold", i > 0 && "text-right")}>{h}</th>
             ))}
@@ -152,7 +152,7 @@ function Funnel() {
         <p className="text-sm text-ink-faint">{t("admin.funnelEmpty")}</p>
       ) : (
         <div className="space-y-5">
-          <p className="text-[12px] text-ink-faint">
+          <p className="text-[13px] text-ink-faint">
             {t("admin.funnelSince", {
               date: data.since ? new Date(data.since).toLocaleDateString(locale) : "—",
               n: fmtInt(data.events),
@@ -172,7 +172,7 @@ function Funnel() {
               head={[t("admin.retention"), t("admin.returned"), t("admin.eligible"), t("admin.share")]}
               rows={data.retention.map((r) => [`D${r.day}`, fmtInt(r.returned), fmtInt(r.eligible), `${r.pct}%`])}
             />
-            <p className="mt-2 text-[12px] text-ink-faint">{t("admin.retentionNote")}</p>
+            <p className="mt-2 text-[13px] text-ink-faint">{t("admin.retentionNote")}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Table

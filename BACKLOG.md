@@ -635,6 +635,15 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      interests just picked (Еда и кулинария). Build it from the first days' groups, as Today does now.
    - **Easy at least a day past Good**: a card back from a lapse showed «Хорошо 1д · Легко 1д» — FSRS rounds
      both to its 1-day minimum (ts-fsrs, S 0.50 vs 0.87); Anki keeps Easy a day longer.
+   - **Bigger text done 2026-10-15** (the author picked it of the four): uppercase labels 9–11 → 12 px
+     (66), anything left under 11 → 11 (25), hint and description paragraphs (a `<p>` in a quiet ink)
+     11–12 → 13 px (51) across 62 files; Today's chips 17/12/13 px (word/pinyin/meaning, was 16/11/11),
+     a step more from `sm:`; the HSK list's pinyin 13; the word page's «слова вокруг» and family hint;
+     the saved texts' and readiness numbers 12; the grade buttons' intervals 12; Flashcards' option pills
+     13 on a computer. Text under 13 px, phone / computer: Today 34 → 26% / 45 → 28% (under 12: 25 → 1% on
+     the phone), the word page 40 → 23%, Writing 48 → 16% / 20%, the HSK list 19 → 0%, Settings 18 → 10% /
+     36 → 14%. What stays at 12 is the chips' pinyin, under their 13 px meaning on purpose.
+     **Left:** the other three (the card's back, the word page's order, the first deck and Easy).
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than

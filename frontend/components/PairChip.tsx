@@ -84,10 +84,10 @@ export function PairChip({
           open ? "border-sage bg-sage-tint" : "border-black/[0.08] bg-surface hover:border-sage/50",
         )}
       >
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.learn")}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.learn")}</span>
         <span className="font-semibold text-ink">{sourceName}</span>
         <span className="text-ink-faint">·</span>
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("first.know")}</span>
         <span className="font-semibold text-ink">{langLabel(target)}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform", open && "rotate-180")} />
       </button>

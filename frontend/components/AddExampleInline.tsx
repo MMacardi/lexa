@@ -122,7 +122,7 @@ export function AddExampleInline({ word }: { word: Word }) {
       </button>
 
       {/* divider */}
-      <div className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+      <div className="flex items-center gap-2 pt-1 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
         <span className="h-px flex-1 bg-black/[0.07]" />
         {t("word.aiExample")}
         <span className="h-px flex-1 bg-black/[0.07]" />

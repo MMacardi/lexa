@@ -206,7 +206,7 @@ export function HskDaily() {
   ) : topic ? (
     <div className="mt-4">
       <div className="flex items-center gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("topic.label", { topic, level: levelName })}</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("topic.label", { topic, level: levelName })}</p>
         <button
           type="button"
           onClick={() => setEditingTopic(true)}

@@ -123,7 +123,7 @@ export function WordCharacters({ word }: { word: Word }) {
           </div>
           {c.words.length > 0 && (
             <div className="mt-3">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+              <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
                 {t("chars.wordsWith", { c: c.word })}
               </p>
               <ul className="grid gap-1.5 sm:grid-cols-2">
@@ -167,7 +167,7 @@ export function WordCharacters({ word }: { word: Word }) {
       ))}
       {/* CC-CEDICT's licence asks for its name wherever its data shows. */}
       {data?.credit && (
-        <p className="text-[11px] text-ink-faint">
+        <p className="text-[13px] text-ink-faint">
           {someEnglish && <>{t("chars.englishNote")} </>}
           <a href={data.credit.url} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink-soft">
             {data.credit.source}

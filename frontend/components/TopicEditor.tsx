@@ -84,7 +84,7 @@ export function TopicEditor({ topics, on, onDone }: { topics: string[]; on: bool
           </button>
         )}
       </div>
-      {saving === "save" && <p className="text-[12px] text-ink-faint">{t("topic.seeding")}</p>}
+      {saving === "save" && <p className="text-[13px] text-ink-faint">{t("topic.seeding")}</p>}
     </div>
   );
 }

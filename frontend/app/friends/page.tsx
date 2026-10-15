@@ -199,7 +199,7 @@ function FriendsInner() {
               <div key={r.friendshipId} className="flex items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-paper/50 px-3.5 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-semibold text-ink">{r.name}</p>
-                  <p className="text-[12px] text-ink-faint">{t("friends.waiting")}</p>
+                  <p className="text-[13px] text-ink-faint">{t("friends.waiting")}</p>
                 </div>
                 <button
                   type="button"

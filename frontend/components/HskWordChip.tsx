@@ -45,15 +45,16 @@ export function HskWordChip({
             : "border-black/[0.08] bg-surface hover:bg-black/[0.03]",
       )}
     >
-      <span className={cn("block font-zh text-[16px] leading-tight text-ink", known && "line-through")}>{word}</span>
-      <span className="block text-[11px] leading-tight text-ink-faint">{pinyin}</span>
+      {/* Pinyin and meaning were 11 px, a fifth of Today's text (BACKLOG 1l). */}
+      <span className={cn("block font-zh text-[17px] leading-tight text-ink sm:text-[18px]", known && "line-through")}>{word}</span>
+      <span className="block text-[12px] leading-tight text-ink-faint sm:text-[13px]">{pinyin}</span>
       {meaning && !known ? (
-        <span className="mt-0.5 block max-w-[9rem] truncate text-[11px] leading-tight text-ink-soft">
+        <span className="mt-0.5 block max-w-[10rem] truncate text-[13px] leading-tight text-ink-soft sm:text-[14px]">
           {added && <Check className="mr-0.5 inline h-3 w-3 align-[-2px] text-sage-deep" />}
           {meaning}
         </span>
       ) : (
-        <span className="mt-0.5 flex items-center justify-center gap-1 text-[10px] font-semibold tracking-[0.04em] text-ink-faint">
+        <span className="mt-0.5 flex items-center justify-center gap-1 text-[12px] font-semibold tracking-[0.04em] text-ink-faint">
           {added && <Check className="h-3 w-3 text-sage-deep" />}
           {known ? t("hskDaily.known") : badge}
         </span>

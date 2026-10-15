@@ -76,7 +76,7 @@ export function SceneHistory({ onOpen }: { onOpen: (id: string) => void }) {
                   <span className="truncate text-[14.5px] font-semibold text-ink">{it.title}</span>
                   <span
                     className={cn(
-                      "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      "shrink-0 rounded-full px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-wide",
                       it.status === "done" ? "bg-sage-tint text-sage-deep" : "bg-warn-bg text-warn-text",
                     )}
                   >
@@ -93,7 +93,7 @@ export function SceneHistory({ onOpen }: { onOpen: (id: string) => void }) {
                 </div>
                 {words.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.studiedWords")}</span>
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("scene.studiedWords")}</span>
                     {words.slice(0, 8).map((w) => (
                       <span key={w} className="rounded-full border border-black/[0.08] bg-paper px-1.5 py-0.5 text-[11px] text-ink-muted">
                         {it.used.includes(w) && <Check className="mr-0.5 inline h-2.5 w-2.5 text-sage-deep" strokeWidth={3} />}

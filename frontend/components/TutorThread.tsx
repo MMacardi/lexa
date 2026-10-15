@@ -81,7 +81,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                 return (
                   <div className={cn("space-y-2 rounded-[14px] border border-sage/25 bg-sage-tint/40 p-2.5", large && "p-3.5")}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                      <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                         {t("reader.selectedN", { n: selected.length })}
                       </span>
                       <div className="flex gap-2 text-[11px] font-semibold">
@@ -124,7 +124,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                               {foreign && (
                                 <span
                                   className={cn(
-                                    "rounded-full px-1 text-[10px] font-bold uppercase leading-[15px]",
+                                    "rounded-full px-1 text-[12px] font-bold uppercase leading-[15px]",
                                     on ? "bg-white/25 text-white" : "bg-black/[0.06] text-ink-faint",
                                   )}
                                 >
@@ -140,12 +140,12 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                         the card doesn't grow under the learner's thumb. */}
                     {!collections ? (
                       <div className="flex items-center gap-2" aria-hidden>
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
+                        <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
                         <span className="h-9 w-[160px] animate-pulse rounded-[12px] bg-black/[0.05]" />
                       </div>
                     ) : collections.length > 0 ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
+                        <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("tutor.toSet")}</span>
                         <CollectionMultiSelect options={collections} value={collIds} onChange={setCollIds} menuClassName="max-h-48" />
                       </div>
                     ) : null}
