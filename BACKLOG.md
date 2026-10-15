@@ -1145,6 +1145,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Later — only after the retention test passes
 
+- **Per-learner FSRS weights** (from the 2026-10-15 audit). FSRS runs on its default weights, fitted to
+  many Anki users; fitted to one learner's own grades it predicts their forgetting better. Needs a few
+  hundred to a thousand reading-schedule reviews in `ReviewEvent` (source review, quiz on due cards
+  only — cram, write and early quiz rows left out) and an optimizer, which ts-fsrs doesn't have (the
+  open-spaced-repetition Rust optimizer has a Node binding). **Trigger:** the author's account passes
+  ~1,000 reviews; then fit, compare log loss against the defaults on the last 20% of their reviews,
+  and keep the weights only if they win.
 - **Weekly recap**, reshaped as the "know → can use" report + next week's gap words. `[10]`
 - **The plan nudges when it slips** (the rest of "A plan with a date", 13g): a reminder when the
   pace in use stops reaching the date, and the bot saying the plan's line. `[competitor pass]`
@@ -1215,11 +1222,24 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     pass. Local run at 390x844 as a throwaway HSK 4 learner (deleted after): 主席 大会 机构 而 此 each
     seen twice, due 17.10 04:00 Moscow; the level row read 972 − 5 = 967, the deck went 20 → 40 at
     card 16, and 19 grades took the row to 948.
-  - Left from the audit, not done: day themes lean to news and politics (jieba's written-text counts:
-    主席 大会 机构, 总理 总统 政府) — weigh situations by the learner's goal/interests; a quiz's right
-    answer is Good in FSRS, lucky guesses too — grade only due words from it; a card graded only Hard on
-    first sight still counts as new in the daily cap (`reviewCount === 0`); per-learner FSRS weights
-    once the review log is a few hundred to a thousand reviews.
+  - **The audit's leftovers, done the same day** (the author: "did you finish it right?" — they had
+    been noted here, outside the Open list, so no session would have taken them):
+    - **Day themes follow the learner, not the newspaper.** jieba's written-text counts made an HSK 4
+      day news, politics or the army half the time (主席 大会 机构, 总理 总统 政府). A situation the
+      learner's goal or interests point at (`lib/interests.ts`: onboarding's labels in en/ru/zh read back
+      to their chip — Tech → computers, phone, social media, science; Travel → airport, transit, hotel…)
+      now leads the day whenever one has 3 words, reaching 600 deep into the frontier instead of 200.
+      A travel + IT learner, 30 days: their theme on 14 days (2 before), no news or army day in the
+      first ten (3 before); the first 100 words cover 87% of the usage frequency alone does (93% with no
+      interests, unchanged). Today, Flashcards' «Новые слова» and the next group all take it.
+      `check-word-groups.ts` and `check-daily-group.ts` (a learner with Russian labels gets
+      «computers: 系统 数据 网络»).
+    - **A quiz's lucky guess no longer schedules.** A right answer on a card not due yet is logged and
+      moves nothing; a miss is graded either way, and a right answer when due is Good as before
+      (`recordReview`, `check-review-days.ts`).
+    - **The daily cap counts never-graded cards** (`isFresh`: no FSRS reps), not cards without a Good:
+      one graded only Again or Hard on first sight is a review now, in Flashcards and in Today's number.
+    - **Per-learner FSRS weights** moved to Later, with the trigger.
 
 ### One Mika: practice inside her tab (2026-10-14, asked for directly)
 - The author, after the rename to Mika: "we have many mika's with kinda similar but with different

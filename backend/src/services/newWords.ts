@@ -12,7 +12,7 @@ import {
   type HskVersion,
   type HskWord,
 } from "./hsk.js";
-import { hskDailyWords, nextGroup, type GroupWord } from "./wordGroups.js";
+import { hskDailyWords, likedFor, nextGroup, type GroupWord } from "./wordGroups.js";
 import { dictCardFields, pageCardFields } from "./capture.js";
 import { exampleLevel, pickPoolSentence, poolExample } from "./sentences.js";
 import { recordReview, recordWriting, shapeWord, undoLastReview } from "./vocab.js";
@@ -47,7 +47,7 @@ export async function hskNextWords(
   if (!input) return { version, level, theme: null, words: [] };
   const today = new Set(day.words.map((w) => w.word));
   const order = frontierOrder(version, level, (w) => input.status.has(w) || today.has(w), input.tapped, input.have);
-  const group = nextGroup(order, n, new Set(), input.tapped);
+  const group = nextGroup(order, n, new Set(), input.tapped, await likedFor(input.user.id));
   return { version, level, theme: group.theme, words: group.words };
 }
 

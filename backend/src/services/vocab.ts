@@ -647,6 +647,16 @@ export async function recordReview(
   // (the bot) schedule with the learner's own retention instead of the default.
   const desired = retention ?? word.user.retention ?? undefined;
 
+  // A quiz's right answer on a card that isn't due yet is logged, not scheduled. A
+  // choice of four is right one time in four by luck, and an early "Good" pushed the
+  // card out as if it had been recalled (a quiz every other day: 21% more grades for
+  // less exam-day recall than reviewing alone gains). A miss is real either way.
+  if (source === "quiz" && grade > 1 && word.state !== 0 && word.due && word.due > new Date()) {
+    await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source } });
+    track("review", { props: { grade, source } });
+    return word;
+  }
+
   // Practicing counts toward activity/streak regardless of the grade. The word,
   // the grade and the venue go in the same row: this is the learner model's only
   // record of what actually happened and it cannot be reconstructed later. The

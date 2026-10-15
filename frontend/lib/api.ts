@@ -1534,6 +1534,11 @@ async function downloadExport(): Promise<void> {
 /** A dictionary word handed out by `hskNext`, not yet a card on the account. */
 export const isNewWord = (word: Word) => word.id.startsWith("new:");
 
+/** Never graded: a new card for the daily cap. `reviewCount` counts only Good and Easy,
+ *  so a card graded just Again or Hard on first sight read as new and waited behind the
+ *  reviews, inside the cap. */
+export const isFresh = (word: Word) => (word.reps ?? 0) === 0;
+
 export function isDue(word: Word): boolean {
   if (!word.nextReviewAt) return true;
   return new Date(word.nextReviewAt).getTime() <= Date.now();

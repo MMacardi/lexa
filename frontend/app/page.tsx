@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { api, isDue, type Word } from "@/lib/api";
+import { api, isDue, isFresh, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
@@ -120,8 +120,8 @@ export default function TodayPage() {
   // due plus today's share of new cards, the way the review page builds its deck.
   // Three counts used to sit side by side ("2 due" in the briefing, 3 on a tile,
   // the session somewhere else) and disagree.
-  const reviewedDue = list.filter((w) => w.reviewCount > 0 && isDue(w)).length;
-  const newDue = list.filter((w) => w.reviewCount === 0 && isDue(w)).length;
+  const reviewedDue = list.filter((w) => !isFresh(w) && isDue(w)).length;
+  const newDue = list.filter((w) => isFresh(w) && isDue(w)).length;
   const session = reviewedDue + Math.min(newDue, newPerDay);
   const minutes = Math.max(1, Math.round((session * 8) / 60));
   const weakIds = list.filter((w) => (w.lapses ?? 0) >= 2).map((w) => w.id);
@@ -313,7 +313,7 @@ export default function TodayPage() {
                       )}
                     </div>
                     <div className="mt-1 text-xs font-medium text-ink-faint">
-                      {w.reviewCount === 0 ? t("today.neverReviewed") : t("today.reviewsDone", { n: w.reviewCount })}
+                      {isFresh(w) ? t("today.neverReviewed") : t("today.reviewsDone", { n: w.reps ?? w.reviewCount })}
                       {w.partOfSpeech ? ` · ${w.partOfSpeech}` : ""}
                     </div>
                   </Link>

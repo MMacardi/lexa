@@ -10,12 +10,14 @@
 import { prisma } from "../src/services/db.js";
 import { hskGuestDeck, hskLevelWords } from "../src/services/hsk.js";
 import { hskDailyWords } from "../src/services/wordGroups.js";
+import { likedSituations } from "../src/lib/interests.js";
 import { importWordsForUser } from "../src/services/importWords.js";
 import { savePlacementAnswers } from "../src/services/learnerPrefs.js";
 import { deleteAccount } from "../src/services/accountData.js";
 
 const TG = `test-daily-group-${Date.now()}`;
 const TG2 = `${TG}-b`;
+const TG3 = `${TG}-c`;
 const DAY = 86_400_000;
 let failures = 0;
 function check(ok: boolean, what: string) {
@@ -110,6 +112,17 @@ async function main() {
     next.words.length === 5 && next.words.every((w) => !w.added && w.word !== themeWord.word && !take.some((t) => t.word === w.word)),
     "the next day is 5 words not taken or known yet",
   );
+
+  // 7. A learner who came for travel and IT (onboarding's labels, in Russian, in the
+  // coach memory): their day is one of their situations, not the office or the news.
+  const u3 = await prisma.user.create({ data: { telegramId: TG3, hskVersion: "3.0", hskTarget: 4, dailyGoal: 5 } });
+  await prisma.coachMemory.create({ data: { userId: u3.id, lang: "zh", goal: "Сдать HSK, Путешествия", interests: "Технологии и IT" } });
+  const theirs = await hskDailyWords(TG3);
+  const plain = await hskDailyWords(TG);
+  check(
+    theirs.theme != null && likedSituations("Сдать HSK, Путешествия", "Технологии и IT").has(theirs.theme) && theirs.theme !== plain.theme,
+    `travel + IT: today is ${theirs.theme} (${show(theirs.words)}), not ${plain.theme}`,
+  );
 }
 
 try {
@@ -117,6 +130,7 @@ try {
 } finally {
   await deleteAccount(TG);
   await deleteAccount(TG2);
+  await deleteAccount(TG3);
   await prisma.$disconnect();
 }
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

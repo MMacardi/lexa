@@ -14,6 +14,7 @@ import { frontierOrder, hskFrequency, hskLevelWords, type HskWord } from "../src
 import { nearSynonyms, nextGroup, type GroupWord } from "../src/services/wordGroups.js";
 import { hskSituations } from "../src/services/wordPages.js";
 import { defaultMeaning } from "../src/services/lookup.js";
+import { likedSituations } from "../src/lib/interests.js";
 
 let failures = 0;
 function check(ok: boolean, what: string) {
@@ -130,6 +131,36 @@ check(big.every((d) => d.words.length === 20), "every big day has 20 words");
 check(big.every((d) => pairsIn(d.words.map((w) => w.word)).length === 0), "no two near-synonyms in a big day either");
 check(big.every((d) => d.words.filter((w) => abstract(w.word)).length <= 8), "at most 8 of 20 abstract");
 check(bigThemes.every(Boolean), `every big day has a theme (${bigThemes.join(", ")})`);
+
+// --- A learner who came for travel and IT: their situations lead the day ---
+const liked = likedSituations("Сдать HSK, Путешествия", "Технологии и IT, своё хобби");
+check(
+  ["airport", "hotel", "computers", "phone"].every((s) => liked.has(s as never)) && !liked.has("news") && !liked.has("army"),
+  `goal and interests read back from Russian labels → ${[...liked].join(" ")} (typed text and the exam add none)`,
+);
+check(
+  likedSituations("Дорамы, музыка, игры", "Games & anime, 美食烹饪").has("arts") && likedSituations("", "Games & anime, 美食烹饪").has("cooking"),
+  "a goal whose label holds commas, English and Chinese labels",
+);
+const likedThemes: (string | null)[] = [];
+const fav = simulate(5, 30, (order) => {
+  const g = nextGroup(order, 5, new Set(), new Set(), liked);
+  likedThemes.push(g.theme);
+  return g.words;
+});
+console.log("\na travel + IT learner, 5 words a day:");
+fav.slice(0, 6).forEach((d, i) => console.log(`  day ${i + 1}  ${(likedThemes[i] ?? "—").padEnd(12)} ${show(d.words)}`));
+console.log("");
+const politics = (ts: (string | null)[]) => ts.slice(0, 10).filter((s) => s === "news" || s === "army").length;
+const ledLiked = likedThemes.filter((s) => s && liked.has(s as never)).length;
+check(likedThemes[0] != null && liked.has(likedThemes[0] as never), `day 1 is theirs (${likedThemes[0]})`);
+check(
+  ledLiked >= 10 && politics(likedThemes) < politics(themes),
+  `${ledLiked} of 30 days on their situations; news/army in the first 10: ${politics(likedThemes)} (no interests: ${politics(themes)})`,
+);
+const favCover = usage(first100(fav)) / usage(first100(flat));
+check(favCover >= 0.85, `the first 100 words still cover ${(favCover * 100).toFixed(0)}% of what frequency alone does`);
+check(fav.every((d) => pairsIn(d.words.map((w) => w.word)).length === 0) && new Set(fav.flatMap((d) => d.words.map((w) => w.word))).size === 150, "no near-synonyms in a day, no word twice");
 
 // --- Small days are just the next words ---
 check(nextGroup(day1.order, 1).words.length === 1 && nextGroup(day1.order, 2).words.length === 2, "a goal of 1 or 2 words gets 1 or 2");

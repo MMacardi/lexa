@@ -9,6 +9,8 @@
 //    under 95% recall left moves into the last 5 days before it, spread over them; one
 //    with recall to spare, or due before the exam, stays; an exam tomorrow moves
 //    nothing; cards scheduled earlier are brought in once, and a second run moves none;
+//  - a quiz's right answer on a card not due yet is logged and moves nothing (a choice
+//    of four is right by luck one time in four); a miss, or a right answer when due, is graded;
 //  - the whole level: every word of it with no card and no "I know it", the words said
 //    unknown first, as ready-made cards a few at a time.
 //
@@ -142,6 +144,31 @@ async function onTheAccount() {
   check((await pullInForExam(user.id)) === 0, "a second run moves nothing");
 }
 
+// A quiz's right answer moves a card only when it is due: one in four is luck.
+async function quizOnlyWhenDue() {
+  const user = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG } });
+  const now = new Date();
+  const later = new Date(now.getTime() + 10 * DAY);
+  const made = await prisma.word.create({
+    data: {
+      userId: user.id, word: "习惯", sourceLang: "zh", targetLang: "ru", collocations: [], synonyms: [], antonyms: [],
+      state: 2, stability: 10, difficulty: 5, reps: 3, lastReview: new Date(now.getTime() - DAY), due: later, nextReviewAt: later,
+    },
+  });
+  const logged = () => prisma.reviewEvent.count({ where: { wordId: made.id, source: "quiz" } });
+  await recordReview(made.id, 3, undefined, "quiz");
+  const right = await prisma.word.findUniqueOrThrow({ where: { id: made.id } });
+  check(right.due!.getTime() === later.getTime() && right.reps === 3 && (await logged()) === 1, "right in a quiz before it is due: logged, schedule unchanged");
+  await recordReview(made.id, 1, undefined, "quiz");
+  const missed = await prisma.word.findUniqueOrThrow({ where: { id: made.id } });
+  check(missed.lapses === 1 && missed.due!.getTime() < later.getTime() && (await logged()) === 2, "missed in a quiz before it is due: a lapse, graded");
+  const due = new Date(now.getTime() - 60_000);
+  await prisma.word.update({ where: { id: made.id }, data: { state: 2, due, nextReviewAt: due, lapses: 0 } });
+  await recordReview(made.id, 3, undefined, "quiz");
+  const onTime = await prisma.word.findUniqueOrThrow({ where: { id: made.id } });
+  check(onTime.due!.getTime() > now.getTime() + DAY / 2 && onTime.reps === 5, "right in a quiz when due: graded Good");
+}
+
 async function wholeLevel() {
   const level = hskLevelWords("3.0", 4).map((w) => w.word);
   const start = await hskLevelLeft(TG);
@@ -168,6 +195,7 @@ try {
   byTheDay();
   beforeTheExam();
   await onTheAccount();
+  await quizOnlyWhenDue();
   await wholeLevel();
 } finally {
   await deleteAccount(TG);

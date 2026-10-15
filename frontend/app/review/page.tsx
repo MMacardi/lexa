@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { api, isDue, isNewWord, type Word } from "@/lib/api";
+import { api, isDue, isFresh, isNewWord, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { isChineseLang } from "@/lib/dictEntry";
 import { useI18n } from "@/lib/i18n";
@@ -565,8 +565,8 @@ export default function FlashcardsPage() {
   // default "due" mode — "review all" deliberately ignores pacing.
   function capNewCards(list: Word[]) {
     const cap = getNewPerDay();
-    const reviewed = list.filter((w) => w.reviewCount > 0);
-    const fresh = list.filter((w) => w.reviewCount === 0);
+    const reviewed = list.filter((w) => !isFresh(w));
+    const fresh = list.filter(isFresh);
     return [...reviewed, ...fresh.slice(0, cap)];
   }
 
