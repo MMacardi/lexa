@@ -1,5 +1,5 @@
 import { prisma } from "./db.js";
-import { fsrs, generatorParameters, createEmptyCard, type Card, type Grade, type State } from "ts-fsrs";
+import { fsrs, generatorParameters, createEmptyCard, Rating, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
 import { enrichWordEntry } from "../agents/enrich.js";
@@ -20,7 +20,7 @@ import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
 import { track } from "./analytics.js";
 import { headGloss, hskPage, pageSenses } from "./wordPages.js";
-import { asTimeZone, beforeExam, DEFAULT_TZ, placeDue, type Placing } from "./schedule.js";
+import { asTimeZone, beforeExam, DEFAULT_TZ, easyFloor, placeDue, type Placing } from "./schedule.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -686,7 +686,8 @@ export async function recordReview(
 
   const sched = schedulerFor(desired);
   const { card: next } = sched.next(card, now, grade as Grade);
-  const due = placeDue(next, now, await placingFor(word.user, word.userId, word.id, sched, tz));
+  const floor = grade === Rating.Easy ? easyFloor(sched.next(card, now, Rating.Good).card, now) : 1;
+  const due = placeDue(next, now, await placingFor(word.user, word.userId, word.id, sched, tz), floor);
 
   return prisma.word.update({
     where: { id },
@@ -830,8 +831,9 @@ export async function recordWriting(id: string, grade: number, retention?: numbe
         };
   const sched = schedulerFor(retention ?? word.user.retention ?? undefined);
   const { card: next } = sched.next(card, now, grade as Grade);
+  const floor = grade === Rating.Easy ? easyFloor(sched.next(card, now, Rating.Good).card, now) : 1;
   // Its own key, so a word's writing review doesn't land on the same day as its reading one.
-  const due = placeDue(next, now, await placingFor(word.user, word.userId, `${word.id}:write`, sched, tz));
+  const due = placeDue(next, now, await placingFor(word.user, word.userId, `${word.id}:write`, sched, tz), floor);
   return prisma.word.update({
     where: { id },
     data: {

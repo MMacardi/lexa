@@ -662,7 +662,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    Settings 5 (the name pencil, the 3.0/2.0 toggle); /mika's «Проверить мой уровень» sits under the
    bottom bar on the SE (it did before this pass too).
 
-1l. **Bigger text, the content first** (asked for directly 2026-10-15: "make the text bigger in some places,
+1l. [x] **Bigger text, the content first** (asked for directly 2026-10-15: "make the text bigger in some places,
    move some stuff"). A type audit as ux-learner (HSK 5), 9 pages at 390x844 and 1280x900, share of the
    visible text under 13 px: Today 34% phone / 45% desktop, the word page 40%, Writing's setup 48%, Settings
    18% / 36%. The code has ~480 uses of 10–12 px against ~200 of 14 px; desktop shows the same sizes as a
@@ -676,15 +676,31 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **Flashcards' back on a computer** is cut off (the example's translation scrolls inside the card)
      with ~250 px of screen free below it: let it grow to fit. On the back the word (≈28 px) is smaller than
      its meaning; make the word the hero and the four uppercase field labels smaller or gone (~80 px of a
-     phone card).
+     phone card). **Done 2026-10-15:** the back's text grows to what the window holds over the grades
+     (`max(300px, 100dvh − 390px)`, was `min(360px, 40vh)`); the word, reading, meaning and example go
+     unlabelled (synonyms, antonyms, collocations and notes keep theirs), the reading sits under the word
+     with no rule, and the back's word is 42 px (30 on a fitted card under 240 px, an iPhone SE, where
+     42 put the meaning below the fold). ux-learner's 服务, two examples: 1280x900 shows all of it (427 of
+     427 px, was 360 of 523) with the grades in view; 1366x768 fills to the grades and scrolls the last
+     49 px; 390x844 hides 58 px (was 154); 320x568 WebKit no sideways scroll.
    - **The word page, content first**: on a phone the senses and examples start below the first screen,
      after the tone hint, the progress row, an empty «Коллекции» block and «Объяснить с Микой». Senses
      first; collections and progress after them; an empty collections block as one small link.
+     **Done 2026-10-15:** the head, notes, senses, family, examples, «Объяснить с Микой», characters,
+     then the review dots, «можешь использовать» and collections; a word in no collection shows one
+     link, «В коллекцию», that opens the chips. 服务 at 390x844: the senses start at 343 px (was 551),
+     the first example at 1,275 (was 1,483). The tone hint stays where it is: it explains the pinyin
+     beside it, once.
    - **The first deck in onboarding** (the hook, 1h's "a result worth a screenshot") is 20 connectors —
      而 此 自 以及 却 曾 作为 — each chip saying "HSK 4" under a header that says it, and none from the
      interests just picked (Еда и кулинария). Build it from the first days' groups, as Today does now.
    - **Easy at least a day past Good**: a card back from a lapse showed «Хорошо 1д · Легко 1д» — FSRS rounds
      both to its 1-day minimum (ts-fsrs, S 0.50 vs 0.87); Anki keeps Easy a day longer.
+     **Done 2026-10-15:** when Good would also leave the steps, Easy lands at least a day after Good's
+     day (`schedule.ts` `easyFloor`; Flashcards and Writing on the server, the buttons' preview and an
+     offline grade in `fsrsPreview.ts`). `check-review-days.ts`: two cards back from a lapse, Good →
+     16 Oct, Easy → 17 Oct (both 16 Oct with the floor taken out: the check fails). ux-learner's 服务
+     now reads «Хорошо 1д · Легко 2д».
    - **Bigger text done 2026-10-15** (the author picked it of the four): uppercase labels 9–11 → 12 px
      (66), anything left under 11 → 11 (25), hint and description paragraphs (a `<p>` in a quiet ink)
      11–12 → 13 px (51) across 62 files; Today's chips 17/12/13 px (word/pinyin/meaning, was 16/11/11),
@@ -693,8 +709,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      13 on a computer. Text under 13 px, phone / computer: Today 34 → 26% / 45 → 28% (under 12: 25 → 1% on
      the phone), the word page 40 → 23%, Writing 48 → 16% / 20%, the HSK list 19 → 0%, Settings 18 → 10% /
      36 → 14%. What stays at 12 is the chips' pinyin, under their 13 px meaning on purpose.
-     **Left:** the card's back, the word page's order, and Easy past Good. The first deck is done
-     (1h, "a result worth a screenshot").
+     The card's back, the word page's order and Easy past Good done 2026-10-15 (above). The first deck
+     is done (1h, "a result worth a screenshot").
+   - **Found, not done:** on the word page a sense can wrap before its comma («услуга / , сервис» at
+     390 px, `WordSenses.tsx`; the data is a plain «услуга, сервис»). In Flashcards at 320x568 WebKit
+     the session counter «1 / 24» wraps onto three lines beside the header's buttons.
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than

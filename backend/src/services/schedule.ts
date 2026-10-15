@@ -110,9 +110,21 @@ export function beforeExam(card: Card, due: Date, now: Date, p: Placing): Date {
   return studyDayStart(now, p.tz, Math.max(1, left - 1 - (spread(p.key) % EXAM_WINDOW)));
 }
 
-/** The due date for `next`, just scheduled by FSRS at `now`. */
-export function placeDue(next: Card, now: Date, p: Placing): Date {
+/** The whole days FSRS puts `next` after `now`, at least one: how placeDue counts them. */
+const fsrsDays = (next: Card, now: Date) => Math.max(1, Math.round((next.due.getTime() - now.getTime()) / DAY));
+
+/** The due date for `next`, just scheduled by FSRS at `now`; `minDays` a floor (easyFloor). */
+export function placeDue(next: Card, now: Date, p: Placing, minDays = 1): Date {
   if (next.state !== State.Review) return next.due;
-  const days = Math.max(1, Math.round((next.due.getTime() - now.getTime()) / DAY));
-  return beforeExam(next, studyDayStart(now, p.tz, days), now, p);
+  return beforeExam(next, studyDayStart(now, p.tz, Math.max(minDays, fsrsDays(next, now))), now, p);
+}
+
+/**
+ * Easy at least a day past Good, as Anki keeps them (BACKLOG 1l): FSRS orders the two
+ * for a card in review, but a card leaving a (re)learning step had both rounded to its
+ * 1-day minimum — «Хорошо 1д · Легко 1д», stability 0.50 vs 0.87 — and Easy meant
+ * nothing. `good`: the same card graded Good at `now`. The floor for Easy's days.
+ */
+export function easyFloor(good: Card, now: Date): number {
+  return good.state === State.Review ? fsrsDays(good, now) + 1 : 1;
 }

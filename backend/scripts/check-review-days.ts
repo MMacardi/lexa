@@ -9,6 +9,7 @@
 //    under 95% recall left moves into the last 5 days before it, spread over them; one
 //    with recall to spare, or due before the exam, stays; an exam tomorrow moves
 //    nothing; cards scheduled earlier are brought in once, and a second run moves none;
+//  - Easy at least a day past Good: back from a lapse, FSRS rounded both to one day;
 //  - a quiz's right answer on a card not due yet is logged and moves nothing (a choice
 //    of four is right by luck one time in four); a miss, or a right answer when due, is graded;
 //  - the whole level: every word of it with no card and no "I know it", the words said
@@ -169,6 +170,35 @@ async function quizOnlyWhenDue() {
   check(onTime.due!.getTime() > now.getTime() + DAY / 2 && onTime.reps === 5, "right in a quiz when due: graded Good");
 }
 
+// Back from a lapse, Good and Easy both left the relearning step at FSRS's 1-day
+// minimum («Хорошо 1д · Легко 1д»); Easy now comes at least a day after Good.
+async function easyPastGood() {
+  const user = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG } });
+  const now = new Date();
+  const lapsed = async (word: string) => {
+    const made = await prisma.word.create({
+      data: {
+        userId: user.id, word, sourceLang: "zh", targetLang: "ru", collocations: [], synonyms: [], antonyms: [],
+        state: 2, stability: 3, difficulty: 6, reps: 4, lastReview: new Date(now.getTime() - 3 * DAY), due: new Date(now.getTime() - 60_000),
+      },
+    });
+    await recordReview(made.id, 1);
+    return made.id;
+  };
+  const [a, b] = [await lapsed("服务"), await lapsed("态度")];
+  const relearning = await prisma.word.findUniqueOrThrow({ where: { id: a } });
+  const good = await recordReview(a, 3);
+  const easy = await recordReview(b, 4);
+  const SH = "Asia/Shanghai";
+  const days = (d: Date) => Math.round((d.getTime() - now.getTime()) / DAY);
+  check(relearning.state === 3, `the lapse put it in relearning (state ${relearning.state})`);
+  check(
+    easy!.due!.getTime() - good!.due!.getTime() >= DAY - 3_600_000,
+    `from relearning: Good → ${clock(good!.due!, SH)} (S ${good!.stability.toFixed(2)}), Easy → ${clock(easy!.due!, SH)} (S ${easy!.stability.toFixed(2)})`,
+  );
+  check(days(good!.due!) <= 1, "Good stays FSRS's own day");
+}
+
 async function wholeLevel() {
   const level = hskLevelWords("3.0", 4).map((w) => w.word);
   const start = await hskLevelLeft(TG);
@@ -196,6 +226,7 @@ try {
   beforeTheExam();
   await onTheAccount();
   await quizOnlyWhenDue();
+  await easyPastGood();
   await wholeLevel();
 } finally {
   await deleteAccount(TG);

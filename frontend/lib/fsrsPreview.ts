@@ -30,9 +30,22 @@ function spread(key: string): number {
   return h;
 }
 
-function placeDue(next: Card, now: Date, key: string, examDate: string | null | undefined, f: ReturnType<typeof fsrs>): Date {
+const fsrsDays = (next: Card, now: Date) => Math.max(1, Math.round((next.due.getTime() - now.getTime()) / DAY));
+
+// Easy at least a day past Good when Good also leaves its steps (backend schedule.ts
+// easyFloor): from a step FSRS rounded both to one day, «Хорошо 1д · Легко 1д».
+const easyFloor = (good: Card, now: Date) => (good.state === State.Review ? fsrsDays(good, now) + 1 : 1);
+
+function placeDue(
+  next: Card,
+  now: Date,
+  key: string,
+  examDate: string | null | undefined,
+  f: ReturnType<typeof fsrs>,
+  minDays = 1,
+): Date {
   if (next.state !== State.Review) return next.due;
-  const due = studyDayStart(now, Math.max(1, Math.round((next.due.getTime() - now.getTime()) / DAY)));
+  const due = studyDayStart(now, Math.max(minDays, fsrsDays(next, now)));
   if (!examDate) return due;
   const [y, m, d] = examDate.slice(0, 10).split("-").map(Number);
   const exam = new Date(y, m - 1, d, ROLLOVER_HOUR);
@@ -73,7 +86,8 @@ export function applyGradeLocally(word: Word, grade: 1 | 2 | 3 | 4, examDate?: s
   const now = new Date();
   const f = makeScheduler();
   const { card: next } = f.next(cardFor(word, now), now, grade as Grade);
-  const due = placeDue(next, now, word.id, examDate, f).toISOString();
+  const floor = grade === Rating.Easy ? easyFloor(f.next(cardFor(word, now), now, Rating.Good).card, now) : 1;
+  const due = placeDue(next, now, word.id, examDate, f, floor).toISOString();
   return {
     ...word,
     stability: next.stability,
@@ -131,7 +145,8 @@ export function previewMinutes(
   const rec = f.repeat(cardFor(word, now), now);
   const mins = (r: Rating) => {
     const next = rec[r as 1 | 2 | 3 | 4].card;
-    const due = placeDue(next, now, key, examDate, f);
+    const floor = r === Rating.Easy ? easyFloor(rec[Rating.Good].card, now) : 1;
+    const due = placeDue(next, now, key, examDate, f, floor);
     if (next.state === State.Review) return Math.round((due.getTime() - studyDayStart(now).getTime()) / DAY) * 1440;
     return Math.max(0, Math.round((due.getTime() - now.getTime()) / 60000));
   };
