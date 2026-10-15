@@ -94,6 +94,19 @@ export function useTouchOnly() {
 // in step with the pan: its top edge holds still while its bottom follows the
 // keyboard. `data-kb` says the keyboard is up, so a composer can drop the
 // home-indicator room under it (--safe-bottom), which the keyboard covers anyway.
+//
+// Closing is told in advance. iOS slides the page back down with the keyboard but
+// reports the full viewport only once it has gone (and sends nothing at all for
+// "Done"), so the sheet rode down with the page and then glided back up to fill
+// the screen: the close the author found rough (2026-10-15). A field losing focus
+// to no other field means the keyboard is leaving now, so the overlay glides to the
+// viewport it had before the keyboard straight away, in step with it, and readings
+// that still show the keyboard are skipped meanwhile; focus landing in a field
+// again calls that off.
+const isField = (t: EventTarget | null) =>
+  t instanceof HTMLElement &&
+  (t.isContentEditable || t.matches("textarea, select, input:not([type=checkbox], [type=radio], [type=range], [type=button], [type=submit], [type=file])"));
+
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -103,26 +116,37 @@ export function useViewportVars() {
     let top = "";
     let h = "";
     let lastH = vv.height;
+    // The viewport with no keyboard up, which a close glides back to.
+    let restTop = vv.offsetTop;
+    let restH = vv.height;
+    let holdUntil = 0;
     let animTimer: ReturnType<typeof setTimeout> | undefined;
-    const sync = () => {
-      const nextTop = `${vv.offsetTop}px`;
-      const nextH = `${vv.height}px`;
-      if (Math.abs(vv.height - lastH) > 100) {
+    // The layout viewport keeps its height under the keyboard; a pinch zoom
+    // shrinks the visual one too, but by its scale.
+    const keyboardUp = () => Math.max(window.innerHeight, html.clientHeight) - vv.height * vv.scale > 150;
+    const write = (offsetTop: number, height: number, kb: boolean) => {
+      if (Math.abs(height - lastH) > 100) {
         html.dataset.vvAnim = "";
         clearTimeout(animTimer);
         animTimer = setTimeout(() => delete html.dataset.vvAnim, 450);
       }
-      lastH = vv.height;
-      // The layout viewport keeps its height under the keyboard; a pinch zoom
-      // shrinks the visual one too, but by its scale.
-      const full = Math.max(window.innerHeight, html.clientHeight);
-      const kb = full - vv.height * vv.scale > 150;
+      lastH = height;
       if (kb !== ("kb" in html.dataset)) {
         if (kb) html.dataset.kb = "";
         else delete html.dataset.kb;
       }
+      const nextTop = `${offsetTop}px`;
+      const nextH = `${height}px`;
       if (nextTop !== top) root.setProperty("--vv-top", (top = nextTop));
       if (nextH !== h) root.setProperty("--vv-h", (h = nextH));
+    };
+    const sync = () => {
+      const kb = keyboardUp();
+      if (!kb) {
+        restTop = vv.offsetTop;
+        restH = vv.height;
+      } else if (performance.now() < holdUntil) return; // the keyboard on its way out
+      write(vv.offsetTop, vv.height, kb);
     };
     // iOS can send its last viewport event before the keyboard has finished
     // moving, and none at all when it is dismissed with "Done": the vars kept the
@@ -139,22 +163,116 @@ export function useViewportVars() {
       until = performance.now() + 700;
       if (!raf) raf = requestAnimationFrame(tick);
     };
+    const onFocusIn = (e: FocusEvent) => {
+      if (isField(e.target)) holdUntil = 0;
+      settle();
+    };
+    const onFocusOut = (e: FocusEvent) => {
+      settle();
+      if (!("kb" in html.dataset) || isField(e.relatedTarget)) return;
+      holdUntil = performance.now() + 600;
+      write(restTop, restH, false);
+    };
     sync();
     vv.addEventListener("resize", settle);
     vv.addEventListener("scroll", settle);
     window.addEventListener("resize", settle);
-    window.addEventListener("focusin", settle);
-    window.addEventListener("focusout", settle);
+    window.addEventListener("focusin", onFocusIn);
+    window.addEventListener("focusout", onFocusOut);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(animTimer);
       vv.removeEventListener("resize", settle);
       vv.removeEventListener("scroll", settle);
       window.removeEventListener("resize", settle);
-      window.removeEventListener("focusin", settle);
-      window.removeEventListener("focusout", settle);
+      window.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("focusout", onFocusOut);
     };
   }, []);
+}
+
+// A sheet or dialog (.vv-overlay, and Mika's page on a phone, .mika-chat) keeps a
+// swipe to itself: one on it scrolls what
+// it is on, or nothing. With the keyboard up the visible screen is shorter than the
+// page, and iOS panned it under the finger — the sheet slid down behind the
+// keyboard or up off the screen, with the page showing past it (the author's
+// screenshots, 2026-10-15). A swipe where no scroller can move that way (none
+// under the finger, or one already at its end) is cancelled on its first move,
+// the only one a browser lets a page cancel. Fields keep theirs (iOS drags the
+// caret with them), as does what handles its own touches (the draw pad, a slider).
+export function useOverlayTouchGuard() {
+  useEffect(() => {
+    let x0 = 0;
+    let y0 = 0;
+    let overlay: Element | null = null;
+    let first = false;
+    const canScroll = (from: Element, axis: "x" | "y", forward: boolean) => {
+      for (let n: Element | null = from; n; n = n === overlay ? null : n.parentElement) {
+        const s = getComputedStyle(n);
+        if (!/(auto|scroll)/.test(axis === "y" ? s.overflowY : s.overflowX)) continue;
+        const [pos, size, view] = axis === "y" ? [n.scrollTop, n.scrollHeight, n.clientHeight] : [Math.abs(n.scrollLeft), n.scrollWidth, n.clientWidth];
+        if (size <= view + 1) continue;
+        if (forward ? pos + view < size - 1 : pos > 0) return true;
+      }
+      return false;
+    };
+    const onStart = (e: TouchEvent) => {
+      const t = e.target instanceof Element ? e.target : null;
+      overlay = t?.closest(".vv-overlay, .mika-chat") ?? null;
+      if (overlay && (isField(t) || t?.closest("[data-own-touch], input[type=range]"))) overlay = null;
+      first = true;
+      x0 = e.touches[0]?.clientX ?? 0;
+      y0 = e.touches[0]?.clientY ?? 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!first) return;
+      first = false;
+      if (!overlay || e.touches.length !== 1 || !e.cancelable || !(e.target instanceof Element)) return;
+      const dx = e.touches[0].clientX - x0;
+      const dy = e.touches[0].clientY - y0;
+      if (!dx && !dy) return;
+      // A finger moving up scrolls forward (towards the end).
+      const ok = Math.abs(dx) > Math.abs(dy) ? canScroll(e.target, "x", dx < 0) : canScroll(e.target, "y", dy < 0);
+      if (!ok) e.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+    };
+  }, []);
+}
+
+// Telegram's way out of the keyboard: drag down across the input box and it goes.
+// A page can't hand the keyboard to the finger, so a downward drag on `area` that
+// reaches the top of `bar` (the composer) takes the focus from the field in it, and
+// the keyboard slides away with the sheet following (useViewportVars). `on` = mounted.
+export function useDragDownDismiss(area: RefObject<HTMLElement | null>, bar: RefObject<HTMLElement | null>, on = true) {
+  useEffect(() => {
+    const el = area.current;
+    if (!on || !el) return;
+    let startY = 0;
+    let lastY = 0;
+    const onStart = (e: TouchEvent) => {
+      startY = lastY = e.touches[0]?.clientY ?? 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0;
+      const down = y > lastY;
+      lastY = y;
+      if (!down || y - startY < 24 || !("kb" in document.documentElement.dataset)) return;
+      const field = document.activeElement;
+      if (!(field instanceof HTMLElement) || !bar.current?.contains(field)) return;
+      if (y >= bar.current.getBoundingClientRect().top) field.blur();
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+    };
+  }, [area, bar, on]);
 }
 
 // A chat's scroller keeps its bottom edge in place when it changes size, the way a

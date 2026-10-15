@@ -125,6 +125,7 @@ const DICT: Record<string, Entry> = {
   },
   "mika.newChat": { en: "New chat", ru: "Новый чат", zh: "新对话" },
   "mika.history": { en: "History", ru: "История", zh: "历史" },
+  "mika.toLatest": { en: "To the latest message", ru: "К последнему сообщению", zh: "回到最新消息" },
   "mika.untitledChat": { en: "Untitled chat", ru: "Без названия", zh: "未命名对话" },
   "mika.deleteChat": { en: "Delete chat", ru: "Удалить чат", zh: "删除对话" },
   "mika.searchChats": { en: "Search chats…", ru: "Поиск по чатам…", zh: "搜索对话…" },

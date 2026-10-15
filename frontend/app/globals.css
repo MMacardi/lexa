@@ -32,6 +32,30 @@ html {
     height var(--dur-kb) var(--ease-kb);
 }
 
+/* Mika's page on a phone is the chat over the whole screen, as a messenger is:
+   sized to the visible viewport like the overlays above, ending at the tab bar's
+   top while the keyboard is down (--mika-bar, measured by the page) and at the
+   keyboard while it is up, gliding between the two with it. Unlayered, so it
+   beats the page's own `relative` and width. */
+@media (max-width: 767px) {
+  .mika-chat {
+    position: fixed;
+    inset-inline: 0;
+    top: var(--vv-top, 0px);
+    height: calc(var(--vv-h, 100dvh) - var(--mika-bar, calc(59px + env(safe-area-inset-bottom, 0px))));
+    max-width: none;
+    z-index: 35;
+  }
+  :root[data-kb] .mika-chat {
+    height: var(--vv-h, 100dvh);
+  }
+  :root[data-vv-anim] .mika-chat {
+    transition:
+      top var(--dur-kb) var(--ease-kb),
+      height var(--dur-kb) var(--ease-kb);
+  }
+}
+
 /* Room for the home indicator under a sheet's last row — none while the
    keyboard is up and covers that edge (data-kb, set by useViewportVars). */
 :root {
@@ -392,7 +416,7 @@ textarea::-webkit-resizer {
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out,
   .anim-sheet, .anim-scrim, .anim-scale-in, .anim-dialog { animation: none; }
-  .seg-thumb, .anim-collapse, .kb-pad, :root[data-vv-anim] .vv-overlay { transition: none !important; }
+  .seg-thumb, .anim-collapse, .kb-pad, :root[data-vv-anim] .vv-overlay, :root[data-vv-anim] .mika-chat { transition: none !important; }
   .anim-msg, .anim-tab, .anim-card-in, .anim-panel, .typing-dots > span { animation: none; }
   button.rounded-full:active, a.rounded-full:active { scale: none; }
   details::details-content { transition: none !important; }

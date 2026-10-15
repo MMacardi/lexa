@@ -14,7 +14,9 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { OPEN_MIKA, useIsMobile, useKeepBottom, useLockScroll } from "@/lib/mobileNav";
+import { OPEN_MIKA, useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { useChatScroll } from "@/lib/chatScroll";
+import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2, BookOpen, PenLine } from "lucide-react";
 
@@ -121,11 +123,13 @@ export function GlobalTutor() {
   }, [open, mobile]);
   const moved = offset.x !== 0 || offset.y !== 0;
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
-  // The keyboard shrinks the sheet from below: the newest lines stay in view.
-  useKeepBottom(scrollRef, open);
+  // Opens on the newest line, follows an answer only while it is being read at the
+  // bottom, and keeps that bottom through the keyboard (lib/chatScroll.ts).
+  const { away, toLatest } = useChatScroll(scrollRef, messages, open, busy);
+  // Dragging down across the input box puts the keyboard away, as in Telegram.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  useDragDownDismiss(sheetRef, footerRef, open && mobile);
 
   function fillTemplate(template: string) {
     chat.fillTemplate(template);
@@ -151,7 +155,7 @@ export function GlobalTutor() {
         <SheetScrim mobile={mobile} closing={closing} onClose={close}>
         <div
           data-closing={closing || undefined}
-          ref={mobile ? undefined : panelRef}
+          ref={mobile ? sheetRef : panelRef}
           className={cn(
             "z-[60] flex flex-col overflow-hidden bg-surface",
             mobile
@@ -249,7 +253,8 @@ export function GlobalTutor() {
           </div>
 
           {/* conversation / welcome */}
-          <div ref={scrollRef} className="min-h-[160px] flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          <div className="relative flex min-h-[160px] flex-1 flex-col">
+          <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-[14px] leading-relaxed text-ink-soft">{t("tutor.welcome")}</p>
@@ -268,9 +273,11 @@ export function GlobalTutor() {
 
             <TutorThread chat={chat} />
           </div>
+          <JumpToLatest show={away} onClick={toLatest} />
+          </div>
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
-          <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "kb-pad pb-[calc(10px+var(--safe-bottom))]")}>
+          <div ref={footerRef} className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "kb-pad pb-[calc(10px+var(--safe-bottom))]")}>
             {/* free recall, right in the chat: write what you remember, Mika grades it */}
             {card && messages.length > 0 && !busy && (
               <button

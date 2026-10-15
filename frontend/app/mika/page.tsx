@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api, isDue } from "@/lib/api";
@@ -14,7 +14,9 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { MikaPracticeCards, MikaPracticeLinks } from "@/components/MikaPractice";
-import { useKeepBottom } from "@/lib/mobileNav";
+import { useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { useChatScroll } from "@/lib/chatScroll";
+import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
 import { GraduationCap, Tags, Scale, Layers, BookOpen, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
 
@@ -51,14 +53,35 @@ export default function MikaPage() {
   });
   const due = (words ?? []).filter(isDue).length;
 
-  // The conversation scrolls inside its own panel, so the composer stays put.
+  // The conversation scrolls inside its own panel, so the composer stays put. Kept
+  // the way a messenger keeps it: opens on the newest line, follows an answer only
+  // while it is read at the bottom, holds that bottom when the keyboard or the
+  // composer takes room (lib/chatScroll.ts).
+  const { away, toLatest } = useChatScroll(scrollRef, messages, true, busy);
+
+  // On a phone the page is the chat itself (the author, 2026-10-15: "like in
+  // messengers"): over the whole screen and sized to what the keyboard leaves
+  // (.mika-chat, globals.css), its own slim bar in place of the app's, the input
+  // box docked at the bottom — above the tab bar, or right on the keyboard while
+  // typing. The page under it stays put, and a drag down across the input box puts
+  // the keyboard away, as in Telegram.
+  const mobile = useIsMobile();
+  useLockScroll(mobile);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  useDragDownDismiss(pageRef, barRef, mobile);
+  // Where the tab bar starts, measured (its height carries the home indicator's room).
+  const [tabBar, setTabBar] = useState<number | null>(null);
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el && (messages.length || busy)) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages, busy]);
-  // The composer growing (a second line, photos) shrinks the panel from below:
-  // the newest lines stay in view above it.
-  useKeepBottom(scrollRef);
+    const bar = document.querySelector<HTMLElement>("[data-tabbar]");
+    if (!bar) return;
+    const read = () => setTabBar(bar.getBoundingClientRect().height);
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
+  const back = card ? `/word/${card.id}` : lastPath;
 
   function applyPreset(key: string, open?: boolean) {
     if (key === "photo") return fileRef.current?.click();
@@ -74,15 +97,61 @@ export default function MikaPage() {
   }
 
   return (
-    <div {...drop.props} className="relative mx-auto flex h-[calc(100dvh-176px)] max-w-[760px] flex-col md:h-[calc(100dvh-140px)]">
+    <div
+      {...drop.props}
+      ref={pageRef}
+      style={tabBar === null ? undefined : ({ "--mika-bar": `${tabBar}px` } as React.CSSProperties)}
+      className="mika-chat relative mx-auto flex max-w-[760px] flex-col max-md:bg-surface md:h-[calc(100dvh-140px)]"
+    >
       {drop.dragging && <DropHint />}
+      {/* Phones: a messenger's bar — back, her name (and the card a card chat is
+          about), past chats, a new one. */}
+      <div className="shrink-0 border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent pt-[env(safe-area-inset-top)] md:hidden">
+        <div className="flex h-14 items-center gap-1 px-1.5">
+          {back ? (
+            <Link
+              href={back}
+              aria-label={t("common.back")}
+              title={t("common.back")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          ) : (
+            <span className="w-2.5 shrink-0" />
+          )}
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sage to-sage-deep text-white">
+            <Sparkles className="h-[18px] w-[18px]" />
+          </span>
+          <div className="ml-1.5 min-w-0 flex-1">
+            <p className="truncate font-serif text-[18px] font-semibold leading-tight text-ink">{t("mika.title")}</p>
+            {card && <p className="truncate text-[12px] font-semibold text-sage-deep">{card.word}</p>}
+          </div>
+          <ChatHistoryMenu chat={chat} withLabel />
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={reset}
+              aria-label={t("mika.newChat")}
+              title={t("mika.newChat")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-black/[0.04] hover:text-ink"
+            >
+              <RotateCcw className="h-[18px] w-[18px]" />
+            </button>
+          )}
+        </div>
+        {!FIXED_PAIR && (
+          <div className="px-4 pb-2">
+            <ChatPairPicker pair={pair} onChange={changePair} className="inline-block" />
+          </div>
+        )}
+      </div>
       {/* Title on the left, the session actions against the right edge, the pair on
           its own line below. All three pills used to sit in one left-hugging huddle
           under the subtitle, which left the header lopsided — and History's menu
           (right-aligned, as menus are) dropped straight over the pair chip next to
-          it. The actions go icon-only on a phone so both edges stay anchored
-          without the row wrapping back on itself. */}
-      <div className="mb-4">
+          it. */}
+      <div className="mb-4 max-md:hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 font-serif text-[28px] font-medium text-ink sm:text-[32px]">
@@ -134,12 +203,14 @@ export default function MikaPage() {
         </div>
       </div>
 
-      {/* the conversation (or the welcome presets) — the only scrolling part */}
+      {/* the conversation (or the welcome presets) — the only scrolling part. A short
+          conversation sits at the bottom, by the input box, as in a messenger. */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={scrollRef}
         className={cn(
-          "flex-1 overflow-y-auto",
-          messages.length > 0 && "space-y-4 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6",
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:px-4 max-md:py-4",
+          messages.length > 0 && "md:rounded-[20px] md:border md:border-black/[0.06] md:bg-surface md:p-6",
         )}
       >
         {messages.length === 0 ? (
@@ -180,13 +251,17 @@ export default function MikaPage() {
           </section>
           </div>
         ) : (
-          <TutorThread chat={chat} large />
+          <div className="flex min-h-full flex-col justify-end space-y-4">
+            <TutorThread chat={chat} large />
+          </div>
         )}
+      </div>
+      <JumpToLatest show={away} onClick={toLatest} />
       </div>
 
       {/* composer — pinned under the thread, so it sits in the same place whether
           the conversation is two lines or twenty */}
-      <div className="mt-3">
+      <div ref={barRef} className="mt-3 max-md:mt-0 max-md:border-t max-md:border-black/[0.06] max-md:px-3 max-md:py-2">
         {unfinished && <p className="mb-1.5 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
         <TutorComposer chat={chat} inputRef={inputRef} fileRef={fileRef} large />
       </div>
