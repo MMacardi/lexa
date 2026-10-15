@@ -6,15 +6,18 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { Check, Plus, X } from "lucide-react";
+import { Check, FolderPlus, Plus, X } from "lucide-react";
 
-// Toggle which collections a word belongs to, with an inline "new collection".
+// Toggle which collections a word belongs to, with an inline "new collection". A word
+// in none is one small link until tapped: an empty block with its label took a line
+// and a half above the word's senses on a phone (BACKLOG 1l).
 export function CollectionChips({ word }: { word: Word }) {
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const [open, setOpen] = useState(false);
 
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
@@ -46,6 +49,17 @@ export function CollectionChips({ word }: { word: Word }) {
       invalidate();
     },
   });
+
+  if (!member.size && !open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:text-sage-deep"
+      >
+        <FolderPlus className="h-4 w-4" /> {t("word.toCollection")}
+      </button>
+    );
 
   return (
     <div className="space-y-2">

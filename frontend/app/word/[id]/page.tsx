@@ -263,31 +263,6 @@ export default function WordDetailPage() {
             <span className="text-xs text-ink-faint">{t("capture.fillHint")}</span>
           </div>
         )}
-        <div className="flex items-center gap-2 pt-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className={cn("h-2 w-8 rounded-full", i < filled ? "bg-sage" : "bg-dot-empty")}
-            />
-          ))}
-          <span className="ml-2 text-xs font-semibold text-ink-faint">
-            {t("word.reviewedTimes", { n: word.reviewCount })}
-          </span>
-        </div>
-        {/* The other half of knowing a word: whether the learner can produce it. */}
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          {word.canUseAt ? (
-            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] text-sage-deep">
-              {t("word.canUse")}
-            </span>
-          ) : (
-            <span className="text-ink-faint">
-              {(word.produceAttempts ?? 0) > 0
-                ? t("word.canUseSoon", { n: word.produceCorrect ?? 0, total: word.produceAttempts ?? 0 })
-                : t("word.canUseUntried")}
-            </span>
-          )}
-        </div>
         {word.sharedFrom && (
           <p className="text-[13px] text-ink-soft">
             {t("community.creditFrom")}{" "}
@@ -302,27 +277,12 @@ export default function WordDetailPage() {
         )}
       </div>
 
-      <CollectionChips word={word} />
-
       {word.notes && word.notes.trim() && (
         <div className="rounded-[18px] border border-black/[0.06] bg-paper/60 p-4">
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">{t("edit.notes")}</p>
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{word.notes}</p>
         </div>
       )}
-
-      {/* AI tutor — the explanation opens in the Mika widget, so it can be read
-          beside the card instead of pushing the page down, and it joins the chat
-          history like every other conversation (opt-in, LLM calls) */}
-      <button
-        type="button"
-        onClick={() =>
-          openMikaOnCard({ id: word.id, word: word.word, sourceLang: word.sourceLang, targetLang: word.targetLang })
-        }
-        className="inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
-      >
-        <Lightbulb className="h-4 w-4" /> {t("word.explain")}
-      </button>
 
       {/* Pleco-style numbered senses (generated on first open, cached); pick
           which ones the card tests. Falls back to the collocation chips. */}
@@ -417,8 +377,54 @@ export default function WordDetailPage() {
         <AddExampleInline word={word} />
       </div>
 
+      {/* AI tutor — the explanation opens in the Mika widget, so it can be read
+          beside the card instead of pushing the page down, and it joins the chat
+          history like every other conversation (opt-in, LLM calls). After the
+          examples: the page's own content comes first (BACKLOG 1l). */}
+      <button
+        type="button"
+        onClick={() =>
+          openMikaOnCard({ id: word.id, word: word.word, sourceLang: word.sourceLang, targetLang: word.targetLang })
+        }
+        className="inline-flex items-center gap-2 rounded-full border border-sage/40 bg-sage-tint/40 px-4 py-2 text-sm font-semibold text-sage-deep transition-colors hover:bg-sage-tint"
+      >
+        <Lightbulb className="h-4 w-4" /> {t("word.explain")}
+      </button>
+
       {/* Each character: its reading, meaning and stroke order, and the words built on it. */}
       <WordCharacters word={word} />
+
+      {/* How the card is doing, and where it's filed: after what the word is. On a
+          phone they pushed the senses below the first screen. */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className={cn("h-2 w-8 rounded-full", i < filled ? "bg-sage" : "bg-dot-empty")}
+            />
+          ))}
+          <span className="ml-2 text-xs font-semibold text-ink-faint">
+            {t("word.reviewedTimes", { n: word.reviewCount })}
+          </span>
+        </div>
+        {/* The other half of knowing a word: whether the learner can produce it. */}
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          {word.canUseAt ? (
+            <span className="rounded-full bg-sage-tint px-2 py-0.5 text-[11px] text-sage-deep">
+              {t("word.canUse")}
+            </span>
+          ) : (
+            <span className="text-ink-faint">
+              {(word.produceAttempts ?? 0) > 0
+                ? t("word.canUseSoon", { n: word.produceCorrect ?? 0, total: word.produceAttempts ?? 0 })
+                : t("word.canUseUntried")}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <CollectionChips word={word} />
     </div>
   );
 }

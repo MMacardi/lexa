@@ -2584,6 +2584,7 @@ const DICT: Record<string, Entry> = {
     zh: "还没有在运用练习中尝试过",
   },
   "word.collections": { en: "Collections", ru: "Коллекции", zh: "合集" },
+  "word.toCollection": { en: "Add to a collection", ru: "В коллекцию", zh: "加入合集" },
   "word.collocations": { en: "Collocations", ru: "Сочетания", zh: "搭配" },
   "word.meanings": { en: "Meanings", ru: "Значения", zh: "义项" },
   "word.meaningsLoading": { en: "Looking up meanings…", ru: "Ищем значения…", zh: "正在查找义项…" },
