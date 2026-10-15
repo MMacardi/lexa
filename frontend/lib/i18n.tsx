@@ -588,6 +588,8 @@ const DICT: Record<string, Entry> = {
   "admin.funnelSince": { en: "Since {date} · {n} events", ru: "С {date} · событий: {n}", zh: "自 {date} · 事件 {n}" },
   "admin.funnelEmpty": { en: "No events yet — they start from the first sign-in after this shipped.", ru: "Событий пока нет — они пойдут с первого входа после выката.", zh: "暂无事件——上线后的首次登录开始记录。" },
   "admin.step": { en: "Step", ru: "Шаг", zh: "步骤" },
+  "admin.onboarding": { en: "Before sign-in", ru: "До входа", zh: "登录之前" },
+  "admin.visitors": { en: "Visitors", ru: "Посетители", zh: "访客" },
   "admin.step.signin": { en: "Signed in", ru: "Вошли", zh: "已登录" },
   "admin.step.firstCard": { en: "First card", ru: "Первая карточка", zh: "第一张卡片" },
   "admin.step.firstReview": { en: "First review", ru: "Первое повторение", zh: "第一次复习" },

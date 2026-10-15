@@ -543,6 +543,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **Funnel first:** no event fires before sign-in (landing → each question → check → ready →
      sign-in), so where visitors drop is a guess. `track` exists server-side (signup, adds,
      reviews); add a public event route, or send the steps with the first signed-in request.
+     **Done 2026-10-15:** both. `POST /api/public/funnel {visitor, step}` (rate-limited, a fixed list
+     of 13 steps in `services/analytics.ts` FUNNEL_STEPS, a random id kept in the browser, nothing
+     else) records "onboarding" events: landing, start, each question, check, daily, building, ready,
+     beta, login, and `signed_in` once the guest plan lands on the new account, sent with the session
+     so it ties the visitor to the account (`lib/funnel.ts`, each step once per browser). `/admin`
+     shows visitors per step as a share of those who landed, above the signed-in funnel. Local run as
+     a guest at 390x844: all 13 sent, the last with the account; bad steps and short ids get 400.
    - **A result worth a screenshot:** the check now prices the gap, so the ready screen can say
      "About 480 HSK 4 words to go — at 15 min a day, ready by Nov 15, two weeks before your
      exam." Honest once 1c makes the check trustworthy; labelled an estimate until then.

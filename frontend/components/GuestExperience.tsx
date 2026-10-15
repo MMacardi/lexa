@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FOCUS } from "@/lib/focus";
 import { useI18n } from "@/lib/i18n";
 import { FocusLanding } from "@/components/FocusLanding";
@@ -9,6 +9,7 @@ import { LoginScreen } from "@/components/LoginScreen";
 import { BetaGate } from "@/components/BetaGate";
 import { HskFirstRun, OTHER_LANGUAGE_KEY } from "@/components/HskFirstRun";
 import { LangMenu } from "@/components/LandingChrome";
+import { funnelStep } from "@/lib/funnel";
 
 // What a signed-out visitor sees: the marketing landing, then (focused) the
 // onboarding questions, then the shared beta-code gate, then sign-in. The
@@ -25,8 +26,23 @@ import { LangMenu } from "@/components/LandingChrome";
 export function GuestExperience() {
   const { t } = useI18n();
   const [stage, setStage] = useState<"landing" | "questions" | "beta" | "login">("landing");
+  // Where visitors leave (lib/funnel.ts). "Sign in" from the landing is a returning
+  // learner, so the login screen counts only when the beta code led there.
+  useEffect(() => {
+    if (stage === "landing") funnelStep("landing");
+    else if (stage === "questions") funnelStep("start");
+    else if (stage === "beta") funnelStep("beta");
+  }, [stage]);
   if (stage === "login") return <LoginScreen />;
-  if (stage === "beta") return <BetaGate onUnlock={() => setStage("login")} />;
+  if (stage === "beta")
+    return (
+      <BetaGate
+        onUnlock={() => {
+          funnelStep("login");
+          setStage("login");
+        }}
+      />
+    );
   if (stage === "questions")
     return (
       <main className="min-h-screen bg-paper px-4 pb-10 pt-[calc(16px+env(safe-area-inset-top))] sm:pt-10">

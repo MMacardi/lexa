@@ -65,6 +65,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { funnelStep } from "@/lib/funnel";
 
 // The one onboarding path, the way phone apps do it now: a question per screen
 // (the language words are explained in, why Chinese, how much they know, the
@@ -348,6 +349,10 @@ export function HskFirstRun({
   // Each step opens at its own top: on a phone the last answer tapped sits low on
   // the screen, and the next question would otherwise start half scrolled away.
   const rootRef = useRef<HTMLDivElement>(null);
+  // Each question, the check, the pace and the words, before sign-in (lib/funnel.ts).
+  useEffect(() => {
+    if (guest && step !== "lang" && step !== "plan" && step !== "deck" && step !== "done") funnelStep(step);
+  }, [guest, step]);
   const go = (s: Step) => {
     setStep(s);
     const top = rootRef.current?.getBoundingClientRect().top ?? 0;

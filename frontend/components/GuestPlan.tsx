@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { prefetchCoachPicks } from "@/components/CoachPicks";
 import { CEFR_FOR_HSK, clearGuestPlan, type GuestPlan } from "@/components/HskFirstRun";
 import { cn } from "@/lib/utils";
+import { funnelStep } from "@/lib/funnel";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
 // The onboarding a guest did before signing in, landing on the account: the
@@ -84,6 +85,8 @@ export function FinishGuestPlan({ plan, onDone }: { plan: GuestPlan; onDone: () 
       clearGuestPlan();
       for (const key of ["words", "stats", "hskReadiness", "hskDaily", "hskLists"]) qc.invalidateQueries({ queryKey: [key] });
       setStage(3);
+      // The guest's plan is on their new account: the last step of the first five minutes.
+      funnelStep("signed_in");
     } catch (e) {
       setFailed(errText(e, t));
     }

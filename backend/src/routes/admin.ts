@@ -6,6 +6,7 @@ import { requireAdmin } from "../lib/gate.js";
 import { costCny } from "../lib/pricing.js";
 import { moderateDeck, moderationQueue } from "../services/moderation.js";
 import { cedictCoverage } from "../services/cedict.js";
+import { FUNNEL_STEPS } from "../services/analytics.js";
 
 // Owner-only operations dashboard: one aggregated snapshot of how the beta is
 // being used (users, content, engagement, invites) and exactly what the AI is
@@ -247,7 +248,7 @@ const FUNNEL: { step: string; name: string }[] = [
 adminRouter.get("/admin/funnel", async (_req: Request, res: Response) => {
   try {
     const events = await prisma.analyticsEvent.findMany({
-      where: { telegramId: { not: null } },
+      where: { telegramId: { not: null }, name: { not: "onboarding" } },
       select: { name: true, telegramId: true, createdAt: true, props: true },
       orderBy: { createdAt: "asc" },
       take: EVENT_CAP,
@@ -305,10 +306,28 @@ adminRouter.get("/admin/funnel", async (_req: Request, res: Response) => {
       byDayMap.set(key, (byDayMap.get(key) ?? 0) + 1);
     }
 
+    // Before sign-in (BACKLOG "The first five minutes"): how many visitors reached each
+    // step of onboarding, as a share of those who saw the landing.
+    const steps = await prisma.analyticsEvent.findMany({ where: { name: "onboarding" }, select: { props: true }, take: EVENT_CAP });
+    const visitors = new Map<string, Set<string>>();
+    for (const e of steps) {
+      const p = (e.props ?? {}) as { visitor?: string; step?: string };
+      if (!p.visitor || !p.step) continue;
+      let set = visitors.get(p.step);
+      if (!set) visitors.set(p.step, (set = new Set()));
+      set.add(p.visitor);
+    }
+    const landed = visitors.get("landing")?.size ?? 0;
+    const onboarding = FUNNEL_STEPS.map((step) => {
+      const n = visitors.get(step)?.size ?? 0;
+      return { step, visitors: n, pct: landed ? Math.round((n / landed) * 1000) / 10 : 0 };
+    });
+
     res.json({
       since: events.length ? events[0]!.createdAt : null,
       events: events.length,
       cohort,
+      onboarding,
       funnel,
       retention,
       useSteps: {

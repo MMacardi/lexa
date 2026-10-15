@@ -158,6 +158,11 @@ function Funnel() {
               n: fmtInt(data.events),
             })}
           </p>
+          {/* Before sign-in: where visitors leave the first five minutes. */}
+          <Table
+            head={[t("admin.onboarding"), t("admin.visitors"), t("admin.share")]}
+            rows={data.onboarding.map((s) => [s.step, fmtInt(s.visitors), `${s.pct}%`])}
+          />
           <Table
             head={[t("admin.step"), t("admin.learners"), t("admin.share")]}
             rows={data.funnel.map((f) => [t(`admin.step.${f.step}`), fmtInt(f.users), `${f.pct}%`])}

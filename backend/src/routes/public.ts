@@ -4,16 +4,33 @@ import { rateLimit } from "../lib/rateLimit.js";
 import { asHskVersion, hskGuestDeck } from "../services/hsk.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { guestPlan, isoDay } from "../services/studyPlan.js";
+import { FUNNEL_STEPS, track } from "../services/analytics.js";
+import { readSession } from "../lib/auth.js";
 
 // The onboarding before sign-in: a guest answers the questions, taps through the
 // check and sees their first deck, and only then makes an account to keep it.
 // These routes are all that needs, and they only read the public HSK lists —
-// no account, no model call, nothing stored. Exempt from the session and invite
-// gates in index.ts; rate-limited per caller instead.
+// no account, no model call, nothing stored but the funnel's step names. Exempt
+// from the session and invite gates in index.ts; rate-limited per caller instead.
 
 export const publicRouter = Router();
 
 const limiter = rateLimit({ windowMs: 60_000, max: 30, name: "public" });
+
+// POST /api/public/funnel {visitor, step} — a step of onboarding reached (BACKLOG "The
+// first five minutes": before this, nothing fired before sign-in and where visitors
+// leave was a guess). `visitor` is a random id the browser keeps; once signed in the
+// same id comes with the session ("signed_in"), which ties the guest to the account.
+const funnelBody = z.object({ visitor: z.string().regex(/^[a-z0-9]{12,40}$/), step: z.enum(FUNNEL_STEPS) });
+publicRouter.post("/public/funnel", limiter, (req, res) => {
+  const parsed = funnelBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Unknown step" });
+    return;
+  }
+  track("onboarding", { telegramId: readSession(req), surface: "web", props: parsed.data });
+  res.json({ ok: true });
+});
 
 // POST /api/public/hsk/check — the adaptive check before sign-in: the next
 // screen, or `result` once it's over. The signed-in check, with nothing known

@@ -575,6 +575,8 @@ export interface AdminFunnel {
   since: string | null;
   events: number;
   cohort: number;
+  // Onboarding before sign-in: distinct visitors per step, share of those who landed.
+  onboarding: { step: string; visitors: number; pct: number }[];
   funnel: { step: "signin" | "firstCard" | "firstReview" | "firstUseStep"; users: number; pct: number }[];
   retention: { day: number; eligible: number; returned: number; pct: number }[];
   useSteps: {
@@ -1453,6 +1455,9 @@ export const api = {
   // Owner-only admin dashboard snapshot.
   adminStats: () => http<AdminStats>(`/api/admin/stats`),
   adminFunnel: () => http<AdminFunnel>(`/api/admin/funnel`),
+  // A step of onboarding before sign-in (lib/funnel.ts). Never throws.
+  funnelStep: (visitor: string, step: string) =>
+    http<{ ok: true }>(`/api/public/funnel`, { method: "POST", body: JSON.stringify({ visitor, step }), keepalive: true }).catch(() => null),
   adminReports: () => http<ModerationQueue>(`/api/admin/reports`),
   moderateDeck: (id: string, action: "dismiss" | "delist" | "restore") =>
     http<{ ok: true }>(`/api/admin/decks/${id}/moderate`, { method: "POST", body: JSON.stringify({ action }) }),
