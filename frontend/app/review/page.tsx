@@ -35,6 +35,7 @@ import { FitText } from "@/components/FitText";
 import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
 import { ExampleText } from "@/components/ExampleText";
+import { GlossText } from "@/components/GlossText";
 import { MeasureWords } from "@/components/MeasureWords";
 import { Pinyin } from "@/components/Pinyin";
 import { Confetti } from "@/components/Confetti";
@@ -51,7 +52,7 @@ import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitLearn, submitReview, undoLearn, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Type, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { cn } from "@/lib/utils";
 import { useDragFollower } from "@/lib/dragFollow";
@@ -171,6 +172,18 @@ export default function FlashcardsPage() {
   const swipeUpDown = useSwipeUpDown();
   const toneColors = useToneColors();
   const examplePinyin = useExamplePinyin();
+  // One pinyin switch (the author, 2026-10-14: three buttons that did much the same):
+  // on, the reading sits over the card's word on the front and over every example
+  // sentence, the word's own included; off, neither, and the characters are read as
+  // in the exam. A layout that puts the pinyin on the front counts as on.
+  const pinyinOn = examplePinyin || layout.front.includes("phonetic");
+  const pinyinOverWord = examplePinyin && !layout.front.includes("phonetic");
+  // A sentence on the front keeps the word's sound back unless the front says it anyway.
+  const frontReads = pinyinOverWord ? layout.front.includes("word") : layout.front.includes("phonetic");
+  const setPinyin = (on: boolean) => {
+    setExamplePinyin(on);
+    if (!on && layout.front.includes("phonetic")) togglePinyinFront(layout);
+  };
   const playOnFlip = usePlayOnFlip();
   // Phones: the session's switches live behind the gear, so the card and the
   // grades have the screen to themselves.
@@ -996,25 +1009,31 @@ export default function FlashcardsPage() {
   // `back`: the answer side, where a phrase may show the word itself.
   const fieldNode = (field: CardField, primary: boolean, withTr = false, back = false): React.ReactNode => {
     switch (field) {
-      case "word":
+      case "word": {
+        // The pinyin switch on: the reading over the word on the front, as over the sentences.
+        const over = !back && pinyinOverWord && isChineseLang(word.sourceLang) && word.phonetic;
         return (
           <div className="flex items-center justify-center gap-3">
-            {/* A long headword ("intertextuality") at 52px is wider than a phone, so the hero shrinks to fit */}
-            {primary ? (
-              <FitText
-                text={word.word}
-                max={52}
-                min={28}
-                className={cn("font-serif font-medium leading-tight tracking-[-0.025em] text-ink", sourceFont(word.sourceLang))}
-              />
-            ) : (
-              <span className={cn("min-w-0 break-words font-serif text-[26px] font-medium text-ink", sourceFont(word.sourceLang))}>
-                {word.word}
-              </span>
-            )}
-            <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} />
+            <div className="min-w-0">
+              {over && <Pinyin text={word.phonetic!} className="mb-0.5 block break-words text-[20px] leading-tight text-ink-muted" />}
+              {/* A long headword ("intertextuality") at 52px is wider than a phone, so the hero shrinks to fit */}
+              {primary ? (
+                <FitText
+                  text={word.word}
+                  max={52}
+                  min={28}
+                  className={cn("font-serif font-medium leading-tight tracking-[-0.025em] text-ink", sourceFont(word.sourceLang))}
+                />
+              ) : (
+                <span className={cn("block break-words font-serif text-[26px] font-medium text-ink", sourceFont(word.sourceLang))}>
+                  {word.word}
+                </span>
+              )}
+            </div>
+            <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} className={over ? "mt-7" : undefined} />
           </div>
         );
+      }
       case "audio":
         // Heard, not read. With no speech engine there's nothing to hear: the word instead.
         if (!canSpeak()) return primary ? fieldNode("word", true) : null;
@@ -1072,7 +1091,7 @@ export default function FlashcardsPage() {
                       {s.phrase && (
                         <div className="mt-0.5 break-words text-[15px] leading-snug text-ink-soft">
                           <span className="text-[17px] text-ink">
-                            <ExampleText text={s.phrase.text} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
+                            <ExampleText text={s.phrase.text} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} pinyin={pinyinOn} />
                           </span>{" "}
                           <span className={targetFont(word.targetLang)}>{s.phrase.translation}</span>
                         </div>
@@ -1097,19 +1116,26 @@ export default function FlashcardsPage() {
         ) : null;
       case "example":
         return word.examples.length ? (
-          <div className="space-y-3 text-left">
+          <div className="space-y-4 text-left">
             {word.examples.map((ex) => (
               <div key={ex.id}>
                 <div className="flex items-start gap-2">
-                  <p className="min-w-0 flex-1 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote">
-                    <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} hideWordReading />
+                  <p className="min-w-0 flex-1 whitespace-pre-line font-serif text-[17px] leading-relaxed text-quote sm:text-[20px]">
+                    <ExampleText
+                      text={ex.sentenceEn}
+                      word={word.word}
+                      lang={word.sourceLang}
+                      targetLang={word.targetLang}
+                      pinyin={pinyinOn}
+                      hideWordReading={!back && !frontReads}
+                    />
                   </p>
                   {/* The sentence said aloud: listening is a third of every HSK paper. */}
-                  <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-0.5" />
+                  <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-0.5 sm:mt-1" />
                 </div>
                 {withTr && ex.sentenceZh?.trim() && (
-                  <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
-                    {ex.sentenceZh}
+                  <p className={cn("mt-0.5 whitespace-pre-line text-[15px] leading-snug text-ink-soft sm:text-[16px]", targetFont(word.targetLang))}>
+                    <GlossText text={ex.sentenceZh} meaning={back ? word.meaningZh : null} />
                   </p>
                 )}
                 {ex.sourceName && (
@@ -1125,8 +1151,8 @@ export default function FlashcardsPage() {
             {word.examples
               .filter((ex) => ex.sentenceZh?.trim())
               .map((ex) => (
-                <p key={ex.id} className={cn("whitespace-pre-line text-[15px] leading-relaxed text-ink-soft", targetFont(word.targetLang))}>
-                  {ex.sentenceZh}
+                <p key={ex.id} className={cn("whitespace-pre-line text-[15px] leading-relaxed text-ink-soft sm:text-[16px]", targetFont(word.targetLang))}>
+                  <GlossText text={ex.sentenceZh} meaning={back ? word.meaningZh : null} />
                 </p>
               ))}
           </div>
@@ -1491,7 +1517,8 @@ export default function FlashcardsPage() {
                   // A phone's fitted card has a set height, and the text takes all of it.
                   className={cn(
                     "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-2 py-1",
-                    !fitH && "max-h-[300px]",
+                    // A computer's screen has room for the sentences at their larger size.
+                    !fitH && "max-h-[300px] sm:max-h-[min(360px,40vh)]",
                   )}
                   // Long text: an up/down drag scrolls it and a sideways one still swipes
                   // the card. On a pinned phone page the card does that scroll itself
@@ -1502,27 +1529,7 @@ export default function FlashcardsPage() {
                   {backFields.map((f, i) => (
                     <div key={f} className="text-center">
                       {i > 0 && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
-                        {t(`field.${f}`)}
-                        {/* Pinyin over the sentences, switched where it shows (also behind the
-                            gear and in Settings); a button, so the tap doesn't flip the card. */}
-                        {f === "example" && isChineseLang(word.sourceLang) && (
-                          <button
-                            type="button"
-                            onClick={() => setExamplePinyin(!examplePinyin)}
-                            aria-pressed={examplePinyin}
-                            title={t("exPinyin.label")}
-                            className={cn(
-                              "ml-2 inline-flex items-center rounded-full border px-2.5 py-0.5 align-middle text-[11px] font-semibold normal-case tracking-normal transition-colors",
-                              examplePinyin
-                                ? "border-sage bg-sage-tint text-sage-deep"
-                                : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
-                            )}
-                          >
-                            {t("exPinyin.toggle")}
-                          </button>
-                        )}
-                      </p>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${f}`)}</p>
                       {fieldNode(f, false, backTr, true)}
                     </div>
                   ))}
@@ -1581,21 +1588,23 @@ export default function FlashcardsPage() {
             <MoveVertical className="h-3.5 w-3.5" />
             {t("review.swipeUpDown")}
           </button>
-          <button
-            type="button"
-            onClick={() => togglePinyinFront(layout)}
-            aria-pressed={layout.front.includes("phonetic")}
-            title={t("review.pinyinFrontHint")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
-              layout.front.includes("phonetic")
-                ? "border-sage bg-sage-tint text-sage-deep"
-                : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
-            )}
-          >
-            <Type className="h-3.5 w-3.5" />
-            {t("review.pinyinFront")}
-          </button>
+          {isChineseLang(word.sourceLang) && (
+            <button
+              type="button"
+              onClick={() => setPinyin(!pinyinOn)}
+              aria-pressed={pinyinOn}
+              title={t("exPinyin.hint")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                pinyinOn
+                  ? "border-sage bg-sage-tint text-sage-deep"
+                  : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+              )}
+            >
+              <Captions className="h-3.5 w-3.5" />
+              {t("exPinyin.toggle")}
+            </button>
+          )}
           {isChineseLang(word.sourceLang) && (
             <button
               type="button"
@@ -1611,23 +1620,6 @@ export default function FlashcardsPage() {
             >
               <Palette className="h-3.5 w-3.5" />
               {t("review.toneColors")}
-            </button>
-          )}
-          {isChineseLang(word.sourceLang) && (
-            <button
-              type="button"
-              onClick={() => setExamplePinyin(!examplePinyin)}
-              aria-pressed={examplePinyin}
-              title={t("exPinyin.hint")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
-                examplePinyin
-                  ? "border-sage bg-sage-tint text-sage-deep"
-                  : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
-              )}
-            >
-              <Captions className="h-3.5 w-3.5" />
-              {t("exPinyin.label")}
             </button>
           )}
           {canSpeak() && (
@@ -1664,13 +1656,15 @@ export default function FlashcardsPage() {
                 on={swipeUpDown}
                 onClick={() => setSwipeUpDown(!swipeUpDown)}
               />
-              <SheetRow
-                Icon={Type}
-                label={t("review.pinyinFront")}
-                hint={t("review.pinyinFrontHint")}
-                on={layout.front.includes("phonetic")}
-                onClick={() => togglePinyinFront(layout)}
-              />
+              {isChineseLang(word.sourceLang) && (
+                <SheetRow
+                  Icon={Captions}
+                  label={t("exPinyin.toggle")}
+                  hint={t("exPinyin.hint")}
+                  on={pinyinOn}
+                  onClick={() => setPinyin(!pinyinOn)}
+                />
+              )}
               {isChineseLang(word.sourceLang) && (
                 <SheetRow
                   Icon={Palette}
@@ -1678,15 +1672,6 @@ export default function FlashcardsPage() {
                   hint={t("review.toneColorsHint")}
                   on={toneColors}
                   onClick={() => setToneColors(!toneColors)}
-                />
-              )}
-              {isChineseLang(word.sourceLang) && (
-                <SheetRow
-                  Icon={Captions}
-                  label={t("exPinyin.label")}
-                  hint={t("exPinyin.hint")}
-                  on={examplePinyin}
-                  onClick={() => setExamplePinyin(!examplePinyin)}
                 />
               )}
               {canSpeak() && (

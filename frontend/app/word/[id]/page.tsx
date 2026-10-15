@@ -22,6 +22,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { PronounceButton } from "@/components/PronounceButton";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { ExampleText } from "@/components/ExampleText";
+import { GlossText } from "@/components/GlossText";
 import { MeasureWords } from "@/components/MeasureWords";
 import { Pinyin, ToneLegend } from "@/components/Pinyin";
 import { OnceHint } from "@/components/OnceHint";
@@ -365,8 +366,8 @@ export default function WordDetailPage() {
               <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-1" />
             </div>
             {ex.sentenceZh && (
-              <p className={cn("mt-2 whitespace-pre-line text-[15px] text-ink-soft", targetFont(word.targetLang))}>
-                {ex.sentenceZh}
+              <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-snug text-ink-soft sm:text-[16px]", targetFont(word.targetLang))}>
+                <GlossText text={ex.sentenceZh} meaning={word.meaningZh} />
               </p>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -38,8 +38,8 @@ function wordsOf(text: string): Promise<Token[]> {
  * An example sentence with the card's word highlighted and, when the learner
  * turned on "pinyin over examples", the reading over each character. Read from
  * the whole sentence, not character by character, so 长 in 长大 is zhǎng and 了
- * after a verb is le. `hideWordReading` leaves the card's own word bare: on a
- * review card the sentence is support, and the word's sound is the answer.
+ * after a verb is le. `hideWordReading` leaves the card's own word bare: on the
+ * question side of a review card with no pinyin, the word's sound is the answer.
  *
  * With `targetLang`, every other word of a Chinese sentence can be tapped: its
  * pinyin and meaning (the dictionary first, as in the Reader) and "Add to my
@@ -52,15 +52,18 @@ export function ExampleText({
   lang,
   targetLang,
   hideWordReading,
+  pinyin,
 }: {
   text: string;
   word: string;
   lang: string;
   targetLang?: string;
   hideWordReading?: boolean;
+  pinyin?: boolean; // the caller's own switch (review's one pinyin toggle), else the saved preference
 }) {
   const zh = lang === "zh" || lang === "zh-Hant";
-  const on = useExamplePinyin() && zh;
+  const pref = useExamplePinyin();
+  const on = (pinyin ?? pref) && zh;
   const tones = useToneColors();
   const [readings, setReadings] = useState<string[] | null>(null);
   const { t } = useI18n();
@@ -191,7 +194,7 @@ export function ExampleText({
         {chars[i]}
         <rt
           className={cn(
-            "px-px pb-0.5 font-pinyin text-[0.5em] font-normal not-italic leading-none tracking-tight text-ink-faint",
+            "px-px pb-0.5 font-pinyin text-[0.55em] font-normal not-italic leading-none tracking-tight text-ink-faint",
             tones && toneClass(reading),
           )}
         >

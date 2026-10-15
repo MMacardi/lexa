@@ -8,7 +8,8 @@
 //      a word they had or said they knew never shows;
 //   3. the fields are the interests: split from the coach memory; the day goes
 //      round them (2 + 1, then 1 + 2); a field run dry lends its slot; turned off
-//      stays off, with no model call;
+//      stays off, with no model call; a word's meaning is the dictionary's where it
+//      has one, and an old card's meaning the model wrote moves to it;
 //   4. (--live) interests with no words yet become words on the first load, both
 //      fields, and the reload makes no second call; "More words" brings words the
 //      pool didn't hold, none of them HSK ≤ target.
@@ -140,6 +141,31 @@ async function checkCoveredDay() {
   if (show(day) !== "高铁,登机" || day.left !== 0) fails.push(`covered by the level: ${show(day)} left ${day.left}, want 高铁,登机 left 0`);
 }
 
+// The dictionary's meaning over the model's (响应 was «ответ», 行程 «расписание»), on
+// the day and on a card taken with the model's before, not on one the learner rewrote;
+// the model's where the dictionary lacks the word (算力).
+async function checkMeanings() {
+  const said = (word: string, meaning: string): TopicWord => ({ word, pinyin: "", meaning, fromText: false, known: 1, hsk: null });
+  await setTopics(TG, ["News"]);
+  await prisma.user.update({
+    where: { telegramId: TG },
+    data: { hskVersion: "3.0", hskTarget: 5, topicPool: { News: [said("响应", "ответ"), said("行程", "расписание"), said("算力", "вычислительная мощность")] } },
+  });
+  const day = await topicDaily(TG);
+  const got = day.words.map((w) => `${w.word}=${w.meaning}`).join(" · ");
+  const want = ["响应=откликаться; отвечать", "行程=маршрут, поездка, путь", "算力=вычислительная мощность"].join(" · ");
+  if (got !== want) fails.push(`meanings: ${got}, want ${want}`);
+
+  const lastWeek = new Date(Date.now() - 7 * 86400_000);
+  const user = await prisma.user.findUniqueOrThrow({ where: { telegramId: TG }, select: { id: true } });
+  const taken = await prisma.word.create({ data: { userId: user.id, word: "响应", sourceLang: "zh", targetLang: "ru", meaningZh: "ответ", createdAt: lastWeek } });
+  const own = await prisma.word.create({ data: { userId: user.id, word: "行程", sourceLang: "zh", targetLang: "ru", meaningZh: "мой маршрут", createdAt: lastWeek } });
+  await topicDaily(TG);
+  const [a, b] = await Promise.all([taken, own].map((c) => prisma.word.findUniqueOrThrow({ where: { id: c.id }, select: { meaningZh: true } })));
+  if (a.meaningZh !== "откликаться; отвечать") fails.push(`a card with the model's meaning: ${a.meaningZh}`);
+  if (b.meaningZh !== "мой маршрут") fails.push(`a meaning the learner wrote was replaced: ${b.meaningZh}`);
+}
+
 // Never had words: the first Today lists the day's fields — both of them.
 async function checkSeedLive() {
   await setTopics(TG, ["Технологии и IT", "Игры и аниме"]);
@@ -183,6 +209,7 @@ async function main() {
   await checkDay();
   await checkFields();
   await checkCoveredDay();
+  await checkMeanings();
   if (LIVE) await checkSeedLive();
   if (LIVE) await checkMoreLive();
   await deleteAccount(TG);
@@ -190,7 +217,9 @@ async function main() {
     console.error("FAIL\n- " + fails.join("\n- "));
     process.exitCode = 1;
   } else {
-    console.log(`PASS — ranking, the day's three, fields round the interests, off stays off, covered words skipped${LIVE ? ", a seeded day and more words" : ""}`);
+    console.log(
+      `PASS — ranking, the day's three, fields round the interests, off stays off, covered words skipped, the dictionary's meanings${LIVE ? ", a seeded day and more words" : ""}`,
+    );
   }
 }
 

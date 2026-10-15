@@ -3,6 +3,7 @@ import { prisma } from "./db.js";
 import { suggestTopicWords, type TopicCandidate } from "../agents/topicWords.js";
 import { updateProfile } from "./coachMemory.js";
 import { asHskVersion, dayStart, hskLevelWords, hskTagFor, normalizeHanzi, HSK_MAX_LEVEL, type HskVersion } from "./hsk.js";
+import { cardMeaning } from "./lookup.js";
 
 // Topic words beside the exam words (BACKLOG item of that name): the words of a
 // field the learner follows (服务器, 算法 for IT), off the HSK lists or far above
@@ -231,6 +232,41 @@ function fill(telegramId: string, topics: string[], more = false): Promise<void>
   return run;
 }
 
+/**
+ * A topic word's meaning: the shared dictionary's where it has the word (响应
+ * «откликаться (на призыв); реагировать, отвечать на запрос»), the model's only for
+ * what it lacks. The model writes 1–4 words for each of thirty, and they misled:
+ * 响应 «ответ» read as 答案, 行程 «расписание» (the author, 2026-10-14).
+ */
+export const topicMeaning = (w: Pick<TopicWord, "word" | "meaning">, lang: string | null) => cardMeaning(w.word, lang) ?? w.meaning;
+
+/**
+ * Cards taken from the topic words before then still carry the model's meaning: a
+ * card whose meaning is exactly its pool word's moves to the dictionary's (a sense
+ * pick made for the old one goes along). A meaning the learner changed isn't the
+ * pool's, so it stays.
+ */
+async function refreshTopicCards(userId: string, pools: Pools, lang: string | null): Promise<void> {
+  const model = new Map<string, string>();
+  for (const words of Object.values(pools)) {
+    for (const w of words) if (w.meaning && topicMeaning(w, lang) !== w.meaning) model.set(w.word, w.meaning);
+  }
+  if (!model.size) return;
+  const cards = await prisma.word.findMany({
+    where: { userId, sourceLang: "zh", targetLang: lang ?? "ru", word: { in: [...model.keys()] } },
+    select: { id: true, word: true, meaningZh: true, senses: true },
+  });
+  for (const c of cards) {
+    const was = model.get(c.word);
+    if (!c.meaningZh || c.meaningZh.trim() !== was) continue;
+    const next = topicMeaning({ word: c.word, meaning: was }, lang);
+    const senses = c.senses as { for?: string } | null;
+    const carried = senses && typeof senses === "object" && senses.for === c.meaningZh ? { senses: { ...senses, for: next } as Prisma.InputJsonValue } : {};
+    // Compare-and-set on the meaning read: an edit made meanwhile wins.
+    await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: next, ...carried } });
+  }
+}
+
 /** The chips on Today: the learner's fields are their interests, and picking them turns topic words on. */
 export async function setTopics(telegramId: string, topics: string[]): Promise<void> {
   await updateProfile(telegramId, "zh", { interests: topics.join(", ") });
@@ -278,6 +314,7 @@ export async function topicDaily(telegramId: string): Promise<TopicDay> {
   }
   const { version, target } = levelOf(user);
   const { have, addedToday } = await learnerWords(user.id, version, target);
+  await refreshTopicCards(user.id, pools, user.nativeLang);
   const taken = new Set<string>();
   // Covered is checked here too, not only when a pool is listed: pools listed before
   // the rule (or before a level change) still hold words like 火车.
@@ -289,7 +326,7 @@ export async function topicDaily(telegramId: string): Promise<TopicDay> {
       const w = pools[topic]?.find(open);
       if (!w) continue;
       taken.add(w.word);
-      words.push({ ...w, added: addedToday.has(w.word), topic });
+      words.push({ ...w, meaning: topicMeaning(w, user.nativeLang), added: addedToday.has(w.word), topic });
       break;
     }
   }
