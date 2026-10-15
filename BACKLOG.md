@@ -619,6 +619,11 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    numbers once the beta runs — if nobody opens a scene from Mika's sheet either, fold scenes into the
    chat as a "situation" option. **Also found:** a scene turn's `used` credits the character's words
    too (4/5 after the learner said one, `coachSceneTurn.ts`); it should count the learner's line only.
+   **Fixed 2026-10-15:** a Chinese mission word the model lists counts only if the learner's last line
+   has it, in characters or typed as pinyin (one token, or its syllables in a row; tones and tone
+   numbers ignored) — `learnerUsed`. Other languages stay the model's call (an inflected form can't
+   be matched by spelling). `check-scene-used.ts` (11 cases, no model call); two real turns on the
+   local backend, the waiter saying 菜单 推荐 打包: «我要一杯咖啡» → 咖啡, «好的，谢谢» → none.
 
 1j. [x] **The practice pages on a small phone: one page scroll, not a box inside the page.** `/coach/scene`,
    `/coach/chat` and `/coach/practice` are full-height with an inner scroll card: at 320×568 the

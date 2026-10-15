@@ -1,9 +1,11 @@
+import { pinyin } from "pinyin-pro";
 import { chatJsonConversation, chatJsonConversationStream, type ChatMessage } from "./llm.js";
 import { coachSceneTurnSchema, type CoachSceneTurn } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { chatGuard, noEmoji, noVendor, stripEmoji } from "../lib/persona.js";
 import { levelGuide } from "./levelGuide.js";
 import { track } from "./analytics.js";
+import { hskReading } from "./hsk.js";
 
 // The scene "bible", echoed by the client every turn so the engine is stateless and
 // never drifts out of character (chatJsonConversation only sees the clipped history).
@@ -25,7 +27,7 @@ export interface SceneBible {
  * "wrong" grade — the bug we are replacing), gently recasts mistakes, and reports which
  * mission words the learner used plus any corrections for the end-of-session report card.
  * `used` is post-filtered against the mission pool so an invented word can never trigger a
- * bogus SRS grade on the client.
+ * bogus SRS grade on the client, and against the learner's own line (`learnerUsed`).
  */
 export async function coachSceneTurn(params: {
   messages: { role: "user" | "assistant"; content: string }[];
@@ -153,10 +155,7 @@ export async function coachSceneTurn(params: {
   const lastUser = [...params.messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const norm = (x: string) => x.toLowerCase().replace(/[\s\p{P}]+/gu, "");
   const lastNorm = norm(lastUser);
-  const pool = new Set((params.scene.missionWords ?? []).map((w) => w.word.trim().toLowerCase()));
-  const used = [
-    ...new Set((result.used ?? []).map((w) => w.trim()).filter((w) => pool.has(w.toLowerCase()))),
-  ];
+  const used = learnerUsed(result.used ?? [], params.scene.missionWords ?? [], lastUser);
   const corrections = (result.corrections ?? [])
     .map((c) => ({
       original: (c.original ?? "").trim(),
@@ -174,4 +173,43 @@ export async function coachSceneTurn(params: {
     corrections,
     sceneDone: result.sceneDone ?? false,
   };
+}
+
+const HAN = /^\p{Script=Han}+$/u;
+// Toneless, ü as u, letters only: "lǜ", "lü", "lv" and "lu4" all read "lu".
+const bare = (x: string) =>
+  x
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/v/g, "u")
+    .replace(/[^a-z]/g, "");
+
+/** Is this Chinese word in the line: its characters, or its pinyin typed as one token or a syllable a token. */
+function saidIn(word: string, line: string): boolean {
+  if (line.includes(word)) return true;
+  const syllables = (hskReading(word) ?? pinyin(word, { toneType: "none" })).split(/\s+/).map(bare).filter(Boolean);
+  const tokens = line.split(/[^\p{L}\p{M}\d]+/u).map(bare).filter(Boolean);
+  const joined = syllables.join("");
+  if (tokens.includes(joined)) return true;
+  return tokens.some((_, i) => syllables.every((s, j) => tokens[i + j] === s));
+}
+
+/**
+ * The mission words the learner used this turn: the model's list, kept to the mission
+ * pool and, for a Chinese word, to the learner's own last line — the model also credited
+ * words only the character had said (BACKLOG 1i: 4/5 after the learner said one). A word
+ * in another language is the model's call: an inflected form ("went" for "go") can't be
+ * matched by spelling.
+ */
+export function learnerUsed(listed: string[], missionWords: { word: string }[], lastUser: string): string[] {
+  const pool = new Set(missionWords.map((w) => w.word.trim().toLowerCase()));
+  return [
+    ...new Set(
+      listed
+        .map((w) => w.trim())
+        .filter((w) => pool.has(w.toLowerCase()))
+        .filter((w) => !HAN.test(w) || saidIn(w, lastUser)),
+    ),
+  ];
 }
