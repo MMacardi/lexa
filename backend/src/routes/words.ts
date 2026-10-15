@@ -25,7 +25,7 @@ import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
 import { asHskVersion, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
 import { hskDailyWords } from "../services/wordGroups.js";
-import { hskNextWords, learnWord, readyCards, unlearnWord } from "../services/newWords.js";
+import { hskLevelLeft, hskNextWords, learnWord, levelCards, readyCards, unlearnWord } from "../services/newWords.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
@@ -315,6 +315,24 @@ wordsRouter.get("/hsk/next", async (req, res) => {
   res.json({ ...next, words: await readyCards(telegramId, next.words) });
 });
 
+// GET /api/hsk/level -> the learner's level for Flashcards' whole-level mode: every
+// word with no card and no "I know it", in the order to meet them (word, pinyin only).
+wordsRouter.get("/hsk/level", async (req, res) => {
+  res.json(await hskLevelLeft(readSession(req)!));
+});
+
+// POST /api/hsk/cards {words} -> those list words as ready-made cards, nothing written:
+// the whole-level mode's next few.
+const cardsBody = z.object({ words: z.array(z.string().trim().min(1).max(40)).min(1).max(30) });
+wordsRouter.post("/hsk/cards", async (req, res) => {
+  const parsed = cardsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  res.json({ words: await levelCards(readSession(req)!, parsed.data.words) });
+});
+
 // POST /api/hsk/learn {word, grade, source} -> a new word's first grade: the card is
 // made then, and graded in the same call ("Easy" in Flashcards: known, no card).
 const learnBody = z.object({
@@ -322,6 +340,7 @@ const learnBody = z.object({
   grade: z.number().int().min(1).max(4),
   source: z.enum(["review", "write"]).default("review"),
   retention: z.number().optional(),
+  tz: z.string().max(64).optional(),
 });
 wordsRouter.post("/hsk/learn", async (req, res) => {
   const parsed = learnBody.safeParse(req.body);
@@ -782,7 +801,8 @@ wordsRouter.post("/words/:id/review", async (req, res) => {
   // Optional per-user desired retention (FSRS), clamped server-side too.
   const retention = typeof body.retention === "number" ? body.retention : undefined;
   // Which surface graded it (review / quiz / drill / scene / chat) — logged, not scheduled on.
-  const word = await recordReview(req.params.id, grade, retention, asReviewSource(body.source));
+  // The browser's time zone: the next review falls due from 04:00 on its day there.
+  const word = await recordReview(req.params.id, grade, retention, asReviewSource(body.source), body.tz);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;
@@ -824,7 +844,7 @@ wordsRouter.post("/words/:id/write", async (req, res) => {
     return;
   }
   const retention = typeof req.body?.retention === "number" ? req.body.retention : undefined;
-  const word = await recordWriting(req.params.id, Math.round(raw), retention);
+  const word = await recordWriting(req.params.id, Math.round(raw), retention, req.body?.tz);
   if (!word) {
     res.status(404).json({ error: "Word not found" });
     return;

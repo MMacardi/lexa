@@ -2311,6 +2311,12 @@ const DICT: Record<string, Entry> = {
     ru: "Слова на сегодня прямо из словаря: слово станет карточкой, когда ты его оценишь, а «Легко» с первого раза — значит, знаешь.",
     zh: "今天的词，直接来自词典：评分后才会成为你的卡片；第一次就选“简单”表示你已经认识。",
   },
+  "review.modeLevel": { en: "HSK {level} · all words", ru: "HSK {level} · все слова", zh: "HSK {level} · 全部词" },
+  "review.modeLevelHint": {
+    en: "Every word of the level you don't have yet, most useful first, with no daily limit: Easy if you know it, any other grade makes it a card.",
+    ru: "Все слова уровня, которых у тебя ещё нет, сначала самые нужные, без дневного лимита: «Легко», если знаешь, любая другая оценка делает его карточкой.",
+    zh: "这一级你还没有的所有词，最常用的在前，没有每日上限：认识就选“简单”，其他评分会把它变成卡片。",
+  },
   "review.keepNew": { en: "New words ({n})", ru: "Новые слова ({n})", zh: "新词（{n} 个）" },
   "review.keepNewTheme": { en: "New words: {theme} ({n})", ru: "Новые слова: {theme} ({n})", zh: "新词：{theme}（{n} 个）" },
   "review.keepNewSub": {

@@ -1174,6 +1174,41 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Reviews by the day, the exam on the schedule, and HSK 4 · все слова (2026-10-15, asked for directly)
+- The author asked whether FSRS works and whether it should be cleverer. An audit (the six algorithm
+  checks pass, 67 asserts) and a simulation of the review loop with the real ts-fsrs and a learner whose
+  memory differs per word from the model (40 runs, 38 days to a 22 Nov exam): FSRS-6 itself is right and
+  worth keeping; what it lacked was the day and the exam. And: "Again in 10 minutes doesn't show to me,
+  I already finished my practice"; "one of the main modes should be all HSK words".
+  - **By the day** (`services/schedule.ts`): a review days away is due from 04:00 on its day in the
+    learner's zone, not 24 h after the tap (simulated: 0.56 → 0.10 days late per review). The browser
+    sends its zone with every grade and the account keeps it (`User.timeZone`), so the bot's grades land
+    on the same days; Moscow until one is seen. Writing is placed the same way.
+  - **Steps of minutes come back in the session**: a grade due again before the day is over (Again's
+    1 min, a new word's 10 min) puts the card at the end of the deck, as only Again did. Five new words
+    graded Good are ten cards; the second Good reads «2д», not hours.
+  - **The exam**: a review that would first come on or after the exam day with under 95% recall left
+    moves into the last 5 days before it, spread by the word (simulated, 5 new a day: words under 90% on
+    exam day 17% → 5%, about 10% more reviews, most in the last week). Cards already scheduled are
+    brought in when the exam date is saved and once at server start; a second run moves nothing. The
+    grade buttons show the same days (`lib/fsrsPreview.ts` mirrors it).
+  - **HSK 4 · все слова** in Flashcards: every word of the level with no card and no «Знаю», the words
+    said unknown first, then the most useful, no daily limit; 20 cards at a time, the next 20 fetched
+    five cards before the end (`GET /api/hsk/level`, `POST /api/hsk/cards`). Easy = «Знаю», any other
+    grade makes the card. New strings in en/ru/zh.
+  - `scripts/check-review-days.ts` (22 checks: 04:00 in Moscow, Berlin across the DST change, Shanghai,
+    before the rollover; minute steps; the kept zone; the exam window, recall to spare, exam tomorrow,
+    the spread, the pull-in run twice; the level list and its cards). new-words, writing-schedule,
+    undo, daily-group, account-import, cram, next-word and streak still pass; backend tsc and next build
+    pass. Local run at 390x844 as a throwaway HSK 4 learner (deleted after): 主席 大会 机构 而 此 each
+    seen twice, due 17.10 04:00 Moscow; the level row read 972 − 5 = 967, the deck went 20 → 40 at
+    card 16, and 19 grades took the row to 948.
+  - Left from the audit, not done: day themes lean to news and politics (jieba's written-text counts:
+    主席 大会 机构, 总理 总统 政府) — weigh situations by the learner's goal/interests; a quiz's right
+    answer is Good in FSRS, lucky guesses too — grade only due words from it; a card graded only Hard on
+    first sight still counts as new in the daily cap (`reviewCount === 0`); per-learner FSRS weights
+    once the review log is a few hundred to a thousand reviews.
+
 ### One Mika: practice inside her tab (2026-10-14, asked for directly)
 - The author, after the rename to Mika: "we have many mika's with kinda similar but with different
   features, doesn't sound well". Mika was the centre button's sheet and her page, and under Ещё →

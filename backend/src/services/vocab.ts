@@ -20,6 +20,7 @@ import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
 import { track } from "./analytics.js";
 import { headGloss, hskPage, pageSenses } from "./wordPages.js";
+import { asTimeZone, beforeExam, DEFAULT_TZ, placeDue, type Placing } from "./schedule.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
 // dates so cards don't pile up on one day.
@@ -33,6 +34,27 @@ function schedulerFor(retention?: number) {
   if (retention == null || Math.abs(retention - DEFAULT_RETENTION) < 1e-6) return scheduler;
   const r = Math.min(0.98, Math.max(0.7, retention));
   return fsrs(generatorParameters({ request_retention: r, enable_fuzz: true }));
+}
+
+// The learner's clock and exam, for placeDue. A grade from the web brings the
+// browser's time zone and it is kept on the account, so the bot's grades (no
+// browser) land on the same days.
+const placingUser = { retention: true, timeZone: true, examDate: true } as const;
+async function placingFor(
+  user: { timeZone: string | null; examDate: Date | null },
+  userId: string,
+  key: string,
+  sched: ReturnType<typeof schedulerFor>,
+  tz?: string,
+): Promise<Placing> {
+  const given = asTimeZone(tz);
+  if (given && given !== user.timeZone) await prisma.user.update({ where: { id: userId }, data: { timeZone: given } });
+  return {
+    tz: given ?? asTimeZone(user.timeZone) ?? DEFAULT_TZ,
+    examDate: user.examDate,
+    key,
+    recall: (c, at) => sched.get_retrievability(c, at, false),
+  };
 }
 
 
@@ -612,8 +634,14 @@ export function asReviewSource(v: unknown): ReviewSource {
  * interval ladder above.
  */
 // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS Rating).
-export async function recordReview(id: string, grade: number = 3, retention?: number, source: ReviewSource = "review") {
-  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: { retention: true } } } });
+export async function recordReview(
+  id: string,
+  grade: number = 3,
+  retention?: number,
+  source: ReviewSource = "review",
+  tz?: string,
+) {
+  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: placingUser } } });
   if (!word) return null;
   // The setting lives on the account now, so surfaces that can't read the browser
   // (the bot) schedule with the learner's own retention instead of the default.
@@ -646,20 +674,22 @@ export async function recordReview(id: string, grade: number = 3, retention?: nu
           last_review: word.lastReview ?? undefined,
         };
 
-  const { card: next } = schedulerFor(desired).next(card, now, grade as Grade);
+  const sched = schedulerFor(desired);
+  const { card: next } = sched.next(card, now, grade as Grade);
+  const due = placeDue(next, now, await placingFor(word.user, word.userId, word.id, sched, tz));
 
   return prisma.word.update({
     where: { id },
     data: {
       stability: next.stability,
       difficulty: next.difficulty,
-      due: next.due,
+      due,
       reps: next.reps,
       lapses: next.lapses,
       state: next.state,
       learningSteps: next.learning_steps ?? 0,
       lastReview: now,
-      nextReviewAt: next.due, // keep the legacy due field in sync for isDue/stats
+      nextReviewAt: due, // keep the legacy due field in sync for isDue/stats
       // "mastery" counter advances only on Good/Easy.
       reviewCount: grade >= 3 ? word.reviewCount + 1 : word.reviewCount,
     },
@@ -766,8 +796,8 @@ export async function recordCram(id: string, correct: boolean): Promise<boolean>
  * write keeps its reading interval. Logged as source "write" (the day counts;
  * no `prev`, and Undo, which is for review grades, passes over it).
  */
-export async function recordWriting(id: string, grade: number, retention?: number) {
-  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: { retention: true } } } });
+export async function recordWriting(id: string, grade: number, retention?: number, tz?: string) {
+  const word = await prisma.word.findUnique({ where: { id }, include: { user: { select: placingUser } } });
   if (!word) return null;
   await prisma.reviewEvent.create({ data: { userId: word.userId, wordId: word.id, grade, source: "write" } });
   track("review", { props: { grade, source: "write" } });
@@ -788,13 +818,16 @@ export async function recordWriting(id: string, grade: number, retention?: numbe
           state: word.writeState as State,
           last_review: word.writeLast ?? undefined,
         };
-  const { card: next } = schedulerFor(retention ?? word.user.retention ?? undefined).next(card, now, grade as Grade);
+  const sched = schedulerFor(retention ?? word.user.retention ?? undefined);
+  const { card: next } = sched.next(card, now, grade as Grade);
+  // Its own key, so a word's writing review doesn't land on the same day as its reading one.
+  const due = placeDue(next, now, await placingFor(word.user, word.userId, `${word.id}:write`, sched, tz));
   return prisma.word.update({
     where: { id },
     data: {
       writeStability: next.stability,
       writeDifficulty: next.difficulty,
-      writeDue: next.due,
+      writeDue: due,
       writeReps: next.reps,
       writeLapses: next.lapses,
       writeState: next.state,
@@ -802,6 +835,67 @@ export async function recordWriting(id: string, grade: number, retention?: numbe
       writeLast: now,
     },
   });
+}
+
+/**
+ * The exam pull-in for cards already scheduled (placeDue runs only on a grade): an
+ * exam date set or moved, or cards placed before the scheduler knew about exams.
+ * A card first seen again on or after the exam day with too little recall left
+ * moves into the last days before it, on both schedules. A second run moves nothing.
+ */
+export async function pullInForExam(userId: string): Promise<number> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: placingUser });
+  if (!user?.examDate) return 0;
+  const now = new Date();
+  const sched = schedulerFor(user.retention ?? undefined);
+  const placing = await placingFor(user, userId, "", sched);
+  // The exam day starts within a day of the stored date, in any zone.
+  const near = new Date(user.examDate.getTime() - 86_400_000);
+  const cards = await prisma.word.findMany({
+    where: { userId, OR: [{ state: 2, due: { gte: near } }, { writeState: 2, writeDue: { gte: near } }] },
+  });
+  const asCard = (stability: number, difficulty: number | null, due: Date, last: Date | null): Card => ({
+    due,
+    stability,
+    difficulty: difficulty ?? 0,
+    elapsed_days: 0,
+    scheduled_days: 0,
+    learning_steps: 0,
+    reps: 1,
+    lapses: 0,
+    state: 2 as State,
+    last_review: last ?? undefined,
+  });
+  let moved = 0;
+  for (const w of cards) {
+    const data: Prisma.WordUpdateInput = {};
+    if (w.state === 2 && w.stability != null && w.due) {
+      const due = beforeExam(asCard(w.stability, w.difficulty, w.due, w.lastReview), w.due, now, { ...placing, key: w.id });
+      if (due.getTime() !== w.due.getTime()) Object.assign(data, { due, nextReviewAt: due });
+    }
+    if (w.writeState === 2 && w.writeStability != null && w.writeDue) {
+      const card = asCard(w.writeStability, w.writeDifficulty, w.writeDue, w.writeLast);
+      const due = beforeExam(card, w.writeDue, now, { ...placing, key: `${w.id}:write` });
+      if (due.getTime() !== w.writeDue.getTime()) data.writeDue = due;
+    }
+    if (Object.keys(data).length) {
+      await prisma.word.update({ where: { id: w.id }, data });
+      moved++;
+    }
+  }
+  return moved;
+}
+
+/** `pullInForExam` for every learner whose exam is still ahead (server start). */
+export async function pullInForExams(): Promise<number> {
+  const users = await prisma.user.findMany({
+    where: { examDate: { gte: new Date(Date.now() - 86_400_000) } },
+    select: { id: true },
+  });
+  let moved = 0;
+  for (const u of users) moved += await pullInForExam(u.id);
+  if (moved) console.log(`[exam] ${moved} cards brought in before their learner's exam`);
+  return moved;
 }
 
 /**

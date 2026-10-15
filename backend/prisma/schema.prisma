@@ -52,6 +52,10 @@ model User {
   // The day of that exam, for the plan's daily number (BACKLOG "A plan with a
   // date"). A calendar day, no time. Null = no date yet.
   examDate    DateTime? @db.Date
+  // The learner's IANA time zone ("Europe/Moscow"), from the browser on a web
+  // grade: reviews fall due from 04:00 on their day there (services/schedule.ts).
+  // Null = not seen yet; the schedule uses Moscow.
+  timeZone    String?
   // A field the learner wants to follow beside the exam ("AI"), and the words
   // picked for it — [{word, pinyin, meaning, fromText, known, hsk}], best first.
   // Today's words take a few a day from the pool (BACKLOG "Topic words beside

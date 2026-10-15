@@ -596,6 +596,16 @@ function readRetention(): number | undefined {
   return Number.isFinite(v) && v >= 0.7 && v <= 0.98 ? v : undefined;
 }
 
+// The browser's time zone, sent with a grade so the server places the next review
+// on the same days the learner's clock has (backend services/schedule.ts).
+function readTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // The "test the free tier" toggle (localStorage). Read directly to avoid a React
 // dependency here; it only ever restricts the caller, so it's safe to send.
 function simulateFreeHeader(): Record<string, string> {
@@ -873,7 +883,7 @@ export const api = {
   reviewWord: (id: string, grade = 3, source: ReviewSource = "review") =>
     http<Word>(`/api/words/${id}/review`, {
       method: "POST",
-      body: JSON.stringify({ grade, retention: readRetention(), source }),
+      body: JSON.stringify({ grade, retention: readRetention(), source, tz: readTimeZone() }),
     }),
   // Take back the card's last grade: the schedule as it was, the log row gone.
   undoReview: (id: string) => http<Word>(`/api/words/${id}/undo`, { method: "POST" }),
@@ -883,15 +893,21 @@ export const api = {
   // "I know it" and makes none.
   hskNext: (n = 8) =>
     http<{ version: HskVersion; level: number; theme: string | null; words: (Word & { situation: string | null })[] }>(`/api/hsk/next?n=${n}`),
+  // Flashcards' whole-level mode: the level's words with no card and no "I know it",
+  // in the order to meet them, then a few at a time as ready-made cards.
+  hskLevel: () =>
+    http<{ version: HskVersion; level: number; total: number; words: { word: string; pinyin: string; level: number }[] }>(`/api/hsk/level`),
+  hskCards: (words: string[]) =>
+    http<{ words: (Word & { situation: string | null })[] }>(`/api/hsk/cards`, { method: "POST", body: JSON.stringify({ words }) }),
   learnWord: (word: string, grade: number, source: "review" | "write" = "review") =>
     http<{ known: true } | { card: Word }>(`/api/hsk/learn`, {
       method: "POST",
-      body: JSON.stringify({ word, grade, source, retention: readRetention() }),
+      body: JSON.stringify({ word, grade, source, retention: readRetention(), tz: readTimeZone() }),
     }),
   unlearnWord: (word: string) => http<{ ok: true }>(`/api/hsk/learn/undo`, { method: "POST", body: JSON.stringify({ word }) }),
   // A writing drill grade (1–4): moves the word's writing schedule, never its reading one.
   writeWord: (id: string, grade: number) =>
-    http<Word>(`/api/words/${id}/write`, { method: "POST", body: JSON.stringify({ grade, retention: readRetention() }) }),
+    http<Word>(`/api/words/${id}/write`, { method: "POST", body: JSON.stringify({ grade, retention: readRetention(), tz: readTimeZone() }) }),
   // A cram answer: logged, never graded into the schedule (BACKLOG "Cram a list now").
   cramWord: (id: string, correct: boolean) =>
     http<{ ok: true }>(`/api/words/${id}/cram`, { method: "POST", body: JSON.stringify({ correct }) }),

@@ -1,12 +1,24 @@
 import { prisma } from "./db.js";
-import { dayStart, frontierInputs, frontierOrder, type HskVersion } from "./hsk.js";
+import {
+  asHskVersion,
+  clampLevel,
+  dayStart,
+  frontierInputs,
+  frontierOrder,
+  hskLevelWords,
+  hskReading,
+  hskTagFor,
+  normalizeHanzi,
+  type HskVersion,
+  type HskWord,
+} from "./hsk.js";
 import { hskDailyWords, nextGroup, type GroupWord } from "./wordGroups.js";
 import { dictCardFields, pageCardFields } from "./capture.js";
 import { exampleLevel, pickPoolSentence, poolExample } from "./sentences.js";
 import { recordReview, recordWriting, shapeWord, undoLastReview } from "./vocab.js";
 import { importWordsForUser } from "./importWords.js";
 import { savePlacementAnswers } from "./learnerPrefs.js";
-import type { Situation } from "./wordPages.js";
+import { hskSituations, type Situation } from "./wordPages.js";
 
 /**
  * New words in Flashcards and Writing without adding them first (BACKLOG 1e,
@@ -37,6 +49,38 @@ export async function hskNextWords(
   const order = frontierOrder(version, level, (w) => input.status.has(w) || today.has(w), input.tapped, input.have);
   const group = nextGroup(order, n, new Set(), input.tapped);
   return { version, level, theme: group.theme, words: group.words };
+}
+
+/**
+ * The whole level in Flashcards (the author, 2026-10-15: "I just see all words and
+ * scroll HSK 4"): every word of the learner's level with no card and no "I know it",
+ * in the frontier's order — the words they said they don't know first, then the most
+ * useful. Light (word, pinyin); Flashcards asks for a few at a time as cards
+ * (`levelCards`), so a session of 900 words starts at once.
+ */
+export async function hskLevelLeft(
+  telegramId: string,
+): Promise<{ version: HskVersion; level: number; total: number; words: HskWord[] }> {
+  const input = await frontierInputs(telegramId);
+  const version = asHskVersion(input?.user.hskVersion) ?? "3.0";
+  const level = clampLevel(version, input?.user.hskTarget ?? 4);
+  const total = hskLevelWords(version, level).length;
+  if (!input) return { version, level, total, words: [] };
+  const order = frontierOrder(version, level, (w) => input.status.has(w), input.tapped, input.have);
+  return { version, level, total, words: order.filter((w) => w.level === level) };
+}
+
+/** List words as ready-made cards, as /hsk/next gives them. A word on neither list is left out. */
+export async function levelCards(telegramId: string, words: string[]) {
+  const listed = words
+    .map(normalizeHanzi)
+    .filter((w, i, all) => w && all.indexOf(w) === i)
+    .flatMap((w) => {
+      const tag = hskTagFor(w);
+      if (!tag) return [];
+      return [{ word: w, pinyin: hskReading(w) ?? "", level: tag["3.0"] ?? tag["2.0"] ?? 0, situation: hskSituations(w)[0] ?? null }];
+    });
+  return readyCards(telegramId, listed);
 }
 
 /** The words as cards the review and writing screens can show: everything an add would write, nothing written. */
@@ -102,7 +146,7 @@ async function cardOf(userId: string, word: string) {
  */
 export async function learnWord(
   telegramId: string,
-  p: { word: string; grade: 1 | 2 | 3 | 4; source: "review" | "write"; retention?: number },
+  p: { word: string; grade: 1 | 2 | 3 | 4; source: "review" | "write"; retention?: number; tz?: string },
 ): Promise<{ known: true } | { card: ReturnType<typeof shapeWord> }> {
   const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true, nativeLang: true, hskTarget: true } });
   if (!user) throw new Error("No such account");
@@ -128,8 +172,8 @@ export async function learnWord(
     card = await cardOf(user.id, p.word);
     if (!card) throw new Error("The card could not be made");
   }
-  if (p.source === "write") await recordWriting(card.id, p.grade, p.retention);
-  else await recordReview(card.id, p.grade, p.retention, "review");
+  if (p.source === "write") await recordWriting(card.id, p.grade, p.retention, p.tz);
+  else await recordReview(card.id, p.grade, p.retention, "review", p.tz);
   const row = await prisma.word.findUniqueOrThrow({
     where: { id: card.id },
     include: { examples: { orderBy: { createdAt: "desc" } }, collections: { select: { id: true, name: true } } },

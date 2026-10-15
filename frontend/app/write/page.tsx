@@ -441,7 +441,7 @@ export default function WritePage() {
   const w = item.word;
   // The live card (a word written earlier this session has a new schedule).
   const live = allWords?.find((x) => x.id === w.id) ?? w;
-  const iv = previewWriteMinutes(live);
+  const iv = previewWriteMinutes(live, profile?.examDate);
   const pick = result ? suggest(result) : 0;
   return (
     <div className="mx-auto max-w-[560px] space-y-3 sm:space-y-4">

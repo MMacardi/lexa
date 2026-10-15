@@ -49,12 +49,13 @@ import { MobileSheet } from "@/components/MobileSheet";
 import { SheetRow } from "@/components/SheetRow";
 import { useFitPinned, useIsMobile, useLockScroll, usePinnedPage } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
-import { previewMinutes, applyGradeLocally, fmtInterval } from "@/lib/fsrsPreview";
+import { previewMinutes, applyGradeLocally, dueToday, fmtInterval } from "@/lib/fsrsPreview";
 import { fetchWordsCached, mirrorWords, submitLearn, submitReview, undoLearn, undoReview } from "@/lib/sync";
 import { useToast } from "@/lib/toast";
-import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, Library, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { cn } from "@/lib/utils";
+import { errText } from "@/lib/errText";
 import { useDragFollower } from "@/lib/dragFollow";
 import { Segmented } from "@/components/ui/Segmented";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -62,6 +63,8 @@ import { Disclosure } from "@/components/ui/Disclosure";
 const targetFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" ? "font-zh" : "");
 const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
+// The whole-level mode's cards per fetch: a few minutes of swiping.
+const LEVEL_BATCH = 20;
 
 // Swipe geometry. EDGE_PX is a dead zone at the left and right screen edges: iOS
 // treats a drag that starts there as its back/forward navigation and no amount of
@@ -130,12 +133,29 @@ export default function FlashcardsPage() {
   });
   const freshWords = fresh?.words ?? [];
   const freshTheme = fresh?.theme ? t(`situation.${fresh.theme}`) : null;
+  // The whole level, the setup's fourth choice (the author, 2026-10-15: "I just see all
+  // words and scroll HSK 4"): every word of it not yet a card or known, most useful
+  // first, with no daily limit. Cards come LEVEL_BATCH at a time as the session nears
+  // the end of what it has.
+  const { data: levelLeft } = useQuery({
+    queryKey: ["hskLevel", accountId],
+    queryFn: () => api.hskLevel(),
+    enabled: onTrack,
+  });
+  const levelWords = levelLeft?.words ?? [];
 
   const [started, setStarted] = useState(false);
   const [selPairs, setSelPairs] = useState<string[] | null>(null);
   const [selColl, setSelColl] = useState<string>("all");
   const [onlyDue, setOnlyDue] = useState(true);
   const [newMode, setNewMode] = useState(false);
+  const [levelMode, setLevelMode] = useState(false);
+  const [levelStarting, setLevelStarting] = useState(false);
+  // The level as it stood when the session began (grades take words out of the live
+  // list), how far into it the deck has come, and a batch on its way.
+  const levelList = useRef<string[]>([]);
+  const levelPos = useRef(0);
+  const levelFetching = useRef(false);
 
   const inColl = (w: Word) =>
     selColl === "all" || (w.collections ?? []).some((c) => c.id === selColl);
@@ -155,13 +175,40 @@ export default function FlashcardsPage() {
   // The last grade, kept so a mis-tap can be taken back (BACKLOG "Undo the last
   // grade in review"): the card as it was, where it sat in the deck, and the send
   // that has to land before it can be undone.
-  const [lastGrade, setLastGrade] = useState<{ before: Word; grade: number; at: number; sent: Promise<boolean> } | null>(null);
+  // `requeued`: the grade put a copy at the end of the deck, which Undo takes off again.
+  const [lastGrade, setLastGrade] = useState<{
+    before: Word;
+    grade: number;
+    at: number;
+    sent: Promise<boolean>;
+    requeued: boolean;
+  } | null>(null);
   // A session's graded new words are cards (or known) now, whether it was finished
   // or left half-way: the next ones offered are others.
   const sessionDone = started && deck.length > 0 && index >= deck.length;
   useEffect(() => {
-    if (!started || sessionDone) qc.invalidateQueries({ queryKey: ["hskNext"] });
+    if (!started || sessionDone) for (const key of ["hskNext", "hskLevel"]) qc.invalidateQueries({ queryKey: [key] });
   }, [started, sessionDone, qc]);
+  // The whole level: the next batch, a few cards before the deck runs out. One that
+  // lands after the last card carries the session on from the end screen.
+  useEffect(() => {
+    if (!started || !levelMode || levelFetching.current) return;
+    if (index < deck.length - 5 || levelPos.current >= levelList.current.length) return;
+    const batch = levelList.current.slice(levelPos.current, levelPos.current + LEVEL_BATCH);
+    levelFetching.current = true;
+    api
+      .hskCards(batch)
+      .then((r) => {
+        levelPos.current += batch.length;
+        setDeck((d) => [...d, ...r.words]);
+      })
+      .catch(() => {
+        /* offline: the session ends where the deck does; Start again picks up there */
+      })
+      .finally(() => {
+        levelFetching.current = false;
+      });
+  }, [started, levelMode, index, deck.length]);
   // The session's pace, for the time-left estimate.
   const startedAt = useRef(0);
   const graded = useRef(0);
@@ -457,7 +504,7 @@ export default function FlashcardsPage() {
   // Record a grade offline-first: update the card locally (FSRS) so the due list
   // reflects it instantly and survives with no network, then send it to the
   // server or queue it for sync. The server recomputes authoritatively on sync.
-  async function recordGrade(word: Word, grade: number) {
+  async function recordGrade(word: Word, grade: number, updated: Word) {
     // A new word becomes a card here, with this grade on it ("Easy": known, no card).
     if (isNewWord(word)) {
       const r = await submitLearn(word.word, grade);
@@ -468,7 +515,6 @@ export default function FlashcardsPage() {
       if (r) for (const key of ["stats", "hskDaily"]) qc.invalidateQueries({ queryKey: [key] });
       return r != null;
     }
-    const updated = applyGradeLocally(word, grade as 1 | 2 | 3 | 4);
     qc.setQueryData<Word[]>(["words", accountId], (prev) => (prev ?? []).map((w) => (w.id === word.id ? updated : w)));
     void mirrorWords(accountId, qc.getQueryData<Word[]>(["words", accountId]) ?? []);
     const synced = await submitReview(word.id, grade);
@@ -504,7 +550,7 @@ export default function FlashcardsPage() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       if (last.grade >= 3) setKnown((k) => Math.max(0, k - 1));
       else setLearning((l) => Math.max(0, l - 1));
-      if (last.grade === 1) setDeck((d) => d.slice(0, -1));
+      if (last.requeued) setDeck((d) => d.slice(0, -1));
       restCard();
       setIndex(last.at);
       setFlipped(true);
@@ -532,6 +578,21 @@ export default function FlashcardsPage() {
     return onlyDue ? capNewCards(filtered) : filtered;
   }
 
+  async function startLevel() {
+    setLevelStarting(true);
+    try {
+      levelList.current = levelWords.map((w) => w.word);
+      const first = levelList.current.slice(0, LEVEL_BATCH);
+      const r = await api.hskCards(first);
+      levelPos.current = first.length;
+      start(r.words);
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setLevelStarting(false);
+    }
+  }
+
   function start(list: Word[] = buildDeck()) {
     if (layout.front.includes("audio")) unlockSpeech();
     setDeck(list);
@@ -553,7 +614,7 @@ export default function FlashcardsPage() {
     return Math.max(1, Math.round((remaining * Math.min(30, Math.max(3, per))) / 60));
   }
 
-  // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). Again re-queues in-session.
+  // grade: 1=Again 2=Hard 3=Good 4=Easy (FSRS). A step of minutes re-queues in-session.
   // `fly` is where the card leaves from — a swipe passes its own direction so the
   // card keeps going the way the thumb was pushing it; the buttons use the default.
   function commit(grade: number, word: Word, fly?: { x: number; y: number }) {
@@ -583,17 +644,23 @@ export default function FlashcardsPage() {
     flying.current = true;
     // The card as the list has it now, before this grade — what Undo restores.
     const before = qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === word.id) ?? word;
-    const sent = recordGrade(word, grade);
+    const updated = applyGradeLocally(word, grade as 1 | 2 | 3 | 4, profile?.examDate);
+    const sent = recordGrade(word, grade, updated);
     if (grade >= 3) setKnown((k) => k + 1);
     else setLearning((l) => l + 1);
-    if (grade === 1) setDeck((d) => [...d, word]); // "Again" comes back this session
+    // A step of minutes (Again's 1 min, a new word's 10 min) comes back at the end of
+    // this session, as it is now: due after the session was over, it was never seen
+    // that day (the author, 2026-10-15: "it doesn't show to me in 10 minutes because I
+    // already finished my practice"). A review days away waits for its day.
+    const requeued = dueToday(updated);
+    if (requeued) setDeck((d) => [...d, updated]);
     const at = index;
     setTimeout(() => {
       flying.current = false;
       restCard();
       setFlipped(false);
       setIndex((i) => i + 1);
-      setLastGrade({ before, grade, at, sent });
+      setLastGrade({ before, grade, at, sent, requeued });
     }, 260);
   }
 
@@ -644,7 +711,7 @@ export default function FlashcardsPage() {
     const inSel = (w: Word) => sel.includes(pairKey(w)) && inColl(w);
     const dueCount = capNewCards(words.filter((w) => inSel(w) && isDue(w))).length;
     const allCount = words.filter(inSel).length;
-    const candidate = newMode ? freshWords.length : onlyDue ? dueCount : allCount;
+    const candidate = levelMode ? levelWords.length : newMode ? freshWords.length : onlyDue ? dueCount : allCount;
     const pairCount = (pk: string) =>
       capNewCards(words.filter((w) => pairKey(w) === pk && inColl(w) && isDue(w))).length;
     return (
@@ -688,9 +755,10 @@ export default function FlashcardsPage() {
             <Segmented
               grow
               size="lg"
-              value={newMode ? null : onlyDue ? "due" : "all"}
+              value={newMode || levelMode ? null : onlyDue ? "due" : "all"}
               onChange={(v) => {
                 setNewMode(false);
+                setLevelMode(false);
                 setOnlyDue(v === "due");
               }}
               options={([true, false] as const).map((due) => ({
@@ -708,7 +776,10 @@ export default function FlashcardsPage() {
               <button
                 type="button"
                 aria-pressed={newMode}
-                onClick={() => setNewMode(true)}
+                onClick={() => {
+                  setNewMode(true);
+                  setLevelMode(false);
+                }}
                 className={cn(
                   "mt-2 flex w-full items-center gap-2.5 rounded-[16px] border px-4 py-2.5 text-left text-sm font-semibold transition-colors",
                   newMode ? "border-sage bg-sage text-white" : "border-black/[0.07] bg-paper/60 text-ink-muted hover:border-sage/50",
@@ -722,13 +793,31 @@ export default function FlashcardsPage() {
                 <span className="opacity-70">{freshWords.length}</span>
               </button>
             )}
+            {onTrack && levelLeft && (
+              <button
+                type="button"
+                aria-pressed={levelMode}
+                onClick={() => {
+                  setLevelMode(true);
+                  setNewMode(false);
+                }}
+                className={cn(
+                  "mt-2 flex w-full items-center gap-2.5 rounded-[16px] border px-4 py-2.5 text-left text-sm font-semibold transition-colors",
+                  levelMode ? "border-sage bg-sage text-white" : "border-black/[0.07] bg-paper/60 text-ink-muted hover:border-sage/50",
+                )}
+              >
+                <Library className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{t("review.modeLevel", { level: levelLeft.level === 7 ? "7–9" : levelLeft.level })}</span>
+                <span className="opacity-70">{levelWords.length}</span>
+              </button>
+            )}
             <p className="mt-2 text-[12px] leading-snug text-ink-faint">
-              {t(newMode ? "review.modeNewHint" : onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
+              {t(levelMode ? "review.modeLevelHint" : newMode ? "review.modeNewHint" : onlyDue ? "review.modeDueHint" : "review.modeAllHint")}
             </p>
           </div>
 
           {/* 3. collection (optional) */}
-          {collections && collections.length > 0 && !newMode && (
+          {collections && collections.length > 0 && !newMode && !levelMode && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                 {t("review.collection")}
@@ -752,17 +841,21 @@ export default function FlashcardsPage() {
           )}
         </div>
 
-        <Button className="w-full" disabled={candidate === 0} onClick={() => start()}>
+        <Button
+          className="w-full"
+          disabled={candidate === 0 || levelStarting}
+          onClick={() => (levelMode ? void startLevel() : start())}
+        >
           {sel.length === 0
             ? t("review.pickPair")
             : candidate === 0
-              ? t(onlyDue && !newMode ? "review.nothingDue" : "review.nothing")
+              ? t(onlyDue && !newMode && !levelMode ? "review.nothingDue" : "review.nothing")
               : candidate === 1
                 ? t("review.startOne", { n: candidate })
                 : t("review.start", { n: candidate })}
         </Button>
         {/* Nothing due: new words when there are some, else everything anyway. */}
-        {sel.length > 0 && onlyDue && !newMode && dueCount === 0 && freshWords.length > 0 && (
+        {sel.length > 0 && onlyDue && !newMode && !levelMode && dueCount === 0 && freshWords.length > 0 && (
           <button
             type="button"
             onClick={() => setNewMode(true)}
@@ -771,7 +864,7 @@ export default function FlashcardsPage() {
             {freshTheme ? t("review.keepNewTheme", { theme: freshTheme, n: freshWords.length }) : t("review.keepNew", { n: freshWords.length })}
           </button>
         )}
-        {sel.length > 0 && onlyDue && !newMode && dueCount === 0 && freshWords.length === 0 && allCount > 0 && (
+        {sel.length > 0 && onlyDue && !newMode && !levelMode && dueCount === 0 && freshWords.length === 0 && allCount > 0 && (
           <button
             type="button"
             onClick={() => setOnlyDue(false)}
@@ -980,7 +1073,7 @@ export default function FlashcardsPage() {
   }
 
   const word = deck[index];
-  const iv = previewMinutes(word); // FSRS "next due" for each grade
+  const iv = previewMinutes(word, profile?.examDate); // FSRS "next due" for each grade
   // Phones: both faces take the fitted height (see fitH); the back scrolls inside it.
   const faceFit = fitH ? { height: fitH, minHeight: 0 } : undefined;
 

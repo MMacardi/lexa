@@ -22,6 +22,7 @@ import { PRIVACY_LEVELS } from "../services/profiles.js";
 import { clampHskTarget, learnerPrefsSchema, learnerPrefsSelect } from "../services/learnerPrefs.js";
 import { readBetaCookie } from "./beta.js";
 import { track } from "../services/analytics.js";
+import { pullInForExam } from "../services/vocab.js";
 
 export const authRouter = Router();
 
@@ -352,9 +353,13 @@ authRouter.patch("/auth/me", async (req, res) => {
         profileVisibility: true,
         decksVisibility: true,
         ...learnerPrefsSelect,
+        id: true,
       },
     });
-    res.json(user);
+    // Reviews already set for after a new exam day come in before it.
+    if (data.examDate) await pullInForExam(user.id);
+    const { id: _, ...rest } = user;
+    res.json(rest);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
