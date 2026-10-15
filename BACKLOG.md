@@ -612,6 +612,30 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    Settings 5 (the name pencil, the 3.0/2.0 toggle); /mika's «Проверить мой уровень» sits under the
    bottom bar on the SE (it did before this pass too).
 
+1l. **Bigger text, the content first** (asked for directly 2026-10-15: "make the text bigger in some places,
+   move some stuff"). A type audit as ux-learner (HSK 5), 9 pages at 390x844 and 1280x900, share of the
+   visible text under 13 px: Today 34% phone / 45% desktop, the word page 40%, Writing's setup 48%, Settings
+   18% / 36%. The code has ~480 uses of 10–12 px against ~200 of 14 px; desktop shows the same sizes as a
+   phone. Proposals, each its own small change:
+   - **Today's word chips** carry the most small text: pinyin and meaning at 11 px are 22% of Today's
+     characters. Pinyin 12, meaning 13.
+   - **A floor**: 13 px for anything read to act on (Writing's setup paragraph, the word page's hints and
+     «слова вокруг», Settings' notes), 12 px for the uppercase labels, nothing under 11 (the week strip's
+     9 px day letters). The HSK list's pinyin 12 → 13.
+   - **Desktop one step up**: at 1280 the secondary text is the phone's 11–13 px; +1–2 px from `md:`.
+   - **Flashcards' back on a computer** is cut off (the example's translation scrolls inside the card)
+     with ~250 px of screen free below it: let it grow to fit. On the back the word (≈28 px) is smaller than
+     its meaning; make the word the hero and the four uppercase field labels smaller or gone (~80 px of a
+     phone card).
+   - **The word page, content first**: on a phone the senses and examples start below the first screen,
+     after the tone hint, the progress row, an empty «Коллекции» block and «Объяснить с Микой». Senses
+     first; collections and progress after them; an empty collections block as one small link.
+   - **The first deck in onboarding** (the hook, 1h's "a result worth a screenshot") is 20 connectors —
+     而 此 自 以及 却 曾 作为 — each chip saying "HSK 4" under a header that says it, and none from the
+     interests just picked (Еда и кулинария). Build it from the first days' groups, as Today does now.
+   - **Easy at least a day past Good**: a card back from a lapse showed «Хорошо 1д · Легко 1д» — FSRS rounds
+     both to its 1-day minimum (ts-fsrs, S 0.50 vs 0.87); Anki keeps Easy a day longer.
+
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
    "Pleco lookup + star"*. Today every add waits 5–10 s on the LLM, and a card is a blank shell
