@@ -173,17 +173,28 @@ export function correctForGuessing(claimed: number, g: number): number {
 
 // --- Meanings, for the question ---
 
-const firstSense = (m: string) => m.split(/[;；]/)[0].trim();
+// The first `n` senses of a one-line meaning («идти; поведение»).
+const firstSenses = (m: string, n: number) =>
+  m
+    .split(/[;；]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, n)
+    .join("; ");
 
-/** One short meaning in the learner's language: the shared Russian one, or CC-CEDICT's English. */
-function meaningFor(word: string, native: string | null | undefined): string | null {
+/**
+ * One short meaning in the learner's language: the shared Russian one, or CC-CEDICT's English.
+ * `senses`: how many of its senses — the check's options take one, the lesson before
+ * sign-in two (hsk-ru leads with a rare sense for a few words: 被 «одеяло»).
+ */
+export function meaningFor(word: string, native: string | null | undefined, senses = 1): string | null {
   const own = defaultMeaning(word, native);
-  if (own) return firstSense(own) || null;
+  if (own) return firstSenses(own, senses) || null;
   if (native !== "en") return null;
   const entry = cedictLookup(word, { count: false });
   const readings = entry?.readings.filter((r) => r.pinyin[0] === r.pinyin[0].toLowerCase()) ?? [];
   const gloss = readings.flatMap((r) => r.glosses).find(isMeaningGloss);
-  return gloss ? firstSense(gloss.replace(/\s*\([^)]*\)/g, "")) || null : null;
+  return gloss ? firstSenses(gloss.replace(/\s*\([^)]*\)/g, ""), senses) || null : null;
 }
 
 // --- The screens ---

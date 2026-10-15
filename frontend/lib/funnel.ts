@@ -18,6 +18,9 @@ export type FunnelStep =
   | "daily"
   | "building"
   | "ready"
+  | "lesson"
+  | "quiz"
+  | "learned"
   | "beta"
   | "login"
   | "signed_in";

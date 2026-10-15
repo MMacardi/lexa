@@ -7,6 +7,7 @@ import { langName, scriptNote } from "../lib/langs.js";
 import { segmentChinese } from "./segment.js";
 import { asHskVersion, clampLevel, hskReading, hskTagFor, normalizeHanzi, type HskVersion } from "./hsk.js";
 import { hskOf, isHskLang } from "../lib/level.js";
+import { meaningFor } from "./placementCheck.js";
 
 /**
  * Examples at the learner's level: the sentence around a word is written at the
@@ -276,6 +277,30 @@ export function pickPoolSentence(word: string, at: ExampleLevel, targetLang = "r
     if (!best || closer(p, best, at.level ?? 0)) best = p;
   }
   return best;
+}
+
+export type LessonWord = { word: string; pinyin: string; meaning: string | null; sentence: { zh: string; tr: string } | null };
+
+/**
+ * The one-minute lesson before sign-in (BACKLOG 1h "Learn before the wall"): the deck's
+ * first words, each with its meaning and the pool sentence at the guest's target — the
+ * level an account's examples are picked at. Shipped data only, no model call: the pool
+ * and hsk-ru are in Russian, so another language gets the meaning and no sentence.
+ * Off-list words are dropped.
+ */
+export function guestLesson(version: HskVersion, level: number, native: string, words: string[]): LessonWord[] {
+  const at = { level: clampLevel(version, level), version };
+  return words
+    .filter((w) => hskTagFor(w))
+    .map((word) => {
+      const p = pickPoolSentence(word, at, native);
+      return {
+        word,
+        pinyin: hskReading(word) ?? "",
+        meaning: meaningFor(word, native, 2),
+        sentence: p ? { zh: p.s.zh, tr: p.s.ru } : null,
+      };
+    });
 }
 
 // --- On the card ---

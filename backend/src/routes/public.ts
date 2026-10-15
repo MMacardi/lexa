@@ -5,6 +5,7 @@ import { asHskVersion } from "../services/hsk.js";
 import { guestDeckOfDays } from "../services/wordGroups.js";
 import { likedFromIds } from "../lib/interests.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
+import { guestLesson } from "../services/sentences.js";
 import { guestPlan, isoDay } from "../services/studyPlan.js";
 import { FUNNEL_STEPS, track } from "../services/analytics.js";
 import { readSession } from "../lib/auth.js";
@@ -114,4 +115,24 @@ publicRouter.post("/public/hsk/deck", limiter, (req, res) => {
   const version = asHskVersion(parsed.data.version) ?? "3.0";
   const days = guestDeckOfDays(version, level, { known, unknown }, size, perDay, likedFromIds(goals, interests));
   res.json({ version, level, words: days.flatMap((d) => d.words), days });
+});
+
+// POST /api/public/hsk/lesson — the one-minute lesson before sign-in: the deck's first
+// five words, each with its meaning and a pool sentence at the guest's target
+// (services/sentences.ts guestLesson). Shipped data only, like the deck.
+const lessonBody = z.object({
+  version: z.string().optional(),
+  level: z.number().int().min(1).max(9),
+  native: z.string().max(10).default("ru"),
+  words: z.array(z.string().max(20)).min(1).max(5),
+});
+publicRouter.post("/public/hsk/lesson", limiter, (req, res) => {
+  const parsed = lessonBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { level, native, words } = parsed.data;
+  const version = asHskVersion(parsed.data.version) ?? "3.0";
+  res.json({ words: guestLesson(version, level, native, words) });
 });

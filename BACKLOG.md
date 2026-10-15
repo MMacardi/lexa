@@ -570,6 +570,26 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **Learn before the wall:** five of their missing words, a sentence each they can fully read
      (1f), a one-minute review, then "Sign in to keep them" — Duolingo's first lesson comes
      before the account for this reason.
+     **Done 2026-10-15.** The ready screen's button is «Выучить первые 5 сейчас · 1 мин» («Пропустить
+     и войти» under it). The deck's first five (day 1, led by the words the check found missing)
+     come a screen each: the word, its reading and sound, two senses of its meaning (hsk-ru leads
+     with a rare one for a few words), and the pool sentence at the guest's target — the rule an
+     account's examples follow, not an unknown-word gate — with pinyin over it and the Russian
+     under it. Then «Быстрое повторение»: the meaning out of four (the other lesson words'), a miss
+     shows the right one and comes back at the end. Then «Выучено слов: 5 · С первого раза: 4 из 5»,
+     the five with their meanings, «Войти и сохранить». `POST /api/public/hsk/lesson` reads the
+     shipped data only (`services/sentences.ts` guestLesson, no model call); the funnel has `lesson`,
+     `quiz` and `learned`. `check-lesson.ts`: five words, each with reading, meaning and a sentence
+     holding it; HSK 4 sentences at or under 4, from zero at 1–2; HSK 2 vs HSK 5 guests read different
+     sentences for 37 of 40 HSK 4 words; off-list dropped; English gets CC-CEDICT's meaning and no
+     sentence. Local run as a guest, food + travel, HSK 4, in Chrome at 390x844 and 320x568 and WebKit
+     at 390x844: the lesson taught the five tapped (假如 矮 研究生 聚会 点名), one deliberate miss
+     came back and scored 4 of 5, the guest plan keeps those five first, no sideways scroll on
+     the new screens. **Left:** the lesson's answers are not the cards' first grades — the five
+     arrive as new cards, so the account's first review teaches them again.
+   - **Found, not done:** at 320 px the guest header (Onomika · «У меня есть аккаунт» · RU) is ~17 px
+     wider than the screen on every question screen (`GuestExperience.tsx`); the phone audit only
+     opens `/`, never the questions.
    - **Fewer questions before value:** level, target and date, then the check. Why Chinese and
      the interests after the first result; the 2.0/3.0 toggle out of the first run; the
      explanation language from the browser. (The language question is gone since 2026-10-14:

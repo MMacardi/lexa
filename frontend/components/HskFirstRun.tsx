@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type CheckResult, type HskVersion, type HskWord, type HskWordList } from "@/lib/api";
+import { api, type CheckResult, type HskVersion, type HskWord, type HskWordList, type LessonWord } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { FOCUS } from "@/lib/focus";
@@ -27,8 +27,10 @@ import { Button } from "@/components/ui/button";
 import { ImportWordsDialog } from "@/components/ImportWordsDialog";
 import { HskWordChip } from "@/components/HskWordChip";
 import { CheckSummary, HskCheck } from "@/components/HskCheck";
+import { Pinyin } from "@/components/Pinyin";
 import { ExamCalendar, formatDay } from "@/components/ExamCalendar";
 import { prefetchCoachPicks } from "@/components/CoachPicks";
+import { LessonCards, LessonQuiz } from "@/components/FirstLesson";
 import {
   BookOpen,
   Briefcase,
@@ -90,14 +92,32 @@ const DECK_SIZE = 20;
 // read one (lib/learnPrefs): HSK 1–2 are A1/A2, 3 is B1, 4 is B2, 5 and up C1.
 export { CEFR_FOR_HSK };
 
-type Step = "lang" | "goal" | "level" | "target" | "interests" | "daily" | "plan" | "check" | "deck" | "done" | "building" | "ready";
+type Step =
+  | "lang"
+  | "goal"
+  | "level"
+  | "target"
+  | "interests"
+  | "daily"
+  | "plan"
+  | "check"
+  | "deck"
+  | "done"
+  | "building"
+  | "ready"
+  | "lesson"
+  | "quiz"
+  | "learned";
 // With the pair fixed there is no "which language do you speak" to ask.
 const asked = (steps: Step[]) => (FIXED_PAIR ? steps.filter((s) => s !== "lang") : steps);
 const FIRST_STEP: Step = FIXED_PAIR ? "goal" : "lang";
 const STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"]);
 // Before sign-in the whole first five minutes happen here: the questions, the
-// check, the plan being built, the words — and the account comes last, to keep them.
-const GUEST_STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready"]);
+// check, the plan being built, the words, a lesson on five of them and their
+// review — and the account comes last, to keep them.
+const GUEST_STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready", "lesson", "quiz", "learned"]);
+// The lesson before sign-in: the deck's first words, which lead with the ones the check found missing.
+const LESSON_SIZE = 5;
 // Lines on the "building your plan" screen, ticked off one by one.
 const BUILD_STEPS = 4;
 const BUILD_STEP_MS = 850;
@@ -329,6 +349,9 @@ export function HskFirstRun({
   // Deck words the learner turned down as already known (saved on build).
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState(0);
+  // The lesson before sign-in, and how many of its words the review got right first time.
+  const [lesson, setLesson] = useState<LessonWord[]>([]);
+  const [rightFirst, setRightFirst] = useState(0);
 
   const level = CEFR_FOR_HSK[target] ?? "B1";
   const levelName = target === 7 ? "7–9" : String(target);
@@ -469,6 +492,25 @@ export function HskFirstRun({
       /* private mode: the account starts from the onboarding again */
     }
     onGuestDone?.();
+  }
+
+  // "Learn the first five": the deck's first words with a meaning and a sentence each,
+  // then their review, then sign-in to keep them. Fewer than two with a meaning
+  // makes no review, so that goes straight to sign-in.
+  async function startLesson() {
+    const words = gap.map((w) => w.word).filter((w) => !rejected.has(w)).slice(0, LESSON_SIZE);
+    if (!words.length || busy) return;
+    setBusy(true);
+    try {
+      const r = await api.publicHskLesson({ version, level: target, native, words });
+      if (r.words.filter((w) => w.meaning).length < 2) return saveForSignIn();
+      setLesson(r.words);
+      go("lesson");
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setBusy(false);
+    }
   }
 
   // The plan, kept before anything else runs: a learner who drops out at the
@@ -960,10 +1002,67 @@ export function HskFirstRun({
             <p className="mt-5 text-[15px] font-semibold text-ink">{t("onb.readyWords", { n: gap.length - rejected.size })}</p>
             <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.rejectHint")}</p>
             {deckView}
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+              <Button className="w-full sm:w-auto" disabled={busy || gap.length === rejected.size} onClick={startLesson}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                {t("onb.lessonCta", { n: Math.min(LESSON_SIZE, gap.length - rejected.size) })}
+              </Button>
+              <button
+                type="button"
+                disabled={gap.length === rejected.size}
+                onClick={saveForSignIn}
+                className="w-full text-center text-sm font-semibold text-ink-muted transition-colors hover:text-ink sm:w-auto"
+              >
+                {t("onb.lessonSkip")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "lesson" && (
+          <div>
+            {heading(t("lesson.title"), t("lesson.sub", { n: lesson.length }))}
+            <LessonCards words={lesson} onDone={() => go("quiz")} />
+          </div>
+        )}
+
+        {step === "quiz" && (
+          <div>
+            {heading(t("lesson.quizTitle"), t("lesson.quizSub"))}
+            <LessonQuiz
+              words={lesson}
+              onDone={(n) => {
+                setRightFirst(n);
+                go("learned");
+              }}
+            />
+          </div>
+        )}
+
+        {step === "learned" && (
+          <div>
+            {heading(
+              t("lesson.doneTitle", { n: lesson.length }),
+              t("lesson.doneFirst", { right: rightFirst, n: lesson.filter((w) => w.meaning).length }),
+            )}
+            <ul className="divide-y divide-black/[0.06] rounded-[16px] border border-black/[0.06] bg-surface">
+              {lesson.map((w) => (
+                <li key={w.word} className="flex items-baseline gap-3 px-4 py-2.5">
+                  <span className="font-zh text-[20px] text-ink">{w.word}</span>
+                  <Pinyin text={w.pinyin} className="text-[14px]" />
+                  <span className="min-w-0 flex-1 text-right text-[14px] leading-snug text-ink-soft">{w.meaning}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink">
+              {gap.length - rejected.size > lesson.length
+                ? t("lesson.keep", { rest: gap.length - rejected.size - lesson.length })
+                : t("lesson.keepAll")}
+            </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button className="w-full sm:w-auto" disabled={gap.length === rejected.size} onClick={saveForSignIn}>
+              <Button className="w-full sm:w-auto" onClick={saveForSignIn}>
                 <Sparkles className="mr-2 h-4 w-4" />
-                {t("onb.readyCta")}
+                {t("lesson.keepCta")}
               </Button>
               <span className="text-[13px] text-ink-soft">{t("onb.readyHint")}</span>
             </div>

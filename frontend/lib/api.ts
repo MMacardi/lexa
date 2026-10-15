@@ -469,6 +469,14 @@ export interface HskWordList {
   // The first deck as days of the pace picked, each led by a situation (backend deckOfDays).
   days?: { theme: string | null; words: (HskWord & { situation: string | null })[] }[];
 }
+// A word of the lesson before sign-in (backend services/sentences.ts guestLesson): a pool
+// sentence at the guest's target, in Russian only — null for another language.
+export interface LessonWord {
+  word: string;
+  pinyin: string;
+  meaning: string | null;
+  sentence: { zh: string; tr: string } | null;
+}
 // The pace and the chips the first deck is cut into days by.
 export type DeckShape = { perDay: number; goals: string[]; interests: string[] };
 
@@ -1107,6 +1115,9 @@ export const api = {
   },
   publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number } & DeckShape) =>
     http<HskWordList>(`/api/public/hsk/deck`, { method: "POST", body: JSON.stringify(payload) }),
+  // The one-minute lesson before sign-in: the deck's first words, a meaning and a sentence each.
+  publicHskLesson: (payload: { version: HskVersion; level: number; native: string; words: string[] }) =>
+    http<{ words: LessonWord[] }>(`/api/public/hsk/lesson`, { method: "POST", body: JSON.stringify(payload) }),
   // One level of an official list, read-only, with the learner's status per word.
   hskList: (version: HskVersion, level: number) =>
     http<{ version: HskVersion; level: number; words: HskListWord[] }>(
