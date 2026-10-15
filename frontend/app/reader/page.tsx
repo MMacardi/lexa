@@ -213,7 +213,8 @@ export default function ReaderPage() {
           if (full.status === "ready") {
             setPendingGen((p) => p.filter((x) => x !== id));
             qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
-            show({ icon: "📄", title: t("reader.genReady"), subtitle: full.title });
+            if (openWhenReady.current?.id === id) openFieldText(full);
+            else show({ icon: "📄", title: t("reader.genReady"), subtitle: full.title });
           } else if (full.status === "failed") {
             setPendingGen((p) => p.filter((x) => x !== id));
             qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
@@ -235,6 +236,45 @@ export default function ReaderPage() {
     qc.invalidateQueries({ queryKey: ["reader-texts", accountId] }); // show the "generating" row at once
     show({ icon: "✨", title: t("reader.genStarted") });
   }
+
+  // A text on the learner's field, asked for from Today's field words (BACKLOG "Your
+  // field without asking again"): opened the moment it is written, those words picked
+  // so one tap adds the ones they want.
+  const openWhenReady = useRef<{ id: string; words: string[] } | null>(null);
+  function openFieldText(full: ReaderTextFull) {
+    const words = openWhenReady.current?.words ?? [];
+    openWhenReady.current = null;
+    openSavedText(full);
+    setSelected(new Set(words.map(wordKey)));
+  }
+  useEffect(() => {
+    if (!accountId) return;
+    let open: { id?: unknown; words?: unknown } | null = null;
+    try {
+      open = JSON.parse(sessionStorage.getItem("lexa.readerOpen") ?? "null");
+      sessionStorage.removeItem("lexa.readerOpen");
+    } catch {
+      /* nothing handed over */
+    }
+    if (typeof open?.id !== "string") return;
+    const id = open.id;
+    openWhenReady.current = { id, words: Array.isArray(open.words) ? open.words.filter((w): w is string => typeof w === "string") : [] };
+    api
+      .readerText(id, accountId)
+      .then((full) => {
+        if (full.status === "ready") openFieldText(full);
+        else if (full.status === "generating") startGen(id);
+        else {
+          openWhenReady.current = null;
+          show({ icon: "⚠️", title: t("reader.genFailed") });
+        }
+      })
+      .catch(() => {
+        openWhenReady.current = null;
+      });
+    // Once per arrival: the hand-off is read and removed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
 
   // Reset the card-panel drag offset whenever a different card opens.
   useEffect(() => {

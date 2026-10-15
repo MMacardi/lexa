@@ -1792,6 +1792,7 @@ const generateBody = z.object({
   sourceLang: z.string().max(12).optional(),
   targetLang: z.string().max(12).optional(),
   level: z.string().max(4).optional(),
+  words: z.array(z.string().trim().min(1).max(12)).max(8).optional(),
 });
 wordsRouter.post("/reader/generate", monthlyGuard("reader_gen", env.FREE_MONTHLY_READER_GEN), async (req, res) => {
   const parsed = generateBody.safeParse(req.body);

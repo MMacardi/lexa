@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
@@ -15,7 +16,19 @@ import { HskWordChip } from "@/components/HskWordChip";
 import { TopicEditor } from "@/components/TopicEditor";
 import { CEFR_FOR_HSK } from "@/components/HskFirstRun";
 import { ExamPlan, PlanLine } from "@/components/ExamPlan";
-import { ArrowRight, CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
+
+// The texts written for a field today, so a second tap opens the same one: { "2026-10-15|ИИ": id }.
+const READS_KEY = "lexa.topicReads";
+const today = () => new Date().toLocaleDateString("sv");
+function readsToday(): Record<string, string> {
+  try {
+    const all = JSON.parse(localStorage.getItem(READS_KEY) ?? "{}") as Record<string, string>;
+    return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith(`${today()}|`)));
+  } catch {
+    return {};
+  }
+}
 
 // Today's new words at the learner's level: a daily drip, not a one-off build.
 // It replaced F11's "add more gap words" button — a learner shouldn't have to
@@ -37,6 +50,8 @@ export function HskDaily() {
   const [known, setKnown] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
+  const [writing, setWriting] = useState<string | null>(null);
+  const router = useRouter();
   const [refilling, setRefilling] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
 
@@ -127,6 +142,46 @@ export function HskDaily() {
     }
   }
 
+  // A field learned in a text, not only as a list (BACKLOG "Your field without asking
+  // again"): a short Reader text on the field at the learner's level that uses the
+  // day's words of it, opened as soon as it is written, those words picked to add.
+  // One model call, on the tap; a second tap the same day opens the same text.
+  async function readField(field: string) {
+    if (writing || !data) return;
+    const words = topicWords.filter((w) => w.topic === field);
+    const key = `${today()}|${field}`;
+    let id = readsToday()[key];
+    if (!id) {
+      setWriting(field);
+      try {
+        const r = await api.generateReaderText({
+          telegramId: accountId,
+          topic: field,
+          sourceLang: "zh",
+          targetLang: native,
+          level: String(data.level),
+          words: words.map((w) => w.word),
+        });
+        id = r.id;
+        try {
+          localStorage.setItem(READS_KEY, JSON.stringify({ ...readsToday(), [key]: id }));
+        } catch {
+          /* no storage: a second tap writes another text */
+        }
+      } catch (e) {
+        setWriting(null);
+        show({ icon: "⚠️", title: errText(e, t) });
+        return;
+      }
+    }
+    try {
+      sessionStorage.setItem("lexa.readerOpen", JSON.stringify({ id, words: words.filter((w) => !w.added).map((w) => w.word) }));
+    } catch {
+      /* the Reader lists the text anyway */
+    }
+    router.push("/reader");
+  }
+
   // The day's fields are used up: ask the model for their next words.
   async function refill() {
     if (!topic || refilling) return;
@@ -175,6 +230,22 @@ export function HskDaily() {
               onToggle={() => toggle(w.word)}
             />
           ))}
+          {/* Each of the day's fields as a text on it (the day may hold two or three). */}
+          <div className="flex w-full flex-wrap gap-x-4">
+            {[...new Set(topicWords.map((w) => w.topic))].map((field) => (
+              <button
+                key={field}
+                type="button"
+                onClick={() => void readField(field)}
+                disabled={writing != null}
+                title={t("topic.readHint")}
+                className="inline-flex min-h-[32px] items-center gap-1.5 text-[13px] font-semibold text-sage-deep hover:text-sage disabled:opacity-60"
+              >
+                {writing === field ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                {t("topic.read", { topic: field })}
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">

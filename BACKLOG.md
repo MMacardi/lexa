@@ -491,7 +491,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
        他以第一名的成绩毕业 labelled formal on open) and a local run at 390 px: a 之 card carrying
        这本书是孩子之最爱 opens with 成功之道在于坚持努力, "Formal", «other words: HSK 1–4».
 
-1g. **Your field without asking again.** From the author's own use (2026-09-27, prod, 390 px): the
+1g. [x] **Your field without asking again.** From the author's own use (2026-09-27, prod, 390 px): the
    words from a field were expected to come from the interest picked in onboarding (ИИ), yet Today
    still shows a picker — a topic box, the five preset chips with ИИ already lit, "Подобрать слова",
    and "Добавить текст по теме (необязательно) — сначала будут его слова", which reads as a chore
@@ -522,6 +522,18 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      choices). `check-topic.ts`: rotation, a dry field lending its slot, off stays off; `--live`
      seeds two fields in one load, no second call on reload, "More" adds new words (games kept 5–7
      of 30 — its everyday words are HSK ≤ 4, dropped on purpose). **Left:** the third bullet.
+   - **Third bullet done 2026-10-15: a short read** (the author chose it over a field sentence per
+     word). Under the day's field words, «Почитать: <field>» per field of the day writes a Reader text on
+     the field at the learner's HSK level that must use that field's words of the day (`words` on
+     `POST /api/reader/generate`: each used at least once, the sentence around it making its meaning
+     clear), and opens it in the Reader the moment it is written, those words picked so «Добавить N»
+     takes them. One model call, on the tap; a second tap the same day opens the same text
+     (`lexa.topicReads`). Local run as ux-learner (HSK 5, Tech & IT) at 390x844: 日志 配置 备份 → a text
+     on server work, open 7.9 s after the tap with all three in it and «выбрано: 3»; the second tap
+     added no text. Frontend tsc and next build, backend tsc pass.
+   - **Found, not done:** the field's name shows as it was saved — "Tech & IT" on a Russian screen
+     (Today's row, «Почитать: Tech & IT», the text's topic). Read the interest chips back to their id
+     and name them in today's language, as `lib/goalText.ts` does for the goal.
 
 1h. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
    same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and

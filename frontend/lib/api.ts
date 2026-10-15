@@ -1408,7 +1408,8 @@ export const api = {
   deleteReaderText: (id: string, telegramId: string) =>
     http<{ ok: true }>(`/api/reader/texts/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   // Kicks off background generation; returns the new row id (poll readerText for status).
-  generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string }) =>
+  // `words`: words the text must use (Today's field words, read on their field).
+  generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string; words?: string[] }) =>
     http<{ id: string; title: string; status: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
   // Coach scenes: saved sessions (history + resume).
   // Mika's chat history, on the account: every device lists the same chats.

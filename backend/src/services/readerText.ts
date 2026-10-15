@@ -232,6 +232,9 @@ interface GenParams {
   sourceLang?: string;
   targetLang?: string;
   level?: string;
+  // Words the text must use: a field's words from Today, read in a text on the field
+  // instead of learned as a list (BACKLOG "Your field without asking again").
+  words?: string[];
 }
 
 async function generateOne(params: GenParams): Promise<{ title: string; content: string }> {
@@ -240,11 +243,16 @@ async function generateOne(params: GenParams): Promise<{ title: string; content:
   const levelLine = levelAt
     ? `Write it for a ${levelAt} learner — vocabulary and grammar they can mostly follow. `
     : "Keep it accessible for an intermediate learner. ";
+  const wordsLine = params.words?.length
+    ? `Use each of these words naturally at least once, in the sense the topic gives it: ${params.words.join(", ")}. ` +
+      "They are the learner's new words for this topic: the text is where they meet them, so the sentence around each one should make its meaning clear; everything else stays at the level. "
+    : "";
   const result = await chatJson({
     system:
       `You are a ${source} writing assistant for a language learner. Write an original, engaging, ` +
       `coherent ${source} text (about 120–220 words, a few short paragraphs) on the user's topic. ` +
       levelLine +
+      wordsLine +
       `Natural, correct ${source}; no title inside the body; no translation.` +
       scriptNote(params.sourceLang ?? "en") +
       ` Respond as JSON: {"title": a short ${source} title, "content": the text}.`,

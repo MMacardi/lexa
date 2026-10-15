@@ -1822,6 +1822,12 @@ const DICT: Record<string, Entry> = {
     zh: "“{topic}”的词你都已经拿了。",
   },
   "topic.more": { en: "More words", ru: "Ещё слова", zh: "再来一些" },
+  "topic.read": { en: "Read: {topic}", ru: "Почитать: {topic}", zh: "读一读：{topic}" },
+  "topic.readHint": {
+    en: "A short text on the field at your level, with today's words in it",
+    ru: "Короткий текст на эту тему на твоём уровне, с сегодняшними словами",
+    zh: "这个领域的一篇短文，符合你的水平，用到今天的词",
+  },
   "hskDaily.empty": {
     en: "You have every word up to HSK {level}. Pick a higher target below.",
     ru: "У тебя уже все слова до HSK {level}. Выбери уровень повыше ниже.",
