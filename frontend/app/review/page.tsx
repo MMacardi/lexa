@@ -65,6 +65,10 @@ const sourceFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lan
 const pairKey = (w: Word) => `${w.sourceLang}>${w.targetLang}`;
 // The whole-level mode's cards per fetch: a few minutes of swiping.
 const LEVEL_BATCH = 20;
+// The answer side's fields that say what they are under a label. The word, its reading,
+// its meaning and the example read as themselves; their four labels took ~80px of a
+// phone card (BACKLOG 1l). Chips of synonyms or collocations don't, nor a note.
+const LABELLED = new Set<CardField>(["synonyms", "antonyms", "collocations", "notes"]);
 
 // Swipe geometry. EDGE_PX is a dead zone at the left and right screen edges: iOS
 // treats a drag that starts there as its back/forward navigation and no amount of
@@ -1109,12 +1113,14 @@ export default function FlashcardsPage() {
           <div className="flex items-center justify-center gap-3">
             <div className="min-w-0">
               {over && <Pinyin text={word.phonetic!} className="mb-0.5 block break-words text-[20px] leading-tight text-ink-muted" />}
-              {/* A long headword ("intertextuality") at 52px is wider than a phone, so the hero shrinks to fit */}
-              {primary ? (
+              {/* A long headword ("intertextuality") at 52px is wider than a phone, so the hero shrinks to fit.
+                  On the back the word leads too, a step smaller: it was 26px under a 22px bold meaning.
+                  A short phone's fitted card keeps it small, or the meaning starts below the fold. */}
+              {primary || back ? (
                 <FitText
                   text={word.word}
-                  max={52}
-                  min={28}
+                  max={primary ? 52 : fitH && fitH < 240 ? 30 : 42}
+                  min={primary ? 28 : 26}
                   className={cn("font-serif font-medium leading-tight tracking-[-0.025em] text-ink", sourceFont(word.sourceLang))}
                 />
               ) : (
@@ -1123,7 +1129,7 @@ export default function FlashcardsPage() {
                 </span>
               )}
             </div>
-            <SpeakButton text={word.word} lang={word.sourceLang} size={primary ? "md" : "sm"} className={over ? "mt-7" : undefined} />
+            <SpeakButton text={word.word} lang={word.sourceLang} size={primary || back ? "md" : "sm"} className={over ? "mt-7" : undefined} />
           </div>
         );
       }
@@ -1610,8 +1616,10 @@ export default function FlashcardsPage() {
                   // A phone's fitted card has a set height, and the text takes all of it.
                   className={cn(
                     "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-2 py-1",
-                    // A computer's screen has room for the sentences at their larger size.
-                    !fitH && "max-h-[300px] sm:max-h-[min(360px,40vh)]",
+                    // A computer's screen has room for the sentences at their larger size: the
+                    // back grows to what the window holds over the grades (it was cut at 360px
+                    // with ~250px free below, BACKLOG 1l).
+                    !fitH && "max-h-[300px] sm:max-h-[max(300px,calc(100dvh-390px))]",
                   )}
                   // Long text: an up/down drag scrolls it and a sideways one still swipes
                   // the card. On a pinned phone page the card does that scroll itself
@@ -1619,13 +1627,19 @@ export default function FlashcardsPage() {
                   // into a swipe; elsewhere the browser scrolls it. A tap flips it.
                   style={{ touchAction: backScrolls && !pinned ? "pan-y" : cardTouch }}
                 >
-                  {backFields.map((f, i) => (
-                    <div key={f} className="text-center">
-                      {i > 0 && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
-                      <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${f}`)}</p>
-                      {fieldNode(f, false, backTr, true)}
-                    </div>
-                  ))}
+                  {backFields.map((f, i) => {
+                    // The reading and the part of speech sit under what's above them, no rule between.
+                    const under = i > 0 && (f === "phonetic" || f === "pos");
+                    return (
+                      <div key={f} className={cn("text-center", under && "-mt-2")}>
+                        {i > 0 && !under && <div className="mx-auto mb-3 h-px w-full bg-black/[0.06]" />}
+                        {LABELLED.has(f) && (
+                          <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">{t(`field.${f}`)}</p>
+                        )}
+                        {fieldNode(f, false, backTr, true)}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
