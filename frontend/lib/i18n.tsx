@@ -2359,7 +2359,6 @@ const DICT: Record<string, Entry> = {
     ru: "Не получилось отменить оценку — возможно, она уже старая.",
     zh: "无法撤销这次评分——可能已经太久了。",
   },
-  "review.setup": { en: "⚙ Setup", ru: "⚙ Настройки", zh: "⚙ 设置" },
   "review.clickReveal": { en: "Click to reveal · {lang}", ru: "Нажмите, чтобы открыть · {lang}", zh: "点击显示 · {lang}" },
   "review.reveal": { en: "Tap to reveal the back", ru: "Нажмите, чтобы открыть оборот", zh: "点击查看背面" },
   "review.openCard": { en: "Card", ru: "Карточка", zh: "卡片" },
@@ -2440,6 +2439,7 @@ const DICT: Record<string, Entry> = {
 
   // --- quiz (recall) ---
   "quiz.title": { en: "Quiz", ru: "Квиз", zh: "测验" },
+  "quiz.pinyin": { en: "Pinyin", ru: "Пиньинь", zh: "拼音" },
   "quiz.answerMode": { en: "Answer mode", ru: "Формат ответа", zh: "作答方式" },
   "quiz.choice": { en: "Multiple choice", ru: "Выбор варианта", zh: "选择题" },
   "quiz.type": { en: "Type it", ru: "Ввод слова", zh: "拼写" },
@@ -2552,6 +2552,11 @@ const DICT: Record<string, Entry> = {
   "word.meaningsAdd": { en: "Add to card", ru: "На карточку", zh: "加到卡片" },
   "word.meaningsSave": { en: "Save", ru: "Сохранить", zh: "保存" },
   "word.meaningsPreview": { en: "The card will say:", ru: "На карточке будет:", zh: "卡片上将写：" },
+  "word.meaningsOffList": {
+    en: "The card says “{meaning}”, which is none of these meanings.",
+    ru: "На карточке «{meaning}» — это ни одно из значений слова.",
+    zh: "卡片上写的是“{meaning}”，不是这里的任何一个义项。",
+  },
   "word.meaningsFuller": { en: "Update the card", ru: "Обновить карточку", zh: "更新卡片" },
   "word.meaningsSaved": { en: "Card meaning updated", ru: "Значение карточки обновлено", zh: "卡片释义已更新" },
   // Attribution for the dictionary the sense list is grounded in — a condition of

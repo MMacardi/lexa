@@ -1323,8 +1323,18 @@ export default function FlashcardsPage() {
     <div className="mx-auto flex max-w-[560px] select-none flex-col items-center [-webkit-touch-callout:none]">
       <div className="w-full">
         {/* A phone drops the title row and keeps one line of controls (the
-            count moves into it), so the card and the grades fit without a scroll. */}
-        <div className="hidden items-center justify-between gap-2 sm:flex">
+            count moves into it), so the card and the grades fit without a scroll.
+            The way back to the setup is a plain link at the far left, over the
+            title, like the word page's way back to My words (the author,
+            2026-10-14); a phone keeps its arrow at the start of the controls. */}
+        <button
+          type="button"
+          onClick={() => setStarted(false)}
+          className="hidden min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink sm:inline-flex"
+        >
+          ← {t("review.backToSetup")}
+        </button>
+        <div className="mt-1 hidden items-center justify-between gap-2 sm:flex">
           <h2 className="font-serif text-[22px] font-medium text-ink sm:text-[28px]">{t("review.title")}</h2>
           <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink-soft">
             {total - index >= 3 && (
@@ -1366,12 +1376,6 @@ export default function FlashcardsPage() {
               </button>
             </>
           )}
-          <button
-            onClick={() => setStarted(false)}
-            className="hidden items-center gap-1 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] sm:inline-flex"
-          >
-            ← {t("review.backToSetup")}
-          </button>
           {undoButton}
           <span className="ml-auto text-[14px] font-semibold tabular-nums text-ink-soft sm:hidden">
             {Math.min(index + 1, total)} / {total}

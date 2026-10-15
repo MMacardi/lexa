@@ -14,6 +14,7 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { MikaPracticeCards, MikaPracticeLinks } from "@/components/MikaPractice";
+import { useKeepBottom } from "@/lib/mobileNav";
 import { cn } from "@/lib/utils";
 import { GraduationCap, Tags, Scale, Layers, BookOpen, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
 
@@ -55,6 +56,9 @@ export default function MikaPage() {
     const el = scrollRef.current;
     if (el && (messages.length || busy)) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
+  // The composer growing (a second line, photos) shrinks the panel from below:
+  // the newest lines stay in view above it.
+  useKeepBottom(scrollRef);
 
   function applyPreset(key: string, open?: boolean) {
     if (key === "photo") return fileRef.current?.click();

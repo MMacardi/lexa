@@ -126,7 +126,10 @@ export async function enrichWordEntry(params: {
   const inSense = sense
     ? ` in the sense "${sense}"${anchor ? ` (${anchor}) — not in any other sense it has` : ""} (the translation must say "${sense}" or a form of it)`
     : params.exampleOnly
-      ? ` in its sense on the learner's card, "${params.exampleOnly.meaning}"`
+      ? // The translation says it in the card's own words: 行程's examples read
+        // «маршрут» under a card saying «расписание» (the author, 2026-10-14).
+        ` in its sense on the learner's card, "${params.exampleOnly.meaning}" (the translation renders "${word}" with ` +
+        `one of the card's words or a form of one)`
       : "";
 
   // Captured from a text: the card is for the sense the word has THERE, which is

@@ -3,7 +3,7 @@ import { chatJson } from "./llm.js";
 import { importPreviewSchema, type ImportedCard } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { DEFAULT_MEANING_INSTRUCTION } from "../agents/enrich.js";
-import { cardPhonetic, dictCardFields, pageCardFields, translateDictMeanings } from "./capture.js";
+import { cardPhonetic, dictCardFields, fitMeaningsToPages, pageCardFields, translateDictMeanings } from "./capture.js";
 import { placePoolExamples, poolRegister } from "./sentences.js";
 
 const MAX_CARDS = 100;
@@ -107,6 +107,9 @@ export async function importWordsForUser(params: {
   // the words are ready when it says so; every other add stays instant and the
   // worker does the same step in the background.
   meaningsFirst?: boolean;
+  // The meanings came from the app (a Reader tap's gloss, Mika's offer), not typed by
+  // the learner: an HSK word's is put in its word page's wording (fitMeaningsToPages).
+  fitMeanings?: boolean;
 }) {
   if (params.items.length === 0) throw new Error("Select at least one card to import.");
   if (params.items.length > MAX_CARDS) throw new Error(`You can import up to ${MAX_CARDS} cards at once.`);
@@ -133,6 +136,8 @@ export async function importWordsForUser(params: {
   });
   const existingWords = new Set(existing.map((word) => word.word));
   const created: { id: string; word: string }[] = [];
+  // Meanings that came with the words, to be put in their word pages' wording.
+  const fit: { id: string; word: string; meaning: string; sentence?: string }[] = [];
 
   for (const item of normalized) {
     if (existingWords.has(item.word)) continue;
@@ -171,6 +176,9 @@ export async function importWordsForUser(params: {
         },
       });
       created.push({ id: record.id, word: record.word });
+      if (params.fitMeanings && !dict && item.meaning && params.sourceLang === "zh") {
+        fit.push({ id: record.id, word: record.word, meaning: item.meaning, ...(item.example ? { sentence: item.example } : {}) });
+      }
     } catch (error) {
       if (error && typeof error === "object" && (error as { code?: string }).code === "P2002") continue;
       throw error;
@@ -182,6 +190,12 @@ export async function importWordsForUser(params: {
   // upgrade writes one at their level where the pool's is well under it.
   if (created.length && (params.poolExamples ?? params.generateExamples) && params.exampleSource !== "web" && params.sourceLang === "zh" && poolRegister(params.exampleStyle)) {
     await placePoolExamples(user.id, created.map((c) => ({ ...c, targetLang: params.targetLang })));
+  }
+
+  if (fit.length) {
+    void fitMeaningsToPages(fit, params.targetLang).catch((error) => {
+      console.error("Batch page senses failed", (error as Error).message);
+    });
   }
 
   if (params.meaningsFirst && created.length) {

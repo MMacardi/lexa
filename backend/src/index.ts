@@ -14,6 +14,7 @@ import { betaRouter } from "./routes/beta.js";
 import { publicRouter } from "./routes/public.js";
 import { communityRouter } from "./routes/community.js";
 import { accountRouter } from "./routes/account.js";
+import { tutorChatsRouter } from "./routes/tutorChats.js";
 import { seedLibrary } from "./services/librarySeed.js";
 import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { readSession } from "./lib/auth.js";
@@ -123,6 +124,7 @@ app.use("/api", adminRouter);
 app.use("/api", friendsRouter);
 app.use("/api", feedbackRouter);
 app.use("/api", communityRouter);
+app.use("/api", tutorChatsRouter);
 app.use("/api", wordsRouter);
 
 // Uncaught route errors reach Sentry when it is on (lib/monitoring.ts).

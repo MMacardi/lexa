@@ -93,6 +93,7 @@ model User {
   recvFriendships Friendship[] @relation("RecvFriendships")
   coachMemories CoachMemory[]
   sceneSessions SceneSession[]
+  tutorChats  TutorChat[]
   inviteCodes InviteCode[]
   folders     Folder[]
   collectionAdds CollectionAdd[]
@@ -362,6 +363,29 @@ model SceneSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  @@index([userId, updatedAt])
+}
+
+// One of Mika's conversations, as her history menu lists it — on the account, so
+// a chat started on the phone is there on the laptop. `chatId` is minted by the
+// client when the chat starts (a reload keeps continuing the same entry); the
+// thread is stored as the client shows it (text, photo thumbnails, the word offers)
+// and never queried. `hay` is what the menu's search reads. Only the newest chats
+// are kept (services/tutorChats.ts).
+model TutorChat {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId    String
+  title     String   @default("")
+  photo     Boolean  @default(false)
+  count     Int      @default(0)
+  hay       String   @default("")
+  messages  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, chatId])
   @@index([userId, updatedAt])
 }
 

@@ -6,6 +6,7 @@ import type { TutorChat } from "@/lib/useTutorChat";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/motion";
+import { focusOnOpen } from "@/lib/anchor";
 
 // A chat's timestamp: the clock for today, the date once it's older.
 function when(at: number): string {
@@ -17,7 +18,7 @@ function when(at: number): string {
 // Past chats are only worth searching once there are enough of them to scroll.
 const SEARCH_FROM = 5;
 
-// Mika's past conversations (kept in this browser). Opening one makes it the live
+// Mika's past conversations (on the account, so every device lists the same ones). Opening one makes it the live
 // chat again, so an old question can be picked up instead of retyped. `compact` is
 // the chip that sits beside the language pair in the floating widget; `withLabel`
 // the roomier pill on the /mika page.
@@ -97,7 +98,7 @@ export function ChatHistoryMenu({
             <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2">
               <Search className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
               <input
-                autoFocus
+                autoFocus={focusOnOpen()}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t("mika.searchChats")}

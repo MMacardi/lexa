@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import { Mp3Encoder } from "@breezystack/lamejs";
+import { pinyin } from "pinyin-pro";
 import { env } from "../lib/env.js";
 import { prisma } from "./db.js";
 import { currentUserId } from "../lib/usageContext.js";
+import { transcribeAudio } from "./llm.js";
 
 // Chinese read aloud by Bailian's voice instead of the browser's: on Windows the
 // browser's Chinese voice is the robotic Huihui, and some Android phones have none.
@@ -18,7 +20,28 @@ const MP3_KBPS = 48; // speech at 24 kHz mono: ~6 KB a second instead of WAV's 4
 // (Beijing or Singapore, whichever BAILIAN_BASE_URL points at).
 const ENDPOINT = () => `${new URL(env.BAILIAN_BASE_URL).origin}/api/v1/services/aigc/multimodal-generation/generation`;
 
-const keyOf = (text: string) => createHash("sha256").update(`${TTS_MODEL}|${TTS_VOICE}|${text}`).digest("hex");
+// A word on its own is where the voice slips (the author, 2026-10-14: 味 sounded
+// like "wait", 儿 unnatural, 味道 with a "ts" after it). Sampled the same day, 味
+// alone sometimes grew extra syllables ("喂，弗雷") or seconds of babble, 儿 came back
+// as "Are we?" or 哎, 味道 once as 那道. Ended with a full stop it steadies (味。 and
+// 味道。 3 of 3), and every take of a short word is heard back by the ASR and made
+// again, up to TAKES times, when its syllables aren't the word's (儿。 was right 1
+// time in 3). Each clip is made once and kept, so a bad take used to stay for good.
+// Sentences read fine and go out as they are.
+const SHORT = /^\p{Script=Han}{1,4}$/u;
+const TAKES = 3;
+// Short words carry "heard" in their key, so the clips made before the check are made again.
+const keyOf = (text: string) =>
+  createHash("sha256")
+    .update(`${TTS_MODEL}|${TTS_VOICE}|${SHORT.test(text) ? "heard|" : ""}${text}`)
+    .digest("hex");
+
+// Toneless syllables of the Han characters in `text` (an ASR answer may add a full
+// stop, or come back in Latin letters, which has none).
+const syllables = (text: string) => {
+  const han = text.replace(/[^\p{Script=Han}]/gu, "");
+  return han ? (pinyin(han, { toneType: "none", type: "array" }) as string[]) : [];
+};
 
 // Two taps on the same new word while it is being made share one synthesis.
 const pending = new Map<string, Promise<Buffer>>();
@@ -30,7 +53,7 @@ export async function speechClip(text: string): Promise<Buffer> {
   if (hit) return Buffer.from(hit.mp3);
   let job = pending.get(key);
   if (!job) {
-    job = synthesize(text)
+    job = (SHORT.test(text) ? heardWord(text) : synthesize(text))
       .then(async (mp3) => {
         // A second server instance may have stored it meanwhile; theirs is as good.
         await prisma.ttsClip.create({ data: { key, mp3: new Uint8Array(mp3), chars: text.length } }).catch(() => {});
@@ -40,6 +63,25 @@ export async function speechClip(text: string): Promise<Buffer> {
     pending.set(key, job);
   }
   return job;
+}
+
+// A short word, read until the ASR hears its syllables (homophones pass: 喂 for 味
+// is the right sound). With no take heard right, the closest one; with the ASR
+// unreachable, the take as it is.
+async function heardWord(word: string): Promise<Buffer> {
+  const want = syllables(word);
+  let best: { mp3: Buffer; score: number } | null = null;
+  for (let take = 0; take < TAKES; take++) {
+    const mp3 = await synthesize(`${word}。`);
+    const heard = await transcribeAudio({ base64: mp3.toString("base64"), format: "mp3", sourceLang: "zh" });
+    if (!heard) return mp3;
+    const got = syllables(heard);
+    if (got.join(" ") === want.join(" ")) return mp3;
+    const score = want.filter((s, i) => got[i] === s).length / Math.max(want.length, got.length);
+    console.log(`[tts] take ${take + 1} of ${word} heard as ${JSON.stringify(heard)}`);
+    if (!best || score > best.score) best = { mp3, score };
+  }
+  return best!.mp3;
 }
 
 async function synthesize(text: string): Promise<Buffer> {

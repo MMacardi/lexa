@@ -271,6 +271,67 @@ export async function translateDictMeanings(cardIds: string[]): Promise<void> {
   }
 }
 
+const pageSenseSchema = z.object({ items: z.array(z.object({ n: z.number().int() })) });
+
+/**
+ * A meaning that came with the word — a Reader tap's gloss of the sentence it was
+ * met in, an offer of Mika's — is that moment's wording, not its word page's: 响应
+ * came in as «ответ», and its page, whose senses are «откликаться (на призыв)» and
+ * «реагировать, отвечать на запрос», ticked neither (the author, 2026-10-14). So
+ * for a word with a page, one model call names the page sense each such meaning
+ * is (in its sentence, when there is one), and the card takes that sense's
+ * wording, and its reading where that sense reads otherwise. A meaning that is
+ * none of them stays, as does one changed meanwhile. Runs after the add returns:
+ * the card is reviewable at once either way.
+ */
+export async function fitMeaningsToPages(cards: { id: string; word: string; meaning: string; sentence?: string }[], targetLang: string) {
+  const todo = cards.flatMap((c) => {
+    const page = hskPage(c.word, targetLang);
+    const heads = new Set(c.meaning.split(/[;；]/).map(headGloss).filter(Boolean));
+    // Already one of the page's senses (in its wording or by its head word).
+    if (!page || !heads.size || page.s.some((s) => heads.has(headGloss(s.m)))) return [];
+    return [{ ...c, page }];
+  });
+  if (!todo.length) return;
+  const picks = new Map<string, number>();
+  const ask = todo.filter((c) => c.page.s.length > 1);
+  // A one-sense page leaves nothing to choose.
+  for (const c of todo) if (c.page.s.length === 1) picks.set(c.id, 0);
+  for (let i = 0; i < ask.length; i += 20) {
+    const chunk = ask.slice(i, i + 20);
+    const r = await chatJson({
+      system:
+        `Each item is a Chinese word, the ${langName(targetLang)} meaning a learner was shown for it, sometimes the ` +
+        `sentence it was met in, and the word's senses as its dictionary page lists them, numbered from 1. Say which ` +
+        `listed sense that meaning is (as the word is used in the sentence, when one is given): its number, or 0 when ` +
+        `it is none of them. Answer for every item, in order. Respond as JSON: {"items":[{"n": number}]}.`,
+      user: JSON.stringify(
+        chunk.map((c) => ({
+          word: c.word,
+          shown: c.meaning,
+          ...(c.sentence ? { sentence: c.sentence } : {}),
+          senses: c.page.s.map((s, k) => `${k + 1}. ${s.m}`),
+        })),
+      ),
+      schema: pageSenseSchema,
+      label: "capture.pageSense",
+    });
+    chunk.forEach((c, k) => {
+      const n = r.items[k]?.n ?? 0;
+      if (n >= 1 && n <= c.page.s.length) picks.set(c.id, n - 1);
+    });
+  }
+  for (const c of todo) {
+    const at = picks.get(c.id);
+    if (at === undefined) continue;
+    const s = c.page.s[at];
+    const card = await prisma.word.findUnique({ where: { id: c.id }, select: { phonetic: true } });
+    const reading = s.r && card?.phonetic && !readsAs(c.page.w, s.r, card.phonetic) ? { phonetic: s.r } : {};
+    // Compare-and-set: an edit made meanwhile wins.
+    await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaning }, data: { meaningZh: s.m, ...reading } });
+  }
+}
+
 const NO_ENTRY = { phonetic: "", partOfSpeech: "", meaningZh: "", collocations: [], synonyms: [], antonyms: [], example: "", exampleTranslation: "" };
 
 export type UpgradeOptions = {
@@ -371,10 +432,16 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // meaning they typed to find it; otherwise the model would just reword it.
   const replaceable = hasDictMeaning(card) || (isDefaultMeaning(card) && Boolean(met || opts.sense));
   if (entry.meaningZh.trim() && (!card.meaningZh?.trim() || replaceable)) {
-    await prisma.word.updateMany({
+    const written = await prisma.word.updateMany({
       where: { id: card.id, meaningZh: card.meaningZh },
       data: { meaningZh: entry.meaningZh.trim() },
     });
+    // The sense of the sentence, in the model's words: as its page words it.
+    if (written.count && page && met && !opts.sense) {
+      await fitMeaningsToPages([{ id: card.id, word: card.word, meaning: entry.meaningZh.trim(), sentence: met }], card.targetLang).catch((err) =>
+        console.error(`[capture] page sense failed for ${card.word}`, (err as Error).message),
+      );
+    }
   }
   // The example before the details: the pages poll until the part of speech lands,
   // so their own sentence has to be there by then to be seen without a reload.

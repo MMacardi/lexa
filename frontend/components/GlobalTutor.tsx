@@ -14,7 +14,7 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { OPEN_MIKA, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { OPEN_MIKA, useIsMobile, useKeepBottom, useLockScroll } from "@/lib/mobileNav";
 import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2, BookOpen, PenLine } from "lucide-react";
 
@@ -124,6 +124,8 @@ export function GlobalTutor() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+  // The keyboard shrinks the sheet from below: the newest lines stay in view.
+  useKeepBottom(scrollRef, open);
 
   function fillTemplate(template: string) {
     chat.fillTemplate(template);
@@ -163,9 +165,11 @@ export function GlobalTutor() {
           {...drop.props}
         >
           {drop.dragging && <DropHint />}
-          {mobile && <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-black/15" />}
-          {/* header — title, centered drag handle, clickable language pair, actions */}
-          <div className="border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pt-3 pb-4">
+          {/* header — title, centered drag handle, clickable language pair, actions.
+              On a phone the grab bar sits inside it, under the same tint: above it,
+              it left a white strip across the top of the sheet. */}
+          <div className={cn("border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pb-4", mobile ? "pt-2" : "pt-3")}>
+            {mobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />}
             <div className="relative flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
                 <Sparkles className="h-[18px] w-[18px] text-sage-deep" />
@@ -266,7 +270,7 @@ export function GlobalTutor() {
           </div>
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
-          <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "pb-[calc(10px+env(safe-area-inset-bottom))]")}>
+          <div className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "kb-pad pb-[calc(10px+var(--safe-bottom))]")}>
             {/* free recall, right in the chat: write what you remember, Mika grades it */}
             {card && messages.length > 0 && !busy && (
               <button

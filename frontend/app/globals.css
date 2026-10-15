@@ -22,6 +22,28 @@ html {
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.4);
 }
 
+/* The keyboard opening or closing (useViewportVars sets data-vv-anim for its
+   length): the overlay glides to its new box over the keyboard's own timing
+   instead of jumping there as it starts. iOS pans the page up by the same amount
+   meanwhile, so on screen the top edge holds and the bottom rides the keyboard. */
+:root[data-vv-anim] .vv-overlay {
+  transition:
+    top var(--dur-kb) var(--ease-kb),
+    height var(--dur-kb) var(--ease-kb);
+}
+
+/* Room for the home indicator under a sheet's last row — none while the
+   keyboard is up and covers that edge (data-kb, set by useViewportVars). */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+:root[data-kb] {
+  --safe-bottom: 0px;
+}
+.kb-pad {
+  transition: padding-bottom var(--dur-kb) var(--ease-kb);
+}
+
 /* Phones: a chip/toolbar row that would wrap into several lines becomes one
    horizontally swipeable line instead (desktop keeps wrapping). */
 @media (max-width: 639px) {
@@ -153,6 +175,9 @@ html {
   --dur-fast: 0.15s;
   --dur: 0.22s;
   --dur-slow: 0.34s;
+  /* The phone keyboard's slide: quick off the mark, a long settle. */
+  --ease-kb: cubic-bezier(0.38, 0.7, 0.125, 1);
+  --dur-kb: 0.3s;
 }
 
 /* ---- Dark theme: redefine the palette under html.dark ---- */
@@ -367,7 +392,7 @@ textarea::-webkit-resizer {
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up, .anim-fade-in, .anim-pop, .anim-popover, .anim-popover-out,
   .anim-sheet, .anim-scrim, .anim-scale-in, .anim-dialog { animation: none; }
-  .seg-thumb, .anim-collapse { transition: none !important; }
+  .seg-thumb, .anim-collapse, .kb-pad, :root[data-vv-anim] .vv-overlay { transition: none !important; }
   .anim-msg, .anim-tab, .anim-card-in, .anim-panel, .typing-dots > span { animation: none; }
   button.rounded-full:active, a.rounded-full:active { scale: none; }
   details::details-content { transition: none !important; }

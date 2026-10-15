@@ -31,6 +31,7 @@ async function main() {
       coachMemories: { create: { lang: "zh" } },
       placementAnswers: { create: { word: "你好", sourceLang: "zh", targetLang: "ru", known: true } },
       sceneSessions: { create: { title: "s", bible: {} } },
+      tutorChats: { create: { chatId: "c1", messages: [{ role: "user", content: "q" }] } },
     },
   });
   const word = await prisma.word.create({
@@ -64,6 +65,7 @@ async function main() {
     "folders",
     "readerTexts",
     "sceneSessions",
+    "tutorChats",
     "coachMemories",
     "placementAnswers",
     "reviewEvents",
@@ -93,6 +95,7 @@ async function main() {
     count("folders", prisma.folder.count({ where: { userId: user.id } })),
     count("readerTexts", prisma.readerText.count({ where: { userId: user.id } })),
     count("sceneSessions", prisma.sceneSession.count({ where: { userId: user.id } })),
+    count("tutorChats", prisma.tutorChat.count({ where: { userId: user.id } })),
     count("coachMemories", prisma.coachMemory.count({ where: { userId: user.id } })),
     count("placementAnswers", prisma.placementAnswer.count({ where: { userId: user.id } })),
     count("identities", prisma.authIdentity.count({ where: { userId: user.id } })),

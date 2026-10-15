@@ -1,5 +1,7 @@
 // Typed client for the Express backend. One place that knows the URL shape.
 
+import type { TutorChatEntry, TutorMsg } from "./useTutorChat";
+
 // When NEXT_PUBLIC_API_URL is set (local dev), call the backend directly. When it's
 // empty/unset (Vercel prod), BASE is "" so every request is same-origin (/api/…) and
 // the Next rewrite proxies it to the backend (see next.config.ts). Same-origin keeps
@@ -1393,6 +1395,14 @@ export const api = {
   generateReaderText: (payload: { telegramId: string; topic: string; sourceLang?: string; targetLang?: string; level?: string }) =>
     http<{ id: string; title: string; status: string }>(`/api/reader/generate`, { method: "POST", body: JSON.stringify(payload) }),
   // Coach scenes: saved sessions (history + resume).
+  // Mika's chat history, on the account: every device lists the same chats.
+  tutorChats: () => http<TutorChatEntry[]>(`/api/tutor/chats`),
+  tutorChat: (id: string) => http<TutorChatEntry & { messages: TutorMsg[] }>(`/api/tutor/chats/${encodeURIComponent(id)}`),
+  saveTutorChat: (id: string, messages: TutorMsg[]) =>
+    http<TutorChatEntry>(`/api/tutor/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ messages }) }),
+  importTutorChats: (chats: { id: string; at: number; messages: TutorMsg[] }[]) =>
+    http<{ imported: number }>(`/api/tutor/chats/import`, { method: "POST", body: JSON.stringify({ chats }) }),
+  deleteTutorChat: (id: string) => http<{ ok: true }>(`/api/tutor/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
   sceneSessions: (telegramId: string, q?: string) =>
     http<SceneSessionSummary[]>(
       `/api/scene/sessions?telegramId=${encodeURIComponent(telegramId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,

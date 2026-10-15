@@ -84,16 +84,43 @@ export function useTouchOnly() {
 // Written only when a value changes: this runs on every viewport scroll event, and
 // an inherited custom property set on <html> restyles the whole page — on a long
 // Reader text that is enough to leave blank tiles behind a fast swipe.
+//
+// The keyboard. iOS reports the final viewport as the keyboard *starts* to rise,
+// then pans the page up to it over the keyboard's own animation. Snapped to those
+// numbers at once, a sheet shrank and dropped to the bottom of the screen, then
+// rode up with the pan: the jump the author saw on Mika's sheet (2026-10-14). So
+// when the height changes by a keyboard's worth, <html> gets `data-vv-anim` for
+// the length of that animation and the overlay glides to its new box (globals.css)
+// in step with the pan: its top edge holds still while its bottom follows the
+// keyboard. `data-kb` says the keyboard is up, so a composer can drop the
+// home-indicator room under it (--safe-bottom), which the keyboard covers anyway.
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const root = document.documentElement.style;
+    const html = document.documentElement;
+    const root = html.style;
     let top = "";
     let h = "";
+    let lastH = vv.height;
+    let animTimer: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
       const nextTop = `${vv.offsetTop}px`;
       const nextH = `${vv.height}px`;
+      if (Math.abs(vv.height - lastH) > 100) {
+        html.dataset.vvAnim = "";
+        clearTimeout(animTimer);
+        animTimer = setTimeout(() => delete html.dataset.vvAnim, 450);
+      }
+      lastH = vv.height;
+      // The layout viewport keeps its height under the keyboard; a pinch zoom
+      // shrinks the visual one too, but by its scale.
+      const full = Math.max(window.innerHeight, html.clientHeight);
+      const kb = full - vv.height * vv.scale > 150;
+      if (kb !== ("kb" in html.dataset)) {
+        if (kb) html.dataset.kb = "";
+        else delete html.dataset.kb;
+      }
       if (nextTop !== top) root.setProperty("--vv-top", (top = nextTop));
       if (nextH !== h) root.setProperty("--vv-h", (h = nextH));
     };
@@ -120,6 +147,7 @@ export function useViewportVars() {
     window.addEventListener("focusout", settle);
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(animTimer);
       vv.removeEventListener("resize", settle);
       vv.removeEventListener("scroll", settle);
       window.removeEventListener("resize", settle);
@@ -127,6 +155,39 @@ export function useViewportVars() {
       window.removeEventListener("focusout", settle);
     };
   }, []);
+}
+
+// A chat's scroller keeps its bottom edge in place when it changes size, the way a
+// messenger does. The keyboard shrinks Mika's sheet from below; keeping its
+// scrollTop instead, the list slid the newest lines under the composer and showed
+// the start of the answer. Run in a ResizeObserver, so the new scroll position is
+// painted in the same frame as the new size, every frame of the keyboard's glide.
+// `on` = the scroller is mounted (a sheet that is open).
+export function useKeepBottom(ref: RefObject<HTMLElement | null>, on = true) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!on || !el) return;
+    let top = el.scrollTop;
+    let h = el.clientHeight;
+    const onScroll = () => {
+      top = el.scrollTop;
+    };
+    const ro = new ResizeObserver(() => {
+      const next = el.clientHeight;
+      if (next === h) return;
+      // The browser may already have clamped scrollTop to the smaller range;
+      // `top` is where it was before the resize.
+      el.scrollTop = top + (h - next);
+      top = el.scrollTop;
+      h = next;
+    });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [ref, on]);
 }
 
 // Freeze the page behind an open sheet so a swipe inside it doesn't scroll the page.

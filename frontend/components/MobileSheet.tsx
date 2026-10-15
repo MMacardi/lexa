@@ -87,7 +87,7 @@ export function MobileSheet({
         </div>
         <div
           ref={body}
-          className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(16px+env(safe-area-inset-bottom))]"
+          className="kb-pad min-h-0 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(16px+var(--safe-bottom))]"
         >
           {children}
         </div>

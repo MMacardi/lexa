@@ -1084,6 +1084,8 @@ wordsRouter.post("/words/batch", async (req, res) => {
       exampleStyle: b.exampleStyle,
       exampleSource: b.exampleSource,
       meaningsFirst: b.meaningsFirst,
+      // Every meaning here is the app's (a Reader tap, Mika, a pick), never typed.
+      fitMeanings: true,
     });
     res.status(201).json(result);
   } catch (err) {

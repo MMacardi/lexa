@@ -87,8 +87,16 @@ export function WordSenses({ word }: { word: Word }) {
   const credit = q.data?.credit;
 
   const initial = useMemo(() => testedSet(senses), [senses]);
-  const [picked, setPicked] = useState<Set<number>>(initial);
-  useEffect(() => setPicked(initial), [initial]);
+  // The card's meaning is none of these senses: a gloss from a Reader tap or one of
+  // Mika's offers, kept as it came before cards took their page's wording (行程
+  // «расписание» beside «маршрут, поездка, путь», the author, 2026-10-14). Said
+  // plainly; a one-sense word has its sense ready to save, a word with several
+  // waits for the pick.
+  const card = word.meaningZh ?? "";
+  const offList = initial.size === 0 && senses.length > 0 && card.trim() !== "";
+  const start = useMemo(() => (offList && senses.length === 1 ? new Set([0]) : initial), [offList, senses.length, initial]);
+  const [picked, setPicked] = useState<Set<number>>(start);
+  useEffect(() => setPicked(start), [start]);
   // What the card will say once saved — shown before the save, so "test these"
   // is a promise the learner can read rather than a surprise.
   const indexes = useMemo(() => [...picked].sort((a, b) => a - b), [picked]);
@@ -99,7 +107,6 @@ export function WordSenses({ word }: { word: Word }) {
   // Older cards say less than the sense they test ("goal" where the sense reads
   // "goal, objective (something aimed at)"): same pick, so offer the fuller wording
   // as a save of its own — on a one-sense word too, where there's nothing to pick.
-  const card = word.meaningZh ?? "";
   const cardTerms = terms(card).map((x) => x.toLowerCase());
   const previewTerms = new Set(terms(preview).map((x) => x.toLowerCase()));
   const fuller =
@@ -223,7 +230,12 @@ export function WordSenses({ word }: { word: Word }) {
           );
         })}
       </ol>
-      {(multi || fuller) && (
+      {offList && (
+        <p className="text-[12px] font-medium text-warn-text">
+          {t("word.meaningsOffList", { meaning: card })}
+        </p>
+      )}
+      {(multi || fuller || offList) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {dirty ? (
             <>

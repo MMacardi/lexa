@@ -36,12 +36,12 @@ const PAIR_KEY = "lexa.wordPair"; // shared with Add/Reader
 // The floating widget and the /mika page share one live copy (TutorChatProvider).
 const CHAT_KEY = "lexa.tutorChat";
 const CHAT_ID_KEY = "lexa.tutorChatId";
-// Past conversations, in localStorage so they outlive the tab. Deliberately small:
-// the newest few chats, oldest dropped once the store grows past a couple of pages
-// of text — history is a convenience, not something worth filling storage for.
+// Past conversations live on the account (api.tutorChats), so the phone and the
+// laptop list the same chats. They used to be in each browser's localStorage under
+// this key; what is still there is uploaded once and then dropped.
 const CHATS_KEY = "lexa.tutorChats";
-const MAX_CHATS = 12;
-const MAX_CHATS_BYTES = 180_000;
+// A change is saved once the answer has finished and the thread sat still this long.
+const SAVE_AFTER_MS = 600;
 
 type StoredChat = { id: string; at: number; messages: TutorMsg[] };
 
@@ -165,44 +165,38 @@ function readChatId(): string {
   }
 }
 
-function readChats(): StoredChat[] {
+// This browser's history from before it was on the account (the server checks
+// ids the same way, so one odd entry can't sink the whole upload).
+function readLocalChats(): StoredChat[] {
   if (typeof window === "undefined") return [];
   try {
     const r = JSON.parse(localStorage.getItem(CHATS_KEY) ?? "[]");
-    return Array.isArray(r) ? (r as StoredChat[]).filter((c) => c?.id && Array.isArray(c.messages) && c.messages.length > 0) : [];
+    return Array.isArray(r)
+      ? (r as StoredChat[]).filter((c) => /^[a-z0-9]{4,40}$/i.test(c?.id ?? "") && Array.isArray(c.messages) && c.messages.length > 0)
+      : [];
   } catch {
     return [];
   }
 }
 
-function writeChats(list: StoredChat[]) {
-  let keep = list.slice(0, MAX_CHATS);
-  while (keep.length > 1 && JSON.stringify(keep).length > MAX_CHATS_BYTES) keep = keep.slice(0, -1);
-  try {
-    localStorage.setItem(CHATS_KEY, JSON.stringify(keep));
-  } catch {
-    /* out of quota — history is expendable */
-  }
-}
+// A chat as the history menu lists it, for the moment before the server's own
+// entry arrives. The server titles and indexes it the same way: by its opening
+// question (what people look for), searched through the whole conversation.
+const summarize = (id: string, messages: TutorMsg[]): TutorChatEntry => ({
+  id,
+  at: Date.now(),
+  title: (messages.find((x) => x.role === "user")?.content ?? "").trim().slice(0, 80),
+  // A chat opened with just a photo has no words to be titled by.
+  photo: !!messages.find((x) => x.role === "user")?.images?.length,
+  n: messages.length,
+  hay: messages
+    .map((m) => m.content)
+    .join(" ")
+    .slice(0, 2000)
+    .toLowerCase(),
+});
 
-// A chat is titled by its opening question, which is what people look for.
-const chatTitle = (m: TutorMsg[]) => (m.find((x) => x.role === "user")?.content ?? "").trim().slice(0, 80);
-const summarize = (list: StoredChat[]): TutorChatEntry[] =>
-  list.map((c) => ({
-    id: c.id,
-    at: c.at,
-    title: chatTitle(c.messages),
-    // A chat opened with just a photo has no words to be titled by.
-    photo: !!c.messages.find((x) => x.role === "user")?.images?.length,
-    n: c.messages.length,
-    // What the history search looks through: the whole conversation, capped —
-    // people look for a chat by something said in it, not just by its first line.
-    hay: c.messages
-      .map((m) => m.content)
-      .join(" ")
-      .slice(0, 2000)
-      .toLowerCase(),
-  }));
+const withEntry = (list: TutorChatEntry[] | undefined, e: TutorChatEntry) => [e, ...(list ?? []).filter((c) => c.id !== e.id)];
 
 // A suggested word doesn't have to be in the chat's own language: asking about a
 // Chinese word inside an English chat should still offer a card — a Chinese one.
@@ -235,7 +229,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const [card, setCard] = useState<TutorCardCtx | null>(null);
   const [messages, setMessages] = useState<TutorMsg[]>(() => readChat());
   const [chatId, setChatId] = useState(() => readChatId());
-  const [history, setHistory] = useState<TutorChatEntry[]>([]);
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
   const [input, setInput] = useState("");
   // An open-ended preset ("10 words about: ") put in the box; sending it untouched
   // just makes Mika ask for the topic, so Send waits until something is added.
@@ -251,6 +246,53 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   const attachedRef = useRef(attachments);
   attachedRef.current = attachments;
 
+  // The history list, from the account. Fetched whenever Mika comes into view, so a
+  // chat had on another device is there by the time the menu is opened.
+  const { data: history = [] } = useQuery({
+    queryKey: ["tutorChats", accountId],
+    queryFn: () => api.tutorChats(),
+    enabled: !!accountId && active,
+  });
+
+  // Saving. `synced` is the thread the server has (or is being sent): one loaded
+  // from it, or restored from this tab, isn't sent straight back. A change waits
+  // for the thread to sit still, then goes up whole — the save carries its own id
+  // and thread, so "new chat" right after an answer still saves the old one.
+  const synced = useRef(messages);
+  // When the server last changed the open chat, as far as this tab knows.
+  const syncedAt = useRef(0);
+  const pending = useRef<{ id: string; messages: TutorMsg[] } | null>(null);
+  const saving = useRef(0);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const flush = useCallback(() => {
+    clearTimeout(saveTimer.current);
+    const p = pending.current;
+    pending.current = null;
+    if (!p || !accountId) return;
+    saving.current++;
+    api
+      .saveTutorChat(p.id, p.messages)
+      .then((entry) => {
+        if (p.id === chatIdRef.current) syncedAt.current = Math.max(syncedAt.current, entry.at);
+        qc.setQueryData<TutorChatEntry[]>(["tutorChats", accountId], (list) => withEntry(list, entry));
+      })
+      .catch(() => {
+        // Still owed: the tab keeps it (sessionStorage), and the next change or
+        // the tab being hidden sends it again — meanwhile nothing loads over it.
+        pending.current ??= p;
+      })
+      .finally(() => saving.current--);
+  }, [accountId, qc]);
+  // Whatever is waiting goes up when the tab is hidden (a phone locked mid-chat).
+  useEffect(() => {
+    const onHide = () => document.visibilityState === "hidden" && flush();
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      flush();
+    };
+  }, [flush]);
+
   useEffect(() => {
     // A half-written answer isn't worth rewriting storage for on every token.
     if (messages[messages.length - 1]?.streaming) return;
@@ -261,17 +303,36 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
       /* ignore */
     }
     saveFullImages(trimmed);
-    if (!chatId) return;
-    const stored = readChats();
-    const rest = stored.filter((c) => c.id !== chatId);
-    // Nothing said yet and nothing saved under this id → just show what history has.
-    if (!trimmed.length && rest.length === stored.length) {
-      setHistory(summarize(stored));
-      return;
-    }
-    writeChats(trimmed.length ? [{ id: chatId, at: Date.now(), messages: trimmed }, ...rest] : rest);
-    setHistory(summarize(readChats()));
+    if (!chatId || !trimmed.length || messages === synced.current) return;
+    synced.current = messages;
+    if (pending.current && pending.current.id !== chatId) flush();
+    pending.current = { id: chatId, messages: trimmed };
+    // Listed at once; the server's entry replaces this one when the save lands.
+    qc.setQueryData<TutorChatEntry[]>(["tutorChats", accountId], (list) => withEntry(list, summarize(chatId, trimmed)));
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flush, SAVE_AFTER_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, chatId]);
+
+  // This browser's history from before it was on the account goes up once.
+  useEffect(() => {
+    if (!accountId || !active) return;
+    const local = readLocalChats();
+    if (!local.length) return;
+    api
+      .importTutorChats(local.map((c) => ({ ...c, messages: c.messages.filter((m) => !m.streaming) })))
+      .then(() => {
+        try {
+          localStorage.removeItem(CHATS_KEY);
+        } catch {
+          /* ignore */
+        }
+        qc.invalidateQueries({ queryKey: ["tutorChats", accountId] });
+      })
+      .catch(() => {
+        /* kept; tried again the next time Mika opens */
+      });
+  }, [accountId, active, qc]);
 
   // Refresh the pair whenever Mika comes into view: Add and the Reader share it and
   // may have moved it. The conversation needs no re-read — both surfaces share this
@@ -282,7 +343,6 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   useEffect(() => {
     if (!active) return;
     if (!cardRef.current) setPair(readPair());
-    setHistory(summarize(readChats()));
   }, [active]);
 
   const { data: collections } = useQuery({
@@ -327,6 +387,24 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   // True while an answer is typing itself out into the last bubble.
   const streaming = !!messages[messages.length - 1]?.streaming;
   useEffect(() => () => inFlight.current?.abort(), []);
+
+  // The open chat was carried on somewhere else (the same chat, continued on the
+  // laptop): take the newer thread, unless this tab is in the middle of its own.
+  useEffect(() => {
+    const there = history.find((c) => c.id === chatId);
+    if (!there || there.at <= syncedAt.current || pending.current || saving.current || busy) return;
+    syncedAt.current = there.at;
+    api
+      .tutorChat(chatId)
+      .then((full) => {
+        if (chatIdRef.current !== chatId || pending.current || saving.current || inFlight.current) return;
+        synced.current = full.messages;
+        setMessages(full.messages);
+      })
+      .catch(() => {
+        /* keep what the tab has */
+      });
+  }, [history, chatId, busy]);
 
   // Mika's answer is streamed: the text lands token by token in an open bubble
   // instead of appearing as one finished paragraph after a long spinner.
@@ -494,6 +572,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   function freshChat(): string {
     const id = newChatId();
     setChatId(id);
+    syncedAt.current = 0;
     try {
       sessionStorage.setItem(CHAT_ID_KEY, id);
     } catch {
@@ -602,25 +681,36 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   // Reopen a chat from history — it becomes the live conversation again. A card
   // chat reopened this way keeps its text but not its card, so follow-ups go to
   // Mika at large rather than silently editing a word page left long ago.
-  function openChat(id: string) {
-    const found = readChats().find((c) => c.id === id);
-    if (!found) return;
+  async function openChat(id: string) {
+    // The thread being left goes up first: it may be the one about to be opened.
+    flush();
+    let found: { at: number; messages: TutorMsg[] };
+    try {
+      found = await api.tutorChat(id);
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+      return;
+    }
     stopAsking();
     setWordSel({});
     setAttachments([]);
     setCard(null);
     setChatId(id);
+    chatIdRef.current = id;
     try {
       sessionStorage.setItem(CHAT_ID_KEY, id);
     } catch {
       /* ignore */
     }
+    synced.current = found.messages;
+    syncedAt.current = found.at;
     setMessages(found.messages);
   }
 
   function removeChat(id: string) {
-    writeChats(readChats().filter((c) => c.id !== id));
-    setHistory(summarize(readChats()));
+    if (pending.current?.id === id) pending.current = null;
+    qc.setQueryData<TutorChatEntry[]>(["tutorChats", accountId], (list) => (list ?? []).filter((c) => c.id !== id));
+    api.deleteTutorChat(id).catch(() => qc.invalidateQueries({ queryKey: ["tutorChats", accountId] }));
     if (id === chatId) reset(); // the open chat was the deleted one
   }
 

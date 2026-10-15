@@ -15,6 +15,7 @@ import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
 import { SpeakingIcon } from "@/components/SpeakButton";
 import { useToast } from "@/lib/toast";
 import { Pinyin } from "@/components/Pinyin";
+import { isChineseLang } from "@/lib/dictEntry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +51,8 @@ interface Question {
   optionsTarget: boolean;
   kind: QKind;
   clozeTranslation?: string;
+  /** Each written-word option's pinyin, for the round's pinyin switch. */
+  readings?: Record<string, string>;
 }
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -156,6 +159,7 @@ function makeQuestion(w: Word, eligible: Word[], flip: boolean, kind: QKind): Qu
       promptTarget: true,
       optionsTarget: false,
       kind,
+      readings: Object.fromEntries([w, ...others].filter((x) => x.phonetic).map((x) => [x.word, x.phonetic as string])),
     };
   }
   return {
@@ -328,6 +332,9 @@ export default function QuizPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [flip, setFlip] = useFlip("vocab.flip.quiz");
+  // Pinyin under the Chinese words of a round, switched mid-round (the author,
+  // 2026-10-14). Never on a listening question: it would spell out what is heard.
+  const [pinyin, setPinyin] = useFlip("vocab.quiz.pinyin");
   const { data: allWords, isLoading } = useQuery({
     queryKey: ["words", accountId],
     queryFn: () => api.listWords(accountId),
@@ -768,6 +775,30 @@ export default function QuizPage() {
   const progress = (
     <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${(index / total) * 100}%` }} />
   );
+  // The written word's pinyin, where the switch is on and it gives nothing away.
+  const showPinyin = pinyin && q.kind !== "listen" && isChineseLang(q.word.sourceLang);
+  const pinyinSwitch = quiz.some((x) => isChineseLang(x.word.sourceLang)) && (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={pinyin}
+      onClick={() => setPinyin(!pinyin)}
+      className={cn(
+        "inline-flex min-h-[32px] shrink-0 items-center gap-2 rounded-full border px-2.5 text-xs font-semibold transition-colors sm:px-3",
+        pinyin ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:border-sage/60",
+      )}
+    >
+      <span className={cn("relative h-4 w-7 shrink-0 rounded-full transition-colors", pinyin ? "bg-sage" : "bg-black/15")}>
+        <span
+          className={cn(
+            "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all duration-200",
+            pinyin ? "left-3.5" : "left-0.5",
+          )}
+        />
+      </span>
+      {t("quiz.pinyin")}
+    </button>
+  );
 
   return (
     <div className="mx-auto max-w-[620px]">
@@ -791,6 +822,7 @@ export default function QuizPage() {
         <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-faint">
           {index + 1} / {total}
         </span>
+        {pinyinSwitch}
         <button
           type="button"
           onClick={() => setEditing(q.word)}
@@ -802,23 +834,28 @@ export default function QuizPage() {
         </button>
       </div>
 
-      <div className="hidden items-center justify-between gap-2 sm:flex">
+      {/* The way back to the setup reads like the word page's way back to My
+          words: a plain link at the far left, over the title. A "⚙ Setup" pill
+          among the round's own buttons looked like the app's settings. */}
+      <button
+        type="button"
+        onClick={() => setStarted(false)}
+        className="hidden min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink sm:inline-flex"
+      >
+        ← {t("review.backToSetup")}
+      </button>
+      <div className="mt-1 hidden items-center justify-between gap-2 sm:flex">
         <h2 className="flex items-center gap-2 font-serif text-[22px] font-medium text-ink sm:text-[28px]">
           {cram && <Zap className="h-5 w-5 text-sage" />}
           {cram ? t("quiz.cram") : t("quiz.title")}
         </h2>
         <div className="flex items-center gap-2 sm:gap-3">
+          {pinyinSwitch}
           <button
             onClick={() => setEditing(q.word)}
             className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
           >
             <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("edit.editCard")}</span>
-          </button>
-          <button
-            onClick={() => setStarted(false)}
-            className="rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
-          >
-            {t("review.setup")}
           </button>
           <span className="text-[13px] font-semibold text-ink-faint">
             {index + 1} / {total}
@@ -870,6 +907,9 @@ export default function QuizPage() {
             {q.prompt}
           </div>
         )}
+        {showPinyin && !q.promptTarget && q.word.phonetic && (
+          <Pinyin text={q.word.phonetic} className="mt-1 block text-[18px] text-ink-muted" />
+        )}
       </div>
 
       {q.kind === "choice" || q.kind === "listen" ? (
@@ -909,7 +949,12 @@ export default function QuizPage() {
                       {i + 1}
                     </span>
                   )}
-                  <span className="min-w-0 break-words leading-snug">{opt}</span>
+                  <span className="min-w-0 break-words leading-snug">
+                    {opt}
+                    {showPinyin && q.readings?.[opt] && (
+                      <Pinyin text={q.readings[opt]} className="block text-[14px] font-medium text-ink-muted sm:text-[15px]" />
+                    )}
+                  </span>
                 </span>
                 <span className="shrink-0 text-xl font-bold">{mark}</span>
               </button>

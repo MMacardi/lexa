@@ -48,14 +48,15 @@ const ALL_NAV: NavItem[] = [
 // under "More". Only Community (public discovery) stays off: friends came back on
 // 2026-09-26 — classmates on the same lesson are the one group that sharing serves.
 // Практика (/coach) went into Mika on 2026-10-14: its chat, scenes and drill are on
-// her sheet and page, its word picks behind Today's "more words".
+// her sheet and page, its word picks behind Today's "more words". Mika is in the
+// desktop list too (the author, 2026-10-14), as she is the phone bar's centre.
 const FOCUS_HIDDEN = ["/community", "/coach"];
-const FOCUS_MAIN = ["/", "/words", "/reader"];
+const FOCUS_MAIN = ["/", "/mika", "/words", "/reader"];
 
 const NAV = FOCUS ? ALL_NAV.filter((n) => !FOCUS_HIDDEN.includes(n.href)) : ALL_NAV;
 const MAIN_NAV = FOCUS ? NAV.filter((n) => FOCUS_MAIN.includes(n.href)) : NAV;
-// Desktop's second, quieter group. Mika lives in the tutor widget, not the list.
-const REST_NAV = NAV.filter((n) => !MAIN_NAV.includes(n) && n.href !== "/mika");
+// Desktop's second, quieter group.
+const REST_NAV = NAV.filter((n) => !MAIN_NAV.includes(n));
 
 // Mobile bottom bar: three user-picked tabs around a fixed centre Mika button,
 // then "More" (a sheet with everything else + the bar customizer). Mika itself
