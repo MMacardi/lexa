@@ -20,19 +20,20 @@ export type EventName =
 
 /**
  * The first five minutes, in order (BACKLOG "The first five minutes"): the landing, its
- * start button, the questions, the check, the pace, the plan being built, the words,
- * the lesson on five of them, its review and its end, the beta code, sign-in, and the plan landing on the new account. Which of them a
- * visitor reached says where people leave.
+ * start button, the level and target, the check, the pace, why Chinese and the
+ * interests, the plan being built, the words, the lesson on five of them, its review
+ * and its end, the beta code, sign-in, and the plan landing on the new account. Which
+ * of them a visitor reached says where people leave.
  */
 export const FUNNEL_STEPS = [
   "landing",
   "start",
-  "goal",
   "level",
   "target",
-  "interests",
   "check",
   "daily",
+  "goal",
+  "interests",
   "building",
   "ready",
   "lesson",

@@ -70,12 +70,15 @@ import { cn } from "@/lib/utils";
 import { funnelStep } from "@/lib/funnel";
 
 // The one onboarding path, the way phone apps do it now: a question per screen
-// (the language words are explained in, why Chinese, how much they know, the
-// target and the exam date, what they're into), then the check, then how many
-// words a day, then the plan → gap deck → first review. The check comes before
-// the pace on purpose: "fits your date" is a claim about what the learner
-// knows, and a self-rating is not that. It can be skipped; then the pace screen
-// says minutes and words, and nothing about a date.
+// (how much they know, the target and the exam date), then the check, then how
+// many words a day under what the check found — the first result — and only then
+// why Chinese and what they're into, which shape the first days; then the plan →
+// gap deck → first review. Two questions before the check, not four (BACKLOG 1h
+// "Fewer questions before value"); the 2.0/3.0 list is 3.0 here and switched on
+// the readiness card. The check comes before the pace on purpose: "fits your
+// date" is a claim about what the learner knows, and a self-rating is not that.
+// It can be skipped; then the pace screen says minutes and words, and nothing
+// about a date.
 // Every answer lands somewhere that uses it: the target and daily goal on the
 // account (daily words, readiness mark), the reasons and interests in the coach
 // memory (the Coach's picks, examples, the tutor). Everything is one language
@@ -110,12 +113,12 @@ type Step =
   | "learned";
 // With the pair fixed there is no "which language do you speak" to ask.
 const asked = (steps: Step[]) => (FIXED_PAIR ? steps.filter((s) => s !== "lang") : steps);
-const FIRST_STEP: Step = FIXED_PAIR ? "goal" : "lang";
-const STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "plan", "deck", "done"]);
+const FIRST_STEP: Step = FIXED_PAIR ? "level" : "lang";
+const STEPS = asked(["lang", "level", "target", "check", "daily", "goal", "interests", "plan", "deck", "done"]);
 // Before sign-in the whole first five minutes happen here: the questions, the
 // check, the plan being built, the words, a lesson on five of them and their
 // review — and the account comes last, to keep them.
-const GUEST_STEPS = asked(["lang", "goal", "level", "target", "interests", "check", "daily", "building", "ready", "lesson", "quiz", "learned"]);
+const GUEST_STEPS = asked(["lang", "level", "target", "check", "daily", "goal", "interests", "building", "ready", "lesson", "quiz", "learned"]);
 // The lesson before sign-in: the deck's first words, which lead with the ones the check found missing.
 const LESSON_SIZE = 5;
 // Lines on the "building your plan" screen, ticked off one by one.
@@ -328,7 +331,7 @@ export function HskFirstRun({
   );
   const [goals, setGoals] = useState<Set<string>>(new Set(saved?.goals ?? ["exam"]));
   const [known, setKnown] = useState<number | null>(saved?.known ?? null); // self-rated level, 0–5
-  const [version, setVersion] = useState<HskVersion>(saved?.version ?? "3.0");
+  const [version] = useState<HskVersion>(saved?.version ?? "3.0");
   const [target, setTarget] = useState(saved?.target ?? 4);
   const [examDate, setExamDate] = useState<string | null>(saved?.examDate ?? null);
   const [interests, setInterests] = useState<Set<string>>(new Set(saved?.interests ?? []));
@@ -361,11 +364,12 @@ export function HskFirstRun({
   const measured = !skipped && answers.known.length + answers.unknown.length > 0;
   const steps = guest ? GUEST_STEPS : STEPS;
   const idx = steps.indexOf(step);
-  // Back is offered through the questions, the check and the pace. From zero
-  // there was no check, so the pace goes back to the interests; otherwise back
-  // to the check, which starts afresh (it adapted to the answers given).
-  const backable = idx > 0 && idx <= steps.indexOf(guest ? "daily" : "plan");
-  const back = () => go(step === "daily" && fromZero ? "interests" : steps[idx - 1]);
+  // Back is offered through the questions, the check, the pace and the two
+  // questions after it. From zero there was no check, so the pace goes back to
+  // the target; otherwise back to the check, which starts afresh (it adapted to
+  // the answers given).
+  const backable = idx > 0 && idx <= steps.indexOf(guest ? "interests" : "plan");
+  const back = () => go(step === "daily" && fromZero ? "target" : steps[idx - 1]);
   // The "building your plan" screen: which line is ticking.
   const [buildStep, setBuildStep] = useState(0);
   const buildTimer = useRef(0);
@@ -426,10 +430,10 @@ export function HskFirstRun({
   }
 
   // The first deck comes as days of the pace picked, the chips just picked leading them.
-  const deckShape = (perDay = daily) => ({ perDay, goals: [...goals], interests: [...interests] });
+  const deckShape = () => ({ perDay: daily, goals: [...goals], interests: [...interests] });
 
-  // After the last question: the check, or straight to the pace for someone
-  // starting from zero.
+  // After the target: the check, or straight to the pace for someone starting
+  // from zero.
   function startCheck() {
     setSkipped(false);
     setAnswers({ known: [], unknown: [] });
@@ -440,13 +444,12 @@ export function HskFirstRun({
   // The screen phone apps put here: the plan being put together, a line at a
   // time. The deck request runs underneath and is back long before the last
   // line, so the wait is the few seconds of the animation, not the network.
-  // `perDay`: the pace just tapped — the tap's setDaily hasn't reached this closure yet.
-  function startBuilding(knownWords: string[], unknownWords: string[], perDay: number) {
+  function startBuilding() {
     setBuildStep(0);
     setGap([]);
     setRejected(new Set());
     go("building");
-    const deck = api.publicHskDeck({ version, level: target, known: knownWords, unknown: unknownWords, size: DECK_SIZE, ...deckShape(perDay) });
+    const deck = api.publicHskDeck({ version, level: target, known: answers.known, unknown: answers.unknown, size: DECK_SIZE, ...deckShape() });
     let n = 0;
     window.clearInterval(buildTimer.current);
     // The last line keeps spinning until the words are really there.
@@ -465,7 +468,7 @@ export function HskFirstRun({
       .catch((e) => {
         window.clearInterval(buildTimer.current);
         show({ icon: "⚠️", title: errText(e, t) });
-        go("daily");
+        go("interests");
       });
   }
 
@@ -733,7 +736,7 @@ export function HskFirstRun({
                 <Choice
                   key={l}
                   on={native === l}
-                  onClick={() => pickThen(() => setNative(l), "goal")}
+                  onClick={() => pickThen(() => setNative(l), "level")}
                   label={`${langFlag(l)} ${langLabel(l)}`}
                 />
               ))}
@@ -744,7 +747,7 @@ export function HskFirstRun({
               </div>
             </div>
             {native !== "ru" && native !== "en" && (
-              <Button className="mt-4 w-full sm:w-auto" onClick={() => go("goal")}>
+              <Button className="mt-4 w-full sm:w-auto" onClick={() => go("level")}>
                 {t("onb.continue")}
               </Button>
             )}
@@ -766,7 +769,7 @@ export function HskFirstRun({
                 />
               ))}
             </div>
-            <Button className="mt-4 w-full sm:w-auto" disabled={goals.size === 0} onClick={() => go("level")}>
+            <Button className="mt-4 w-full sm:w-auto" disabled={goals.size === 0} onClick={() => go("interests")}>
               {t("onb.continue")}
             </Button>
           </>
@@ -820,29 +823,7 @@ export function HskFirstRun({
               <ExamCalendar value={examDate} onChange={setExamDate} />
             </div>
 
-            <p className="mt-5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{t("hsk.list")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(["3.0", "2.0"] as HskVersion[]).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => {
-                    setVersion(v);
-                    if (target > MAX_LEVEL[v]) setTarget(MAX_LEVEL[v]);
-                  }}
-                  aria-pressed={v === version}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition-colors",
-                    v === version ? "border-sage bg-sage text-white" : "border-black/[0.08] bg-surface text-ink hover:bg-black/[0.03]",
-                  )}
-                >
-                  {v === "2.0" ? t("hsk.list2") : t("hsk.list3")}
-                </button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-faint">{t("hsk.listHint")}</p>
-
-            <Button className="mt-5 w-full sm:w-auto" onClick={() => go("interests")}>
+            <Button className="mt-5 w-full sm:w-auto" onClick={startCheck}>
               {t("onb.continue")}
             </Button>
           </>
@@ -896,7 +877,7 @@ export function HskFirstRun({
               {t(REGISTERS.includes(exampleStyle) ? `style.desc.${exampleStyle}` : "style.desc.casual")}
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button className="w-full sm:w-auto" onClick={startCheck}>
+              <Button className="w-full sm:w-auto" onClick={() => (guest ? startBuilding() : go("plan"))}>
                 {interests.size ? t("onb.continue") : t("onb.skip")}
               </Button>
             </div>
@@ -928,11 +909,7 @@ export function HskFirstRun({
                     key={m}
                     Icon={Icon}
                     on={daily === words}
-                    onClick={() => {
-                      if (!guest) return pickThen(() => setDaily(words), "plan");
-                      setDaily(words);
-                      window.setTimeout(() => startBuilding(answers.known, answers.unknown, words), 180);
-                    }}
+                    onClick={() => pickThen(() => setDaily(words), "goal")}
                     label={`${t("plan.min", { m })} · ${t(`onb.pace.${m}`)}`}
                     desc={t("plan.words", { n: words })}
                     tag={plan?.pick === m ? t("onb.recommended") : undefined}

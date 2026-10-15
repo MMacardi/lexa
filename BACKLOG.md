@@ -535,7 +535,7 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      (Today's row, «Почитать: Tech & IT», the text's topic). Read the interest chips back to their id
      and name them in today's language, as `lib/goalText.ts` does for the goal.
 
-1h. **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
+1h. [x] **The first five minutes.** From the author (2026-09-27): the hook decides conversion. Run the
    same day, a guest gets five question screens, the check, the pace, then "You knew 22 of 24" and
    20 words, then sign-in and the invite code — and has learned nothing yet. After 1c–1f because
    the hook is made of their output and there is no traffic to convert before the beta; the
@@ -594,6 +594,17 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      the interests after the first result; the 2.0/3.0 toggle out of the first run; the
      explanation language from the browser. (The language question is gone since 2026-10-14:
      the pair is fixed to Chinese → Russian, so the questions open on "Зачем тебе китайский?".)
+     **Done 2026-10-15.** Two questions before the check, not four: «Как хорошо ты знаешь
+     китайский?», «К какому уровню HSK идёшь?» with the exam date, then the check; then the pace
+     under the check's result, and only then «Зачем тебе китайский?» and «Что тебе интересно?»,
+     which still shape the first deck's days (they come before it is built). The 2.0/3.0 toggle is
+     gone from the first run (3.0; the readiness card switches it). The explanation language needed
+     nothing: the pair is fixed and the interface language comes from the browser. The signed-in
+     onboarding (an account with no guest plan) asks in the same order. Back from the pace goes to
+     the check, or to the target from zero. The funnel's steps are listed in the new order. Local
+     runs at 390x844: a guest through the check and one from zero, both to the lesson and sign-in
+     (back from the pace landed on the target), and a fresh signed-in account to its deck — HSK 4,
+     list 3.0, 12 a day, «Слова под: Сдать HSK · Еда и кулинария» on the plan.
 
 1i. **One Mika: practice inside her tab.** **Shape shipped 2026-10-14** — see Done. From the phone
    audit (the author: "do you think somebody will use this feature", of scenes; then "we have many
