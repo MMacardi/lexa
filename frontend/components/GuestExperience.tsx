@@ -48,15 +48,17 @@ export function GuestExperience() {
       <main className="min-h-screen bg-paper px-4 pb-10 pt-[calc(16px+env(safe-area-inset-top))] sm:pt-10">
         <div className="mx-auto max-w-[560px]">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <button type="button" onClick={() => setStage("landing")} className="flex items-center gap-1.5">
+            <button type="button" onClick={() => setStage("landing")} className="flex shrink-0 items-center gap-1.5">
               <span className="font-serif text-[24px] font-semibold text-ink">Onomika</span>
               <span className="h-1.5 w-1.5 rounded-full bg-sage" />
             </button>
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* At 320 px the three need ~321 px of 288: the account link takes two lines
+                there instead of pushing the page sideways. */}
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setStage("login")}
-                className="whitespace-nowrap text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+                className="min-w-0 text-right text-sm font-semibold leading-tight text-ink-muted transition-colors hover:text-ink"
               >
                 {t("onb.haveAccount")}
               </button>

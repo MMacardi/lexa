@@ -1485,13 +1485,16 @@ export default function FlashcardsPage() {
             </span>
           ) : (
             <>
+              {/* Under 360 px the label goes, or the row needs ~320 px of 288 and the
+                  counter is squeezed onto three lines. */}
               <a
                 href={`/word/${word.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03]"
+                aria-label={t("review.openCard")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] min-[360px]:px-3"
               >
-                {t("review.openCard")} <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden min-[360px]:inline">{t("review.openCard")}</span> <ExternalLink className="h-3.5 w-3.5" />
               </a>
               <button
                 onClick={() => setEditing(word)}
@@ -1502,7 +1505,7 @@ export default function FlashcardsPage() {
             </>
           )}
           {undoButton}
-          <span className="ml-auto text-[14px] font-semibold tabular-nums text-ink-soft sm:hidden">
+          <span className="ml-auto shrink-0 whitespace-nowrap text-[14px] font-semibold tabular-nums text-ink-soft sm:hidden">
             {Math.min(index + 1, total)} / {total}
           </span>
           <button

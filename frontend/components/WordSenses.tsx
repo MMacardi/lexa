@@ -185,10 +185,12 @@ export function WordSenses({ word }: { word: Word }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   {/* A long word (достопримечательность) breaks inside its own column
-                      instead of running under the button beside it. */}
+                      instead of running under the button beside it. The spaces matter: with
+                      margins alone "существительное услуга, сервис" was one unbreakable run,
+                      cut as «услуга / , сервис». */}
                   <p className="min-w-0 break-words leading-snug">
-                    {showTr && s.reading && reading(s.reading, "mr-2 text-[13px] font-semibold text-sage-deep")}
-                    {s.pos && <span className="mr-2 text-[13px] italic text-ink-faint">{s.pos}</span>}
+                    {showTr && s.reading && <>{reading(s.reading, "mr-1 text-[13px] font-semibold text-sage-deep")} </>}
+                    {s.pos && <><span className="mr-1 text-[13px] italic text-ink-faint">{s.pos}</span> </>}
                     <span lang={word.targetLang} className={cn("hyphens-auto text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>
                       {s.meaning}
                     </span>

@@ -587,9 +587,9 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      came back and scored 4 of 5, the guest plan keeps those five first, no sideways scroll on
      the new screens. **Left:** the lesson's answers are not the cards' first grades — the five
      arrive as new cards, so the account's first review teaches them again.
-   - **Found, not done:** at 320 px the guest header (Onomika · «У меня есть аккаунт» · RU) is ~17 px
-     wider than the screen on every question screen (`GuestExperience.tsx`); the phone audit only
-     opens `/`, never the questions.
+   - **Fixed 2026-10-15:** at 320 px the guest header (Onomika · «У меня есть аккаунт» · RU) needed
+     321 px of 288 on every question screen (`GuestExperience.tsx`; the phone audit only opens `/`).
+     The account link now takes two lines there; 320 Chrome and WebKit fit, 375 and 390 unchanged.
    - **Fewer questions before value:** level, target and date, then the check. Why Chinese and
      the interests after the first result; the 2.0/3.0 toggle out of the first run; the
      explanation language from the browser. (The language question is gone since 2026-10-14:
@@ -711,9 +711,13 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      36 → 14%. What stays at 12 is the chips' pinyin, under their 13 px meaning on purpose.
      The card's back, the word page's order and Easy past Good done 2026-10-15 (above). The first deck
      is done (1h, "a result worth a screenshot").
-   - **Found, not done:** on the word page a sense can wrap before its comma («услуга / , сервис» at
-     390 px, `WordSenses.tsx`; the data is a plain «услуга, сервис»). In Flashcards at 320x568 WebKit
-     the session counter «1 / 24» wraps onto three lines beside the header's buttons.
+   - **Fixed 2026-10-15:** on the word page a sense wrapped before its comma («услуга / , сервис» at
+     390 px): the reading, part of speech and meaning were spans with margins and no space, so
+     «существительноеуслуга,» was one unbreakable run that `break-words` cut anywhere («ус / луга» at
+     360). Real spaces now (`WordSenses.tsx`): «услуга, сервис» on one line at 390 and 360. In
+     Flashcards at 320x568 the counter «1 / 24» was squeezed to 16 px wide and 63 tall (the row needed
+     ~319 px of 288); under 360 px «Карточка» is its icon only and the counter doesn't wrap: one line
+     in WebKit and Chrome, 390 unchanged.
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than
