@@ -3,7 +3,7 @@ import { cedictLookup, isMeaningGloss } from "./cedict.js";
 import { likedSituations } from "../lib/interests.js";
 import { defaultMeaning } from "./lookup.js";
 import { hskSituations, type Situation } from "./wordPages.js";
-import { asHskVersion, clampLevel, frontierInputs, frontierOrder, type HskVersion, type HskWord } from "./hsk.js";
+import { asHskVersion, clampLevel, frontierInputs, frontierOrder, normalizeHanzi, type HskVersion, type HskWord } from "./hsk.js";
 
 /**
  * A day's new words as one group that is easier to learn together (BACKLOG 1e,
@@ -177,6 +177,64 @@ export function nextGroup(
   let words = fill(order, size, themes, lead.map((w) => ({ ...w, situation: situationOf(w) })), new Set(), liked);
   if (words.some((w) => dropped.has(w.word))) words = fill(order, size, themes, words.filter((w) => !dropped.has(w.word)), dropped, liked);
   return { theme: themes.find((s) => words.some((w) => w.situation === s)) ?? null, words };
+}
+
+/**
+ * The first deck as days (BACKLOG 1l; 1h "a result worth a screenshot"): `size` words of
+ * the frontier cut into days of `perDay`, each chosen the way Today chooses one — a
+ * situation leading, the learner's goal and interests first, near-synonyms apart, the
+ * words they said they don't know before the rest. The flat deck of before was the
+ * frontier's head, 而 此 自 以及 却 曾 作为…: twenty connectors under «Твои первые 20 слов»
+ * whatever interests had just been picked.
+ */
+export function deckOfDays(
+  order: HskWord[],
+  size: number,
+  perDay: number,
+  first: ReadonlySet<string>,
+  liked: ReadonlySet<Situation>,
+): WordGroup[] {
+  const days: WordGroup[] = [];
+  const taken = new Set<string>();
+  for (let n = 0; n < size; ) {
+    const day = nextGroup(order.filter((w) => !taken.has(w.word)), Math.min(perDay, size - n), new Set(), first, liked);
+    if (!day.words.length) break;
+    for (const w of day.words) taken.add(w.word);
+    days.push(day);
+    n += day.words.length;
+  }
+  return days;
+}
+
+/** A guest's first deck, from the check's taps and the chips they picked (onboarding before sign-in). */
+export function guestDeckOfDays(
+  version: HskVersion,
+  level: number,
+  taps: { known: string[]; unknown: string[] },
+  size: number,
+  perDay: number,
+  liked: ReadonlySet<Situation>,
+): WordGroup[] {
+  const knew = new Set(taps.known.map(normalizeHanzi));
+  const tapped = new Set(taps.unknown.map(normalizeHanzi));
+  // Characters of the "I know it"s count from tomorrow, as for an account (hskGuestDeck).
+  const order = frontierOrder(version, clampLevel(version, level), (w) => knew.has(w), tapped, []);
+  return deckOfDays(order, size, perDay, tapped, liked);
+}
+
+/** The same for an account (signed-in onboarding): its cards, answers and interests read from the database. */
+export async function gapDeckOfDays(
+  telegramId: string,
+  version: HskVersion,
+  level: number,
+  size: number,
+  perDay: number,
+  liked?: ReadonlySet<Situation>,
+): Promise<WordGroup[]> {
+  const input = await frontierInputs(telegramId);
+  if (!input) return [];
+  const order = frontierOrder(version, clampLevel(version, level), (w) => input.status.has(w), input.tapped, input.have);
+  return deckOfDays(order, size, perDay, input.tapped, liked ?? (await likedFor(input.user.id)));
 }
 
 /** The situations the learner's goal and interests (coach memory, zh) point at. */

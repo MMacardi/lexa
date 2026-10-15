@@ -553,6 +553,20 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
    - **A result worth a screenshot:** the check now prices the gap, so the ready screen can say
      "About 480 HSK 4 words to go — at 15 min a day, ready by Nov 15, two weeks before your
      exam." Honest once 1c makes the check trustworthy; labelled an estimate until then.
+     **Done 2026-10-15**, with 1l's first deck. The ready screen opens on the plan's line —
+     «Впереди слов HSK 1: около 506. При 10 мин в день готов к 23 декабря 2026 г. — на 31 дн. позже
+     экзамена: темп можно поднять в плане.» («около» while the plan isn't exact; a date that fits says
+     «за N дн. до экзамена»; the finish is the pace just picked) — from the check's taps or from zero,
+     never after a skipped check. The 20 words come as days of that pace, each chosen the way Today
+     chooses one (`deckOfDays`: a situation leading, the chips just picked first, near-synonyms apart,
+     the words said unknown leading day 1): «День 1 · Как пройти: 路 东 北 右 哪里 地图…, День 2 ·
+     Аэропорт: 飞机 机场 机票…, День 3 · Поезда и автобусы» for a food + travel guest, where it was the
+     frontier's head (而 此 自 以及 却…) with "HSK 4" on every chip. Signed-in onboarding gets the same
+     (`/hsk/gap` takes the pace and the chips, which the coach memory may not hold yet). Found running it:
+     the pace tap started the deck from a timer that still held the old pace (12 a day under "8 новых
+     слов"); the tap's value is passed now. `check-next-word.ts`: grouped, the guest deck is still the
+     account's on day one; 8, 8, 4; the unknown words lead; 3 of 3 days on food or travel (no chips:
+     office, news, countryside). Local run as a guest at 390x844 from zero, food + travel, exam 22 Nov.
    - **Learn before the wall:** five of their missing words, a sentence each they can fully read
      (1f), a one-minute review, then "Sign in to keep them" — Duolingo's first lesson comes
      before the account for this reason.
@@ -643,7 +657,8 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
      13 on a computer. Text under 13 px, phone / computer: Today 34 → 26% / 45 → 28% (under 12: 25 → 1% on
      the phone), the word page 40 → 23%, Writing 48 → 16% / 20%, the HSK list 19 → 0%, Settings 18 → 10% /
      36 → 14%. What stays at 12 is the chips' pinyin, under their 13 px meaning on purpose.
-     **Left:** the other three (the card's back, the word page's order, the first deck and Easy).
+     **Left:** the card's back, the word page's order, and Easy past Good. The first deck is done
+     (1h, "a result worth a screenshot").
 
 2. [x] **Instant capture: the dictionary makes the card, the AI comes second.** One session. The
    original problem, and the first thing STRATEGY §E says kills the product: *capture slower than

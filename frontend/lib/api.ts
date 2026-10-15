@@ -466,7 +466,11 @@ export interface HskWordList {
   version: HskVersion;
   level: number;
   words: HskWord[];
+  // The first deck as days of the pace picked, each led by a situation (backend deckOfDays).
+  days?: { theme: string | null; words: (HskWord & { situation: string | null })[] }[];
 }
+// The pace and the chips the first deck is cut into days by.
+export type DeckShape = { perDay: number; goals: string[]; interests: string[] };
 
 // A word of the learner's topic (off the HSK list, or above their target).
 export interface TopicWord {
@@ -1067,9 +1071,14 @@ export const api = {
   // picks them up like any placement run.
   hskCheck: (body: CheckRequest) => http<CheckStep>(`/api/hsk/check`, { method: "POST", body: JSON.stringify(body) }),
   // Words up to the target with neither a card nor an "I know it" — the gap deck.
-  hskGap: (version: HskVersion, level: number, limit?: number) => {
+  hskGap: (version: HskVersion, level: number, limit?: number, deck?: DeckShape) => {
     const q = new URLSearchParams({ version, level: String(level) });
     if (limit) q.set("limit", String(limit));
+    if (deck) {
+      q.set("perDay", String(deck.perDay));
+      q.set("goals", deck.goals.join(","));
+      q.set("interests", deck.interests.join(","));
+    }
     return http<HskWordList>(`/api/hsk/gap?${q}`);
   },
   // Onboarding before sign-in: the check and the first deck with no account yet
@@ -1096,7 +1105,7 @@ export const api = {
     if (p.fakes?.shown) q.set("fakes", `${p.fakes.claimed}/${p.fakes.shown}`);
     return http<StudyPlan>(`/api/public/hsk/plan?${q}`);
   },
-  publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number }) =>
+  publicHskDeck: (payload: { version: HskVersion; level: number; known: string[]; unknown: string[]; size: number } & DeckShape) =>
     http<HskWordList>(`/api/public/hsk/deck`, { method: "POST", body: JSON.stringify(payload) }),
   // One level of an official list, read-only, with the learner's status per word.
   hskList: (version: HskVersion, level: number) =>

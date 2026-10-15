@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type CheckResult, type HskVersion, type HskWord } from "@/lib/api";
+import { api, type CheckResult, type HskVersion, type HskWord, type HskWordList } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { FOCUS } from "@/lib/focus";
@@ -324,6 +324,8 @@ export function HskFirstRun({
   const [answers, setAnswers] = useState<{ known: string[]; unknown: string[] }>({ known: [], unknown: [] });
   const [skipped, setSkipped] = useState(false);
   const [gap, setGap] = useState<HskWord[]>([]);
+  // The same words as the days they come on, each led by a situation (the deck's shape).
+  const [days, setDays] = useState<NonNullable<HskWordList["days"]>>([]);
   // Deck words the learner turned down as already known (saved on build).
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState(0);
@@ -400,6 +402,9 @@ export function HskFirstRun({
     return { goal, likes };
   }
 
+  // The first deck comes as days of the pace picked, the chips just picked leading them.
+  const deckShape = (perDay = daily) => ({ perDay, goals: [...goals], interests: [...interests] });
+
   // After the last question: the check, or straight to the pace for someone
   // starting from zero.
   function startCheck() {
@@ -412,12 +417,13 @@ export function HskFirstRun({
   // The screen phone apps put here: the plan being put together, a line at a
   // time. The deck request runs underneath and is back long before the last
   // line, so the wait is the few seconds of the animation, not the network.
-  function startBuilding(knownWords: string[], unknownWords: string[]) {
+  // `perDay`: the pace just tapped — the tap's setDaily hasn't reached this closure yet.
+  function startBuilding(knownWords: string[], unknownWords: string[], perDay: number) {
     setBuildStep(0);
     setGap([]);
     setRejected(new Set());
     go("building");
-    const deck = api.publicHskDeck({ version, level: target, known: knownWords, unknown: unknownWords, size: DECK_SIZE });
+    const deck = api.publicHskDeck({ version, level: target, known: knownWords, unknown: unknownWords, size: DECK_SIZE, ...deckShape(perDay) });
     let n = 0;
     window.clearInterval(buildTimer.current);
     // The last line keeps spinning until the words are really there.
@@ -429,6 +435,7 @@ export function HskFirstRun({
     Promise.all([deck, new Promise((r) => window.setTimeout(r, BUILD_STEP_MS * BUILD_STEPS))])
       .then(([r]) => {
         setGap(r.words);
+        setDays(r.days ?? []);
         setBuildStep(BUILD_STEPS);
         window.setTimeout(() => go("ready"), 450);
       })
@@ -499,8 +506,9 @@ export function HskFirstRun({
 
       // The check ran before the pace and its taps are on the account, so the gap
       // deck reads them: the words the learner said they know never come back.
-      const r = await api.hskGap(version, target, DECK_SIZE);
+      const r = await api.hskGap(version, target, DECK_SIZE, deckShape());
       setGap(r.words);
+      setDays(r.days ?? []);
       setRejected(new Set());
       go("deck");
     } catch (e) {
@@ -591,6 +599,53 @@ export function HskFirstRun({
       )}
     </ul>
   );
+  // The first deck as its days: "День 1 · кухня", then its words. A chip names its level
+  // only when it isn't the target (a word tapped below it); the header says the target.
+  const deckView = (
+    <div className="space-y-3">
+      {(days.length ? days : [{ theme: null, words: gap }]).map((d, i) => (
+        <div key={i}>
+          {days.length > 1 && (
+            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+              {t("onb.day", { n: i + 1 })}
+              {d.theme ? ` · ${t(`situation.${d.theme}`)}` : ""}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {d.words.map((w) => (
+              <HskWordChip
+                key={w.word}
+                word={w.word}
+                pinyin={w.pinyin}
+                level={w.level === target ? null : w.level}
+                known={rejected.has(w.word)}
+                onToggle={() => setRejected((s) => toggleIn(s, w.word))}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  // The result worth a screenshot (BACKLOG 1h): what is left of the level, and the day
+  // the pace picked gets there, against the exam's. Only from the check's taps or from
+  // zero — a skipped check has measured nothing to price.
+  // The finish of the pace picked: the query isn't refetched when the pace changes, so
+  // `plan.current` may be an earlier pick's.
+  const finish = plan ? (plan.paces.find((p) => p.words === daily)?.finish ?? plan.current.finish) : null;
+  const examGap = plan?.examDate && finish ? Math.round((Date.parse(plan.examDate) - Date.parse(finish)) / 86_400_000) : null;
+  const resultLine =
+    plan && finish && (measured || fromZero) && plan.status !== "done" ? (
+      <p className="mb-4 rounded-[16px] bg-sage-tint/60 px-4 py-3 text-[15px] leading-relaxed text-ink">
+        <span className="font-semibold">{t(plan.exact ? "onb.result.left" : "onb.result.leftAbout", { n: plan.left, level: levelName })}</span>{" "}
+        {t("onb.result.pace", { m: paceMinutes, date: formatDay(finish, locale) })}
+        {examGap == null
+          ? t("onb.result.dot")
+          : examGap >= 0
+            ? t("onb.result.before", { n: examGap })
+            : t("onb.result.after", { n: -examGap })}
+      </p>
+    ) : null;
   const buildLines = [
     t("onb.build.answers"),
     fromZero
@@ -834,7 +889,7 @@ export function HskFirstRun({
                     onClick={() => {
                       if (!guest) return pickThen(() => setDaily(words), "plan");
                       setDaily(words);
-                      window.setTimeout(() => startBuilding(answers.known, answers.unknown), 180);
+                      window.setTimeout(() => startBuilding(answers.known, answers.unknown, words), 180);
                     }}
                     label={`${t("plan.min", { m })} · ${t(`onb.pace.${m}`)}`}
                     desc={t("plan.words", { n: words })}
@@ -900,21 +955,11 @@ export function HskFirstRun({
                 ? t("hskFirst.markLine", { known: result?.knew ?? 0, shown: result?.asked ?? 0, level: levelName })
                 : t("onb.deckZero", { level: levelName }),
             )}
+            {resultLine}
             {planSummary}
             <p className="mt-5 text-[15px] font-semibold text-ink">{t("onb.readyWords", { n: gap.length - rejected.size })}</p>
             <p className="mt-0.5 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.rejectHint")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {gap.map((w) => (
-                <HskWordChip
-                  key={w.word}
-                  word={w.word}
-                  pinyin={w.pinyin}
-                  level={w.level}
-                  known={rejected.has(w.word)}
-                  onToggle={() => setRejected((s) => toggleIn(s, w.word))}
-                />
-              ))}
-            </div>
+            {deckView}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Button className="w-full sm:w-auto" disabled={gap.length === rejected.size} onClick={saveForSignIn}>
                 <Sparkles className="mr-2 h-4 w-4" />
@@ -949,18 +994,7 @@ export function HskFirstRun({
               measured ? t("hskFirst.markSub") : undefined,
             )}
             <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-ink-soft">{t("hskFirst.rejectHint")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {gap.map((w) => (
-                <HskWordChip
-                  key={w.word}
-                  word={w.word}
-                  pinyin={w.pinyin}
-                  level={w.level}
-                  known={rejected.has(w.word)}
-                  onToggle={() => setRejected((s) => toggleIn(s, w.word))}
-                />
-              ))}
-            </div>
+            {deckView}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Button className="w-full sm:w-auto" disabled={busy || gap.length === rejected.size} onClick={buildDeck}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Layers className="mr-2 h-4 w-4" />}

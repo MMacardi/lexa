@@ -23,8 +23,9 @@ import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
 import { placementAnswersSchema, savePlacementAnswers } from "../services/learnerPrefs.js";
-import { asHskVersion, hskGapWords, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
-import { hskDailyWords } from "../services/wordGroups.js";
+import { asHskVersion, hskListWords, hskTagFor, learnerStatus, normalizeHanzi, readinessForUser } from "../services/hsk.js";
+import { gapDeckOfDays, hskDailyWords } from "../services/wordGroups.js";
+import { likedFromIds } from "../lib/interests.js";
 import { hskLevelLeft, hskNextWords, learnWord, levelCards, readyCards, unlearnWord } from "../services/newWords.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
@@ -286,16 +287,25 @@ wordsRouter.post("/hsk/check", async (req, res) => {
   res.json({ screen, result: screen ? null : checkResult(version, b.done) });
 });
 
-// GET /api/hsk/gap?version=3.0&level=4&limit=30  -> the gap deck: words up to
-// the target the learner has neither a card for nor claimed to know — the ones
-// they tapped first, then the target level, then downwards. The client turns
-// them into cards with the usual batch add.
+// GET /api/hsk/gap?version=3.0&level=4&limit=30&perDay=8&goals=exam&interests=food,tech
+//   -> the gap deck: words up to the target the learner has neither a card for nor
+// claimed to know, as days of `perDay` (deckOfDays) — the ones they tapped first.
+// `goals`/`interests`: onboarding's chips, sent along because the coach memory they
+// are saved to may not have landed yet; without them it is read. The client turns
+// the words into cards with the usual batch add.
+const idList = (v: unknown) =>
+  typeof v === "string" && v ? v.split(",").map((s) => s.trim().slice(0, 20)).filter(Boolean).slice(0, 12) : null;
 wordsRouter.get("/hsk/gap", async (req, res) => {
   const telegramId = readSession(req)!;
   const version = asHskVersion(req.query.version) ?? "3.0";
   const level = Number(req.query.level) || 4;
   const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
-  res.json({ version, level, words: await hskGapWords(telegramId, version, level, limit) });
+  const perDay = Math.min(Math.max(Number(req.query.perDay) || 8, 1), 50);
+  const goals = idList(req.query.goals);
+  const interests = idList(req.query.interests);
+  const liked = goals || interests ? likedFromIds(goals ?? [], interests ?? []) : undefined;
+  const days = await gapDeckOfDays(telegramId, version, level, limit, perDay, liked);
+  res.json({ version, level, words: days.flatMap((d) => d.words), days });
 });
 
 // GET /api/hsk/daily -> today's new words at the saved target: the daily drip on

@@ -63,6 +63,14 @@ function chipsOf(text: string, labels: Record<string, string[]>): string[] {
   return Object.keys(labels).filter((id) => labels[id].some((l) => pieces.includes(l.toLowerCase())));
 }
 
+/** The same from the chips' ids, as onboarding holds them before anything is saved. */
+export function likedFromIds(goals: string[], interests: string[]): Set<Situation> {
+  const out = new Set<Situation>();
+  for (const id of interests) for (const s of INTEREST_SITUATIONS[id] ?? []) out.add(s);
+  for (const id of goals) for (const s of GOAL_SITUATIONS[id] ?? []) out.add(s);
+  return out;
+}
+
 /**
  * The situations a learner's goal and interests point at. A goal's label holds commas
  * of its own ("Дорамы, музыка, игры"), so goals are matched on the whole text first.

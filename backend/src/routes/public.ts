@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { rateLimit } from "../lib/rateLimit.js";
-import { asHskVersion, hskGuestDeck } from "../services/hsk.js";
+import { asHskVersion } from "../services/hsk.js";
+import { guestDeckOfDays } from "../services/wordGroups.js";
+import { likedFromIds } from "../lib/interests.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { guestPlan, isoDay } from "../services/studyPlan.js";
 import { FUNNEL_STEPS, track } from "../services/analytics.js";
@@ -97,6 +99,10 @@ const deckBody = z.object({
   known: z.array(z.string().max(20)).max(100).default([]),
   unknown: z.array(z.string().max(20)).max(100).default([]),
   size: z.number().int().min(1).max(40).default(20),
+  // The pace picked, in new words a day, and the chips: the deck comes as that many days.
+  perDay: z.number().int().min(1).max(50).default(8),
+  goals: z.array(z.string().max(20)).max(12).default([]),
+  interests: z.array(z.string().max(20)).max(12).default([]),
 });
 publicRouter.post("/public/hsk/deck", limiter, (req, res) => {
   const parsed = deckBody.safeParse(req.body);
@@ -104,7 +110,8 @@ publicRouter.post("/public/hsk/deck", limiter, (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { level, known, unknown, size } = parsed.data;
+  const { level, known, unknown, size, perDay, goals, interests } = parsed.data;
   const version = asHskVersion(parsed.data.version) ?? "3.0";
-  res.json({ version, level, words: hskGuestDeck(version, level, known, unknown, size) });
+  const days = guestDeckOfDays(version, level, { known, unknown }, size, perDay, likedFromIds(goals, interests));
+  res.json({ version, level, words: days.flatMap((d) => d.words), days });
 });

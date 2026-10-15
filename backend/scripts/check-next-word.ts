@@ -15,6 +15,8 @@ import { prisma } from "../src/services/db.js";
 import { hskFrequency, hskGapWords, hskGuestDeck, hskLevelWords, nextWordValue } from "../src/services/hsk.js";
 import { hskDailyWords } from "../src/services/wordGroups.js";
 import { savePlacementAnswers } from "../src/services/learnerPrefs.js";
+import { gapDeckOfDays, guestDeckOfDays } from "../src/services/wordGroups.js";
+import { likedFromIds } from "../src/lib/interests.js";
 import { deleteAccount } from "../src/services/accountData.js";
 
 const TG = `test-next-${Date.now()}`;
@@ -142,6 +144,23 @@ async function main() {
   const account = (await hskGapWords(TG2, "3.0", 4, 20)).map((w) => w.word);
   check(guest.join() === account.join(), `guest deck = account deck on day one (${guest.slice(0, 5).join(" ")} …)`);
   check(unknown.every((w) => guest.slice(0, 2).includes(w)), "the words tapped as unknown still lead it");
+
+  // 7. The deck as onboarding shows it: days of the pace picked, chosen as Today
+  // chooses a day, the chips just picked first — the same for the guest and the account.
+  const liked = likedFromIds(["exam"], ["food", "travel"]);
+  const gDays = guestDeckOfDays("3.0", 4, { known, unknown }, 20, 8, liked);
+  const aDays = await gapDeckOfDays(TG2, "3.0", 4, 20, 8, liked);
+  const flat = (days: { words: { word: string }[] }[]) => days.flatMap((d) => d.words.map((w) => w.word));
+  console.log(`  food + travel, 8 a day: ${gDays.map((d) => `${d.theme ?? "—"}: ${d.words.map((w) => w.word).join(" ")}`).join(" | ")}`);
+  check(flat(gDays).join() === flat(aDays).join(), "grouped, the guest deck is still the account's on day one");
+  check(
+    gDays.length === 3 && gDays.map((d) => d.words.length).join() === "8,8,4" && new Set(flat(gDays)).size === 20,
+    "20 words as days of 8, 8 and 4, none twice",
+  );
+  check(unknown.every((w) => gDays[0].words.some((x) => x.word === w)), "the words tapped as unknown lead day 1");
+  const themed = gDays.filter((d) => d.theme && liked.has(d.theme)).length;
+  const plain = guestDeckOfDays("3.0", 4, { known, unknown }, 20, 8, new Set());
+  check(themed >= 2, `${themed} of ${gDays.length} days on food or travel (no chips: ${plain.map((d) => d.theme ?? "—").join(", ")})`);
 }
 
 try {
