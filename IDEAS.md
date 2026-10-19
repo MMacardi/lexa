@@ -11,9 +11,18 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 
 ---
 
+## Reader and Mika screenshot fixes (2026-10-19)
+- ✅ Reader underlines can be turned off (remembered in this browser); the saved-word popup
+  shows the card's pinyin and closes on a repeated tap. Enter/Space work too. Verified on the
+  local app in desktop Chromium and phone Chromium/WebKit/Firefox; backend tsc and next build pass.
+- ⏭ Remaining requests are ordered in `PLAN-reader-mika-fixes.md` and at the top of `BACKLOG.md`:
+  text editing/deletion; Mika's Reader context and hand-off; focused suggestions; fading card
+  notifications; names/related words; dialogue memory; source/translation alignment.
+- Landing work only when explicitly requested by the author, including any final pass.
+
 ## Done (Russian-first landing + Reader, 2026-10-18)
 - ✅ **2026-10-19 correction:** Reader's selected word stays visible in the screenshot; Mika shows
-  a real practice exchange. Future landing work is batched after bug fixes, per the author.
+  a real practice exchange. Later clarified: future landing work requires the author's explicit request.
 - ✅ Concrete Russian landing copy with six real feature walkthroughs and ru/en/zh screenshots;
   project-local screenshot tooling. Related onboarding/HSK wording and metadata updated.
 - ✅ Reader photo OCR shares Mika's working Qwen vision model; paste images into the text box with

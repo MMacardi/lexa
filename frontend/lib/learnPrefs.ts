@@ -848,6 +848,27 @@ export function useAutoGloss(): boolean {
   return on;
 }
 
+// Reader word markings can be hidden without changing tap/selection behavior.
+const READER_UNDERLINES_KEY = "lexa.readerUnderlines";
+export function setReaderUnderlines(on: boolean) {
+  localStorage.setItem(READER_UNDERLINES_KEY, on ? "1" : "0");
+  window.dispatchEvent(new Event(EVT));
+}
+export function useReaderUnderlines(): boolean {
+  const [on, setState] = useState(true);
+  useEffect(() => {
+    const sync = () => setState(localStorage.getItem(READER_UNDERLINES_KEY) !== "0");
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return on;
+}
+
 // Reader pinyin: only over the words you don't know yet (Du Chinese's toggle),
 // or over every word. Off by default — pinyin over 我 and 是 is what makes a
 // learner stop reading the characters.

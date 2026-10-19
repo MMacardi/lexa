@@ -24,6 +24,8 @@ import {
   setAutoGloss,
   useRubyAll,
   setRubyAll,
+  useReaderUnderlines,
+  setReaderUnderlines,
 } from "@/lib/learnPrefs";
 import { segment, wordKey, type Token } from "@/lib/segment";
 import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
@@ -46,7 +48,7 @@ import { recorderSupported } from "@/lib/record";
 import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Underline } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -118,6 +120,7 @@ export default function ReaderPage() {
   const readerSource = useReaderSource();
   const autoGloss = useAutoGloss();
   const rubyAll = useRubyAll();
+  const underlines = useReaderUnderlines();
 
   const [sourceLang, setSourceLang] = useState(FIXED_PAIR?.sourceLang ?? "en");
   const [targetLang, setTargetLang] = useState(FIXED_PAIR?.targetLang ?? "zh");
@@ -164,7 +167,7 @@ export default function ReaderPage() {
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
   // known word: short tap → small popup (meaning + add example); long-press → card panel
-  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; x: number; y: number } | null>(null);
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [knownClosing, setKnownClosing] = useState(false);
@@ -818,6 +821,7 @@ export default function ReaderPage() {
       setKnownPop((p) => (p ? { ...p, ...at } : p));
     };
     const onDown = (e: PointerEvent) => {
+      if (knownElRef.current?.contains(e.target as Node)) return;
       if (!knownPopRef.current?.contains(e.target as Node)) closeKnown();
     };
     window.addEventListener("resize", reposition);
@@ -866,6 +870,10 @@ export default function ReaderPage() {
 
   // Short tap on a saved word → small popup with its meaning + "add example".
   function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
+    if (knownPop && knownElRef.current === el) {
+      closeKnown();
+      return;
+    }
     if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
     setKnownClosing(false);
     const w = (words ?? []).find((x) => x.id === wordId);
@@ -873,6 +881,7 @@ export default function ReaderPage() {
     setKnownPop({
       wordId,
       word: wordText,
+      phonetic: w?.phonetic ?? null,
       meaning: w && holdsEnglish(w) ? null : (w?.meaningZh ?? null),
       dictMeaning: w?.dictMeaning,
       filling: Boolean(w && holdsEnglish(w)),
@@ -1089,6 +1098,11 @@ export default function ReaderPage() {
           <SpeakButton text={knownPop.word} lang={sourceLang} size="sm" />
           {docked && dockClose(closeKnown)}
         </div>
+        {knownPop.phonetic && (
+          <div className={cn("mt-0.5 select-text font-pinyin font-medium text-ink-faint", docked ? "text-[14px]" : "text-[12px]")}>
+            {knownPop.phonetic}
+          </div>
+        )}
         {knownPop.filling && <div className="mt-0.5 text-[12px] text-ink-faint">{t("capture.filling")}</div>}
         {knownPop.meaning && (
           <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
@@ -1367,6 +1381,20 @@ export default function ReaderPage() {
           </button>
         </HoverTip>
 
+        <HoverTip title={t("reader.underlinesHint")} className="hidden md:inline-flex">
+          <button
+            type="button"
+            onClick={() => setReaderUnderlines(!underlines)}
+            aria-pressed={underlines}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              underlines ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.08] bg-surface text-ink-muted hover:bg-black/[0.03]",
+            )}
+          >
+            <Underline className="h-3.5 w-3.5" /> {t("reader.underlines")}
+          </button>
+        </HoverTip>
+
         {/* pinyin/romaji over the characters (CJK only) */}
         {hasTranscription(sourceLang) && (
           <button
@@ -1518,7 +1546,7 @@ export default function ReaderPage() {
           {t("reader.newCount", { n: newKeys.size })}
           {newForTarget > 0 && hskTarget && `, ${t("reader.newForTarget", { n: newForTarget, level: hskTarget === 7 ? "7–9" : hskTarget })}`}
         </p>
-        {(levelsHere.length > 0 || knownMap.size > 0) && (
+        {underlines && (levelsHere.length > 0 || knownMap.size > 0) && (
           <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] font-medium text-ink-muted">
             {levelsHere.map((n) => (
               <span key={n} className={cn("underline decoration-2 underline-offset-[3px]", HSK_DECOR[n])}>
@@ -1534,7 +1562,7 @@ export default function ReaderPage() {
           </p>
         )}
         <p className="text-[13px] text-ink-faint">
-          {t("reader.tapHint")} <span className="opacity-80">{t("reader.holdHint")}</span>
+          {t(underlines ? "reader.tapHint" : "reader.tapHintPlain")} <span className="opacity-80">{t("reader.holdHint")}</span>
         </p>
       </div>
 
@@ -1591,6 +1619,12 @@ export default function ReaderPage() {
                     const el = e.currentTarget;
                     endPress(() => openKnownPop(knownId, tk.text, i, el));
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openKnownPop(knownId, tk.text, i, e.currentTarget);
+                    }
+                  }}
                   className="cursor-pointer"
                 >
                   {breakBefore(i)}
@@ -1602,7 +1636,7 @@ export default function ReaderPage() {
                         ? "bg-sage-tint px-0.5 text-sage-deep"
                         : isKnown
                           ? "text-ink-faint"
-                          : cn("underline decoration-dashed decoration-2", lvl ? HSK_DECOR[lvl] : "decoration-ink-faint/60"),
+                          : underlines && cn("underline decoration-dashed decoration-2", lvl ? HSK_DECOR[lvl] : "decoration-ink-faint/60"),
                     ),
                     isKnown,
                   )}
@@ -1649,7 +1683,7 @@ export default function ReaderPage() {
                   cn(
                     "rounded-[5px] px-0.5 transition-colors",
                     isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
-                    !isSel && lvl != null && cn("underline decoration-2 underline-offset-4", HSK_DECOR[lvl]),
+                    underlines && !isSel && lvl != null && cn("underline decoration-2 underline-offset-4", HSK_DECOR[lvl]),
                   ),
                 )}
               </span>
@@ -1923,6 +1957,13 @@ export default function ReaderPage() {
                 hint={t("reader.autoGlossHint")}
                 on={autoGloss}
                 onClick={() => setAutoGloss(!autoGloss)}
+              />
+              <SheetRow
+                Icon={Underline}
+                label={t("reader.underlines")}
+                hint={t("reader.underlinesHint")}
+                on={underlines}
+                onClick={() => setReaderUnderlines(!underlines)}
               />
               {recOk && (
                 <SheetRow

@@ -49,6 +49,17 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ---
 
+0. **Reader and Mika fixes from the author's screenshots (2026-10-19).** Current priority,
+   ahead of the older list. Work one part per session from `PLAN-reader-mika-fixes.md`.
+   The grouped-words retention check still waits until ~2026-10-21; do not mark it complete.
+   Parts: Reader underlines and saved-word popups; Reader text management; Mika's Reader context
+   and text hand-off; focused word suggestions; fading enrichment notifications; names in
+   translations and the related-word audit; longer dialogue context; translation alignment.
+   **Part 1 done 2026-10-19:** a persistent underlines switch on desktop and in phone tools,
+   the saved card's pinyin in its popup, repeat-tap close and keyboard interaction. Remaining
+   parts stay unchecked in the plan; the next session is Reader text management.
+   **Landing work is deferred until the author explicitly asks**, including any final pass.
+
 0. [x] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).
    An HSK 4 learner's examples all read "слова вокруг: HSK 1–2"; My words shows 教育 as HSK 2 while Today shows
    HSK 4; 19 added words take minutes to enrich, mostly for output that is thrown away. The author's decisions,
@@ -1301,8 +1312,8 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
   meaning popup. The capture script checks the gap; verified at 390×664 and 320×568.
 - Mika's screenshot now shows actual Chinese conversation practice: a café greeting, the learner's
   order and Mika's response. Updated Reader/Mika images in all three locales and the image alt text.
-- Per the author: batch future landing copy, layout and screenshot adjustments until after the bug
-  fixes. Recorded in `AGENTS.md` and `CLAUDE.md`; earlier updates require an explicit landing request.
+- Clarified by the author later on 2026-10-19: landing work only on explicit request, including
+  any final pass. Remind them when asked what is next; do not start it automatically.
 
 ### Russian-first landing and Reader photo/translation fixes (2026-10-18, asked for directly)
 - Finished the interrupted landing pass: concrete Russian copy and six feature walkthroughs with

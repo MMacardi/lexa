@@ -306,6 +306,8 @@ const DICT: Record<string, Entry> = {
   "txtlvl.label": { en: "Show estimated level on saved texts", ru: "Показывать примерный уровень у сохранённых текстов", zh: "在保存的文本上显示预估级别" },
   "txtlvl.hint": { en: "When on, the AI estimates a text's CEFR level (~B2) as you save it.", ru: "Когда включено, при сохранении ИИ прикидывает уровень текста по CEFR (~B2).", zh: "开启后，保存时 AI 会预估文本的 CEFR 级别（~B2）。" },
   "reader.autoGloss": { en: "Translate on tap", ru: "Перевод при тапе", zh: "点按即译" },
+  "reader.underlines": { ru: "Подчёркивания слов", en: "Word underlines", zh: "词语下划线" },
+  "reader.underlinesHint": { ru: "Подчёркивать слова цветом уровня HSK и отмечать слова в изучении", en: "Underline words by HSK level and mark words you are learning", zh: "按 HSK 等级为词语添加下划线，并标记正在学习的词语" },
   "reader.autoGlossHint": {
     en: "Off = tapping a word just selects it (no AI request).",
     ru: "Выкл — тап только выделяет слово, без запроса к ИИ.",
@@ -351,6 +353,11 @@ const DICT: Record<string, Entry> = {
     en: "Tap unknown words to select them. Words you're learning are dashed, words you know are faded.",
     ru: "Нажимай на незнакомые слова, чтобы выбрать их. Те, что учишь, подчёркнуты пунктиром, знакомые — бледнее.",
     zh: "点选不认识的词。正在学的词带虚线，已掌握的词颜色较浅。",
+  },
+  "reader.tapHintPlain": {
+    ru: "Нажимай на незнакомые слова, чтобы выбрать их. Знакомые слова — бледнее.",
+    en: "Tap unknown words to select them. Words you know are faded.",
+    zh: "点选不认识的词。已掌握的词颜色较浅。",
   },
   "reader.selectedN": { en: "{n} selected", ru: "выбрано: {n}", zh: "已选 {n}" },
   "reader.addCards": { en: "Add {n} cards", ru: "Добавить {n}", zh: "加入 {n} 张卡" },

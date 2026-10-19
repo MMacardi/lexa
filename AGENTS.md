@@ -43,7 +43,7 @@ Read and follow the project-root [CLAUDE.md](CLAUDE.md) at the start of each ses
 - Continue the current unfinished task before starting another. For new backlog work, use the ordered list in [BACKLOG.md](BACKLOG.md) and the workflow in [.claude/commands/task.md](.claude/commands/task.md).
 - Match existing code style; use Qwen via Bailian only; keep new UI text in English, Russian, and Chinese. Use the existing Lucide icons instead of system emoji.
 - Russian is the primary product language and audience. Write and review Russian copy first, prioritize Russian learner flows and screenshots, then adapt English and Chinese to the same meaning.
-- During the bug-fixing phase, batch landing copy, layout and screenshot updates for one final pass after the bugs are fixed. Do not refresh the landing after every app change; update it earlier only when the user explicitly asks for that landing change.
+- Change landing copy, layout and screenshots only when the user explicitly asks for landing work. Do not automatically start a final landing pass after bugs are fixed. When the user asks what is next, you may remind them about the deferred landing work. This preference persists across sessions (confirmed 2026-10-19).
 - Verify learner-facing work by running the complete flow on the local app. Run the relevant checks and builds; never test against production data.
 - Keep changes focused, preserve unrelated work, and stage files explicitly. Update the relevant backlog and idea status when finished.
 - Use plain commit messages without a Co-Authored-By trailer. Follow CLAUDE.md's standing instruction to push finished, verified work to main during the solo phase, subject to the workspace boundaries above.
