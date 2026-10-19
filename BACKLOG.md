@@ -49,8 +49,9 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ---
 
-0. **Reader and Mika fixes from the author's screenshots (2026-10-19).** Current priority,
-   ahead of the older list. Work one part per session from `PLAN-reader-mika-fixes.md`.
+0. [x] **Reader and Mika fixes from the author's screenshots (2026-10-19).** All eight parts
+   complete; the author requested the whole remaining plan in the final session. Details
+   and verification are in `PLAN-reader-mika-fixes.md`.
    The grouped-words retention check still waits until ~2026-10-21; do not mark it complete.
    Parts: Reader underlines and saved-word popups; Reader text management; Mika's Reader context
    and text hand-off; focused word suggestions; fading enrichment notifications; names in
@@ -61,7 +62,12 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    confirms from the open text. Edits update the passage and its saved row, keeping metadata
    and clearing stale translations when content changes. Desktop and phone edit/save/reopen,
    delete cancel/failure/retry and cards retained verified locally; backend tsc and frontend
-   build pass. Parts 3–8 stay unchecked; next is Mika's Reader context and text hand-off.
+   build pass. **Parts 3–8 done 2026-10-19:** Reader context and real text hand-off,
+   focused suggestions, idle notification fade, context-sensitive names and safe example
+   retranslation, related-word audit, 120-message/64k dialogue window with reload protection,
+   and cached source/translation alignment. Local Qwen regression (32 calls, ~¥0.0458),
+   identity/format checks, Russian desktop and Chromium/WebKit/Firefox phone flows pass;
+   backend tsc and frontend build pass. No production data used.
    **Landing work is deferred until the author explicitly asks**, including any final pass.
 
 0. [x] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).

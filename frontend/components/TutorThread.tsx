@@ -10,7 +10,7 @@ import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { RichText } from "@/components/RichText";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Check, Copy, Pencil, RefreshCw, X } from "lucide-react";
+import { BookOpen, Check, Copy, Pencil, RefreshCw, X } from "lucide-react";
 
 // Mika's messages + the "create cards" picker under answers that suggest words.
 // Shared by the floating widget and the /mika page; `large` = the roomier page sizing.
@@ -57,6 +57,12 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
         m.role === "assistant" ? (
           <div key={i} className="anim-msg space-y-2">
             <RichText text={m.content} streaming={m.streaming} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
+            {!m.streaming && m.readerText && (
+              <button type="button" disabled={chat.openingReader} onClick={() => chat.openInReader(m.readerText!)}
+                className="inline-flex items-center gap-2 rounded-xl border border-sage/40 bg-sage-tint px-3 py-2 text-sm font-semibold text-sage-deep disabled:opacity-50">
+                <BookOpen className="h-4 w-4" /> {t("tutor.openReader")}
+              </button>
+            )}
             {!m.streaming && (
               <div className="-ml-1.5 flex items-center gap-0.5 text-ink-faint">
                 <MsgAction label={t("tutor.copy")} onClick={() => copy(m.content)}>
@@ -203,6 +209,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
           </div>
         ) : (
           <div key={i} className="anim-msg flex flex-col items-end gap-1.5">
+            {m.readerContext && <span className="max-w-full truncate text-xs text-ink-faint"><BookOpen className="mr-1 inline h-3 w-3" />{t("tutor.readerContext")}: {m.readerContext.title || t("nav.reader")}{m.readerContext.selection ? ` · ${m.readerContext.selection}` : ""}</span>}
             {m.images && m.images.length > 0 && (
               <div className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
                 {m.images.map((src, k) => (

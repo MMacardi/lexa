@@ -1,4 +1,6 @@
 import { prisma } from "./db.js";
+import { Prisma } from "@prisma/client";
+import { validAlignment, type TranslationAlignment } from "./translationAlignment.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { isHskLang, levelName, levelTag } from "../lib/level.js";
@@ -150,14 +152,27 @@ export async function createText(
   // the same row, moved back to the top of the list with its cached translation,
   // and its title never costs a model call.
   if (data.autosave) {
-    const same = await prisma.readerText.findFirst({ where: { userId: uid, content: data.content }, select: { id: true } });
-    if (same) {
-      return prisma.readerText.update({
-        where: { id: same.id },
-        data: { updatedAt: new Date() },
-        select: { id: true, title: true, level: true, translation: true },
+    const existing = await prisma.readerText.findFirst({ where: { userId: uid, content: data.content, sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null }, select: { id: true } });
+    const autoLevel = data.level ? levelTag(data.level, data.sourceLang) : data.estimateLevel && !existing ? await estimateLevel(data.content, data.sourceLang) : null;
+    return prisma.$transaction(async (tx) => {
+      // Serialize identical hand-offs, including two tabs clicking at once.
+      const key = JSON.stringify([uid, data.sourceLang, data.targetLang, data.content]);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+      const same = await tx.readerText.findFirst({ where: { userId: uid, content: data.content, sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null }, select: { id: true } });
+      if (same) {
+        return tx.readerText.update({
+          where: { id: same.id },
+          data: { updatedAt: new Date() },
+          select: { id: true, title: true, level: true, translation: true, translationAlignment: true },
+        });
+      }
+      return tx.readerText.create({
+        data: { userId: uid, title: data.title.trim() || data.content.trim().replace(/\s+/g, " ").slice(0, 40), content: data.content,
+          sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null, level: autoLevel,
+          collection: data.collection?.trim() || null, clickedWords: data.clickedWords ?? [], translation: data.translation?.trim() || null },
+        select: { id: true, title: true, level: true, translation: true, translationAlignment: true },
       });
-    }
+    });
   }
   const typed = data.title.trim();
   const title =
@@ -199,24 +214,38 @@ export async function updateText(
     level?: string | null;
     translation?: string | null;
     clickedWords?: string[];
+    translationAlignment?: TranslationAlignment | null;
+    expectedContent?: string;
+    expectedTranslation?: string | null;
   },
 ) {
   const uid = await userId(telegramId);
   if (!uid) throw new Error("Account not found");
-  const owned = await prisma.readerText.findFirst({ where: { id, userId: uid }, select: { id: true, sourceLang: true } });
+  const owned = await prisma.readerText.findFirst({ where: { id, userId: uid }, select: { id: true, sourceLang: true, content: true, translation: true } });
   if (!owned) throw new Error("Text not found");
-  return prisma.readerText.update({
-    where: { id },
+  if (data.expectedContent !== undefined && owned.content !== data.expectedContent) throw new Error("Text changed; reopen it before saving the translation");
+  if (data.expectedTranslation !== undefined && owned.translation !== data.expectedTranslation) throw new Error("Translation changed; reopen it before saving");
+  const contentChanged = data.content !== undefined && data.content !== owned.content;
+  const finalContent = data.content ?? owned.content;
+  const finalTranslation = contentChanged ? null : data.translation !== undefined ? data.translation?.trim() || null : owned.translation;
+  const translationChanged = finalTranslation !== owned.translation;
+  const alignment = data.translationAlignment ? validAlignment(data.translationAlignment, finalContent, finalTranslation ?? "") : null;
+  if (data.translationAlignment && !alignment) throw new Error("Alignment does not match text and translation");
+  const written = await prisma.readerText.updateMany({
+    where: { id, userId: uid, content: owned.content, translation: owned.translation },
     data: {
       ...(data.title !== undefined ? { title: data.title.trim() || "Untitled" } : {}),
       ...(data.content !== undefined ? { content: data.content } : {}),
       ...(data.collection !== undefined ? { collection: data.collection?.trim() || null } : {}),
       ...(data.level !== undefined ? { level: levelTag(data.level, owned.sourceLang) } : {}),
-      ...(data.translation !== undefined ? { translation: data.translation?.trim() || null } : {}),
+      ...(contentChanged || data.translation !== undefined ? { translation: finalTranslation } : {}),
+      ...(contentChanged || translationChanged || data.translationAlignment !== undefined
+        ? { translationAlignment: alignment ? alignment as unknown as Prisma.InputJsonValue : Prisma.DbNull } : {}),
       ...(data.clickedWords !== undefined ? { clickedWords: data.clickedWords } : {}),
     },
-    select: { id: true, title: true, level: true },
   });
+  if (!written.count) throw new Error("Text changed; reopen it before saving");
+  return prisma.readerText.findUniqueOrThrow({ where: { id }, select: { id: true, title: true, level: true } });
 }
 
 export async function deleteText(telegramId: string, id: string): Promise<void> {

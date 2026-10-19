@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { contextNames } from "../lib/contextNames.js";
 import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
 import { runExampleSearch } from "../agents/exampleSearch.js";
@@ -255,7 +256,7 @@ export async function translateDictMeanings(cardIds: string[]): Promise<void> {
           `You write flashcard meanings for a ${langName(target)} speaker learning Chinese. For each item, give the ` +
           `word's meaning in ${langName(target)}: 1–4 words, the sense its sentence uses when a sentence is given, ` +
           `otherwise its most common sense. Base it on the English dictionary senses given — pick and translate, ` +
-          `don't invent. Keep the words exactly as given. ` +
+          `don't invent, except personal names clearly established by a sentence, which can be absent from a dictionary. ` + contextNames + `Keep the words exactly as given. ` +
           'Respond as JSON: {"items":[{"word": string, "meaning": string}]}.',
         user: JSON.stringify(lines),
         schema: batchMeaningSchema,
@@ -294,9 +295,9 @@ export async function fitMeaningsToPages(cards: { id: string; word: string; mean
   });
   if (!todo.length) return;
   const picks = new Map<string, number>();
-  const ask = todo.filter((c) => c.page.s.length > 1);
+  const ask = todo.filter((c) => c.page.s.length > 1 || c.sentence);
   // A one-sense page leaves nothing to choose.
-  for (const c of todo) if (c.page.s.length === 1) picks.set(c.id, 0);
+  for (const c of todo) if (c.page.s.length === 1 && !c.sentence) picks.set(c.id, 0);
   for (let i = 0; i < ask.length; i += 20) {
     const chunk = ask.slice(i, i + 20);
     const r = await chatJson({
@@ -304,7 +305,8 @@ export async function fitMeaningsToPages(cards: { id: string; word: string; mean
         `Each item is a Chinese word, the ${langName(targetLang)} meaning a learner was shown for it, sometimes the ` +
         `sentence it was met in, and the word's senses as its dictionary page lists them, numbered from 1. Say which ` +
         `listed sense that meaning is (as the word is used in the sentence, when one is given): its number, or 0 when ` +
-        `it is none of them. Answer for every item, in order. Respond as JSON: {"items":[{"n": number}]}.`,
+        `it is none of them. A contextual personal name can be absent from the page: choose 0 in that case. ` + contextNames +
+        `Answer for every item, in order. Respond as JSON: {"items":[{"n": number}]}.`,
       user: JSON.stringify(
         chunk.map((c) => ({
           word: c.word,

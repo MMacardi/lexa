@@ -19,9 +19,12 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
   from the open text, on desktop and phone. Edits update the active passage without duplicating
   it; content changes clear the old translation. Edit/save/reopen and delete cancel/failure/retry
   verified locally, with cards retained; backend tsc and next build pass.
-- ⏭ Remaining requests are ordered in `PLAN-reader-mika-fixes.md` and at the top of `BACKLOG.md`:
-  Mika's Reader context and hand-off; focused suggestions; fading card
-  notifications; names/related words; dialogue memory; source/translation alignment.
+- ✅ Remaining requests completed: Mika's explicit Reader context and real save/open hand-off;
+  focused suggestions; fading card notifications; contextual names and safe example draft
+  retranslation; related-word audit; 120-message/64k dialogue memory with reload protection;
+  validated source/translation spans with phrase/sentence fallback. Local Qwen regression,
+  identity/format checks, Russian desktop and three phone browser engines pass; tsc/build pass.
+  See `PLAN-reader-mika-fixes.md` for boundaries, migration and verification details.
 - Landing work only when explicitly requested by the author, including any final pass.
 
 ## Done (Russian-first landing + Reader, 2026-10-18)

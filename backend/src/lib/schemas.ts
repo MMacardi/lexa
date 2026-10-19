@@ -35,7 +35,10 @@ export type ComposedExample = z.infer<typeof composedExampleSchema>;
 // learner wants saved / that the tutor suggests to study.
 export const tutorChatSchema = z.object({
   answer: z.string().min(1),
-  addWords: z.array(z.string()).default([]),
+  readerText: z.object({ title: z.string().max(120).default(""), content: z.string().min(1).max(20_000) }).nullish(),
+  addWords: z.array(z.union([
+    z.string(), z.object({ word: z.string() }).transform((c) => c.word),
+  ])).default([]),
   // The same suggestions carrying the meaning + example the tutor already wrote in
   // `answer`, so the client can save them as cards WITHOUT a second AI call.
   addCards: z

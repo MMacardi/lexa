@@ -35,6 +35,8 @@ import { MobileSheet } from "@/components/MobileSheet";
 import { SheetRow } from "@/components/SheetRow";
 import { isLocalTr, localTranscribe as libTranscribe } from "@/lib/transcribe";
 import { resolveMeaning } from "@/lib/resolveMeaning";
+import { setReaderContext } from "@/lib/readerContext";
+import { alignedSpan, validAlignment, type TranslationAlignment } from "@/lib/translationAlignment";
 import { dictEntry, isChineseLang, peekDictEntry } from "@/lib/dictEntry";
 import { Button } from "@/components/ui/button";
 import { PairChip } from "@/components/PairChip";
@@ -145,6 +147,11 @@ export default function ReaderPage() {
   const [translation, setTranslation] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [showTr, setShowTr] = useState(false);
+  const [alignment, setAlignment] = useState<TranslationAlignment | null>(null);
+  const [aligning, setAligning] = useState(false);
+  const [activeToken, setActiveToken] = useState<{ start: number; end: number; word: string; sentence: string } | null>(null);
+  const alignmentRequest = useRef(0);
+  const translationMark = useRef<HTMLElement | null>(null);
   const translatedFor = useRef<string>("");
   // per-word quick gloss popover (tap a word → its translation)
   const [gloss, setGloss] = useState<{ key: string; word: string; x: number; y: number } | null>(null);
@@ -418,6 +425,32 @@ export default function ReaderPage() {
     staleTime: Infinity,
   });
   const tokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
+  const offsets = useMemo(() => { let at = 0; return tokens.map((tk) => { const start = at; at += tk.text.length; return start; }); }, [tokens]);
+  const aligned = validAlignment(alignment, text, translation ?? "");
+  const highlight = activeToken === null ? null : alignedSpan(aligned, activeToken.start, activeToken.end);
+  function pickActiveToken(index: number) {
+    setActiveToken({ start: offsets[index], end: offsets[index] + tokens[index].text.length, word: tokens[index].text, sentence: sentenceAround(index) });
+  }
+  useEffect(() => {
+    if (!reading) { setReaderContext(undefined); return; }
+    setReaderContext({ id: currentSaved?.id, title: currentSaved?.title, content: text, sourceLang, targetLang,
+      selection: activeToken?.word ?? [...selected].join(", ").slice(0, 2000),
+      sentence: activeToken?.sentence }, accountId);
+    // The snapshot remains available when an empty panel expands to /mika.
+  }, [reading, text, sourceLang, targetLang, currentSaved, selected, activeToken, tokens, accountId]);
+  useEffect(() => { setActiveToken(null); alignmentRequest.current++; }, [text]);
+  useEffect(() => {
+    const onOpen = () => {
+      const pending = sessionStorage.getItem("lexa.readerOpen");
+      if (!pending) return;
+      sessionStorage.removeItem("lexa.readerOpen");
+      const { id } = JSON.parse(pending) as { id: string };
+      api.readerText(id, accountId).then(openSavedText).catch((e) => show({ icon: "⚠️", title: errText(e, t) }));
+    };
+    window.addEventListener("onomika:reader-open", onOpen);
+    return () => window.removeEventListener("onomika:reader-open", onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
 
   // A word's level on the list the learner targets (HSK 3.0 until they pick),
   // from the server's segmenter; null off both lists and outside Chinese.
@@ -598,7 +631,7 @@ export default function ReaderPage() {
       show({ icon: "📖", title: t("reader.emptyText") });
       return;
     }
-    if (from !== text) setText(from);
+    if (from.trim() !== text) setText(from.trim());
     dictRef.current?.stop(); // leaving the input view — release the mic
     setSelected(new Set());
     setShowTr(false);
@@ -631,6 +664,7 @@ export default function ReaderPage() {
         if (saved.level) setTextLevel(saved.level);
         if (saved.translation && translatedFor.current !== text) {
           setTranslation(saved.translation);
+          setAlignment(validAlignment(saved.translationAlignment, text, saved.translation));
           translatedFor.current = text;
         }
       }
@@ -701,6 +735,7 @@ export default function ReaderPage() {
   // Open a saved text: restore its content, pair, translation and the words the
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
+    setAlignment(validAlignment(full.translationAlignment, full.content, full.translation ?? ""));
     setText(full.content);
     setTextLevel(full.level ?? null);
     setOpenText(full); // editing this one → Save updates it instead of duplicating
@@ -745,26 +780,26 @@ export default function ReaderPage() {
   // Show a quick translation of a single word, anchored under the tapped token.
   // `sentence` is the one the token sits in, so the gloss is the sense used there.
   function openGloss(key: string, wordText: string, el: HTMLElement, sentence: string) {
+    const cacheKey = JSON.stringify([sourceLang, targetLang, key, sentence]);
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     setGlossClosing(false);
     setGloss({ key, word: wordText, ...popAt(el.getBoundingClientRect()) });
-    glossKeyRef.current = key;
+    glossKeyRef.current = cacheKey;
     glossElRef.current = el;
     // The dictionary answers at once, with no model call: the reading, and the
-    // shared default meaning in the learner's language. When the default is
-    // settled (one sense, one reading) resolveMeaning stops there; otherwise the
-    // model picks the sense this sentence uses and replaces it.
+    // shared default meaning in the learner's language. The contextual gloss
+    // then picks this sentence's sense, including names absent from the dictionary.
     const zh = isChineseLang(sourceLang);
     setGlossCedict(zh ? (peekDictEntry(wordText, targetLang) ?? null) : null);
     if (zh) {
       void dictEntry(wordText, targetLang).then((e) => {
-        if (glossKeyRef.current === key) setGlossCedict(e);
+        if (glossKeyRef.current === cacheKey) setGlossCedict(e);
       });
     }
     // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
     // the cross-session cache, inflight dedupe, local zh/ko transcription and the
     // gloss request — so the Reader no longer carries its own copy of it.
-    const cached = glossCache.current.get(key) ?? undefined;
+    const cached = glossCache.current.get(cacheKey) ?? undefined;
     if (cached != null) {
       setGlossText(cached.gloss);
       setGlossTr(cached.tr);
@@ -777,15 +812,15 @@ export default function ReaderPage() {
     resolveMeaning({ word: wordText, sentence, sourceLang, targetLang })
       .then((r) => {
         const entry = { gloss: r.meaning, tr: r.transcription };
-        glossCache.current.set(key, entry);
-        if (glossKeyRef.current === key) {
+        glossCache.current.set(cacheKey, entry);
+        if (glossKeyRef.current === cacheKey) {
           setGlossText(entry.gloss);
           if (entry.tr) setGlossTr(entry.tr);
           setGlossLoading(false);
         }
       })
       .catch(() => {
-        if (glossKeyRef.current === key) {
+        if (glossKeyRef.current === cacheKey) {
           // No contextual sense, but the default is still a meaning.
           setGlossText(peekDictEntry(wordText, targetLang)?.meaning ?? t("reader.translateFailed"));
           setGlossLoading(false);
@@ -884,6 +919,21 @@ export default function ReaderPage() {
   // Re-checked as the meaning arrives, since that is what makes the panel taller.
   const dockRef = useRef<HTMLDivElement | null>(null);
   const dockOpen = mobile && (gloss !== null || knownPop !== null);
+  useEffect(() => {
+    if (!showTr || !highlight) return;
+    const frame = requestAnimationFrame(() => {
+      const mark = translationMark.current;
+      if (!mark) return;
+      const rect = mark.getBoundingClientRect();
+      const bottom = Math.min(window.innerHeight - (mobile ? 80 : 24), dockRef.current?.getBoundingClientRect().top ?? Infinity) - 12;
+      const top = mobile ? 120 : 90;
+      if (rect.bottom > bottom) window.scrollBy({ top: rect.height > bottom - top ? rect.top - top : rect.bottom - bottom, behavior: "smooth" });
+      else if (rect.top < top) window.scrollBy({ top: rect.top - top, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+    // Spans are derived afresh; depend on their stable offsets.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTr, highlight?.targetStart, highlight?.targetEnd, mobile, selected, knownPop, activeToken]);
   useEffect(() => {
     if (!dockOpen) return;
     const dock = dockRef.current?.getBoundingClientRect();
@@ -1030,20 +1080,24 @@ export default function ReaderPage() {
 
   async function translateAll(refresh = false) {
     if (translating) return;
+    if (text.length > 6000) { show({ icon: "⚠️", title: t("reader.translationLimit") }); return; }
     // Already translated this exact text → just toggle the panel.
     if (!refresh && translation && translatedFor.current === text) {
       setShowTr((s) => !s);
       return;
     }
     setTranslating(true);
+    const request = ++alignmentRequest.current;
     try {
-      const r = await api.translate({ text, sourceLang, targetLang });
+      const r = await api.translate({ text, sourceLang, targetLang, align: true });
+      if (request !== alignmentRequest.current) return;
       setTranslation(r.translation);
+      setAlignment(r.alignment ?? null);
       translatedFor.current = text;
       setShowTr(true);
       // Kept with the saved text, so opening it again doesn't pay for it twice.
       if (savedRow && savedRow.content === text.trim()) {
-        api.updateReaderText(savedRow.id, { telegramId: accountId, translation: r.translation }).catch(() => {});
+        api.updateReaderText(savedRow.id, { telegramId: accountId, translation: r.translation, translationAlignment: r.alignment ?? null, expectedContent: text, expectedTranslation: translation }).catch((e) => show({ icon: "⚠️", title: errText(e, t) }));
       }
     } catch (e) {
       show({ icon: "⚠️", title: t("reader.translateFailed"), subtitle: errText(e, t) });
@@ -1053,6 +1107,20 @@ export default function ReaderPage() {
   }
 
   const trReady = translation !== null && translatedFor.current === text;
+  async function alignCurrentTranslation() {
+    if (!translation || aligning) return;
+    const source = text;
+    const target = translation;
+    const request = ++alignmentRequest.current;
+    setAligning(true);
+    try {
+      const value = await api.alignTranslation(source, target);
+      if (request !== alignmentRequest.current) return;
+      setAlignment(value);
+      if (savedRow?.content === source.trim()) await api.updateReaderText(savedRow.id, { telegramId: accountId, translationAlignment: value, expectedContent: source });
+    } catch (e) { show({ icon: "⚠️", title: errText(e, t) }); }
+    finally { setAligning(false); }
+  }
 
   // Render a word: the highlight (selection/known tint) goes on the base character
   // only, and the transcription floats ABOVE it on the clean page background — so
@@ -1664,11 +1732,12 @@ export default function ReaderPage() {
                   onPointerMove={movePress}
                   onPointerUp={(e) => {
                     const el = e.currentTarget;
-                    endPress(() => openKnownPop(knownId, tk.text, i, el));
+                    endPress(() => { pickActiveToken(i); openKnownPop(knownId, tk.text, i, el); });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
+                      pickActiveToken(i);
                       openKnownPop(knownId, tk.text, i, e.currentTarget);
                     }
                   }}
@@ -1693,13 +1762,14 @@ export default function ReaderPage() {
             // Added but its card id hasn't resolved yet (enrichment lag) → green.
             if (isAdded) {
               return (
-                <span key={i}>
+                <span key={i} role="button" tabIndex={0} onClick={() => pickActiveToken(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickActiveToken(i); } }}>
                   {breakBefore(i)}
                   {wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}
                 </span>
               );
             }
             const onPick = (el: HTMLElement) => {
+              pickActiveToken(i);
               const wasSelected = selected.has(key);
               toggle(key);
               if (wasSelected) setGloss(null); // deselecting → hide gloss
@@ -1752,8 +1822,13 @@ export default function ReaderPage() {
               </button>
             </div>
             <div className={cn("whitespace-pre-line text-[16px] leading-relaxed text-ink-soft", sourceFont(targetLang))}>
-              {translation}
+              {highlight ? <>{translation!.slice(0, highlight.targetStart)}<mark ref={translationMark} data-testid="translation-highlight" className="rounded bg-sage-tint px-0.5 text-sage-deep">{translation!.slice(highlight.targetStart, highlight.targetEnd)}</mark>{translation!.slice(highlight.targetEnd)}</> : translation}
             </div>
+            {isChineseLang(sourceLang) && <div className="mt-3 text-xs text-ink-faint" aria-live="polite">
+              {aligned ? t(highlight?.kind === "sentence" ? "reader.alignmentSentence" : activeToken !== null && !highlight ? "reader.alignmentMissing" : "reader.alignmentHint") : (
+                <button type="button" disabled={aligning || text.length > 6000} onClick={alignCurrentTranslation} className="font-semibold text-sage-deep disabled:opacity-50">{t(aligning ? "reader.aligning" : "reader.alignTranslation")}</button>
+              )}
+            </div>}
           </div>
         )}
       </div>
@@ -1768,7 +1843,7 @@ export default function ReaderPage() {
           tapped word's panel over it (see keepAboveDock). A wider screen keeps
           the popups under their word. */}
       {(dockOpen || selected.size > 0 || busy) && (
-        <div ref={dockRef} className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 px-4 md:bottom-6">
+        <div ref={dockRef} data-reader-dock className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 px-4 md:bottom-6">
           {dockOpen && gloss && (
             <div ref={glossPopRef} className={cn(dockBox, glossClosing ? "anim-popover-out" : "anim-fade-up")}>
               {glossBody(true)}

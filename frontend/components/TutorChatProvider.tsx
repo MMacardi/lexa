@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTutorChat, type TutorChat } from "@/lib/useTutorChat";
+import { setReaderContext } from "@/lib/readerContext";
+import { useAccount } from "@/lib/account";
 
 // One Mika conversation for the whole app. The floating panel and the /mika page
 // used to run a copy each, synced through sessionStorage when one opened: expanding
@@ -19,7 +21,15 @@ type Ctx = {
 const TutorChatCtx = createContext<Ctx | null>(null);
 
 export function TutorChatProvider({ children }: { children: React.ReactNode }) {
+  const { accountId } = useAccount();
+  return <AccountTutorChatProvider key={accountId}>{children}</AccountTutorChatProvider>;
+}
+
+function AccountTutorChatProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  useEffect(() => {
+    if (pathname !== "/reader" && pathname !== "/mika") setReaderContext(undefined);
+  }, [pathname]);
   const onPage = !!pathname?.startsWith("/mika");
   const [panelOpen, setPanelOpen] = useState(false);
   const chat = useTutorChat({ active: panelOpen || onPage });

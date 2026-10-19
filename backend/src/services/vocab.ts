@@ -1,4 +1,5 @@
 import { prisma } from "./db.js";
+import { chatWindow } from "../lib/chatWindow.js";
 import { fsrs, generatorParameters, createEmptyCard, Rating, type Card, type Grade, type State } from "ts-fsrs";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
@@ -1298,9 +1299,9 @@ export async function askAboutWord(
   // Past answers go back in the JSON they came out as, as Mika's do: as bare text
   // opening on "- " lines they had the model open its reply the same way, which
   // JSON mode turns into a number.
-  const clipped = history.slice(-12).map((m) => ({
+  const clipped = chatWindow(history).map((m) => ({
     role: m.role,
-    content: m.role === "assistant" ? JSON.stringify({ answer: m.content.slice(0, 2000) }) : m.content.slice(0, 2000),
+    content: m.role === "assistant" ? JSON.stringify({ answer: m.content }) : m.content,
   })) as ChatMessage[];
 
   const messages: ChatMessage[] = [

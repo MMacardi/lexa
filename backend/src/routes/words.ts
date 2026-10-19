@@ -5,6 +5,7 @@ import { aiQuotaGuard, usageStatus, simulatingFree, monthlyGuard, requireProFeat
 import { env, FOCUS } from "../lib/env.js";
 import { suggestWord } from "../services/suggest.js";
 import { translateText, glossInContext, transcribeWords } from "../services/translate.js";
+import { alignTranslation, alignmentSchema } from "../services/translationAlignment.js";
 import { tutorChat } from "../services/tutorChat.js";
 import { checkLanguage } from "../services/langCheck.js";
 import { coachDrill } from "../services/coachDrill.js";
@@ -89,7 +90,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|dict\/glosses|ocr|translate|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
+  /^\/(gloss|dict\/glosses|ocr|translate(\/alignment)?|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -1321,19 +1322,25 @@ const chatImage = z
   .max(3_000_000)
   .regex(/^data:image\/(jpeg|png|webp|gif);base64,/, "Expected an image data URL");
 const tutorBody = z.object({
+  readerContext: z.object({
+    id: z.string().max(100).optional(), title: z.string().max(120).optional(),
+    content: z.string().min(1).max(20_000), selection: z.string().max(2000).optional(), sentence: z.string().max(20_000).optional(),
+    sourceLang: z.string().max(12), targetLang: z.string().max(12),
+  }).optional(),
   messages: z
     .array(
       z
         .object({
           role: z.enum(["user", "assistant"]),
-          content: z.string().max(4000),
+          content: z.string().max(20_000),
           images: z.array(chatImage).max(4).optional(),
         })
         // A photo on its own is a question ("what's this?"); an empty text alone is not.
         .refine((m) => m.content.trim() || (m.role === "user" && m.images?.length), "Empty message"),
     )
     .min(1)
-    .max(20)
+    .max(120)
+    .refine((ms) => ms.reduce((n, m) => n + m.content.length, 0) <= 64_000, "Chat window too large")
     .refine((ms) => ms.reduce((n, m) => n + (m.images?.length ?? 0), 0) <= 8, "Too many photos"),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
@@ -1349,6 +1356,10 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
   }
   const { stream, ...rest } = parsed.data;
   const telegramId = readSession(req) ?? rest.telegramId;
+  if (rest.readerContext?.id && !await getText(callerId(req), rest.readerContext.id)) {
+    res.status(404).json({ error: "Text not found" });
+    return;
+  }
   // DB read happens before any streaming headers so an early failure is a clean 502.
   let profileNote: string | undefined;
   try {
@@ -1679,6 +1690,13 @@ const translateBody = z.object({
   text: z.string().min(1).max(6000),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  align: z.boolean().optional(),
+});
+wordsRouter.post("/translate/alignment", async (req, res) => {
+  const parsed = z.object({ text: z.string().min(1).max(6000), translation: z.string().min(1).max(20_000) }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
+  try { res.json(await alignTranslation(parsed.data.text, parsed.data.translation)); }
+  catch (err) { res.status(502).json({ error: (err as Error).message }); }
 });
 wordsRouter.post("/translate", async (req, res) => {
   const parsed = translateBody.safeParse(req.body);
@@ -1776,6 +1794,9 @@ const readerUpdateBody = z.object({
   collection: z.string().max(60).nullish(),
   level: z.string().max(4).nullish(),
   translation: z.string().max(20_000).nullish(),
+  translationAlignment: alignmentSchema.nullish(),
+  expectedContent: z.string().max(20_000).optional(),
+  expectedTranslation: z.string().max(20_000).nullable().optional(),
   clickedWords: z.array(z.string().max(120)).max(2000).optional(),
 });
 wordsRouter.put("/reader/texts/:id", async (req, res) => {

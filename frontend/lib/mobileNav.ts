@@ -12,14 +12,21 @@ import { FOCUS } from "./focus";
 export const OPEN_MIKA = "onomika:open-mika";
 export const OPEN_BUG = "onomika:open-bug";
 export const OPEN_ADD = "onomika:open-add";
+let pendingMika: { card?: TutorCardCtx } | null = null;
+export const takeMikaOpen = () => { const pending = pendingMika; pendingMika = null; return pending; };
 
-export const open = (event: string) => window.dispatchEvent(new Event(event));
+export const open = (event: string) => {
+  if (event === OPEN_MIKA) pendingMika = {};
+  return window.dispatchEvent(new Event(event));
+};
 
 // Open Mika on a chat about one card ("Explain with Onomika" on the word page).
 // The answer lands in the widget instead of a panel wedged into the page, so it
 // stays readable while the card is scrolled and joins the chat history.
-export const openMikaOnCard = (card: TutorCardCtx) =>
-  window.dispatchEvent(new CustomEvent(OPEN_MIKA, { detail: { card } }));
+export const openMikaOnCard = (card: TutorCardCtx) => {
+  pendingMika = { card };
+  return window.dispatchEvent(new CustomEvent(OPEN_MIKA, { detail: { card } }));
+};
 
 // Three user-picked tabs around the fixed centre Mika button (two left, one right).
 // Focused, the bar is the focused nav itself (Today · Words · Capture); the full

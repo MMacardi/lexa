@@ -6,7 +6,9 @@ import { api, type Word } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { EXAMPLE_STYLES, getExampleSource, getExampleStyle, getLearnerLevel, type ExampleStyle } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
-import { X } from "lucide-react";
+import { Languages, X } from "lucide-react";
+import { useToast } from "@/lib/toast";
+import { errText } from "@/lib/errText";
 import { Button } from "@/components/ui/button";
 import { Input, textareaClass } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -41,6 +43,7 @@ export function EditWordForm({
 }) {
   const qc = useQueryClient();
   const { t } = useI18n();
+  const { show } = useToast();
   const ensureLevel = useEnsureLevel();
 
   const [w, setW] = useState(word.word);
@@ -54,12 +57,24 @@ export function EditWordForm({
   const [ant, setAnt] = useState(csv(word.antonyms));
   const [notes, setNotes] = useState(word.notes ?? "");
   const [examples, setExamples] = useState<ExRow[]>(toRows(word));
+  const [translatingEx, setTranslatingEx] = useState<ExRow | null>(null);
   const [exStyle, setExStyle] = useState<ExampleStyle>(getExampleStyle());
 
   const setEx = (i: number, patch: Partial<ExRow>) =>
     setExamples((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const removeEx = (i: number) => setExamples((rows) => rows.filter((_, idx) => idx !== i));
   const addBlankEx = () => setExamples((rows) => [...rows, { sentenceEn: "", sentenceZh: "", sourceName: "" }]);
+  async function translateExample(row: ExRow) {
+    if (translatingEx || !row.sentenceEn.trim()) return;
+    setTranslatingEx(row);
+    try {
+      const { translation } = await api.translate({ text: row.sentenceEn, sourceLang, targetLang });
+      // Only the unchanged draft row takes the result; typing or deleting while
+      // the request runs must win. Nothing reaches the card until Save is pressed.
+      setExamples((rows) => rows.map((r) => r === row ? { ...r, sentenceZh: translation } : r));
+    } catch (e) { show({ icon: "⚠️", title: errText(e, t) }); }
+    finally { setTranslatingEx(null); }
+  }
 
   // Fetch a fresh AI example. `replace` clears existing ones (regenerate);
   // otherwise it adds another. Runs immediately (independent of Save).
@@ -184,6 +199,11 @@ export function EditWordForm({
               />
               <Input value={e.sourceName} onChange={(ev) => setEx(i, { sourceName: ev.target.value })} placeholder={t("edit.source")} />
             </div>
+            <button type="button" disabled={!!translatingEx || !e.sentenceEn.trim() || e.sentenceEn.length > 6000} onClick={() => translateExample(e)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-sage-deep hover:bg-sage-tint disabled:opacity-50">
+              <Languages className="h-3.5 w-3.5" /> {t(translatingEx === e ? "reader.translating" : "edit.translateExample")}
+            </button>
+            <p className="text-xs text-ink-faint">{t("edit.translationDraft")}</p>
           </div>
         ))}
       </div>
@@ -221,7 +241,7 @@ export function EditWordForm({
 
       {save.isError && <p className="text-sm text-warn-text">{(save.error as Error).message}</p>}
       <div className="flex gap-2">
-        <Button type="submit" disabled={save.isPending || !w.trim()}>
+        <Button type="submit" disabled={save.isPending || !!translatingEx || !w.trim()}>
           {save.isPending ? t("add.saving") : t("edit.saveChanges")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

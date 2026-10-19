@@ -11,6 +11,8 @@ import { displayCode, FIXED_PAIR, isAiSupported, scriptFamily, scriptFamilyOfTex
 import { getExampleSource, getExampleStyle, getLearnerLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { downscaleImage } from "@/lib/image";
+import { getReaderContext, setReaderContext, chatWindow, type ReaderContext } from "./readerContext";
+import { useRouter } from "next/navigation";
 
 export type TutorMsg = {
   role: "user" | "assistant";
@@ -21,6 +23,8 @@ export type TutorMsg = {
   addWords?: string[];
   addCards?: TutorCard[];
   streaming?: boolean;
+  readerContext?: ReaderContext;
+  readerText?: { title: string; content: string } | null;
   // Suggestions a card chat can apply to the card it is about.
   addSynonyms?: string[];
   addAntonyms?: string[];
@@ -36,6 +40,7 @@ const PAIR_KEY = "lexa.wordPair"; // shared with Add/Reader
 // The floating widget and the /mika page share one live copy (TutorChatProvider).
 const CHAT_KEY = "lexa.tutorChat";
 const CHAT_ID_KEY = "lexa.tutorChatId";
+const CHAT_OWNER_KEY = "lexa.tutorChatOwner";
 // Past conversations live on the account (api.tutorChats), so the phone and the
 // laptop list the same chats. They used to be in each browser's localStorage under
 // this key; what is still there is uploaded once and then dropped.
@@ -45,6 +50,17 @@ const SAVE_AFTER_MS = 600;
 
 type StoredChat = { id: string; at: number; messages: TutorMsg[] };
 
+// A bounded window can lose its oldest turns while gaining new ones. Match the
+// overlap, not just the message count, when reconciling a tab after an instant reload.
+function continuesThread(local: TutorMsg[], remote: TutorMsg[]): boolean {
+  for (let overlap = Math.min(local.length, remote.length); overlap >= Math.min(2, remote.length); overlap--) {
+    if (!overlap || local.length <= overlap) continue;
+    if (remote.slice(-overlap).every((m, i) => m.role === local[i].role && m.content === local[i].content &&
+      JSON.stringify(m.images ?? []) === JSON.stringify(local[i].images ?? []))) return true;
+  }
+  return false;
+}
+
 // Photos. The thread and the saved history hold a ~320 px thumbnail; the ~1400 px
 // copy Mika reads lives per tab (memory, mirrored to sessionStorage best-effort) —
 // a history of full photos would crowd every other chat out of localStorage. A chat
@@ -52,7 +68,6 @@ type StoredChat = { id: string; at: number; messages: TutorMsg[] };
 const IMGS_KEY = "lexa.tutorImgs";
 export const MAX_ATTACH = 4; // per message — the server's own cap
 const SEND_IMAGES = 4; // newest photos resent with each turn; the server keeps no more
-const SEND_MESSAGES = 12; // the server reads the last 12 turns and rejects more than 20
 const fullImages = new Map<string, string>();
 let fullImagesLoaded = false;
 
@@ -107,11 +122,10 @@ function saveFullImages(msgs: TutorMsg[]) {
 // older ones only named (the server would drop them, and they are the bulk).
 function payloadMessages(msgs: TutorMsg[]): { role: "user" | "assistant"; content: string; images?: string[] }[] {
   let left = SEND_IMAGES;
-  return msgs
-    .slice(-SEND_MESSAGES)
+  const payload = chatWindow(msgs)
     .reverse()
     .map((m) => {
-      const content = m.content.slice(0, 4000);
+      const content = m.content;
       const imgs = m.images ?? [];
       if (m.role !== "user" || !imgs.length) return { role: m.role, content };
       const kept = imgs.slice(0, left);
@@ -120,9 +134,10 @@ function payloadMessages(msgs: TutorMsg[]): { role: "user" | "assistant"; conten
       const note = dropped ? `[${dropped} earlier photo${dropped > 1 ? "s" : ""}, no longer attached]` : "";
       return kept.length
         ? { role: m.role, content, images: kept.map(fullImage) }
-        : { role: m.role, content: [content, note].filter(Boolean).join("\n") };
+        : { role: m.role, content: content || note };
     })
     .reverse();
+  return chatWindow(payload);
 }
 
 // The learner's current pair (shared with Add/Reader). Tutor adds words to it.
@@ -138,9 +153,10 @@ function readPair(): { source: string; target: string } {
   }
 }
 
-function readChat(): TutorMsg[] {
+function readChat(accountId: string): TutorMsg[] {
   if (typeof window === "undefined") return [];
   try {
+    if (!accountId || sessionStorage.getItem(CHAT_OWNER_KEY) !== accountId) return [];
     const r = JSON.parse(sessionStorage.getItem(CHAT_KEY) ?? "[]");
     return Array.isArray(r) ? r : [];
   } catch {
@@ -152,10 +168,10 @@ const newChatId = () => `c${Date.now().toString(36)}${Math.random().toString(36)
 
 // Which saved chat the open conversation is — kept in sessionStorage next to the
 // messages, so a reload continues that history entry instead of forking it.
-function readChatId(): string {
-  if (typeof window === "undefined") return "";
+function readChatId(accountId: string): string {
+  if (typeof window === "undefined" || !accountId) return "";
   try {
-    const id = sessionStorage.getItem(CHAT_ID_KEY);
+    const id = accountId && sessionStorage.getItem(CHAT_OWNER_KEY) === accountId ? sessionStorage.getItem(CHAT_ID_KEY) : null;
     if (id) return id;
     const fresh = newChatId();
     sessionStorage.setItem(CHAT_ID_KEY, fresh);
@@ -217,6 +233,7 @@ function termLang(card: TutorCard | undefined, word: string, source: string): st
  * /mika page alike.
  */
 export function useTutorChat({ active = true }: { active?: boolean } = {}) {
+  const router = useRouter();
   const { t } = useI18n();
   const { accountId } = useAccount();
   const qc = useQueryClient();
@@ -227,8 +244,10 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   // Set when the chat is about one card (opened from a word page): asks go to that
   // card's own endpoint, which knows its meaning and can edit it in place.
   const [card, setCard] = useState<TutorCardCtx | null>(null);
-  const [messages, setMessages] = useState<TutorMsg[]>(() => readChat());
-  const [chatId, setChatId] = useState(() => readChatId());
+  const [messages, setMessages] = useState<TutorMsg[]>(() => readChat(accountId));
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const [chatId, setChatId] = useState(() => readChatId(accountId));
   const chatIdRef = useRef(chatId);
   chatIdRef.current = chatId;
   const [input, setInput] = useState("");
@@ -271,7 +290,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     if (!p || !accountId) return;
     saving.current++;
     api
-      .saveTutorChat(p.id, p.messages)
+      .saveTutorChat(p.id, p.messages, accountId)
       .then((entry) => {
         if (p.id === chatIdRef.current) syncedAt.current = Math.max(syncedAt.current, entry.at);
         qc.setQueryData<TutorChatEntry[]>(["tutorChats", accountId], (list) => withEntry(list, entry));
@@ -295,10 +314,12 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
 
   useEffect(() => {
     // A half-written answer isn't worth rewriting storage for on every token.
+    if (!accountId) return;
     if (messages[messages.length - 1]?.streaming) return;
-    const trimmed = messages.slice(-40);
+    const trimmed = chatWindow(messages);
     try {
       sessionStorage.setItem(CHAT_KEY, JSON.stringify(trimmed));
+      sessionStorage.setItem(CHAT_OWNER_KEY, accountId);
     } catch {
       /* ignore */
     }
@@ -382,8 +403,10 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   );
 
   const [busy, setBusy] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
   const [isError, setIsError] = useState(false);
   const inFlight = useRef<AbortController | null>(null);
+  const chatLoad = useRef(0);
   // True while an answer is typing itself out into the last bubble.
   const streaming = !!messages[messages.length - 1]?.streaming;
   useEffect(() => () => inFlight.current?.abort(), []);
@@ -398,13 +421,21 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
       .tutorChat(chatId)
       .then((full) => {
         if (chatIdRef.current !== chatId || pending.current || saving.current || inFlight.current) return;
+        const local = messagesRef.current;
+        if (continuesThread(local, full.messages)) {
+          // The account has an older prefix: the previous document's debounced
+          // save was interrupted. Keep the photo/question and retry the full draft.
+          pending.current = { id: chatId, messages: chatWindow(local) };
+          flush();
+          return;
+        }
         synced.current = full.messages;
         setMessages(full.messages);
       })
       .catch(() => {
         /* keep what the tab has */
       });
-  }, [history, chatId, busy]);
+  }, [history, chatId, busy, flush]);
 
   // Mika's answer is streamed: the text lands token by token in an open bubble
   // instead of appearing as one finished paragraph after a long spinner.
@@ -430,7 +461,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
       try {
         const r = await api.askWord(
           card.id,
-          msgs.map((m) => ({ role: m.role, content: m.content })),
+          payloadMessages(msgs).map((m) => ({ role: m.role, content: m.content })),
           { onDelta, signal: ac.signal },
         );
         if (inFlight.current !== ac) return; // the chat moved on while we waited
@@ -464,12 +495,13 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
           targetLang: pair.target,
           level: getLearnerLevel(pair.source) ?? undefined,
           telegramId: accountId,
+          readerContext: [...msgs].reverse().find((m) => m.readerContext)?.readerContext,
         },
         { onDelta, signal: ac.signal },
       );
       if (inFlight.current !== ac) return;
       // Snap to the validated text and attach the one-tap "create cards" words.
-      setMessages((m) => closeOpen(m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards }));
+      setMessages((m) => closeOpen(m, { role: "assistant", content: r.answer, addWords: r.addWords, addCards: r.addCards, readerText: r.readerText }));
     } catch (e) {
       if ((e as Error).name === "AbortError" || inFlight.current !== ac) return;
       setIsError(true);
@@ -486,9 +518,13 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   function send(text?: string) {
     const q = (text ?? input).trim();
     const images = text === undefined ? attachments : [];
-    if ((!q && !images.length) || busy || attaching || (text === undefined && unfinished)) return;
+    if ((!q && !images.length) || busy || loadingChat || attaching || (text === undefined && unfinished)) return;
+    chatLoad.current++;
+    if (q.length > 20_000) { show({ icon: "⚠️", title: t("tutor.textLimit") }); return; }
+    const readerContext = getReaderContext(accountId) ?? [...messages].reverse().find((m) => m.readerContext)?.readerContext;
+    if (readerContext && readerContext.content.length > 20_000) { show({ icon: "⚠️", title: t("tutor.readerLimit") }); return; }
     setTemplate(null);
-    const next: TutorMsg[] = [...messages, { role: "user", content: q, ...(images.length ? { images } : {}) }];
+    const next: TutorMsg[] = [...messages.map((m) => { const next = { ...m }; delete next.readerContext; return next; }), { role: "user", content: q, ...(images.length ? { images } : {}), ...(readerContext && !card ? { readerContext } : {}) }];
     setMessages(next);
     setInput("");
     if (text === undefined) setAttachments([]);
@@ -561,6 +597,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
 
   // Drop whatever is in flight — shared by "new chat" and opening a past one.
   function stopAsking() {
+    setLoadingChat(false);
+    chatLoad.current++;
     inFlight.current?.abort();
     inFlight.current = null;
     setBusy(false);
@@ -582,6 +620,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   }
 
   function reset() {
+    if (window.location.pathname === "/mika") setReaderContext(undefined);
     stopAsking();
     setMessages([]);
     setWordSel({});
@@ -684,13 +723,18 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
   async function openChat(id: string) {
     // The thread being left goes up first: it may be the one about to be opened.
     flush();
+    const loading = ++chatLoad.current;
+    setLoadingChat(true);
     let found: { at: number; messages: TutorMsg[] };
     try {
       found = await api.tutorChat(id);
     } catch (e) {
+      if (loading === chatLoad.current) setLoadingChat(false);
       show({ icon: "⚠️", title: errText(e, t) });
       return;
     }
+    if (loading !== chatLoad.current) return;
+    if (window.location.pathname === "/mika") setReaderContext(undefined);
     stopAsking();
     setWordSel({});
     setAttachments([]);
@@ -802,7 +846,24 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     }
   }
 
+  const [openingReader, setOpeningReader] = useState(false);
+  async function openInReader(passage: { title: string; content: string }) {
+    if (openingReader) return;
+    if (passage.content.length > 20_000) { show({ icon: "⚠️", title: t("tutor.readerLimit") }); return; }
+    setOpeningReader(true);
+    try {
+      const saved = await api.saveReaderText({ telegramId: accountId, ...passage, content: passage.content.trim(), sourceLang: pair.source, targetLang: pair.target, autosave: true });
+      await qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
+      sessionStorage.setItem("lexa.readerOpen", JSON.stringify({ id: saved.id }));
+      window.dispatchEvent(new Event("onomika:reader-open"));
+      router.push("/reader");
+    } catch (e) { show({ icon: "⚠️", title: errText(e, t) }); }
+    finally { setOpeningReader(false); }
+  }
+
   return {
+    openInReader,
+    openingReader,
     pair,
     changePair,
     messages,
@@ -819,12 +880,13 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     editLast,
     reset,
     busy,
+    loadingChat,
     attachments,
     attaching: attaching > 0,
     addImages,
     removeAttachment,
     // A card chat answers from the card's own endpoint, which reads no photos.
-    canAttach: !card,
+    canAttach: !card && !loadingChat,
     streaming,
     isError,
     creating,

@@ -1,6 +1,8 @@
 // Typed client for the Express backend. One place that knows the URL shape.
 
 import type { TutorChatEntry, TutorMsg } from "./useTutorChat";
+import type { ReaderContext } from "./readerContext";
+import type { TranslationAlignment } from "./translationAlignment";
 
 // When NEXT_PUBLIC_API_URL is set (local dev), call the backend directly. When it's
 // empty/unset (Vercel prod), BASE is "" so every request is same-origin (/api/…) and
@@ -250,6 +252,7 @@ export interface ReaderTextSummary {
   updatedAt: string;
 }
 export interface ReaderTextFull {
+  translationAlignment?: TranslationAlignment | null;
   id: string;
   title: string;
   content: string;
@@ -727,6 +730,7 @@ export interface TutorCard {
 
 // Mika (global tutor) chat, in both the streaming and non-streaming flavours.
 export type TutorAskPayload = {
+  readerContext?: ReaderContext;
   // images: downscaled JPEG data: URLs attached to that user turn (photos in the chat)
   messages: { role: "user" | "assistant"; content: string; images?: string[] }[];
   sourceLang?: string;
@@ -734,7 +738,7 @@ export type TutorAskPayload = {
   level?: string;
   telegramId?: string;
 };
-export type TutorAskResult = { answer: string; addWords: string[]; addCards?: TutorCard[] };
+export type TutorAskResult = { answer: string; addWords: string[]; addCards?: TutorCard[]; readerText?: { title: string; content: string } | null };
 
 // Coach chat/scene-turn payloads + results, named so the streaming and non-streaming
 // client methods share one definition.
@@ -1021,11 +1025,12 @@ export const api = {
   // and the promise resolves with the identical validated result.
   tutorAskStream: (payload: TutorAskPayload, opts: { onDelta?: (t: string) => void; signal?: AbortSignal }) =>
     streamHttp<TutorAskResult>(`/api/tutor/ask`, payload, opts),
-  translate: (payload: { text: string; sourceLang: string; targetLang: string }) =>
-    http<{ translation: string }>(`/api/translate`, {
+  translate: (payload: { text: string; sourceLang: string; targetLang: string; align?: boolean }) =>
+    http<{ translation: string; alignment?: TranslationAlignment | null }>(`/api/translate`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  alignTranslation: (text: string, translation: string) => http<TranslationAlignment>(`/api/translate/alignment`, { method: "POST", body: JSON.stringify({ text, translation }) }),
   // Chinese text as Reader tokens: ICU boundaries repaired with CC-CEDICT, each
   // word tagged with its HSK levels (for the Reader's colours). No model call.
   segment: (text: string) =>
@@ -1411,7 +1416,7 @@ export const api = {
     targetLang?: string;
     autosave?: boolean; // the Reader keeps every text it opens: dedupes, never AI-names
   }) =>
-    http<{ id: string; title: string; level?: string | null; translation?: string | null }>(`/api/reader/texts`, {
+    http<{ id: string; title: string; level?: string | null; translation?: string | null; translationAlignment?: TranslationAlignment | null }>(`/api/reader/texts`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -1424,6 +1429,9 @@ export const api = {
       collection?: string | null;
       level?: string | null;
       translation?: string | null;
+      translationAlignment?: TranslationAlignment | null;
+      expectedContent?: string;
+      expectedTranslation?: string | null;
       clickedWords?: string[];
     },
   ) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
@@ -1437,8 +1445,13 @@ export const api = {
   // Mika's chat history, on the account: every device lists the same chats.
   tutorChats: () => http<TutorChatEntry[]>(`/api/tutor/chats`),
   tutorChat: (id: string) => http<TutorChatEntry & { messages: TutorMsg[] }>(`/api/tutor/chats/${encodeURIComponent(id)}`),
-  saveTutorChat: (id: string, messages: TutorMsg[]) =>
-    http<TutorChatEntry>(`/api/tutor/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ messages }) }),
+  saveTutorChat: (id: string, messages: TutorMsg[], expectedOwner?: string) => {
+    const body = JSON.stringify({ messages, expectedOwner });
+    // Small autosaves survive document reloads. Larger photo/history payloads
+    // stay in the tab mirror and reconcile against the account on the next open.
+    const keepalive = new TextEncoder().encode(body).byteLength <= 60_000;
+    return http<TutorChatEntry>(`/api/tutor/chats/${encodeURIComponent(id)}`, { method: "PUT", body, keepalive });
+  },
   importTutorChats: (chats: { id: string; at: number; messages: TutorMsg[] }[]) =>
     http<{ imported: number }>(`/api/tutor/chats/import`, { method: "POST", body: JSON.stringify({ chats }) }),
   deleteTutorChat: (id: string) => http<{ ok: true }>(`/api/tutor/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),

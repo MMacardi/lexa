@@ -1,8 +1,8 @@
 // Resolve the meaning of an arbitrary word on tap — the lookup chain the Reader uses,
 // extracted so the Coach bubbles can reuse it. Cache first (a repeat tap costs no model
-// call, even in a later session); then, for Chinese, the shared default meaning when
-// it is settled (one sense, one reading — no sentence can change it, so no model is
-// asked: about half the HSK list); then one gloss request. The pinyin/romanization for
+// call, even in a later session). A sentence gets its own cache entry and a contextual
+// gloss: even a single-sense dictionary word can be a person's name. Without a
+// sentence, a settled Chinese default needs no model. The pinyin/romanization for
 // Chinese and Korean is computed on-device instead of asked from the model.
 
 import { api } from "./api";
@@ -29,10 +29,11 @@ export async function resolveMeaning(opts: {
   const word = opts.word.trim();
   if (!word) return { meaning: "", transcription: "" };
 
-  const cached = getGloss(word, opts.sourceLang, opts.targetLang);
+  const sentence = opts.sentence?.trim() || "";
+  const cached = getGloss(word, opts.sourceLang, opts.targetLang, sentence);
   if (cached) return { meaning: cached.gloss, transcription: cached.tr };
 
-  const key = `${opts.sourceLang}|${opts.targetLang}|${word.toLowerCase()}`;
+  const key = JSON.stringify([opts.sourceLang, opts.targetLang, word, sentence]);
   const running = inflight.get(key);
   if (running) return running;
 
@@ -41,7 +42,7 @@ export async function resolveMeaning(opts: {
     if (isChineseLang(opts.sourceLang)) {
       const d = await dictEntry(word, opts.targetLang);
       // The dictionary's reading, like the Reader: a bare 了 is le, not liǎo.
-      if (d?.settled && d.meaning) return { meaning: d.meaning, transcription: showTr ? d.phonetic : "" };
+      if (!sentence && d?.settled && d.meaning) return { meaning: d.meaning, transcription: showTr ? d.phonetic : "" };
     }
     const local = isLocalTr(opts.sourceLang); // zh / zh-Hant / ko → no model call
     const [localTr, res] = await Promise.all([
@@ -55,7 +56,7 @@ export async function resolveMeaning(opts: {
       }),
     ]);
     const entry = { gloss: res.gloss, tr: local ? localTr : (res.transcription ?? "").trim() };
-    setGloss(word, opts.sourceLang, opts.targetLang, entry);
+    setGloss(word, opts.sourceLang, opts.targetLang, entry, sentence);
     return { meaning: entry.gloss, transcription: entry.tr };
   })();
 

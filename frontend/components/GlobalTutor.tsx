@@ -14,7 +14,7 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { OPEN_MIKA, useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { OPEN_MIKA, takeMikaOpen, useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { useChatScroll } from "@/lib/chatScroll";
 import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,11 @@ export function GlobalTutor() {
   const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
   useLockScroll(open && mobile);
   useReportPanelOpen(open);
+  useEffect(() => {
+    const onReader = () => setOpen(false);
+    window.addEventListener("onomika:reader-open", onReader);
+    return () => window.removeEventListener("onomika:reader-open", onReader);
+  }, []);
   const chat = useSharedTutorChat();
   const { pair, changePair, messages, send, reset, busy, unfinished, card, startCard } = chat;
   const drop = useImageDrop(chat);
@@ -40,11 +45,14 @@ export function GlobalTutor() {
   startRef.current = startCard;
   useEffect(() => {
     const on = (e: Event) => {
-      const ctx = (e as CustomEvent<{ card?: TutorCardCtx }>).detail?.card;
+      const queued = takeMikaOpen();
+      const ctx = (e as CustomEvent<{ card?: TutorCardCtx }>).detail?.card ?? queued?.card;
       setOpen(true);
       if (ctx) startRef.current(ctx);
     };
     window.addEventListener(OPEN_MIKA, on);
+    const queued = takeMikaOpen();
+    if (queued) { setOpen(true); if (queued.card) startRef.current(queued.card); }
     return () => window.removeEventListener(OPEN_MIKA, on);
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);

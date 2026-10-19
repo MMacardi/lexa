@@ -1,4 +1,5 @@
 import { chatJson } from "../services/llm.js";
+import { contextNames } from "../lib/contextNames.js";
 import { enrichEntrySchema } from "../lib/schemas.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { localPhonetic } from "../lib/transcribe.js";
@@ -167,7 +168,7 @@ export async function enrichWordEntry(params: {
   const groundingLine = inventory
     ? `The senses of this ${sourceName} word are fixed by CC-CEDICT, a ${sourceName}–English dictionary:\n${inventory}\n` +
       `"meaningZh" MUST render one of those senses (or, where they overlap, a group of them) into ${targetName}. ` +
-      `Never gloss the word with a sense that is not in that list, however plausible it sounds. ` +
+      `Never gloss the word with a sense that is not in that list, EXCEPT a personal name clearly established by the learner's sentence. ` + contextNames +
       // The inventory is in English, and a gloss that half-copies it comes out as
       // "бог, божество, deity" — the dictionary decides WHICH sense, never the words.
       `That list is in English only because CC-CEDICT is a ${sourceName}–English dictionary. It fixes WHICH sense you may use, never the wording: ` +

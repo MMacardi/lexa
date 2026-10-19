@@ -48,7 +48,7 @@ export function TutorComposer({
     el.style.height = `${Math.min(el.scrollHeight, large ? 180 : 120)}px`;
   }, [input, inputRef, large]);
 
-  const canSend = !busy && !attaching && !unfinished && (!!input.trim() || attachments.length > 0);
+  const canSend = !busy && !chat.loadingChat && !attaching && !unfinished && (!!input.trim() || attachments.length > 0);
   function submit() {
     if (mic.phase !== "idle") mic.cancel();
     send();
@@ -61,6 +61,8 @@ export function TutorComposer({
 
   return (
     <div>
+      <p className="mb-1 text-[11px] text-ink-faint">{t("tutor.contextLimit")}</p>
+      {input.length > 20_000 && <p role="alert" className="mb-1 text-xs text-warn-text">{t("tutor.textLimit")}</p>}
       {mic.phase !== "idle" && (
         <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2">
           {mic.phase === "recording" && (
@@ -160,7 +162,7 @@ export function TutorComposer({
               void addImages(files);
             }}
             placeholder={t(canAttach ? "tutor.placeholderPhoto" : "tutor.placeholder")}
-            disabled={busy}
+            disabled={busy || chat.loadingChat}
             className={cn(
               "min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[16px] leading-snug text-ink placeholder:text-ink-faint focus:outline-none",
               large ? "max-h-[180px] min-h-10 sm:text-[15px]" : "max-h-[120px] min-h-9 sm:text-[14px]",

@@ -38,17 +38,17 @@ function persist() {
   }
 }
 
-const cacheKey = (text: string, sourceLang: string, targetLang: string) =>
-  `${sourceLang}|${targetLang}|${text.trim()}`;
+const cacheKey = (text: string, sourceLang: string, targetLang: string, sentence = "") =>
+  `v2|${JSON.stringify([sourceLang, targetLang, text.trim(), sentence.trim()])}`;
 
-export function getGloss(text: string, sourceLang: string, targetLang: string): GlossEntry | null {
+export function getGloss(text: string, sourceLang: string, targetLang: string, sentence = ""): GlossEntry | null {
   const store = load();
-  return store[cacheKey(text, sourceLang, targetLang)] ?? null;
+  return store[cacheKey(text, sourceLang, targetLang, sentence)] ?? null;
 }
 
-export function setGloss(text: string, sourceLang: string, targetLang: string, entry: GlossEntry) {
+export function setGloss(text: string, sourceLang: string, targetLang: string, entry: GlossEntry, sentence = "") {
   const store = load();
-  const k = cacheKey(text, sourceLang, targetLang);
+  const k = cacheKey(text, sourceLang, targetLang, sentence);
   if (!(k in store)) order.push(k);
   store[k] = entry;
   // Evict oldest keys beyond the cap.

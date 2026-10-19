@@ -257,7 +257,7 @@ async function translateProvidedExample(word: { id: string; sourceLang: string; 
       sourceLang: word.sourceLang,
       targetLang: word.targetLang,
     });
-    await prisma.example.update({ where: { id: ex.id }, data: { sentenceZh: translation } });
+    await prisma.example.updateMany({ where: { id: ex.id, sentenceEn: ex.sentenceEn, sentenceZh: ex.sentenceZh }, data: { sentenceZh: translation } });
   }
 }
 

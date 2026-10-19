@@ -25,7 +25,7 @@ const message = z
   .transform(({ streaming: _s, ...m }) => m);
 const thread = z
   .array(message)
-  .max(60)
+  .max(120)
   .refine((m) => JSON.stringify(m).length <= 2_000_000, "Chat too large");
 
 tutorChatsRouter.get("/tutor/chats", async (req: Request, res: Response) => {
@@ -43,9 +43,13 @@ tutorChatsRouter.get("/tutor/chats/:id", async (req: Request, res: Response) => 
 
 tutorChatsRouter.put("/tutor/chats/:id", saveLimiter, async (req: Request, res: Response) => {
   const id = chatId.safeParse(req.params.id);
-  const parsed = z.object({ messages: thread.refine((m) => m.length > 0) }).safeParse(req.body);
+  const parsed = z.object({ messages: thread.refine((m) => m.length > 0), expectedOwner: z.string().optional() }).safeParse(req.body);
   if (!id.success || !parsed.success) {
     res.status(400).json({ error: "Invalid chat", code: "no_input" });
+    return;
+  }
+  if (parsed.data.expectedOwner && parsed.data.expectedOwner !== callerId(req)) {
+    res.status(409).json({ error: "Account changed" });
     return;
   }
   res.json(await saveChat(callerId(req), id.data, parsed.data.messages));

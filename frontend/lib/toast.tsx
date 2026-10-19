@@ -80,7 +80,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [wordIds, setWordIds] = useState<Record<string, string>>({});
   const mappedRef = useRef<Set<string>>(new Set()); // jobIds whose words we've resolved
   const [trackerOpen, setTrackerOpen] = useState(false); // the word list under the bar
-  const closeTracker = useCallback(() => setJobs([]), []);
+  const [trackerHover, setTrackerHover] = useState(false);
+  const [trackerFocus, setTrackerFocus] = useState(false);
+  const [trackerLeaving, setTrackerLeaving] = useState(false);
+  useEffect(() => {
+    setTrackerLeaving(false);
+    if (!jobs.length || trackerHover || trackerFocus || !jobs.every((j) => j.status === "completed" && !j.errors.length)) return;
+    let fade: ReturnType<typeof setTimeout> | undefined;
+    const idle = setTimeout(() => {
+      setTrackerLeaving(true);
+      fade = setTimeout(() => setJobs((cur) => cur.filter((j) => j.status !== "completed")), 280);
+    }, 6500);
+    return () => { clearTimeout(idle); clearTimeout(fade); };
+  }, [jobs, trackerHover, trackerFocus]);
+  const closeTracker = useCallback(() => { setJobs([]); setTrackerHover(false); setTrackerFocus(false); }, []);
   // Stop = undo the add: every running job stops and takes back its cards, bar
   // any the learner has already reviewed (the server keeps those).
   const stopTracker = useCallback(async () => {
@@ -113,7 +126,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const isTerminal = (s: ImportTracker["status"]) => s === "completed" || s === "failed" || s === "cancelled";
 
   const trackImport = useCallback((payload: Omit<ImportTracker, "status" | "errors" | "errorMessage">) => {
-    setTrackerOpen(false);
+    setTrackerOpen(true);
+    setTrackerLeaving(false);
     setJobs((cur) => {
       // Keep only still-running jobs, then append the new one (a fresh batch after
       // everything finished starts clean; a job added mid-flight joins the total).
@@ -133,7 +147,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const startAdd = useCallback(
     (words: string[]): AddHandle => {
       const key = `adding-${++counter}`;
-      setTrackerOpen(false);
+      setTrackerOpen(true);
+      setTrackerLeaving(false);
       setJobs((cur) => {
         const active = cur.filter((j) => !isTerminal(j.status));
         if (active.length === 0) {
@@ -288,7 +303,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     .filter(Boolean)
                     .join(" · ");
         return (
-          <div className="pointer-events-none fixed inset-x-3 top-3 z-[75] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[340px]">
+          <div data-testid="enrichment-tracker" onPointerEnter={() => setTrackerHover(true)} onPointerLeave={() => setTrackerHover(false)}
+            onFocusCapture={() => setTrackerFocus(true)} onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setTrackerFocus(false); }}
+            className={cn("pointer-events-none fixed inset-x-3 top-3 z-[75] transition-opacity duration-300 sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-auto sm:w-[340px]", trackerLeaving && "opacity-0")}>
             <div className="pointer-events-auto overflow-hidden rounded-[14px] border border-black/[0.08] bg-surface/95 shadow-[0_10px_28px_rgba(46,42,38,0.18)] backdrop-blur">
               <div className="flex items-center gap-2.5 px-3 py-2">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sage-deep">

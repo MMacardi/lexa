@@ -13,6 +13,19 @@ export const LOCALES: { code: Locale; label: string }[] = [
 // sync. Use {var} placeholders; pass values via the second arg of t().
 type Entry = { en: string; ru: string; zh: string };
 const DICT: Record<string, Entry> = {
+  "tutor.openReader": { ru: "Открыть в Читалке", en: "Open in Reader", zh: "在阅读器中打开" },
+  "tutor.readerContext": { ru: "Текст из Читалки", en: "Reader text", zh: "阅读器文本" },
+  "tutor.contextLimit": { ru: "Мика учитывает до 60 последних пар сообщений, в пределах 64 000 символов. Старые реплики остаются в истории, пока чат не превысит этот объём.", en: "Mika uses up to the last 60 exchanges, within 64,000 characters. Older turns remain in history until the chat exceeds this size.", zh: "米卡最多参考最近60轮对话，总计不超过64,000个字符。超过此容量后，最早的消息将不再保留。" },
+  "tutor.textLimit": { ru: "В одном сообщении — до 20 000 символов. Раздели текст на части: он ещё не отправлен.", en: "A message can contain up to 20,000 characters. Split this text into parts; it has not been sent.", zh: "每条消息最多20,000个字符。请分段发送；这条消息尚未发送。" },
+  "tutor.readerLimit": { ru: "Для Читалки и Мики — до 20 000 символов в одном тексте. Раздели его на части.", en: "Reader and Mika accept up to 20,000 characters per passage. Split it into parts.", zh: "阅读器和米卡每篇最多支持20,000个字符，请分成几篇。" },
+  "reader.translationLimit": { ru: "За один раз можно перевести до 6000 символов. Раздели текст на части — перевод ещё не запущен.", en: "Translate up to 6,000 characters at a time. Split this text into parts; translation has not started.", zh: "每次最多翻译6,000个字符，请将文本分段；翻译尚未开始。" },
+  "reader.alignTranslation": { ru: "Связать слова с переводом", en: "Match words to this translation", zh: "关联原文与译文" },
+  "reader.aligning": { ru: "Сопоставляем слова…", en: "Matching words…", zh: "正在关联词语…" },
+  "reader.alignmentHint": { ru: "Нажми на слово в оригинале — его перевод подсветится здесь.", en: "Tap a source word to highlight its translation here.", zh: "点击原文中的词语，这里会突出显示对应译文。" },
+  "reader.alignmentSentence": { ru: "Точное соответствие слова не найдено — подсвечено предложение целиком.", en: "No precise word match was found; the whole sentence is highlighted.", zh: "未找到精确对应的词语，已突出显示整个句子。" },
+  "reader.alignmentMissing": { ru: "Для этого слова точное соответствие пока не найдено.", en: "No reliable match for this word yet.", zh: "尚未找到这个词语的可靠对应译文。" },
+  "edit.translateExample": { ru: "Перевести пример заново", en: "Translate this example again", zh: "重新翻译此例句" },
+  "edit.translationDraft": { ru: "Новый перевод появится здесь. Проверь его и нажми «Сохранить», чтобы заменить прежний.", en: "The new translation appears here. Review it and press Save to replace the previous wording.", zh: "新译文会显示在这里。请检查后点击“保存”，才会替换原译文。" },
   // --- landing: Russian first, then adapted to English and Chinese ---
   "landing.eyebrow": { ru: "Китайский с объяснениями на русском", en: "Chinese, explained in Russian", zh: "用俄语讲解的中文学习" },
   "landing.title": { ru: "Учишь китайский, а слова забываются?", en: "Learning Chinese, but forgetting the words?", zh: "学过的中文单词，总是记不住？" },
