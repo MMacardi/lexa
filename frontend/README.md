@@ -31,6 +31,7 @@ With local Docker running, Chrome installed and this directory's dependencies in
 ```bash
 npm run landing:shots
 npm run landing:shots -- plan,today
+npm run landing:shots -- reader,mika --demo-account=landing-demo-<timestamp>
 ```
 
 The script runs guest onboarding and uses a fresh local demo account to capture Plan,
@@ -38,3 +39,9 @@ Today, Reader, Flashcards, Writing and Mika in Russian, English and Chinese. It 
 600 × 1022 WebP images to `public/landing/`. Reader lookups and the Mika conversation
 make a few paid Qwen calls (roughly under ¥0.05 for a full run). Chrome's temporary
 profile stays in the project's `.review/browser-tmp` directory.
+
+Refresh individual screens with an existing local `landing-demo-…` account when needed.
+Reader captures check that the selected word stays above the popup. Mika captures enter
+Chinese conversation practice and show the learner ordering coffee and Mika replying.
+During the current bug-fixing phase, leave landing updates for the final pass unless
+the author explicitly requests one.

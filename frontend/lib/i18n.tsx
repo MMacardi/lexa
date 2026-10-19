@@ -53,7 +53,7 @@ const DICT: Record<string, Entry> = {
   "landing.mika.title": { ru: "Попробуй сказать это по-китайски", en: "Try saying it in Chinese", zh: "试着用中文说出来" },
   "landing.mika.body": { ru: "Сыграй разговор в кафе, спроси, чем отличаются два слова, или отправь своё предложение на проверку. Мика — ИИ-помощница, с которой можно спокойно ошибаться и пробовать ещё раз.", en: "Practise a café conversation, ask how two words differ or get feedback on your own sentence. Mika is an AI tutor you can make mistakes with and try again.", zh: "练习在咖啡馆点单，问两个词有什么区别，或者让米卡帮你改句子。米卡是 AI 学习助手，答错了也没关系，再试一次就好。" },
   "landing.mika.note": { ru: "Можно писать, говорить и отправлять фото с вопросом.", en: "Type, speak or send a photo with your question.", zh: "可以打字、说话，也可以发照片提问。" },
-  "landing.mika.alt": { ru: "Разговор с Микой: вопрос об употреблении китайских слов и объяснение", en: "A conversation with Mika about how to use Chinese words", zh: "和米卡的对话：询问中文词语的用法并获得解释" },
+  "landing.mika.alt": { ru: "Разговор по-китайски с Микой: заказ кофе, ответ ученика и продолжение беседы", en: "Chinese conversation practice with Mika: ordering coffee, the learner's reply and Mika's response", zh: "和米卡练习中文对话：点咖啡、学习者的回答和米卡的回应" },
   "landing.telegramTitle": { ru: "Сохраняй слова и в Telegram", en: "Save words in Telegram too", zh: "也可以在 Telegram 保存生词" },
   "landing.telegramBody": { ru: "Отправь слово боту @onomikabot — оно появится в твоём аккаунте. Там же можно повторить карточки и задать Мике вопрос.", en: "Send a word to @onomikabot and it appears in your account. You can also review cards and ask Mika a question there.", zh: "把单词发给 @onomikabot，就会保存到你的账号里。也能在聊天中复习卡片、向米卡提问。" },
   "landing.betaTitle": { ru: "Бесплатно во время беты", en: "Free during the beta", zh: "内测期间免费" },

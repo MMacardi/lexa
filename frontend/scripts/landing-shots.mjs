@@ -9,6 +9,8 @@
 // Local Docker only (dev sign-in), with Chrome and frontend's npm dependencies installed.
 // The Reader gloss and Mika chat cost a few model calls (under ~¥0.05). From the repo root:
 //   node frontend/scripts/landing-shots.mjs [shot,shot…]
+// Reuse a local demo account when refreshing individual screens:
+//   node frontend/scripts/landing-shots.mjs reader,mika --demo-account=landing-demo-<timestamp>
 // Shots: plan, today, reader, review, write, mika (default all). Writes
 // frontend/public/landing/<shot>-<locale>.webp, 600 px wide.
 import { execFileSync } from "child_process";
@@ -26,6 +28,9 @@ const ONLY = process.argv[2] ? process.argv[2].split(",") : null;
 const SHOTS = ["plan", "today", "reader", "review", "write", "mika"];
 if (ONLY?.some((s) => !SHOTS.includes(s))) throw new Error(`Choose shots from: ${SHOTS.join(", ")}`);
 const want = (s) => !ONLY || ONLY.includes(s);
+const demoAccount = process.argv.find((arg) => arg.startsWith("--demo-account="))?.split("=")[1];
+if (demoAccount && !/^landing-demo-\d+$/.test(demoAccount)) throw new Error("Only a local landing-demo account can be reused");
+if (demoAccount && want("plan")) throw new Error("The guest plan needs a fresh onboarding run");
 const LOCALES = ["ru", "en", "zh"];
 const LANG_LABEL = { ru: "RU", en: "EN", zh: "中" };
 fs.mkdirSync(OUT, { recursive: true });
@@ -67,7 +72,11 @@ async function click(page, labels, { timeout = 20000, exact = false } = {}) {
       },
       { labels, exact },
     );
-    if (ok) return true;
+    if (ok) {
+      // Let React commit before the next choice or a second "Дальше" click.
+      await sleep(150);
+      return true;
+    }
     await sleep(300);
   }
   const body = await page.evaluate(() => document.body.innerText.slice(0, 600)).catch(() => "");
@@ -122,6 +131,7 @@ page.on("response", async (res) => {
   } catch {}
 });
 
+if (!demoAccount) {
 console.log("guest");
 await page.goto(APP + "/", { waitUntil: "domcontentloaded", timeout: 90000 });
 await page.waitForSelector("[data-cta]", { timeout: 90000 });
@@ -181,20 +191,23 @@ if (want("plan")) {
   }
   await setLocaleLive(page, "ru");
 }
+}
 
 // --- Sign in: the guest plan lands on a new account ---------------------------------
 if (SHOTS.slice(1).some(want)) {
 console.log("account");
-await click(page, ["Пропустить и войти"]);
-await sleep(1500);
-const demoId = `landing-demo-${Date.now()}`;
+if (!demoAccount) {
+  await click(page, ["Пропустить и войти"]);
+  await sleep(1500);
+}
+const demoId = demoAccount || `landing-demo-${Date.now()}`;
 const r = await ctx.request.post(API + "/api/auth/dev", { data: { telegramId: demoId } });
 if (!r.ok()) throw new Error(`dev login ${r.status()}`);
 // Locally there is no beta code to mark the account invited (lib/gate.ts); the
 // Docker database does it directly.
 execFileSync("docker", ["exec", "onomika-postgres", "psql", "-U", "vocab", "-d", "vocab", "-c", `update "User" set invited = true where "telegramId" = '${demoId}'`]);
 await page.goto(APP + "/", { waitUntil: "domcontentloaded" });
-await click(page, ["Продолжить"], { exact: true, timeout: 120000 });
+if (!demoAccount) await click(page, ["Продолжить"], { exact: true, timeout: 120000 });
 await sleep(4000);
 console.log("  account", demoId);
 
@@ -229,10 +242,16 @@ if (want("reader")) {
       await page.waitForSelector("span[role=button]", { timeout: 30000 });
       const ruby = page.getByRole("button", { name: /Транскрипция|Pinyin|拼音/, exact: true });
       if (await ruby.count() && await ruby.first().isVisible()) await ruby.first().click();
-      const token = page.locator("span[role=button]").filter({ hasText: READER_TAP }).first();
+      const token = page.locator("span[role=button]").filter({ hasText: new RegExp([...READER_TAP].join(".*")) }).first();
       await token.click();
       await sleep(3000);
-      await page.evaluate(() => window.scrollTo(0, 0));
+      // Keep the app's scroll adjustment: it lifts the selected word above the dock.
+      const dock = page.locator("div.fixed").filter({ has: page.getByRole("button", { name: /Добавить 1|Add 1|加入 1/ }) }).last();
+      const wordBox = await token.boundingBox();
+      const dockBox = await dock.boundingBox();
+      if (!wordBox || !dockBox || wordBox.y + wordBox.height + 12 > dockBox.y) {
+        throw new Error(`Reader ${l}: the word must stay visible above its popup`);
+      }
       await shot(page, "reader", l);
     });
   }
@@ -266,23 +285,40 @@ if (want("write")) {
   }
 }
 
-// One real question; the study pair stays Chinese/Russian when the UI changes.
+// Mika's actual Chinese conversation practice, entered from her welcome screen.
+// A fresh café exchange per locale: Mika opens, the learner orders, Mika replies.
 if (want("mika")) {
-  await page.evaluate(() => localStorage.setItem("lexa.locale", "ru"));
-  await page.goto(APP + "/mika", { waitUntil: "domcontentloaded" });
-  await page.locator("textarea").first().fill("Чем отличаются 觉得 и 认为? Объясни коротко и дай по одному простому примеру.");
-  const reply = page.waitForResponse((r) => r.url().includes("/api/tutor/ask") && r.request().method() === "POST", { timeout: 90000 });
-  await page.getByRole("button", { name: "Отправить", exact: true }).click();
-  const response = await reply;
-  await response.finished();
-  if (!response.ok()) throw new Error(`Mika reply: ${response.status()}`);
-  await page.getByRole("button", { name: "Остановить", exact: true }).waitFor({ state: "hidden", timeout: 90000 });
-  await sleep(1000);
+  async function practiceReply(action) {
+    const reply = page.waitForResponse((r) => r.url().includes("/api/coach/chat") && r.request().method() === "POST", { timeout: 90000 });
+    await action();
+    const response = await reply;
+    if (!response.ok()) throw new Error(`Mika practice: ${response.status()}`);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const result = events.find((event) => event.type === "final")?.result;
+    if (!result?.say || !/\p{Script=Han}/u.test(result.say) || events.some((event) => event.type === "error")) {
+      throw new Error("Mika practice must finish with a Chinese reply");
+    }
+    await page.locator("textarea:not([disabled])").waitFor();
+    await sleep(1000);
+  }
   for (const locale of LOCALES) {
     await inLocale(locale, async (l) => {
       await page.goto(APP + "/mika", { waitUntil: "domcontentloaded" });
-      await waitText(page, "认为");
-      await sleep(1500);
+      await page.getByRole("link", { name: /Разговор по-китайски|Chat in Chinese|用中文聊天/ }).first().click();
+      await page.getByRole("button", { name: /HSK/ }).first().click();
+      await page.getByRole("button", { name: "HSK 2", exact: true }).click();
+      await page.locator('input[maxlength="120"]').fill("Заказ в кафе. Ты бариста, я заказываю кофе. По одной короткой реплике.");
+      await practiceReply(() => click(page, ["Начать беседу", "Start chatting", "开始聊天"], { exact: true }));
+      await page.locator("textarea").fill("你好！我要一杯咖啡，不要糖。");
+      await practiceReply(() => page.locator('button[type="submit"]').click());
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await sleep(600);
+      const learner = await page.locator(".anim-msg.justify-end").last().boundingBox();
+      const reply = await page.locator(".anim-msg.justify-start").last().boundingBox();
+      const composer = await page.locator("textarea").boundingBox();
+      if (!learner || !reply || !composer || learner.y < 60 || reply.y + reply.height > composer.y - 8) {
+        throw new Error(`Mika ${l}: the learner's reply and Mika's response must both be visible`);
+      }
       await shot(page, "mika", l);
     });
   }

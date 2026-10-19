@@ -12,6 +12,8 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 ---
 
 ## Done (Russian-first landing + Reader, 2026-10-18)
+- ✅ **2026-10-19 correction:** Reader's selected word stays visible in the screenshot; Mika shows
+  a real practice exchange. Future landing work is batched after bug fixes, per the author.
 - ✅ Concrete Russian landing copy with six real feature walkthroughs and ru/en/zh screenshots;
   project-local screenshot tooling. Related onboarding/HSK wording and metadata updated.
 - ✅ Reader photo OCR shares Mika's working Qwen vision model; paste images into the text box with

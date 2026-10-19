@@ -37,6 +37,8 @@ Not a full HSK exam app (no mock tests): the list is the source of words, the po
 - Match surrounding code style and comment density; every new UI string goes in all 3 languages.
 - Russian is the primary product language. Write and review Russian copy and learner flows first,
   then adapt English and Chinese to the same meaning. Follow `AGENTS.md` workspace boundaries.
+- During the bug-fixing phase, save landing copy, layout and screenshot updates for one final pass
+  after the bugs are fixed. Update the landing earlier only when the author explicitly requests it.
 - Closed beta: every `/api` route needs a session + invite (`lib/gate.ts`); identity comes
   from the session cookie only, never from a body/query `telegramId`.
 

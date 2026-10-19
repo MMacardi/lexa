@@ -1296,6 +1296,14 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Landing screenshot corrections; bugs first, landing last (2026-10-19)
+- Reader captures now preserve the app's scroll adjustment, keeping the selected word above the
+  meaning popup. The capture script checks the gap; verified at 390×664 and 320×568.
+- Mika's screenshot now shows actual Chinese conversation practice: a café greeting, the learner's
+  order and Mika's response. Updated Reader/Mika images in all three locales and the image alt text.
+- Per the author: batch future landing copy, layout and screenshot adjustments until after the bug
+  fixes. Recorded in `AGENTS.md` and `CLAUDE.md`; earlier updates require an explicit landing request.
+
 ### Russian-first landing and Reader photo/translation fixes (2026-10-18, asked for directly)
 - Finished the interrupted landing pass: concrete Russian copy and six feature walkthroughs with
   real local-app screenshots (Plan, Today, Reader, Flashcards, Writing, Mika), adapted to English
