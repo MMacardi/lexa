@@ -15,8 +15,12 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 - ✅ Reader underlines can be turned off (remembered in this browser); the saved-word popup
   shows the card's pinyin and closes on a repeated tap. Enter/Space work too. Verified on the
   local app in desktop Chromium and phone Chromium/WebKit/Firefox; backend tsc and next build pass.
+- ✅ Reader text management: a Saved status, an explicit full editor and confirmed deletion
+  from the open text, on desktop and phone. Edits update the active passage without duplicating
+  it; content changes clear the old translation. Edit/save/reopen and delete cancel/failure/retry
+  verified locally, with cards retained; backend tsc and next build pass.
 - ⏭ Remaining requests are ordered in `PLAN-reader-mika-fixes.md` and at the top of `BACKLOG.md`:
-  text editing/deletion; Mika's Reader context and hand-off; focused suggestions; fading card
+  Mika's Reader context and hand-off; focused suggestions; fading card
   notifications; names/related words; dialogue memory; source/translation alignment.
 - Landing work only when explicitly requested by the author, including any final pass.
 

@@ -111,7 +111,7 @@ export function SaveModal({
   initialCollection?: string;
   initialLevel?: string | null;
   onClose: () => void;
-  onSaved: (saved?: { id: string; title: string; level?: string | null; collection: string | null }) => void;
+  onSaved: (saved: { id: string; title: string; content: string; level: string | null; collection: string | null; translation: string | null; clickedWords: string[] }) => void;
 }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
@@ -135,6 +135,9 @@ export function SaveModal({
     setBusy(true);
     try {
       const collVal = collection.trim() || null;
+      const changed = body !== text.trim();
+      const keptTranslation = changed ? null : translation?.trim() || null;
+      const keptWords = changed ? [] : clickedWords ?? [];
       const saved = editId
         ? await api.updateReaderText(editId, {
             telegramId: accountId,
@@ -142,8 +145,8 @@ export function SaveModal({
             content: body,
             collection: collVal,
             level: level || null,
-            translation: translation?.trim() || null,
-            clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
+            translation: keptTranslation,
+            clickedWords: keptWords,
           })
         : await api.saveReaderText({
             telegramId: accountId,
@@ -151,8 +154,8 @@ export function SaveModal({
             content: body,
             collection: collVal || undefined,
             autoName: aiName,
-            translation: translation?.trim() || undefined,
-            clickedWords: clickedWords && clickedWords.length ? clickedWords : undefined,
+            translation: keptTranslation || undefined,
+            clickedWords: keptWords,
             // A level the user picked here is used directly (no AI). Only fall back to
             // an AI estimate when they left it blank and the badge setting is on.
             level: level || undefined,
@@ -162,7 +165,7 @@ export function SaveModal({
           });
       qc.invalidateQueries({ queryKey: ["reader-texts"] });
       show({ icon: "💾", title: t(editId ? "reader.updated" : "reader.saved") });
-      onSaved({ id: saved.id, title: saved.title, level: saved.level ?? (level || null), collection: collVal });
+      onSaved({ id: saved.id, title: saved.title, content: body, level: saved.level ?? (level || null), collection: collVal, translation: keptTranslation, clickedWords: keptWords });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -185,6 +188,7 @@ export function SaveModal({
 
         <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
         <Input
+          aria-label={t("reader.titleLabel")}
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
@@ -209,6 +213,7 @@ export function SaveModal({
           <>
             <label className="mb-1 mt-4 block text-[12px] font-medium text-ink-soft">{t("reader.contentLabel")}</label>
             <textarea
+              aria-label={t("reader.contentLabel")}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}

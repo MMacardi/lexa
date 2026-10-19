@@ -19,7 +19,7 @@ approximately 2026-10-21. It is not a blocker for this explicitly requested bug 
    rather than recomputing a potentially different reading. A second tap on the same word
    closes its popup; tapping another word opens that word. Check keyboard interaction too.
 
-2. [ ] **Reader text management.** Add Delete to the open saved text with the existing
+2. [x] **Reader text management.** Done 2026-10-19. Add Delete to the open saved text with the existing
    delete confirmation. Replace the confusing saved-status action with a clear status and
    an Edit text action opening the existing full editor (the current Saved action), including
    title/collection and content. Remove the redundant button that returns to the paste box.
@@ -98,4 +98,25 @@ approximately 2026-10-21. It is not a blocker for this explicitly requested bug 
   browser errors. Screenshots inspected locally; no landing assets changed.
 - Backend `npx tsc --noEmit -p .` and frontend `npx next build` pass. Build reports existing
   lint warnings in Reader and other files; no new warning introduced by this part.
-- Next: part 2, Reader text management. The other parts are planned, not implemented.
+- Continued with part 2 below. The later parts are planned, not implemented.
+
+### Reader text management — 2026-10-19
+
+- Saved is a status; Edit text opens the existing full editor for title, collection,
+  level and content. Removed the second edit action that returned to the paste box.
+  The desktop toolbar and phone reading-tools sheet both offer Delete, using the app's
+  existing confirmation dialog with the text's title and a reminder that cards are kept.
+- Saving updates the passage on screen and the same saved row, without duplicates.
+  Metadata edits preserve the cached translation and reading history, including when
+  the same text was pasted again. Content edits clear the old translation and selections;
+  editing waits for any whole-text translation already in flight. New text and successful
+  deletion return to an empty input. Failed deletion leaves the text open for retry.
+- Verified in Russian against local Docker with throwaway accounts: desktop Chromium
+  (1280 px), phone Chromium (360 px), WebKit (390 px) and Firefox (390 px). Completed
+  title/collection/content edit, save, reload and reopen; autosave reuse; cancellation,
+  simulated failed deletion and successful retry; absence after reload; cards retained.
+  Also checked cached translation/history preservation and the pending-translation guard.
+  No browser errors or horizontal overflow; editor and confirmation screenshots inspected.
+- Backend `npx tsc --noEmit -p .` and frontend `npx next build` pass, with the existing
+  lint warnings only. No schema changes or LLM prompt changes. Test accounts removed.
+- Next: part 3, Mika's Reader context and text hand-off. Parts 3–8 remain unchecked.

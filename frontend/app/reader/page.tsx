@@ -12,6 +12,7 @@ import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
+import { useDialog } from "@/lib/dialog";
 import { detectDominantLang, FIXED_PAIR, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
   getReaderSource,
@@ -48,7 +49,7 @@ import { recorderSupported } from "@/lib/record";
 import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Underline } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Trash2, Underline } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -116,6 +117,7 @@ export default function ReaderPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
+  const { confirm } = useDialog();
   const recentPairs = useRecentPairs();
   const readerSource = useReaderSource();
   const autoGloss = useAutoGloss();
@@ -177,6 +179,7 @@ export default function ReaderPage() {
   // Background AI text generations we're waiting on (poll until ready).
   const [pendingGen, setPendingGen] = useState<string[]>([]);
   const [showSave, setShowSave] = useState(false); // save-text modal in the reading view
+  const [textBusy, setTextBusy] = useState(false);
   // Phones: the toolbar keeps back, pinyin and translation; the rest is in a sheet.
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsSheet = usePresence(toolsOpen, 200);
@@ -185,8 +188,9 @@ export default function ReaderPage() {
     if (!mobile) setToolsOpen(false);
   }, [mobile]);
   // The saved row the text on screen lives in. Every text is kept the moment it
-  // is read (autosave); Save then only renames it or files it in a collection.
+  // is read (autosave); the full editor updates that same row.
   const [savedRow, setSavedRow] = useState<{ id: string; content: string; title: string } | null>(null);
+  const currentSaved = savedRow?.content === text.trim() ? savedRow : null;
   // Read-aloud practice (server STT — works on mobile and in China, unlike the
   // browser recogniser): toggle + per-sentence scoring panel under the text.
   const [readAloud, setReadAloud] = useState(false);
@@ -636,11 +640,9 @@ export default function ReaderPage() {
     }
   }
 
-  // Leave the reading view. A saved text is edited via its own edit modal now, so
-  // the back button starts a FRESH, empty input. An unsaved paste is kept in the
-  // box so the user can tweak the text they just wrote.
+  // Start a new text; keep the input only if autosave failed.
   function leaveReading() {
-    if (openText) {
+    if (currentSaved) {
       setText("");
       setTranslation(null);
       translatedFor.current = "";
@@ -648,9 +650,52 @@ export default function ReaderPage() {
       setAdded(new Set());
       setTextLevel(null);
       setOpenText(null);
+      setSavedRow(null);
       setReaderSource("");
     }
+    setGloss(null);
+    glossKeyRef.current = "";
+    setKnownPop(null);
+    setCardPanel(null);
     setReading(false);
+  }
+
+  async function editText() {
+    if (textBusy || translating) return;
+    setToolsOpen(false);
+    setTextBusy(true);
+    try {
+      // Autosave can reopen a text that already has a collection and level.
+      // Load its metadata before editing so saving cannot clear those fields.
+      setOpenText(currentSaved ? await api.readerText(currentSaved.id, accountId) : null);
+      setShowSave(true);
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setTextBusy(false);
+    }
+  }
+
+  async function deleteText() {
+    if (!currentSaved || textBusy) return;
+    setToolsOpen(false);
+    setTextBusy(true);
+    try {
+      const ok = await confirm({
+        title: t("reader.deleteTitle"),
+        message: t("reader.deleteConfirm", { title: currentSaved.title }),
+        confirmLabel: t("common.delete"),
+        tone: "danger",
+      });
+      if (!ok) return;
+      await api.deleteReaderText(currentSaved.id, accountId);
+      await qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
+      leaveReading();
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setTextBusy(false);
+    }
   }
 
   // Open a saved text: restore its content, pair, translation and the words the
@@ -1322,11 +1367,12 @@ export default function ReaderPage() {
         <button
           type="button"
           onClick={leaveReading}
-          aria-label={t(openText ? "reader.back" : "reader.edit")}
-          className="inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:py-1.5"
+          aria-label={t("reader.back")}
+          disabled={textBusy}
+          className="inline-flex items-center rounded-full border border-black/[0.08] bg-surface px-3 py-2 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50 md:py-1.5"
         >
           <ArrowLeft className="h-4 w-4 md:hidden" />
-          <span className="hidden md:inline">← {t(openText ? "reader.back" : "reader.edit")}</span>
+          <span className="hidden md:inline">← {t("reader.back")}</span>
         </button>
         <span className="hidden text-xs font-medium text-ink-faint md:inline">
           {langLabel(sourceLang)} → {langLabel(targetLang)}
@@ -1335,16 +1381,20 @@ export default function ReaderPage() {
           <span className="hidden rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep md:inline">~{textLevel}</span>
         )}
 
-        {/* save this text (works before or after translating) */}
+        {currentSaved && (
+          <span role="status" className="hidden items-center gap-1.5 text-xs font-medium text-ink-faint md:inline-flex">
+            <Check className="h-3.5 w-3.5 text-sage-deep" /> {t("reader.savedShort")}
+          </span>
+        )}
         <button
           type="button"
-          onClick={() => setShowSave(true)}
-          className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:inline-flex"
+          onClick={editText}
+          disabled={textBusy || translating}
+          className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] disabled:opacity-50 md:inline-flex"
         >
-          {/* Already kept (autosave): the button renames it or files it away. */}
-          {savedRow && savedRow.content === text.trim() ? (
+          {currentSaved ? (
             <>
-              <Check className="h-3.5 w-3.5 text-sage-deep" /> {t("reader.savedShort")}
+              <PenLine className="h-3.5 w-3.5" /> {t("reader.edit")}
             </>
           ) : (
             <>
@@ -1353,17 +1403,14 @@ export default function ReaderPage() {
           )}
         </button>
 
-        {/* edit the text on screen: back to the input view with THIS text loaded
-            (openText kept, so Save updates it instead of creating a duplicate).
-            Only meaningful for a saved text — an unsaved paste already keeps its
-            text on "back". */}
-        {openText && (
+        {currentSaved && (
           <button
             type="button"
-            onClick={() => setReading(false)}
-            className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-black/[0.03] md:inline-flex"
+            onClick={deleteText}
+            disabled={textBusy}
+            className="hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-xs font-semibold text-warn-text hover:bg-black/[0.03] disabled:opacity-50 md:inline-flex"
           >
-            <PenLine className="h-3.5 w-3.5" /> {t("reader.edit")}
+            <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
           </button>
         )}
 
@@ -1993,34 +2040,21 @@ export default function ReaderPage() {
                   }}
                 />
               )}
-              {savedRow && savedRow.content === text.trim() ? (
-                <SheetRow
-                  Icon={Check}
-                  label={t("reader.savedShort")}
-                  hint={t("reader.savedSub")}
-                  onClick={() => {
-                    setToolsOpen(false);
-                    setShowSave(true);
-                  }}
-                />
-              ) : (
-                <SheetRow
-                  Icon={Save}
-                  label={t("reader.save")}
-                  onClick={() => {
-                    setToolsOpen(false);
-                    setShowSave(true);
-                  }}
-                />
+              {currentSaved && (
+                <div role="status" className="flex items-center gap-3 px-3 py-2 text-[13px] font-medium text-ink-faint">
+                  <Check className="h-[19px] w-[19px] text-sage-deep" /> {t("reader.savedShort")}
+                </div>
               )}
-              {openText && (
+              <SheetRow
+                Icon={currentSaved ? PenLine : Save}
+                label={t(currentSaved ? "reader.edit" : "reader.save")}
+                onClick={editText}
+              />
+              {currentSaved && (
                 <SheetRow
-                  Icon={PenLine}
-                  label={t("reader.edit")}
-                  onClick={() => {
-                    setToolsOpen(false);
-                    setReading(false);
-                  }}
+                  Icon={Trash2}
+                  label={t("common.delete")}
+                  onClick={deleteText}
                 />
               )}
             </div>
@@ -2031,8 +2065,8 @@ export default function ReaderPage() {
       {showSave && (
         <SaveModal
           text={text}
-          translation={trReady ? translation ?? undefined : undefined}
-          clickedWords={Array.from(new Set([...added, ...selected]))}
+          translation={trReady ? translation ?? undefined : openText?.content === text.trim() ? openText.translation ?? undefined : undefined}
+          clickedWords={Array.from(new Set([...(openText?.clickedWords ?? []), ...added, ...selected]))}
           sourceLang={sourceLang}
           targetLang={targetLang}
           editId={openText?.id ?? (savedRow?.content === text.trim() ? savedRow.id : undefined)}
@@ -2041,9 +2075,23 @@ export default function ReaderPage() {
           initialLevel={openText?.level ?? ""}
           onClose={() => setShowSave(false)}
           onSaved={(saved) => {
-            if (openText && saved) setOpenText({ ...openText, ...saved });
-            if (saved) setSavedRow((r) => (r && r.id === saved.id ? { ...r, title: saved.title } : r));
-            setTextLevel(saved?.level ?? textLevel);
+            setOpenText({ ...openText, ...saved, sourceLang, targetLang, status: "ready" });
+            setSavedRow({ id: saved.id, content: saved.content, title: saved.title });
+            setText(saved.content);
+            setTextLevel(saved.level);
+            setReaderSource(saved.title);
+            setTranslation(saved.translation);
+            translatedFor.current = saved.translation ? saved.content : "";
+            if (saved.content !== text.trim()) {
+              setSelected(new Set());
+              setAdded(new Set());
+              setShowTr(false);
+              setGloss(null);
+              glossKeyRef.current = "";
+              glossCache.current.clear();
+              setKnownPop(null);
+              setCardPanel(null);
+            }
             setShowSave(false);
           }}
         />

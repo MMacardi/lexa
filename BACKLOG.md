@@ -56,8 +56,12 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    and text hand-off; focused word suggestions; fading enrichment notifications; names in
    translations and the related-word audit; longer dialogue context; translation alignment.
    **Part 1 done 2026-10-19:** a persistent underlines switch on desktop and in phone tools,
-   the saved card's pinyin in its popup, repeat-tap close and keyboard interaction. Remaining
-   parts stay unchecked in the plan; the next session is Reader text management.
+   the saved card's pinyin in its popup, repeat-tap close and keyboard interaction.
+   **Part 2 done 2026-10-19:** Saved is a status; Edit text opens the full editor; Delete
+   confirms from the open text. Edits update the passage and its saved row, keeping metadata
+   and clearing stale translations when content changes. Desktop and phone edit/save/reopen,
+   delete cancel/failure/retry and cards retained verified locally; backend tsc and frontend
+   build pass. Parts 3–8 stay unchecked; next is Mika's Reader context and text hand-off.
    **Landing work is deferred until the author explicitly asks**, including any final pass.
 
 0. [x] **Examples at the learner's level, one HSK scale, cheaper enrichment** (asked for directly 2026-10-06).
