@@ -2,6 +2,12 @@
 
 _The decision and the research behind it. Ordering in `BACKLOG.md` follows §G of this file._
 
+**Current corrections (2026-10-18):** the author has no university defence to prepare for
+(clarified 2026-10-15); the defence recommendations below are historical, not work to schedule.
+Russian-speaking Chinese learners are the primary audience: write and review Russian copy first,
+then adapt English and Chinese. The landing now explains concrete study tasks with app screenshots;
+the old readiness-first tagline below is historical positioning, not the current copy brief.
+
 **Evidence used:**
 - The whole repo: code, the Prisma schema, the bot, BACKLOG.md, all 601 lines of IDEAS.md, UNIT_ECONOMICS, BETA_CHECKLIST, TASKS, and git history (319 commits, 2026-06-16 → 09-22).
 - Current web research on 25+ competitors. Sources are at the end; "unverified" marks claims I couldn't confirm from a primary source.

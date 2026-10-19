@@ -13,6 +13,59 @@ export const LOCALES: { code: Locale; label: string }[] = [
 // sync. Use {var} placeholders; pass values via the second arg of t().
 type Entry = { en: string; ru: string; zh: string };
 const DICT: Record<string, Entry> = {
+  // --- landing: Russian first, then adapted to English and Chinese ---
+  "landing.eyebrow": { ru: "Китайский с объяснениями на русском", en: "Chinese, explained in Russian", zh: "用俄语讲解的中文学习" },
+  "landing.title": { ru: "Учишь китайский, а слова забываются?", en: "Learning Chinese, but forgetting the words?", zh: "学过的中文单词，总是记不住？" },
+  "landing.sub": { ru: "Сохраняй слова из учебника, сообщений и фото. Onomika добавит перевод и пример, напомнит повторить и поможет потренироваться в разговоре.", en: "Save words from textbooks, messages and photos. Onomika adds meanings and examples, schedules reviews and helps you practise using them in conversation.", zh: "保存课本、消息和照片里的生词。Onomika 会补充释义和例句、安排复习，还能陪你练习在对话中使用。" },
+  "landing.cta": { ru: "Попробовать бесплатно", en: "Try it free", zh: "免费试用" },
+  "landing.ctaHint": { ru: "Проверка уровня и первые 5 слов — без регистрации.", en: "Check your vocabulary and learn your first 5 words before signing up.", zh: "不用注册，就能测词汇量、学前 5 个词。" },
+  "landing.signIn": { ru: "Войти", en: "Sign in", zh: "登录" },
+  "landing.seeHow": { ru: "Посмотреть, как это работает", en: "See how it works", zh: "看看怎么学" },
+  "landing.screenCaption": { ru: "Пример из приложения", en: "Example from the app", zh: "应用示例" },
+  "landing.featuresTitle": { ru: "От первого слова до разговора", en: "From your first word to a conversation", zh: "从学单词到开口说" },
+  "landing.featuresSub": { ru: "Вот как можно заниматься в Onomika — на экранах самого приложения.", en: "Here's what studying with Onomika looks like, straight from the app.", zh: "看看在 Onomika 里，你可以怎样学。" },
+  "landing.plan.label": { ru: "План под твой уровень", en: "Your study plan", zh: "适合你的学习计划" },
+  "landing.plan.title": { ru: "Начни с того, чего ещё не знаешь", en: "Start with what you don't know yet", zh: "从还不认识的词开始" },
+  "landing.plan.body": { ru: "Короткая проверка поможет выбрать первые слова. Укажи цель HSK и сколько времени готов заниматься — получишь план и небольшой урок, который можно пройти сразу.", en: "A short vocabulary check helps choose your first words. Pick an HSK goal and a daily pace to get a plan and a short lesson you can try right away.", zh: "做一个简短的词汇测试，选好 HSK 目标和每天的学习时间，就能拿到计划，并马上试学一课。" },
+  "landing.plan.note": { ru: "Проверка оценивает словарный запас, а не балл за экзамен.", en: "The check estimates vocabulary knowledge, not an exam score.", zh: "测试估算的是词汇量，不是考试分数。" },
+  "landing.plan.alt": { ru: "План HSK после проверки: слова по дням и кнопка первого урока", en: "An HSK plan after the check, with daily word groups and a first lesson", zh: "测试后的 HSK 计划，包含每日单词和第一课" },
+  "landing.today.label": { ru: "Слова на каждый день", en: "Daily words", zh: "每日单词" },
+  "landing.today.title": { ru: "Одна тема, несколько новых слов", en: "A few new words around one topic", zh: "围绕一个话题，学几个新词" },
+  "landing.today.body": { ru: "Сегодня — заказать еду, завтра — спросить дорогу. Слова из списка HSK собраны по ситуациям и учитывают твои интересы. Знакомое можно пропустить.", en: "Order food today, ask for directions tomorrow. HSK words are grouped by situation, with your interests helping shape the choice. Skip words you already know.", zh: "今天学点餐，明天学问路。HSK 单词按场景分组，也会参考你的兴趣。已经认识的词可以跳过。" },
+  "landing.today.note": { ru: "Твои слова из занятий и повседневной жизни учатся здесь же.", en: "Words from your lessons and daily life fit into the same routine.", zh: "课堂和生活中遇到的生词，也能一起学。" },
+  "landing.today.alt": { ru: "Экран «Сегодня»: новые слова HSK на одну тему с переводом и пиньинем", en: "Today: HSK words on one topic, with meanings and pinyin", zh: "今天页面：同一主题的 HSK 单词、释义和拼音" },
+  "landing.reader.label": { ru: "Чтение и свои слова", en: "Reading and saving words", zh: "阅读与生词收藏" },
+  "landing.reader.title": { ru: "Встретил незнакомое слово? Нажми на него", en: "Found a word you don't know? Tap it", zh: "遇到生词？点一下就能查" },
+  "landing.reader.body": { ru: "Вставь текст или загрузи фото страницы. Нажми на слово, чтобы увидеть перевод, и сохрани его вместе с предложением. Карточку не придётся заполнять вручную.", en: "Paste a text or upload a photo of a page. Tap a word to see its meaning, then save it with the sentence. You don't need to fill in a flashcard yourself.", zh: "粘贴文字或上传书页照片。点一下单词查看释义，再连同例句一起保存，不用自己填写卡片。" },
+  "landing.reader.note": { ru: "Пиньинь над текстом можно включить, когда нужна подсказка.", en: "Turn on pinyin above the text when you need a reading aid.", zh: "需要提示时，可以在文字上方显示拼音。" },
+  "landing.reader.alt": { ru: "Читалка с китайским текстом, пиньинем и переводом выбранного слова", en: "Reader with Chinese text, pinyin and a selected word's meaning", zh: "阅读页面：中文、拼音及选中词的释义" },
+  "landing.review.label": { ru: "Повторение", en: "Flashcards", zh: "复习" },
+  "landing.review.title": { ru: "Повторяй слова, которые пора освежить", en: "Review the words that need a refresh", zh: "及时复习快忘记的词" },
+  "landing.review.body": { ru: "Вспомни значение, переверни карточку и оцени, насколько легко дался ответ. Сложные слова вернутся раньше, знакомые — позже. Примеры и озвучка помогут вспомнить, как слово звучит и где встречается.", en: "Recall the meaning, flip the card and rate how easily you remembered. Difficult words return sooner; familiar ones wait longer. Examples and audio help you remember how each word sounds and is used.", zh: "先回忆词义，翻开卡片，再评价记得有多牢。难词会更早出现，熟词则隔久一点。例句和发音帮你回想它怎么读、怎么用。" },
+  "landing.review.note": { ru: "Расписание повторений подстраивается под твои ответы.", en: "The review schedule adjusts to your answers.", zh: "复习时间会根据你的回答调整。" },
+  "landing.review.alt": { ru: "Обратная сторона карточки: слово, пиньинь, перевод, пример и оценки повторения", en: "A flashcard showing the word, pinyin, meaning, example and review ratings", zh: "闪卡背面：单词、拼音、释义、例句和复习评分" },
+  "landing.write.label": { ru: "Иероглифы от руки", en: "Handwriting", zh: "手写汉字" },
+  "landing.write.title": { ru: "Помнишь, как читается. А как пишется?", en: "You can read it. Can you write it?", zh: "会读了，还会写吗？" },
+  "landing.write.body": { ru: "Пиши иероглифы прямо на экране. Для нового слова есть обводка и порядок черт; потом попробуй написать его по памяти.", en: "Write characters directly on the screen. Trace a new word and learn its stroke order, then try writing it from memory.", zh: "直接在屏幕上写汉字。新词可以先跟着笔顺描红，再试着凭记忆写出来。" },
+  "landing.write.note": { ru: "Пропись повторяется по своему расписанию: чтение и письмо даются по-разному.", en: "Writing has its own review schedule: reading a word and writing it are different skills.", zh: "写字有单独的复习安排，因为会读和会写是两回事。" },
+  "landing.write.alt": { ru: "Пропись: поле для написания китайского иероглифа с подсказкой черт", en: "Handwriting practice with a character grid and stroke guidance", zh: "写字练习：汉字书写格和笔画提示" },
+  "landing.mika.label": { ru: "Практика с Микой", en: "Practise with Mika", zh: "和米卡练习" },
+  "landing.mika.title": { ru: "Попробуй сказать это по-китайски", en: "Try saying it in Chinese", zh: "试着用中文说出来" },
+  "landing.mika.body": { ru: "Сыграй разговор в кафе, спроси, чем отличаются два слова, или отправь своё предложение на проверку. Мика — ИИ-помощница, с которой можно спокойно ошибаться и пробовать ещё раз.", en: "Practise a café conversation, ask how two words differ or get feedback on your own sentence. Mika is an AI tutor you can make mistakes with and try again.", zh: "练习在咖啡馆点单，问两个词有什么区别，或者让米卡帮你改句子。米卡是 AI 学习助手，答错了也没关系，再试一次就好。" },
+  "landing.mika.note": { ru: "Можно писать, говорить и отправлять фото с вопросом.", en: "Type, speak or send a photo with your question.", zh: "可以打字、说话，也可以发照片提问。" },
+  "landing.mika.alt": { ru: "Разговор с Микой: вопрос об употреблении китайских слов и объяснение", en: "A conversation with Mika about how to use Chinese words", zh: "和米卡的对话：询问中文词语的用法并获得解释" },
+  "landing.telegramTitle": { ru: "Сохраняй слова и в Telegram", en: "Save words in Telegram too", zh: "也可以在 Telegram 保存生词" },
+  "landing.telegramBody": { ru: "Отправь слово боту @onomikabot — оно появится в твоём аккаунте. Там же можно повторить карточки и задать Мике вопрос.", en: "Send a word to @onomikabot and it appears in your account. You can also review cards and ask Mika a question there.", zh: "把单词发给 @onomikabot，就会保存到你的账号里。也能在聊天中复习卡片、向米卡提问。" },
+  "landing.betaTitle": { ru: "Бесплатно во время беты", en: "Free during the beta", zh: "内测期间免费" },
+  "landing.beta.access": { ru: "Для сохранения плана и дальнейших занятий нужен аккаунт и код приглашения.", en: "You'll need an account and an invite code to save your plan and keep studying.", zh: "保存计划并继续学习，需要账号和邀请码。" },
+  "landing.beta.data": { ru: "Свои слова и прогресс можно скачать в настройках.", en: "Download your words and progress from Settings.", zh: "可以在设置中导出单词和学习进度。" },
+  "landing.beta.feedback": { ru: "Нашёл ошибку или чего-то не хватает? Напиши через «Сообщить о проблеме» в приложении.", en: "Found a problem or something missing? Use Report a problem in the app.", zh: "发现问题或想要新功能？可以通过应用里的「反馈问题」告诉我们。" },
+  "landing.finalTitle": { ru: "Начни с пяти слов", en: "Start with five words", zh: "先学五个词" },
+  "landing.finalSub": { ru: "Пройди короткую проверку и попробуй первый урок. Войти можно после.", en: "Take a short check and try your first lesson. You can sign in afterwards.", zh: "先做个小测试，再试学第一课。之后再登录也可以。" },
+  "landing.chat": { ru: "Чат тестировщиков", en: "Testers' chat", zh: "内测群" },
+  "landing.terms": { ru: "Условия", en: "Terms", zh: "条款" },
+  "landing.privacy": { ru: "Конфиденциальность", en: "Privacy", zh: "隐私" },
+
   // --- nav / chrome ---
   "nav.today": { en: "Today", ru: "Сегодня", zh: "今天" },
   "nav.flashcards": { en: "Flashcards", ru: "Карточки", zh: "闪卡" },
@@ -218,6 +271,7 @@ const DICT: Record<string, Entry> = {
   },
 
   // --- reader ---
+  "reader.scanEmpty": { ru: "На фото не удалось найти текст. Попробуй более чёткий снимок.", en: "No readable text found. Try a clearer photo.", zh: "没有识别到文字，请换一张更清晰的照片。" },
   "reader.title": { en: "Reader", ru: "Читалка", zh: "阅读器" },
   "reader.subtitle": {
     en: "Paste any text, tap the words you don't know, and add them as cards.",
@@ -225,9 +279,9 @@ const DICT: Record<string, Entry> = {
     zh: "粘贴任意文本，点选不认识的词，一键加入单词卡。",
   },
   "reader.placeholder": {
-    en: "Paste an article, lyrics, a paragraph…",
-    ru: "Вставь статью, текст песни, абзац…",
-    zh: "粘贴文章、歌词或一段文字…",
+    en: "Paste text or a screenshot (Ctrl+V / ⌘V)…",
+    ru: "Вставь текст или скриншот (Ctrl+V / ⌘V)…",
+    zh: "粘贴文字或截图（Ctrl+V / ⌘V）…",
   },
   "reader.read": { en: "Read", ru: "Читать", zh: "开始阅读" },
   "reader.pasteRead": { en: "Paste & read", ru: "Вставить и читать", zh: "粘贴并阅读" },
@@ -374,6 +428,7 @@ const DICT: Record<string, Entry> = {
   "reader.hideTranslation": { en: "Hide translation", ru: "Скрыть перевод", zh: "隐藏翻译" },
   "reader.showTranslation": { en: "Show translation", ru: "Показать перевод", zh: "显示翻译" },
   "reader.translationTitle": { en: "Translation", ru: "Перевод", zh: "翻译" },
+  "reader.retranslate": { ru: "Перевести заново", en: "Translate again", zh: "重新翻译" },
   "reader.translateFailed": { en: "Translation failed", ru: "Не удалось перевести", zh: "翻译失败" },
 
   "side.mastered": { en: "words mastered", ru: "слов выучено", zh: "已掌握" },
@@ -1448,12 +1503,8 @@ const DICT: Record<string, Entry> = {
 
   // --- HSK onboarding: target -> check -> gap deck -> review -> use-step ---
   "hskFirst.step": { en: "Step {n} of {total}", ru: "Шаг {n} из {total}", zh: "第 {n} 步，共 {total} 步" },
-  "hskFirst.title": { en: "Your HSK readiness, in five minutes", ru: "Твоя готовность к HSK — за пять минут", zh: "五分钟看清你的 HSK 准备度" },
-  "hskFirst.sub": {
-    en: "Pick the level you're aiming at, tap through a short check, and the words you're missing become your first deck — with examples, and a step where you actually use them.",
-    ru: "Выбери целевой уровень, пройди короткую проверку — и недостающие слова станут твоей первой колодой: с примерами и шагом, где ты их используешь.",
-    zh: "选好目标等级，做一个简短的自测，缺的词就会变成你的第一套卡组——带例句，还有一步真正去用它们。",
-  },
+  "hskFirst.title": { ru: "Подберём слова для твоего HSK", en: "Find your next HSK words", zh: "找到适合你学的 HSK 单词" },
+  "hskFirst.sub": { ru: "Выбери уровень и пройди короткую проверку. Мы соберём первые слова с переводом и примерами, чтобы ты мог сразу начать заниматься.", en: "Pick a level and take a short check. We'll prepare your first words with meanings and examples so you can start studying.", zh: "选好等级，做个简短测试。我们会为你准备带释义和例句的第一批单词，马上就能开始学。" },
   "hskFirst.learning": { en: "Learning", ru: "Учу", zh: "我在学" },
   "hskFirst.chinese": { en: "Chinese", ru: "Китайский", zh: "中文" },
   "hskFirst.explainIn": { en: "Explain in", ru: "Объяснять на", zh: "用哪种语言讲解" },
@@ -1477,16 +1528,8 @@ const DICT: Record<string, Entry> = {
     ru: "{n} слов были выдуманы, и ты не попался ни на одно.",
     zh: "其中 {n} 个词是编的，你全都识破了。",
   },
-  "check.fakesOne": {
-    en: "One made-up word ({words}) was left as known — one slip is forgiven.",
-    ru: "Одно выдуманное слово ({words}) осталось «знакомым» — одну ошибку прощаем.",
-    zh: "有一个编的词（{words}）被当成认识——一次失误不算。",
-  },
-  "check.fakesSome": {
-    en: "{n} of {shown} made-up words ({words}) were left as known, so the estimate trusts your other “I know it”s less.",
-    ru: "{n} из {shown} выдуманных слов ({words}) остались «знакомыми», поэтому оценка меньше доверяет остальным «знаю».",
-    zh: "{shown} 个编的词里有 {n} 个（{words}）被当成认识，所以估算对你其他的“认识”打了折扣。",
-  },
+  "check.fakesOne": { ru: "Одно выдуманное слово ({words}) отмечено как знакомое. На оценку одна такая ошибка не влияет.", en: "One made-up word ({words}) was marked as known. A single slip doesn't affect your estimate.", zh: "有一个编造的词（{words}）被标为认识。一次这样的失误不会影响估算。" },
+  "check.fakesSome": { ru: "Ты отметил как знакомые {n} из {shown} выдуманных слов ({words}). Мы учли это и снизили оценку словарного запаса.", en: "You marked {n} of {shown} made-up words ({words}) as known. We've adjusted the vocabulary estimate down to account for this.", zh: "{shown} 个编造的词中，你把 {n} 个（{words}）标为认识。我们已据此下调词汇量估算。" },
   "check.sweep": {
     en: "Want it exact? Sweep HSK {level}: tap only what you don't know, about 5 minutes.",
     ru: "Нужна точность? Пройди весь HSK {level}: отмечаешь только незнакомое, минут 5.",
@@ -1521,13 +1564,9 @@ const DICT: Record<string, Entry> = {
     ru: "Полная оценка готовности — на главной, она меняется по мере повторений.",
     zh: "完整的准备度显示在主页，会随你的复习而变化。",
   },
-  "hskFirst.buildGap": { en: "Build my gap deck · {n} words", ru: "Собрать колоду пробелов · {n} слов", zh: "生成查漏卡组 · {n} 个词" },
+  "hskFirst.buildGap": { ru: "Начать с {n} слов", en: "Start with {n} words", zh: "先学 {n} 个词" },
   "hskFirst.doneTitle": { en: "{n} cards are being prepared", ru: "Готовлю карточки: {n}", zh: "正在准备 {n} 张卡片" },
-  "hskFirst.doneSub": {
-    en: "Two steps left: review them once, then say one of them in a sentence — that's the step that turns “know” into “can use”.",
-    ru: "Осталось два шага: повторить их и произнести одно из них в предложении — именно этот шаг превращает «знаю» в «умею использовать».",
-    zh: "还差两步：先复习一遍，再用其中一个词造句——正是这一步把「认识」变成「会用」。",
-  },
+  "hskFirst.doneSub": { ru: "Карточки готовы к первому повторению. После попробуй составить предложение с одним из новых слов — Мика поможет его проверить.", en: "Your cards are ready for a first review. Afterwards, try a sentence with one of the new words and ask Mika to check it.", zh: "卡片可以开始复习了。之后试着用一个新词造句，让米卡帮你看看。" },
   "hskFirst.review": { en: "First review", ru: "Первое повторение", zh: "第一次复习" },
   "hskFirst.useStep": { en: "Use one in a sentence", ru: "Использовать в предложении", zh: "用一个词造句" },
   "hskFirst.textbookTitle": { en: "This week's textbook words", ru: "Слова из учебника на эту неделю", zh: "本周课本上的生词" },
@@ -1555,7 +1594,7 @@ const DICT: Record<string, Entry> = {
   "onb.goal.people": { en: "Friends and family", ru: "Друзья и семья", zh: "朋友和家人" },
   "onb.goal.self": { en: "For myself", ru: "Для себя", zh: "为了自己" },
   "onb.levelTitle": { en: "How much Chinese do you know?", ru: "Как хорошо ты знаешь китайский?", zh: "你的中文水平如何？" },
-  "onb.levelSub": { en: "A rough guess is fine — a one-minute check confirms it.", ru: "Можно примерно — минутная проверка уточнит.", zh: "大概就行——一分钟小测会确认。" },
+  "onb.levelSub": { ru: "Выбери примерно. Короткая проверка поможет уточнить.", en: "A rough guess is fine. A short check will help narrow it down.", zh: "大致选一个就好，接下来的小测试会帮你确认。" },
   "onb.level.0": { en: "Starting from zero", ru: "С нуля", zh: "零基础" },
   "onb.level.0d": { en: "I know 你好 at most", ru: "Максимум 你好", zh: "最多会说“你好”" },
   "onb.level.1": { en: "I know some words", ru: "Знаю немного слов", zh: "认识一些词" },
@@ -1569,11 +1608,11 @@ const DICT: Record<string, Entry> = {
   "onb.level.5": { en: "News and books", ru: "Новости и книги", zh: "新闻和书籍" },
   "onb.level.5d": { en: "HSK 5 and up", ru: "HSK 5 и выше", zh: "HSK 5 及以上" },
   "onb.targetTitle": { en: "Which HSK level are you aiming for?", ru: "К какому уровню HSK идёшь?", zh: "你的目标是 HSK 几级？" },
-  "onb.targetSub": { en: "Your daily words come from it, and your readiness is measured against it.", ru: "Из него будут ежедневные слова, и по нему считается готовность.", zh: "每日单词从这一级来，准备度也按它计算。" },
+  "onb.targetSub": { ru: "Будем подбирать новые слова из этого списка.", en: "We'll use this level's list to choose your new words.", zh: "我们会从这个等级的词表中选择新词。" },
   "onb.examTitle": { en: "When is the exam?", ru: "Когда экзамен?", zh: "什么时候考试？" },
   "onb.exam.none": { en: "No date yet", ru: "Пока без даты", zh: "还没定" },
   "onb.interestsTitle": { en: "What are you into?", ru: "Что тебе интересно?", zh: "你对什么感兴趣？" },
-  "onb.interestsSub": { en: "Examples and suggested words will lean this way.", ru: "Примеры и подборки слов будут в эту сторону.", zh: "例句和推荐词会偏向这些。" },
+  "onb.interestsSub": { ru: "Подберём слова и примеры на близкие тебе темы.", en: "We'll choose words and examples around topics you enjoy.", zh: "我们会参考这些兴趣，选择单词和例句。" },
   "onb.registerTitle": { en: "And the examples sound", ru: "А примеры звучат", zh: "例句的语气" },
   "onb.int.food": { en: "Food & cooking", ru: "Еда и кулинария", zh: "美食烹饪" },
   "onb.int.travel": { en: "Travel", ru: "Путешествия", zh: "旅行" },
@@ -1600,11 +1639,11 @@ const DICT: Record<string, Entry> = {
     zh: "按你的日期每天约需 {m} 分钟。选近一点的级别或晚一点的日期更合适。",
   },
   "onb.planTitle": { en: "Your plan", ru: "Твой план", zh: "你的计划" },
-  "onb.planSub": { en: "Built from your answers. Your first words are one tap away.", ru: "Собран по твоим ответам. Первые слова — в одно касание.", zh: "根据你的回答生成。第一批单词一键即得。" },
+  "onb.planSub": { ru: "Вот с каких слов можно начать.", en: "Here are some words to start with.", zh: "先从这些词开始吧。" },
   "onb.planTarget": { en: "HSK {level} · {list} list", ru: "HSK {level} · список {list}", zh: "HSK {level} · {list} 词表" },
   "onb.planDaily": { en: "{m} min a day · {n} new {n:word|words}", ru: "{m} мин в день · {n} {n:новое слово|новых слова|новых слов}", zh: "每天 {m} 分钟 · {n} 个新词" },
   "onb.planLang": { en: "Explained in {lang}", ru: "Объяснения: {lang}", zh: "用{lang}解释" },
-  "onb.planFor": { en: "Words picked for: {what}", ru: "Слова под: {what}", zh: "按此选词：{what}" },
+  "onb.planFor": { ru: "Твои темы: {what}", en: "Your topics: {what}", zh: "你的主题：{what}" },
   "onb.startWords": { en: "Get my first words", ru: "Получить первые слова", zh: "领取第一批单词" },
   "onb.skipCheck": { en: "Skip the check", ru: "Пропустить проверку", zh: "跳过测试" },
   "onb.deckZero": { en: "Your first HSK {level} words", ru: "Твои первые слова HSK {level}", zh: "你的第一批 HSK {level} 单词" },
@@ -1620,15 +1659,11 @@ const DICT: Record<string, Entry> = {
   "onb.readyTitle": { en: "Your plan is ready", ru: "Твой план готов", zh: "你的计划已就绪" },
   "onb.readyWords": { en: "Your first {n} words", ru: "Твои первые {n} слов", zh: "你的前 {n} 个单词" },
   "onb.day": { en: "Day {n}", ru: "День {n}", zh: "第 {n} 天" },
-  "onb.result.left": { en: "{n} HSK {level} words to go.", ru: "Впереди слов HSK {level}: {n}.", zh: "还有 {n} 个 HSK {level} 词。" },
-  "onb.result.leftAbout": { en: "About {n} HSK {level} words to go.", ru: "Впереди слов HSK {level}: около {n}.", zh: "还有约 {n} 个 HSK {level} 词。" },
-  "onb.result.pace": { en: "At {m} min a day you're ready by {date}", ru: "При {m} мин в день готов к {date}", zh: "每天 {m} 分钟，{date} 前就能准备好" },
+  "onb.result.left": { ru: "В списке HSK {level} осталось выучить {n} слов.", en: "{n} words left on your HSK {level} list.", zh: "HSK {level} 词表还剩 {n} 个词要学。" },
+  "onb.result.leftAbout": { ru: "В списке HSK {level} осталось выучить около {n} слов.", en: "About {n} words left on your HSK {level} list.", zh: "HSK {level} 词表大约还剩 {n} 个词要学。" },
+  "onb.result.pace": { ru: "При {m} мин в день ориентир по словам — {date}", en: "At {m} min a day, your estimated vocabulary finish date is {date}", zh: "每天学 {m} 分钟，预计在 {date} 学完这些词" },
   "onb.result.before": { en: ", {n} days before your exam.", ru: " — за {n} дн. до экзамена.", zh: "，比考试早 {n} 天。" },
-  "onb.result.after": {
-    en: ", {n} days after your exam: the plan can raise the pace.",
-    ru: " — на {n} дн. позже экзамена: темп можно поднять в плане.",
-    zh: "，比考试晚 {n} 天：可以在计划里加快节奏。",
-  },
+  "onb.result.after": { ru: " — на {n} дн. позже экзамена. В плане можно увеличить темп.", en: ", {n} days after your exam. You can increase the pace in your plan.", zh: "，比考试晚 {n} 天。可以在计划中加快学习节奏。" },
   "onb.result.dot": { en: ".", ru: ".", zh: "。" },
   "onb.lessonCta": { en: "Learn the first {n} now · 1 min", ru: "Выучить первые {n} сейчас · 1 мин", zh: "现在学前 {n} 个 · 1 分钟" },
   "onb.lessonSkip": { en: "Skip, sign in", ru: "Пропустить и войти", zh: "跳过，直接登录" },
@@ -1882,7 +1917,7 @@ const DICT: Record<string, Entry> = {
   "hskTrack.offerDismiss": { en: "Not now", ru: "Не сейчас", zh: "以后再说" },
 
   // --- HSK readiness ---
-  "hsk.title": { en: "HSK readiness", ru: "Готовность к HSK", zh: "HSK 准备度" },
+  "hsk.title": { ru: "Твой словарь HSK", en: "Your HSK vocabulary", zh: "你的 HSK 词汇" },
   "hsk.subtitle": {
     en: "Vocabulary coverage of the official list — not a predicted exam score.",
     ru: "Охват официального списка слов — это не прогноз балла на экзамене.",
@@ -1934,11 +1969,7 @@ const DICT: Record<string, Entry> = {
     ru: "~{e}/{b} · измерено {a} · умеете {c}",
     zh: "约 {e}/{b} · 实测 {a} · 会用 {c}",
   },
-  "hsk.empty": {
-    en: "Add some Chinese words and the mark starts moving.",
-    ru: "Добавьте китайские слова — и оценка начнёт расти.",
-    zh: "添加一些中文词，这个数字就会开始变化。",
-  },
+  "hsk.empty": { ru: "Начни добавлять и повторять слова — здесь появится твой прогресс.", en: "Add and review some words to see your progress here.", zh: "添加并复习一些单词，就能在这里看到进度。" },
   "hsk.tag": { en: "On the HSK {v} list, level {n}", ru: "В списке HSK {v}, уровень {n}", zh: "HSK {v} 词表，第 {n} 级" },
 
   // --- stats ---
@@ -2144,7 +2175,7 @@ const DICT: Record<string, Entry> = {
   "import.details": { en: "Pronunciation, grammar & related words", ru: "Транскрипция, грамматика и связанные слова", zh: "发音、语法和关联词" },
   "import.detailsHint": { en: "Phonetics, part of speech, synonyms — via AI", ru: "Фонетика, часть речи, синонимы — через ИИ", zh: "音标、词性、同义词——通过 AI" },
   "import.examples": { en: "Find a real example sentence for each card", ru: "Найти живой пример для каждой карточки", zh: "为每张卡片查找真实例句" },
-  "import.examplesHint": { en: "Searches the web with AI — slower", ru: "Ищет в интернете через ИИ — дольше", zh: "用 AI 联网搜索——较慢" },
+  "import.examplesHint": { ru: "Добавить примеры под твой уровень — займёт чуть больше времени", en: "Add examples at your level — takes a little longer", zh: "添加适合你水平的例句，需要多一点时间" },
   "import.set": { en: "Add selected cards to sets", ru: "Добавить выбранные карточки в наборы", zh: "将选中的卡片加入合集" },
   "import.newSet": { en: "or create a new set…", ru: "или создать новый набор…", zh: "或创建新合集…" },
   "import.add": { en: "Add {n} cards", ru: "Добавить карточки: {n}", zh: "添加 {n} 张卡片" },
@@ -3090,7 +3121,7 @@ const I18nCtx = createContext<{
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
-}>({ locale: "en", setLocale: () => {}, t: (k) => k });
+}>({ locale: "ru", setLocale: () => {}, t: (k) => k });
 
 const KEY = "lexa.locale";
 
@@ -3114,7 +3145,11 @@ function pluralForm(locale: Locale, n: number, forms: string[]): string {
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("ru");
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   useEffect(() => {
     const stored = localStorage.getItem(KEY) as Locale | null;
@@ -3122,8 +3157,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       setLocaleState(stored);
       return;
     }
-    // No stored choice yet (first visit): follow the browser. Most of our learners
-    // are Russian speakers, and they used to land in English.
+    // Respect the browser on a first visit; Russian is the server-rendered and
+    // unsupported-language fallback for our primary audience.
     const detected = detectLocale();
     if (detected) setLocaleState(detected);
   }, []);

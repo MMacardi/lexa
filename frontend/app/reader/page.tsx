@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib/api";
-import { downscaleImage } from "@/lib/image";
+import { downscaleImage, imageFiles } from "@/lib/image";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { PasteButton } from "@/components/PasteButton";
@@ -974,10 +974,10 @@ export default function ReaderPage() {
     }
   }
 
-  async function translateAll() {
+  async function translateAll(refresh = false) {
     if (translating) return;
     // Already translated this exact text → just toggle the panel.
-    if (translation && translatedFor.current === text) {
+    if (!refresh && translation && translatedFor.current === text) {
       setShowTr((s) => !s);
       return;
     }
@@ -1127,12 +1127,17 @@ export default function ReaderPage() {
     if (scanning || !files.length) return;
     setScanning(true);
     try {
+      let foundAny = false;
       for (const file of files) {
         const dataUrl = await downscaleImage(file);
         const r = await api.ocr({ image: dataUrl, sourceLang });
         const found = r.text.trim();
-        if (found) setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
+        if (found) {
+          foundAny = true;
+          setText((prev) => (prev.trim() ? `${prev}\n${found}` : found));
+        }
       }
+      if (!foundAny) show({ icon: "⚠️", title: t("reader.scanEmpty") });
     } catch (e) {
       show({ icon: "⚠️", title: t("reader.scanFailed"), subtitle: errText(e, t) });
     } finally {
@@ -1191,6 +1196,12 @@ export default function ReaderPage() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              const files = imageFiles(e.clipboardData.items);
+              if (!files.length) return;
+              e.preventDefault();
+              void scanPhotos(files);
+            }}
             placeholder={t("reader.placeholder")}
             className={cn(
               "min-h-[220px] w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface p-4 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:min-h-[260px]",
@@ -1409,7 +1420,7 @@ export default function ReaderPage() {
         {/* translate whole text */}
         <button
           type="button"
-          onClick={translateAll}
+          onClick={() => translateAll()}
           disabled={translating}
           aria-pressed={trReady && showTr}
           className={cn(
@@ -1648,8 +1659,16 @@ export default function ReaderPage() {
 
         {showTr && trReady && (
           <div className="min-w-0 rounded-[20px] border border-black/[0.06] bg-paper p-5 sm:p-7">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-              {t("reader.translationTitle")}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("reader.translationTitle")}</span>
+              <button
+                type="button"
+                onClick={() => translateAll(true)}
+                disabled={translating}
+                className="rounded-lg px-2 py-1 text-xs font-semibold text-sage-deep hover:bg-sage-tint disabled:opacity-50"
+              >
+                {translating ? t("reader.translating") : t("reader.retranslate")}
+              </button>
             </div>
             <div className={cn("whitespace-pre-line text-[16px] leading-relaxed text-ink-soft", sourceFont(targetLang))}>
               {translation}

@@ -23,3 +23,18 @@ See `.env.example`. In short:
   first-party.
 
 Deployment steps are in [`../DEPLOY.md`](../DEPLOY.md).
+
+## Landing screenshots
+
+With local Docker running, Chrome installed and this directory's dependencies installed:
+
+```bash
+npm run landing:shots
+npm run landing:shots -- plan,today
+```
+
+The script runs guest onboarding and uses a fresh local demo account to capture Plan,
+Today, Reader, Flashcards, Writing and Mika in Russian, English and Chinese. It writes
+600 × 1022 WebP images to `public/landing/`. Reader lookups and the Mika conversation
+make a few paid Qwen calls (roughly under ¥0.05 for a full run). Chrome's temporary
+profile stays in the project's `.review/browser-tmp` directory.

@@ -20,7 +20,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://onomika-lac.vercel
 
 const TITLE = "Onomika — подготовка к HSK";
 const DESCRIPTION =
-  "Официальные списки HSK и слова из твоего учебника — карточки с интервальным повторением и оценка готовности по уровню.";
+  "Сохраняй китайские слова из учебника, сообщений и фото. Повторяй карточки, читай с переводом и практикуйся с Микой. Объяснения на русском.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     // The theme boot script sets html.class before hydration, so the server
     // markup intentionally differs from the client — silence that warning.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ru" suppressHydrationWarning>
       <head>
         {/* Set the theme class before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />

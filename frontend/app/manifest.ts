@@ -4,9 +4,10 @@ import type { MetadataRoute } from "next";
 // an app icon, name and standalone (no browser chrome) window.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Onomika — language learning",
+    name: "Onomika — китайский каждый день",
     short_name: "Onomika",
-    description: "Collect words, review with spaced repetition, read and learn — even offline.",
+    description: "Сохраняй китайские слова, повторяй карточки и читай с переводом на русский.",
+    lang: "ru",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

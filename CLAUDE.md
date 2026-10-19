@@ -2,7 +2,7 @@
 
 Anki-style FSRS flashcards + Quizlet-style collections/quizzes + an AI tutor ("Coach":
 chat, scenes, practice drill) + a Reader. Web app + Telegram bot (@onomikabot).
-Graded university final project; the student is the sole author.
+Started as a university final project; the student is the sole author. No defence materials are needed.
 
 **Focus (decided 2026-09-22, see `STRATEGY.md`):** HSK prep for Russian speakers — a readiness
 mark, then the official list + this week's textbook words turned into words you can *use*.
@@ -35,6 +35,8 @@ Not a full HSK exam app (no mock tests): the list is the source of words, the po
 - Commits: plain messages, **no Co-Authored-By trailer**. Solo phase (until beta testers
   arrive): after a finished task, push to `main` (prod auto-deploys) without asking.
 - Match surrounding code style and comment density; every new UI string goes in all 3 languages.
+- Russian is the primary product language. Write and review Russian copy and learner flows first,
+  then adapt English and Chinese to the same meaning. Follow `AGENTS.md` workspace boundaries.
 - Closed beta: every `/api` route needs a session + invite (`lib/gate.ts`); identity comes
   from the session cookie only, never from a body/query `telegramId`.
 

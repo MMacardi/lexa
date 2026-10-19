@@ -46,7 +46,7 @@ export default function OpengraphImage() {
           Подготовка к HSK
         </div>
         <div style={{ fontSize: 40, lineHeight: 1.35, marginTop: 28, opacity: 0.9 }}>
-          Списки HSK и слова из учебника — карточки, повторения и оценка готовности.
+          Твои китайские слова: сохранить, повторить, попробовать в разговоре.
         </div>
       </div>
     ),

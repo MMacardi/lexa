@@ -45,7 +45,7 @@ list's own data right (1b, 1d), then the next word. 1g is the author's field wit
 whether anything after it happens. 6–13 make the daily loop smoother while it runs (6 is the one
 session-sized item; 8–13 are small). 13b–i came out of the author's own use on 2026-09-26 — the
 kind of reason the kill rule ranks above feature ideas. 14–17 make a beta survivable. 18 moved up to 1c. 19–22 make
-it legal and named. 23–26 make the result mean something. 27+ is after that.
+it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ---
 
@@ -1206,17 +1206,6 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
     retention, ≥30% doing 3+ use-steps a week, ≥40% Sean Ellis — and write down what each miss would
     mean *before* seeing the data.
 
-26. **Refresh the defence materials.** `[U1]` `2024998004014_Anton Volkov/` holds the report, the
-    plan and a source zip, all from **June 2026** — they predate the strategy pass and every one of
-    F0–F11, so they describe a different product. Re-export the zip and make the report tell the
-    story the repo shows: the pivot from "learn English through the news" to HSK prep, the learner
-    model (F2/F3), dictionary grounding with a measured result (F6), the focus flag.
-    - Demo path: `NEXT_PUBLIC_FOCUS_MODE=off` restores the full build (Community, scenes, graphs).
-      Check the flag still flips cleanly before the date.
-    - Before quoting F6's eval, **mark it yourself** — the 99/100 vs 90/100 was marked by Claude.
-      `npx tsx scripts/eval-senses.ts` regenerates the CSV; a number you marked by hand is the one
-      that survives a question about methodology.
-
 27. **Shared dictionary that learners correct (not just a cache).** `[F6a]` The full design note is
     under §Reference. Deliberately late: its whole argument is that it compounds *with users*, so it
     is worth least on the day you have none. With one user it is still your own verified dictionary,
@@ -1306,6 +1295,32 @@ it legal and named. 23–26 make the result mean something. 27+ is after that.
   edge over SmallTalk2Me and co. is calibration against users' real band scores. `[S3]`
 
 ## Done
+
+### Russian-first landing and Reader photo/translation fixes (2026-10-18, asked for directly)
+- Finished the interrupted landing pass: concrete Russian copy and six feature walkthroughs with
+  real local-app screenshots (Plan, Today, Reader, Flashcards, Writing, Mika), adapted to English
+  and Chinese. All 18 WebP screens can be regenerated with `npm run landing:shots` in `frontend`;
+  tools are project-local and temporary browser profiles stay in `.review/browser-tmp`.
+- Russian is the initial/fallback language and the document's language follows the chosen locale.
+  Simplified related onboarding, plan and HSK vocabulary copy. Removed the obsolete web-example
+  clause from Terms and the defence-material task `[U1]` (the author needs no defence).
+- Reader OCR used `qwen-vl-plus`, which returned **404 Model not exist** on the configured Bailian
+  endpoint. It now shares Mika's working vision default, with both deployment overrides preserved.
+  Ctrl+V / ⌘V images in the Reader text box use the same image helper and OCR path as photo upload;
+  extracted text appends to existing text, and a photo without readable text gets a clear message.
+- Translation requests wrap the passage as data, require a single JSON object, and explicitly
+  preserve all dialogue turns and questions. A textbook exercise was answered instead of translated;
+  the whole dialogue now comes back, including the cake joke and final question. **Перевести заново**
+  lets a learner replace a saved bad translation while normal hide/show still reuses the cached one.
+- Live local checks: `check-reader-ocr.ts` reads 复习, 词典 and 图书馆 from the printed lesson fixture;
+  `check-translate.ts` covers the dorm notice with `[Фото]` and both reported textbook dialogues.
+  Browser: file upload and real Ctrl+V image → OCR → editable text → reading; normal text paste;
+  empty/error recovery preserves input; saved translation replacement. Landing: ru/en/zh at
+  320/390/768/1280 px, image loading and no sideways overflow, both CTAs, sign-in, live language
+  switching, Russian fallback, light/dark mode and scroll reveals. Backend type-check and frontend
+  production build pass; existing lint warnings remain.
+- `AGENTS.md` records the author's workspace/security boundaries and inherits `CLAUDE.md` workflow,
+  with Russian copy and learner flows reviewed first.
 
 ### Reviews by the day, the exam on the schedule, and HSK 4 · все слова (2026-10-15, asked for directly)
 - The author asked whether FSRS works and whether it should be cleverer. An audit (the six algorithm

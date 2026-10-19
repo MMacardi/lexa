@@ -156,8 +156,14 @@ function notObject(v: unknown): boolean {
   return typeof v !== "object" || v === null || Array.isArray(v);
 }
 
-// Qwen-VL (vision) model for OCR. Configurable per deployment/region.
-const VISION_MODEL = process.env.BAILIAN_VISION_MODEL || "qwen-vl-plus";
+// Share the working vision default with Mika. The old Reader-only qwen-vl-plus
+// default returns "404 Model not exist" on the configured Bailian endpoint.
+// Both overrides remain available for deployments in other regions.
+export const CHAT_VISION_MODEL = process.env.BAILIAN_CHAT_VISION_MODEL || "qwen3.5-plus";
+const VISION_MODEL = process.env.BAILIAN_VISION_MODEL || CHAT_VISION_MODEL;
+
+// Qwen3.5 and Qwen3-VL think by default; OCR and chat need the answer directly.
+const noThinking = (model: string) => (/^qwen3(\.\d|-vl)/.test(model) ? { enable_thinking: false } : {});
 
 /**
  * Extract readable text from an image (OCR) using a Qwen vision model. Used by
@@ -189,6 +195,7 @@ export async function ocrImage(opts: { dataUrl: string; sourceLang?: string }): 
           },
         ],
         temperature: 0,
+        ...noThinking(VISION_MODEL),
       },
       { timeout: 60_000 },
     );
@@ -254,14 +261,6 @@ export type ChatPart = { type: "text"; text: string } | { type: "image_url"; ima
 export type ChatMessage =
   | { role: "system" | "assistant"; content: string }
   | { role: "user"; content: string | ChatPart[] };
-
-// Model for a chat turn that includes a photo. Qwen3.5 is natively multimodal and
-// keeps JSON mode + streaming; with thinking off it starts answering in under a
-// second (thinking on took ~18 s to the first token). Env override per region.
-export const CHAT_VISION_MODEL = process.env.BAILIAN_CHAT_VISION_MODEL || "qwen3.5-plus";
-
-// Qwen3.5 and Qwen3-VL think by default; we never want that (latency + ¥ output).
-const noThinking = (model: string) => (/^qwen3(\.\d|-vl)/.test(model) ? { enable_thinking: false } : {});
 
 // The text of a message, for the aborted-stream token estimate. An image counts
 // as roughly a thousand tokens at the sizes the client uploads.

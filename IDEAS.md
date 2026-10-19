@@ -11,6 +11,16 @@ Status: ✅ done · 🔨 building · ⏭ approved/next · 💡 idea · 🧊 late
 
 ---
 
+## Done (Russian-first landing + Reader, 2026-10-18)
+- ✅ Concrete Russian landing copy with six real feature walkthroughs and ru/en/zh screenshots;
+  project-local screenshot tooling. Related onboarding/HSK wording and metadata updated.
+- ✅ Reader photo OCR shares Mika's working Qwen vision model; paste images into the text box with
+  Ctrl+V / ⌘V. Empty OCR results are explained and existing text is preserved.
+- ✅ Whole-passage translation keeps dialogue and exercise questions instead of answering them;
+  a saved translation can be generated again. Notice and both reported dialogues verified locally.
+- ✅ Workspace/security and Russian-priority rules in `AGENTS.md`, inherited Claude workflow;
+  obsolete web-example Terms clause and defence-material task removed at the author's request.
+
 ## Done (UX + coach session)
 - ✅ **Reverse translation, done right** — type a word in your own language and
   get a card in the language you're learning. Explicit "I type in […]" selector
