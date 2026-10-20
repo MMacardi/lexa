@@ -35,11 +35,12 @@ export async function queueCardUpgrade(wordId: string, options?: UpgradeOptions)
         exampleStyle: previous?.exampleStyle ?? undefined,
       };
     }
+    upgrade = { ...upgrade, withExample: card.autoExamples && upgrade.withExample !== false };
     const withExample = upgrade.withExample !== false && upgrade.exampleStyle !== "none";
     // Compare-and-set makes simultaneous retries create just one job.
     const claimed = await tx.word.updateMany({
-      where: { id: card.id, enrichmentStatus: { notIn: ["queued", "generating"] } },
-      data: { enrichmentStatus: "queued", exampleStatus: withExample || card.exampleStatus !== "disabled" ? "queued" : "disabled" },
+      where: { id: card.id, exampleRevision: card.exampleRevision, enrichmentStatus: { notIn: ["queued", "generating"] } },
+      data: { enrichmentStatus: "queued", exampleStatus: withExample || (card.autoExamples && card.exampleStatus !== "disabled") ? "queued" : "disabled" },
     });
     if (!claimed.count) return null;
     return tx.importJob.create({

@@ -33,6 +33,7 @@ import { checkBodySchema, checkResult, nextCheckScreen } from "../services/place
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
 import { fillMissingPhonetic, refreshCardReadings } from "../services/capture.js";
+import { removeExample } from "../services/exampleWrites.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { wordCharacters } from "../services/characters.js";
@@ -788,6 +789,17 @@ wordsRouter.patch("/words/:id", async (req, res) => {
   }
 });
 
+// Remove only the requested example; guardWord enforces session ownership.
+wordsRouter.delete("/words/:id/examples/:exampleId", async (req, res) => {
+  if (!(await guardWord(req, res))) return;
+  try {
+    await removeExample(String(req.params.id), String(req.params.exampleId));
+    res.json(await getWord(String(req.params.id)));
+  } catch {
+    res.status(404).json({ error: "Example not found" });
+  }
+});
+
 // DELETE /api/words/:id  -> remove a word (examples cascade)
 wordsRouter.delete("/words/:id", async (req, res) => {
   if (!(await guardWord(req, res))) return;
@@ -1086,8 +1098,7 @@ wordsRouter.post("/words/batch", async (req, res) => {
     return;
   }
   const telegramId = readSession(req) ?? b.telegramId;
-  // Items with sentences → keep that sentence as the card's example (context from
-  // the Reader), only generate the dictionary details. Plain words → AI example.
+  // Keep supplied context verbatim; enrichment prepares one additional example.
   const useContext = Boolean(b.items && b.items.some((i) => i.sentence?.trim()));
   const items = b.items
     ? b.items.map((i) => ({
@@ -1107,10 +1118,10 @@ wordsRouter.post("/words/batch", async (req, res) => {
       collectionIds: b.collectionIds,
       keepProvidedExtras: useContext,
       generateDetails: b.enrich,
-      generateExamples: b.enrich && !useContext,
+      generateExamples: b.enrich && b.exampleStyle !== "none",
       // `enrich: false` with no sentence of its own is a ready-made card: the
       // dictionary's meaning and the pool's sentence, and no model call at all.
-      poolExamples: !useContext,
+      poolExamples: !useContext && b.exampleStyle !== "none",
       exampleSourceName: b.source,
       level: b.level,
       exampleStyle: b.exampleStyle,

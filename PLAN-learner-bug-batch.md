@@ -226,7 +226,7 @@ Parts 3–6 remain open; stop after Part 2.
 
 ## Part 3 — Capture examples, preferences and removal
 
-- [ ] Implement and verify. Depends on part 2's readiness contract.
+- [x] Implement and verify. Completed 2026-10-20.
 
 **Code findings.** Reader `addSelected` sends context/source but no style/level.
 `routes/words.ts` uses `generateExamples: b.enrich && !useContext`; a source
@@ -260,6 +260,37 @@ one readable additional example, saved style/level and selected sense respected,
 progress visible. Check formal/casual/internet, missing pool entry, «Без примера»,
 failure/retry. Remove original/generated/last example; reopen/reload, check review
 and Reader panels, concurrent generation and another account. Verify metadata/FSRS.
+
+**Shipped 2026-10-20.** Reader, example/character popups and chat captures pass the
+saved style and level without another picker. Captured context/source stays intact;
+the durable worker adds one personalized example and translates the original.
+Ordinary adds keep their existing two-example policy; no-example captures retain
+only their supplied context. A checked pool sentence can stand in on generation
+failure when its default sense and register fit; otherwise failure stays retryable.
+Quick dictionary already uses AddWordForm's saved preferences.
+
+Word pages now offer a confirmed, accessible Remove action per example in ru/en/zh.
+The session-owned atomic endpoint removes only that row; list/detail/offline caches
+update together. The additive migration `20261020065907_capture_example_choices`
+adds captured-context provenance and per-card example revision/automatic-generation
+controls. Edits/removals invalidate in-flight writes and disable automatic refill,
+including retries; explicit manual additions still work. Full-list edits are atomic,
+validate example ownership, and retain untouched metadata. No existing rows were
+deduplicated or rewritten.
+
+**Verification.** Backend `npx tsc --noEmit -p .` and frontend `npx next build` pass
+in local Docker (existing frontend lint warnings remain). Local-model checks in
+`backend/scripts/check-capture-examples.ts` cover casual/formal/internet, HSK level,
+selected sense, missing pool, no-example, failure/retry, prepared fallback, generation
+finishing after deletion, last-example removal, edits, metadata and FSRS. Existing
+`check-example-progress.ts` also passes. Live Qwen runs through
+`node frontend/scripts/check-capture-examples.mjs phone-webkit` and
+`desktop-chromium` pass: 然而 from an A/B/C fragment keeps the exact captured text,
+gets one readable HSK 4 example in the saved register, and shows progress. Both
+check removal of original/generated/last, reload, Reader/review, another account,
+unchanged Reader text and FSRS. Evidence and the inspected phone screenshot are
+under `.playwright-cli/capture-examples`; throwaway accounts are deleted. Persistence,
+ownership and concurrent-write paths were reviewed. Parts 4–6 remain open.
 
 ## Part 4 — Sentence audio controls, placement and pace
 

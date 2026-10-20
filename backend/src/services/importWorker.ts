@@ -3,6 +3,7 @@ import { runTutor } from "../agents/tutor.js";
 import { enrichWordEntry } from "../agents/enrich.js";
 import { translateText } from "./translate.js";
 import { prisma } from "./db.js";
+import { saveGeneratedExample } from "./exampleWrites.js";
 import { runAsUser } from "../lib/usageContext.js";
 import { translateDictMeanings, upgradeCard } from "./capture.js";
 import { isChinese } from "./cedict.js";
@@ -143,14 +144,14 @@ export async function processImportJob(job: ImportJob) {
 async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchema>[number]): Promise<string | null> {
   const word = await prisma.word.findUnique({
     where: { id: card.id },
-    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true, exampleStatus: true },
+    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true, exampleStatus: true, exampleRevision: true, autoExamples: true },
   });
   if (!word || word.userId !== job.userId) return `${card.word}: card no longer exists`;
 
-  const wantsExample = job.generateExamples && job.exampleStyle !== "none";
+  const wantsExample = word.autoExamples && job.generateExamples && job.exampleStyle !== "none";
   const tracksExample = wantsExample || ["queued", "generating"].includes(word.exampleStatus);
   await prisma.word.updateMany({
-    where: { id: word.id },
+    where: { id: word.id, exampleRevision: word.exampleRevision },
     data: { enrichmentStatus: "generating", ...(tracksExample ? { exampleStatus: "generating" } : {}) },
   });
 
@@ -168,7 +169,7 @@ async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchem
         exampleStyle: job.exampleStyle ?? undefined,
         ...card.upgrade,
       });
-      if (!job.generateExamples) await translateProvidedExample(word);
+      await translateProvidedExample(word);
     } else if (job.generateDetails && wantAiExample) {
       // Common case (full AI enrich, no provided example) → ONE combined call
       // for the dictionary entry + example + translation, instead of three.
@@ -193,16 +194,13 @@ async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchem
         },
       });
       if (entry.example) {
-        await prisma.example.create({
-          data: {
-            wordId: word.id,
+        await saveGeneratedExample(word.id, word.exampleRevision, {
             sentenceEn: entry.example,
             sentenceZh: entry.exampleTranslation,
             sourceName: "Onomika AI",
             sourceUrl: "",
             register: job.exampleStyle ?? "casual",
             level: job.level ?? null,
-          },
         });
       }
     } else {
@@ -221,6 +219,7 @@ async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchem
         await runExampleSearch({
           userId: job.userId,
           word: word.word,
+          exampleRevision: word.exampleRevision,
           wordId: word.id, // enrich the existing imported card, don't duplicate it
           sourceLang: word.sourceLang,
           targetLang: word.targetLang,
@@ -261,8 +260,11 @@ async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchem
     where: { id: word.id },
     data: {
       enrichmentStatus: failed ? "failed" : "ready",
-      ...(tracksExample ? { exampleStatus: exampleFailed ? "failed" : "ready" } : {}),
     },
+  });
+  if (tracksExample) await prisma.word.updateMany({
+    where: { id: word.id, exampleRevision: word.exampleRevision },
+    data: { exampleStatus: exampleFailed ? "failed" : "ready" },
   });
   return failed ? card.word : null;
 }
@@ -272,17 +274,12 @@ async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchem
  * it in so the card's back shows both lines.
  */
 async function translateProvidedExample(word: { id: string; sourceLang: string; targetLang: string }) {
-  const ex = await prisma.example.findFirst({
-    where: { wordId: word.id },
-    orderBy: { createdAt: "desc" },
+  const examples = await prisma.example.findMany({
+    where: { wordId: word.id, OR: [{ captured: true }, { sourceName: { not: "Onomika AI" } }], sentenceZh: "" },
     select: { id: true, sentenceEn: true, sentenceZh: true },
   });
-  if (ex?.sentenceEn && !ex.sentenceZh.trim()) {
-    const { translation } = await translateText({
-      text: ex.sentenceEn,
-      sourceLang: word.sourceLang,
-      targetLang: word.targetLang,
-    });
+  for (const ex of examples) {
+    const { translation } = await translateText({ text: ex.sentenceEn, sourceLang: word.sourceLang, targetLang: word.targetLang });
     if (!translation.trim()) throw new Error("Example translation is empty");
     await prisma.example.updateMany({ where: { id: ex.id, sentenceEn: ex.sentenceEn, sentenceZh: ex.sentenceZh }, data: { sentenceZh: translation } });
   }

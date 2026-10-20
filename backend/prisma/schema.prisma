@@ -271,6 +271,8 @@ model Word {
   notes        String?   // free-form personal notes (P.S.), user-authored
   enrichmentStatus String @default("ready") // queued | generating | ready | failed
   exampleStatus String @default("disabled") // queued | generating | ready | failed | disabled
+  exampleRevision Int @default(0) // invalidates generation that started before a learner edit
+  autoExamples Boolean @default(true) // learner removal/edit wins over automatic retries
   explainCache String?   // cached AI "explain / when to use" text; cleared on meaningful edits
   senses       Json?     // cached word-page senses { v, list: [{pos, meaning, phrases[]}] }; cleared when the word/pair changes
   familyAt     DateTime? // when synonyms/antonyms were filled in for a card that arrived without them (library decks); set even when the answer was empty, so we ask once
@@ -479,6 +481,7 @@ model PlacementAnswer {
 }
 
 model Example {
+  captured   Boolean  @default(false) // original supplied context, even when attributed to AI
   id         String   @id @default(cuid())
   wordId     String
   word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)

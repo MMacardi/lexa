@@ -983,6 +983,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ verdict, source, errorKind: errorKind ?? null }),
     }),
+  deleteExample: (wordId: string, exampleId: string) =>
+    http<Word>(`/api/words/${wordId}/examples/${exampleId}`, { method: "DELETE" }),
   deleteWord: (id: string) =>
     http<{ ok: true }>(`/api/words/${id}`, { method: "DELETE" }),
   updateWord: (

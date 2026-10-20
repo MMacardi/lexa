@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { saveGeneratedExample } from "./exampleWrites.js";
 import { contextNames } from "../lib/contextNames.js";
 import { chatJson } from "./llm.js";
 import { enrichWordEntry } from "../agents/enrich.js";
@@ -238,7 +239,7 @@ const batchMeaningSchema = z.object({
 export async function translateDictMeanings(cardIds: string[]): Promise<void> {
   const cards = await prisma.word.findMany({
     where: { id: { in: cardIds } },
-    include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true } } },
+    include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true, captured: true } } },
   });
   const todo = cards.filter((c) => c.targetLang !== "en" && hasDictMeaning(c));
   const byTarget = new Map<string, typeof todo>();
@@ -248,7 +249,7 @@ export async function translateDictMeanings(cardIds: string[]): Promise<void> {
     for (let i = 0; i < group.length; i += 25) {
       const chunk = group.slice(i, i + 25);
       const lines = chunk.map((c) => {
-        const met = c.examples.find((e) => e.sourceName !== AI_SOURCE)?.sentenceEn;
+        const met = c.examples.find((e) => e.captured || e.sourceName !== AI_SOURCE)?.sentenceEn;
         return { word: c.word, pinyin: c.phonetic ?? "", senses: c.meaningZh ?? "", ...(met ? { sentence: met } : {}) };
       });
       const r = await chatJson({
@@ -340,7 +341,7 @@ export type UpgradeOptions = {
   level?: string;
   synonymLevel?: string;
   exampleStyle?: string;
-  withExample?: boolean; // default true; only ever adds one to a card that has none
+  withExample?: boolean; // default true; complete the pair unless the learner edited/removed examples
   meaningInstruction?: string;
   sense?: string;
 };
@@ -348,7 +349,7 @@ export type UpgradeOptions = {
 /**
  * Fill in what a card is missing with one grounded model call: the meaning when
  * it is empty or still the dictionary's English, the details it has none of,
- * and an example when it has none. Never overwrites what the learner wrote.
+ * and completes its example pair. Never overwrites what the learner wrote.
  * Examples are at the level the learner chose (services/sentences.ts). A card
  * holds two by default (the author, 2026-10-09: "one prebuilt, one personalized"):
  * an HSK word has the pool's checked sentence at their level the moment it is
@@ -360,24 +361,25 @@ export type UpgradeOptions = {
 export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Promise<void> {
   const card = await prisma.word.findUnique({
     where: { id: wordId },
-    include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true } } },
+    include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true, captured: true } } },
   });
   if (!card) return;
-  // The sentence the learner met the word in: a Reader, import or hand-typed
-  // example, never one the model wrote for it.
-  const met = card.examples.find((e) => e.sourceName !== AI_SOURCE)?.sentenceEn;
+  // Original context also includes a sentence intentionally captured from Mika.
+  const met = card.examples.find((e) => e.captured || e.sourceName !== AI_SOURCE)?.sentenceEn;
   // Only the pool's sentence on it (placed at add) still counts as "no example of its own".
   const pooled = card.examples.filter((e) => isPoolSentence(card.word, card.targetLang, e.sentenceEn)).length;
-  const withExample = opts.withExample !== false && opts.exampleStyle !== "none" && card.examples.length === pooled;
+  const hasPersonal = card.examples.some((e) => !e.captured && e.sourceName === AI_SOURCE && !isPoolSentence(card.word, card.targetLang, e.sentenceEn));
+  const withExample = card.autoExamples && opts.withExample !== false && opts.exampleStyle !== "none" &&
+    (!met || card.examples.length < 2) && !hasPersonal;
   const brief = withExample ? await exampleBrief(card.userId, card.sourceLang, card.id) : null;
   // The pool's sentence first, when the add path didn't place one (the import
   // worker, "fill this in"). A typed sense asks for that sense, which the pool's
   // everyday one may not be.
   const pool =
-    brief && isChinese(card.sourceLang) && !pooled && poolRegister(opts.exampleStyle) && !opts.sense
+    brief && !met && isChinese(card.sourceLang) && !pooled && poolRegister(opts.exampleStyle) && !opts.sense
       ? pickPoolSentence(card.word, brief, card.targetLang)
       : null;
-  if (pool) await addPoolExample(card.id, card.word, pool);
+  if (pool) await addPoolExample(card.id, card.word, pool, card.exampleRevision);
   const L = brief?.level ?? null;
   // Their own always goes on top of the pool's. It used to be written only when
   // there were interests to make it theirs with, or the pool's sentence was off
@@ -385,7 +387,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   const personal = withExample;
   // A formal word (以, 之所以) has no natural everyday sentence: theirs is written, and
   // labelled, in the register the word lives in — unless they asked for another.
-  const style = isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
+  const style = !met && isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
   const page = isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang) : null;
   // A card made in one of its page's senses (picked in the lookup) gets its example
   // in that sense, pinned by the sense's reading and phrases.
@@ -404,29 +406,41 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     hskVersion: brief?.version,
     themes: brief?.themes,
   };
-  const entry = settled
-    ? personal
-      ? await enrichWordEntry({
+  let entry;
+  try {
+    entry = settled
+      ? personal
+        ? await enrichWordEntry({
+            word: card.word,
+            sourceLang: card.sourceLang,
+            targetLang: card.targetLang,
+            withExample: true,
+            exampleOnly: { meaning: card.meaningZh! },
+            ...forExample,
+          })
+        : NO_ENTRY
+      : await enrichWordEntry({
           word: card.word,
           sourceLang: card.sourceLang,
           targetLang: card.targetLang,
-          withExample: true,
-          exampleOnly: { meaning: card.meaningZh! },
+          synonymLevel: opts.synonymLevel,
+          withExample: personal,
+          meaningInstruction: opts.meaningInstruction,
+          sense: opts.sense,
+          senseAnchor: own?.anchor,
+          context: met,
           ...forExample,
-        })
-      : NO_ENTRY
-    : await enrichWordEntry({
-        word: card.word,
-        sourceLang: card.sourceLang,
-        targetLang: card.targetLang,
-        synonymLevel: opts.synonymLevel,
-        withExample: personal,
-        meaningInstruction: opts.meaningInstruction,
-        sense: opts.sense,
-        senseAnchor: own?.anchor,
-        context: met,
-        ...forExample,
-      });
+        });
+
+  } catch (error) {
+    // Preserve a captured fragment verbatim. When generation is down, a checked
+    // pool sentence can stand in only for the shared default sense/register.
+    const fallback = withExample && met && isDefaultMeaning(card) && !opts.sense && poolRegister(opts.exampleStyle) && brief
+      ? pickPoolSentence(card.word, brief, card.targetLang) : null;
+    if (!fallback) throw error;
+    await addPoolExample(card.id, card.word, fallback, card.exampleRevision);
+    entry = NO_ENTRY;
+  }
 
   // Compare-and-set on the meaning we read: a learner who edited it while the
   // model was thinking keeps their edit. The shared default gives way only to a
@@ -471,24 +485,22 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       // Not saved: the second below stands in for it.
     } else {
       // Newest first on every page, so their own leads.
-      await prisma.example.create({
-        data: {
-          wordId: card.id,
-          sentenceEn: written.sentence,
-          sentenceZh: written.translation,
-          sourceName: AI_SOURCE,
-          sourceUrl: "",
-          register: style ?? "casual",
-          level: writtenLabel(brief, opts.level ?? null, card.sourceLang),
-          ...(checked ? { checkedAt: new Date() } : {}),
-        },
+      await saveGeneratedExample(card.id, card.exampleRevision, {
+        sentenceEn: written.sentence,
+        sentenceZh: written.translation,
+        sourceName: AI_SOURCE,
+        sourceUrl: "",
+        register: style ?? "casual",
+        level: writtenLabel(brief, opts.level ?? null, card.sourceLang),
+        ...(checked ? { checkedAt: new Date() } : {}),
       });
     }
   }
   // Two by default: a word the pool has no sentence for (off the lists, a sense of
   // its own), or whose own one the editor turned down, gets another of theirs,
   // written to differ from what is there.
-  if (opts.withExample !== false && opts.exampleStyle !== "none" && !met) {
+  if (card.autoExamples && opts.withExample !== false && opts.exampleStyle !== "none") {
+    if (!(await prisma.word.count({ where: { id: card.id, exampleRevision: card.exampleRevision } }))) return;
     const have = await prisma.example.findMany({ where: { wordId: card.id }, select: { sentenceEn: true } });
     if (have.length < 2) {
       await runExampleSearch({
@@ -501,7 +513,8 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
         level: opts.level,
         avoid: have.map((e) => e.sentenceEn),
         brief: brief ?? await exampleBrief(card.userId, card.sourceLang, card.id),
-        sense: own?.described,
+        sense: own?.described ?? (met ? entry.meaningZh || card.meaningZh || undefined : undefined),
+        exampleRevision: card.exampleRevision,
       });
     }
     if (await prisma.example.count({ where: { wordId: card.id } }) < 2) throw new Error("Example generation returned no usable sentence");

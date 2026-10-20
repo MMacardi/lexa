@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { saveGeneratedExample } from "./exampleWrites.js";
 import { chatJson } from "./llm.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { segmentChinese } from "./segment.js";
@@ -336,15 +337,17 @@ export async function placePoolExamples(userId: string, cards: { id: string; wor
   for (const c of served) {
     const pick = pickPoolSentence(c.word, at, c.targetLang);
     if (!pick) continue;
-    await prisma.example.create({ data: { wordId: c.id, ...poolExample(c.word, pick) } });
+    await saveGeneratedExample(c.id, 0, poolExample(c.word, pick));
     n++;
   }
   return n;
 }
 
 /** Write one pool sentence onto a card (the upgrade, once it has decided). */
-export async function addPoolExample(wordId: string, word: string, p: Pick): Promise<void> {
-  await prisma.example.create({ data: { wordId, ...poolExample(word, p) } });
+export async function addPoolExample(wordId: string, word: string, p: Pick, revision?: number): Promise<void> {
+  const card = revision === undefined ? await prisma.word.findUnique({ where: { id: wordId }, select: { exampleRevision: true } }) : null;
+  if (revision === undefined && !card) return;
+  await saveGeneratedExample(wordId, revision ?? card!.exampleRevision, poolExample(word, p));
 }
 
 /** How hard the pool sentence among a card's examples reads on this list; null when none is one of the pool's now. */
@@ -364,12 +367,13 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
     where: { id: wordId },
     select: {
       userId: true,
+      autoExamples: true,
       word: true,
       targetLang: true,
-      examples: { select: { id: true, sentenceEn: true, sentenceZh: true, sourceName: true, level: true } },
+      examples: { where: { captured: false }, select: { id: true, sentenceEn: true, sentenceZh: true, sourceName: true, level: true } },
     },
   });
-  if (!card) return false;
+  if (!card || !card.autoExamples) return false;
   const pool = poolSentences(card.word, card.targetLang);
   // One the naturalness pass took out goes whatever it takes: the pick now, or
   // nothing — an unnatural sentence is never kept for being easy.
@@ -377,8 +381,8 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
   if (stale && card.targetLang === "ru") {
     const pick = pickPoolSentence(card.word, await exampleLevel(card.userId), card.targetLang);
     if (pick && !card.examples.some((e) => e.sentenceEn === pick.s.zh))
-      await prisma.example.update({ where: { id: stale.id }, data: poolExample(card.word, pick) });
-    else await prisma.example.delete({ where: { id: stale.id } });
+      await prisma.example.updateMany({ where: { id: stale.id, sentenceEn: stale.sentenceEn, sentenceZh: stale.sentenceZh }, data: poolExample(card.word, pick) });
+    else await prisma.example.deleteMany({ where: { id: stale.id, sentenceEn: stale.sentenceEn, sentenceZh: stale.sentenceZh } });
     return true;
   }
   const current = card.examples.find((e) => e.sourceName === AI_SOURCE && pool.some((s) => s.zh === e.sentenceEn));
@@ -387,7 +391,7 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
   // A pool sentence whose Russian was corrected since (the review of 2026-09-29) takes
   // the new translation; the Chinese is the same sentence, so it isn't retired.
   if (current.sentenceZh !== inPool.ru) {
-    await prisma.example.update({ where: { id: current.id }, data: { sentenceZh: inPool.ru } });
+    await prisma.example.updateMany({ where: { id: current.id, sentenceEn: current.sentenceEn, sentenceZh: current.sentenceZh }, data: { sentenceZh: inPool.ru } });
     return true;
   }
   const pick = pickPoolSentence(card.word, await exampleLevel(card.userId), card.targetLang);
@@ -395,11 +399,11 @@ export async function refreshPoolExample(wordId: string): Promise<boolean> {
   if (pick.s.zh === inPool.zh) {
     // The same sentence, labelled by its ceiling before: now by how it reads.
     if (current.level === levelLabel(pick.level)) return false;
-    await prisma.example.update({ where: { id: current.id }, data: { level: levelLabel(pick.level) } });
+    await prisma.example.updateMany({ where: { id: current.id, sentenceEn: current.sentenceEn, sentenceZh: current.sentenceZh }, data: { level: levelLabel(pick.level) } });
     return true;
   }
   if (card.examples.some((e) => e.sentenceEn === pick.s.zh)) return false;
-  await prisma.example.update({ where: { id: current.id }, data: poolExample(card.word, pick) });
+  await prisma.example.updateMany({ where: { id: current.id, sentenceEn: current.sentenceEn, sentenceZh: current.sentenceZh }, data: poolExample(card.word, pick) });
   return true;
 }
 
@@ -526,32 +530,33 @@ export async function checkOldExamples(wordId: string): Promise<number> {
     where: { id: wordId },
     select: {
       word: true,
+      autoExamples: true,
       sourceLang: true,
       targetLang: true,
-      examples: { where: { checkedAt: null, sourceName: AI_SOURCE }, select: { id: true, sentenceEn: true, sentenceZh: true } },
+      examples: { where: { checkedAt: null, captured: false, sourceName: AI_SOURCE }, select: { id: true, sentenceEn: true, sentenceZh: true } },
     },
   });
-  if (!card || card.sourceLang !== "zh" || !card.examples.length) return 0;
+  if (!card || !card.autoExamples || card.sourceLang !== "zh" || !card.examples.length) return 0;
   let changed = 0;
   for (const e of card.examples) {
     // A replaced pool sentence is refreshPoolExample's to swap.
     if (isRetired(card.word, e.sentenceEn)) continue;
     if (isPoolSentence(card.word, card.targetLang, e.sentenceEn)) {
-      await prisma.example.update({ where: { id: e.id }, data: { checkedAt: new Date() } });
+      await prisma.example.updateMany({ where: { id: e.id, sentenceEn: e.sentenceEn, sentenceZh: e.sentenceZh }, data: { checkedAt: new Date() } });
       continue;
     }
     if (!sentenceWords(e.sentenceEn, card.word).own) {
-      await prisma.example.delete({ where: { id: e.id } });
+      await prisma.example.deleteMany({ where: { id: e.id, sentenceEn: e.sentenceEn, sentenceZh: e.sentenceZh } });
       changed++;
       continue;
     }
     const kept = await keepIfNatural({ word: card.word, sentence: e.sentenceEn, translation: e.sentenceZh, targetLang: card.targetLang });
     if (!kept) {
-      await prisma.example.delete({ where: { id: e.id } });
+      await prisma.example.deleteMany({ where: { id: e.id, sentenceEn: e.sentenceEn, sentenceZh: e.sentenceZh } });
       changed++;
     } else if (!kept.unread) {
-      await prisma.example.update({
-        where: { id: e.id },
+      await prisma.example.updateMany({
+        where: { id: e.id, sentenceEn: e.sentenceEn, sentenceZh: e.sentenceZh },
         data: { sentenceEn: kept.sentence, sentenceZh: kept.translation, checkedAt: new Date() },
       });
       if (kept.sentence !== e.sentenceEn) changed++;

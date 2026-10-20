@@ -138,7 +138,7 @@ export async function enrichWordEntry(params: {
   const context = sense ? "" : params.context?.trim().slice(0, 300) ?? "";
   const contextLine = context
     ? `The learner met this word in the sentence "${context}". "meaningZh" MUST give the sense "${word}" has in that sentence, ` +
-      `even when it is not the word's most common one. `
+      `even when it is not the word's most common one. Any new example MUST use that same sense in a new, complete, readable sentence. Do not copy, repair or complete the captured exercise fragment. `
     : "";
 
   // Written at the level the learner chose, not under it: "HSK 2 and below" gave an

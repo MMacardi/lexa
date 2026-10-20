@@ -1,5 +1,7 @@
 "use client";
 
+import { capturePreferences } from "@/lib/capturePreferences";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,7 +34,7 @@ const levelFor = (pts: number) => Math.floor(pts / 100) + 1;
 export default function CoachChatPage() {
   const { accountId } = useAccount();
   const { t } = useI18n();
-  const { show } = useToast();
+  const { show, trackImport } = useToast();
   const qc = useQueryClient();
   const tapAny = useTapAnyGloss();
   const ensureLevel = useEnsureLevel();
@@ -351,19 +353,21 @@ export default function CoachChatPage() {
   }
 
   // Save a word Onomika introduced (or one you tapped and glossed) → a card, instantly:
-  // the meaning is already known, so no AI enrichment and no tokens.
+  // keep its context and prepare one additional example with the saved preferences.
   async function addNewWord(word: string, meaning: string, sentence?: string) {
     if (!pair || addingWord) return;
     setAddingWord(word);
     try {
-      await api.batchAddWords({
+      const result = await api.batchAddWords({
+        ...capturePreferences(pair.source),
         telegramId: accountId,
         sourceLang: pair.source,
         targetLang: pair.target,
         items: [{ word, meaning, sentence: sentence?.trim() || undefined }],
         source: "Onomika",
-        enrich: false,
+        enrich: true,
       });
+      if (result.job) trackImport({ jobId: result.job.id, telegramId: accountId, words: [word], total: result.job.total, processed: 0 });
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       setAddedWords((s) => new Set([...s, word.trim().toLowerCase()]));

@@ -54,8 +54,8 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 0. [ ] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot
    batch; Parts 1 (connection/startup) and 2 (example progress) complete and verified
    on 2026-10-19. Work one session at a time from `PLAN-learner-bug-batch.md`;
-   Parts 3–6 remain open:
-   capture examples and removal, sentence audio controls/placement/pace, compact
+   Part 3 (capture examples and removal) completed and verified on 2026-10-20.
+   Parts 4–6 remain open: sentence audio controls/placement/pace, compact
    popups and accurate Reader copy, short-word Mandarin pronunciation. Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.
@@ -67,6 +67,10 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    immediate progress and list/detail/offline cache updates. Local migration,
    backend checks, final build and desktop/phone Chromium/WebKit/Firefox flows pass;
    the existing Reader/Mika tracker regression also passes. Evidence is in Part 2.
+   Part 3 preserves captured context, adds one example using saved preferences, and
+   provides confirmed per-example removal protected against in-flight/retried jobs.
+   Local logic checks, builds and live desktop Chromium/phone WebKit flows pass;
+   additive migration and evidence are recorded in Part 3.
 
 0. [x] **Reader and Mika fixes from the author's screenshots (2026-10-19).** All eight parts
    complete; the author requested the whole remaining plan in the final session. Details

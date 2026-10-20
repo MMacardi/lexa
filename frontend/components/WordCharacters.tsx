@@ -1,5 +1,7 @@
 "use client";
 
+import { capturePreferences } from "@/lib/capturePreferences";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +51,7 @@ export function WordCharacters({ word }: { word: Word }) {
     setAdding(w.word);
     try {
       const r = await api.batchAddWords({
+        ...capturePreferences(word.sourceLang),
         telegramId: accountId,
         sourceLang: word.sourceLang,
         targetLang: word.targetLang,

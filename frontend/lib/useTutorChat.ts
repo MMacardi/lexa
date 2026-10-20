@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { displayCode, FIXED_PAIR, isAiSupported, scriptFamily, scriptFamilyOfText } from "@/lib/langs";
+import { capturePreferences } from "@/lib/capturePreferences";
 import { getExampleSource, getExampleStyle, getLearnerLevel } from "@/lib/learnPrefs";
 import { useEnsureLevel } from "@/lib/useEnsureLevel";
 import { downscaleImage } from "@/lib/image";
@@ -779,9 +780,8 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
 
   async function createCards(index: number, terms: string[]) {
     if (creating || terms.length === 0) return;
-    // Reuse the meaning + example the tutor already wrote (in addCards) so we can
-    // save these cards WITHOUT a second AI call. Only when every selected word has
-    // both a meaning and an example; otherwise fall back to normal AI enrichment.
+    // Reuse the tutor's meaning and example immediately; prepare one additional
+    // example in the background. Other words use ordinary enrichment.
     const byWord = new Map((messages[index]?.addCards ?? []).map((c) => [c.word.trim().toLowerCase(), c]));
     // Words from another language (a Chinese word inside an English chat) are saved
     // in THEIR own pair, so one tap can add a mixed batch.
@@ -812,12 +812,13 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
                 telegramId: accountId,
                 sourceLang: lang,
                 targetLang: pair.target,
+                ...capturePreferences(lang),
                 items: words.map((w) => {
                   const c = byWord.get(w.trim().toLowerCase())!;
                   return { word: w, meaning: c.meaning, sentence: c.example, exampleTr: c.exampleTr };
                 }),
                 source: "Onomika AI",
-                enrich: false, // meaning + example are already known → no tokens spent
+                enrich: isAiSupported(lang), // keep the original and prepare one additional example
                 collectionIds: collIds.length ? collIds : undefined,
               }
             : {

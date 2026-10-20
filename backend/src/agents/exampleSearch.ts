@@ -1,4 +1,5 @@
 import { prisma } from "../services/db.js";
+import { saveGeneratedExample } from "../services/exampleWrites.js";
 import { searchNews } from "../services/search.js";
 import { chatJson } from "../services/llm.js";
 import { sentenceSelectionSchema, translationSchema, composedExampleSchema } from "../lib/schemas.js";
@@ -85,6 +86,7 @@ export async function runExampleSearch(params: {
   sourceLang?: string;
   targetLang?: string;
   level?: string; // learner CEFR level, e.g. "B1"
+  exampleRevision?: number;
   exampleStyle?: string; // news | casual | dialogue | literary
   // Where examples come from: "ai" (default) composes a fresh sentence with the
   // model — cheaper, always on-level, no third-party text; "web" mines a real
@@ -102,6 +104,8 @@ export async function runExampleSearch(params: {
   // `cardSense`): a composed example uses the word in it, not in its best-known one.
   sense?: string;
 }): Promise<ExampleSearchResult> {
+  const revision = params.exampleRevision ?? (params.wordId
+    ? (await prisma.word.findUniqueOrThrow({ where: { id: params.wordId }, select: { exampleRevision: true } })).exampleRevision : 0);
   const word = params.word.trim().toLowerCase();
   const inSense = params.sense ? ` in the sense «${params.sense}» — not in any other sense it has` : "";
   const sourceLang = params.sourceLang ?? "en";
@@ -275,9 +279,7 @@ export async function runExampleSearch(params: {
     params.wordId ??
     (await prisma.word.create({ data: { userId: params.userId, word, sourceLang, targetLang } })).id;
 
-  const example = await prisma.example.create({
-    data: {
-      wordId,
+  const example = await saveGeneratedExample(wordId, revision, {
       sentenceEn: sentence,
       sentenceZh: translation,
       // A composed sentence has no web source — attribute it to the AI instead.
@@ -288,8 +290,8 @@ export async function runExampleSearch(params: {
       register: source ? null : style,
       level: source ? null : writtenLabel(params.brief, params.level ?? null, sourceLang),
       checkedAt,
-    },
   });
+  if (!example) return { wordId, sentenceEn: "", sentenceZh: "", sourceName: "", sourceUrl: "" };
 
   return {
     wordId,

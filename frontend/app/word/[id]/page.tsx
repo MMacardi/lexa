@@ -90,6 +90,7 @@ export default function WordDetailPage() {
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removingExample, setRemovingExample] = useState<string | null>(null);
   const [filling, setFilling] = useState(false);
   const examplePinyin = useExamplePinyin();
   const toneColors = useToneColors();
@@ -133,6 +134,26 @@ export default function WordDetailPage() {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
       setFilling(false);
+    }
+  }
+
+  async function removeExample(exampleId: string) {
+    if (!word || removingExample) return;
+    const ok = await confirm({ title: t("example.remove"), message: t("example.removeConfirm"), confirmLabel: t("example.remove"), tone: "danger" });
+    if (!ok) return;
+    setRemovingExample(exampleId);
+    try {
+      const fresh = await api.deleteExample(word.id, exampleId);
+      // Discard polling responses from before the deletion before replacing caches.
+      await qc.cancelQueries({ queryKey: ["word", id] });
+      await qc.cancelQueries({ queryKey: ["words"] });
+      updateWordCaches(qc, accountId, [fresh]);
+      qc.setQueryData(["word", id], fresh);
+      qc.invalidateQueries({ queryKey: ["review"] });
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setRemovingExample(null);
     }
   }
 
@@ -354,6 +375,11 @@ export default function WordDetailPage() {
                 <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} />
               </p>
               <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-1" />
+              <button type="button" aria-label={t("example.remove")} title={t("example.remove")}
+                disabled={removingExample !== null} onClick={() => removeExample(ex.id)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-ink-faint hover:bg-clay/10 hover:text-clay disabled:opacity-50">
+                {removingExample === ex.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
             </div>
             {ex.sentenceZh && (
               <p className={cn("mt-1 whitespace-pre-line text-[15px] leading-snug text-ink-soft sm:text-[16px]", targetFont(word.targetLang))}>

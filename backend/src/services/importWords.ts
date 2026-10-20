@@ -167,6 +167,7 @@ export async function importWordsForUser(params: {
             params.keepProvidedExtras && item.example
               ? {
                   create: {
+                    captured: true,
                     sentenceEn: item.example,
                     sentenceZh: item.exampleTranslation,
                     sourceName: params.exampleSourceName?.trim() || "Imported list",

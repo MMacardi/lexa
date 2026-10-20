@@ -412,7 +412,7 @@ export async function addProvidedExample(id: string, sentenceEn: string, sentenc
   const word = await prisma.word.findUnique({ where: { id }, select: { id: true } });
   if (!word) throw new Error("Word not found");
   await prisma.example.create({
-    data: { wordId: id, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Onomika AI", sourceUrl: "" },
+    data: { wordId: id, captured: true, sentenceEn: sentenceEn.trim(), sentenceZh: (sentenceZh ?? "").trim(), sourceName: "Onomika AI", sourceUrl: "" },
   });
   return getWord(id);
 }
@@ -454,13 +454,19 @@ export async function addExampleToWord(
       sourceLang: true,
       targetLang: true,
       meaningZh: true,
+      exampleRevision: true,
       examples: { select: { sentenceEn: true } },
     },
   });
   if (!word) throw new Error("Word not found");
 
   if (opts.replace) {
-    await prisma.example.deleteMany({ where: { wordId: id } });
+    const changed = await prisma.$transaction(async (tx) => {
+      const fresh = await tx.word.update({ where: { id }, data: { exampleRevision: { increment: 1 }, autoExamples: false, exampleStatus: "disabled" } });
+      await tx.example.deleteMany({ where: { wordId: id } });
+      return fresh;
+    });
+    word.exampleRevision = changed.exampleRevision;
   }
   await runExampleSearch({
     userId: word.userId,
@@ -473,6 +479,7 @@ export async function addExampleToWord(
     level: opts.level,
     // Adding another (not replacing) → avoid duplicating the current example(s).
     avoid: opts.replace ? [] : word.examples.map((e) => e.sentenceEn),
+    exampleRevision: word.exampleRevision,
     brief: await exampleBrief(word.userId, word.sourceLang, word.id),
     // 背 made as «нести на себе» gets a sentence that carries something, not 背单词.
     sense: cardSense(word)?.described,
@@ -579,39 +586,33 @@ export async function updateWord(
       }
     }
   }
-  // Duplicate spellings are allowed, so a rename can never collide.
-  await prisma.word.update({ where: { id }, data });
-
-  if (fields.examples !== undefined) {
-    const rows = fields.examples.filter((e) => e.sentenceEn.trim());
-    const keepIds = rows.map((e) => e.id).filter((x): x is string => Boolean(x));
-    // Remove examples the user deleted from the list.
-    await prisma.example.deleteMany({
-      where: { wordId: id, ...(keepIds.length ? { id: { notIn: keepIds } } : {}) },
-    });
+  await prisma.$transaction(async (tx) => {
+    const rows = fields.examples?.filter((e) => e.sentenceEn.trim());
+    const keepIds = rows?.flatMap((e) => e.id ? [e.id] : []) ?? [];
+    if (keepIds.length && await tx.example.count({ where: { wordId: id, id: { in: keepIds } } }) !== new Set(keepIds).size) {
+      throw new Error("Example not found on this card");
+    }
+    await tx.word.update({ where: { id }, data: {
+      ...data,
+      ...(rows ? { exampleRevision: { increment: 1 }, autoExamples: false, exampleStatus: "disabled" } : {}),
+    } });
+    if (!rows) return;
+    await tx.example.deleteMany({ where: { wordId: id, id: { notIn: keepIds } } });
     for (const e of rows) {
       if (e.id) {
-        await prisma.example.update({
-          where: { id: e.id },
-          data: {
-            sentenceEn: e.sentenceEn.trim(),
-            sentenceZh: e.sentenceZh ?? "",
-            sourceName: e.sourceName ?? "",
-          },
-        });
+        const old = await tx.example.findUniqueOrThrow({ where: { id: e.id } });
+        const changed = old.sentenceEn !== e.sentenceEn.trim() || (e.sentenceZh !== undefined && old.sentenceZh !== e.sentenceZh);
+        await tx.example.update({ where: { id: e.id }, data: {
+          sentenceEn: e.sentenceEn.trim(),
+          ...(e.sentenceZh !== undefined ? { sentenceZh: e.sentenceZh } : {}),
+          ...(e.sourceName !== undefined ? { sourceName: e.sourceName } : {}),
+          ...(changed ? { checkedAt: null, captured: true } : {}),
+        } });
       } else {
-        await prisma.example.create({
-          data: {
-            wordId: id,
-            sentenceEn: e.sentenceEn.trim(),
-            sentenceZh: e.sentenceZh ?? "",
-            sourceName: e.sourceName || "Manual entry",
-            sourceUrl: "",
-          },
-        });
+        await tx.example.create({ data: { wordId: id, sentenceEn: e.sentenceEn.trim(), sentenceZh: e.sentenceZh ?? "", sourceName: e.sourceName || "Manual entry", sourceUrl: "" } });
       }
     }
-  }
+  });
 
   return prisma.word.findUniqueOrThrow({
     where: { id },

@@ -2621,6 +2621,8 @@ const DICT: Record<string, Entry> = {
     zh: "释义或例句没有生成——再请求一次。",
   },
   "capture.filled": { en: "Card filled in", ru: "Карточка дополнена", zh: "卡片已补全" },
+  "example.remove": { en: "Remove example", ru: "Удалить пример", zh: "删除例句" },
+  "example.removeConfirm": { en: "Remove this example? The card and review progress will stay. You can add examples again manually.", ru: "Удалить этот пример? Карточка и прогресс повторений сохранятся. Новые примеры можно будет добавить вручную.", zh: "删除这条例句？单词卡和复习进度将保留。之后仍可手动添加例句。" },
   "capture.examplePending": { en: "Preparing an example…", ru: "Готовим пример…", zh: "正在准备例句…" },
   "capture.exampleFailed": { en: "Couldn't finish the examples", ru: "Не удалось завершить примеры", zh: "例句未能完成" },
   "word.delete": { en: "Delete", ru: "Удалить", zh: "删除" },

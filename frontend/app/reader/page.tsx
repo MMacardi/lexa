@@ -1,5 +1,7 @@
 "use client";
 
+import { capturePreferences } from "@/lib/capturePreferences";
+
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1054,6 +1056,7 @@ export default function ReaderPage() {
       // Cards are created right away; AI enrichment runs in the background worker,
       // so the user can leave the Reader while their cards fill in.
       const r = await api.batchAddWords({
+        ...capturePreferences(sourceLang),
         telegramId: accountId,
         sourceLang,
         targetLang,
