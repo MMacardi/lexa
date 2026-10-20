@@ -417,9 +417,47 @@ callers (examples, Mika/chat, existing hidden scene surfaces) without exposing t
 
 ## Part 6 — Short-word pronunciation and tones
 
-- [ ] Implement and verify. Compare with part 4 at 1×.
+- [x] Implemented and verified (2026-10-20), including comparison with part 4 at 1×.
 
-**Code findings.** `services/tts.ts` uses Bailian `qwen3-tts-flash` / `Cherry`
+**Final result.** Author accepted Zhijia after comparing isolated xu4 with a human
+recording: “okay if natives say like that … this zhijia is awesome”. Short words
+(1–4 Han characters) now use Bailian `sambert-zhijia-v1`, native 48 kHz, plain
+text, pitch 1.0; single characters use synthesis rate 1.25, longer words 1.0.
+Playback stays at 1×. Sentences retain Qwen/Cherry, their existing cache keys,
+URLs and 1×/0.75× behavior. No carrier sentences, trimming or pitch processing.
+
+- Added bounded Sambert WebSocket transport with provider failure, early close,
+  malformed response, empty/oversize audio and 30-second timeout handling. Failed
+  provider/encoding jobs never reach the cache and can retry on a later tap.
+- Word MP3 uses 96 kbps; sentence encoding remains 48 kbps. Word DB keys include
+  model/rate/`dictionary-v3`/encoding, browser URLs use `v=word-3`; no global wipe.
+  Usage logs the actual model; [Sambert pricing](https://help.aliyun.com/en/model-studio/model-pricing)
+  is ¥1/10,000 input characters. Uses the existing Bailian Beijing key/endpoint.
+- Removed production ASR screening/retries and the superseded no-store experiment.
+  Live checks consistently transcribe the reviewed isolated xu4 as 戏, including
+  raw WAV before encoding (normal raw take also produced 细雨). That transcript
+  must not force browser fallback or certify tones. ASR remains diagnostic only;
+  five other final clips match recognized readings. No claim of universal tone
+  correctness or disambiguation of every polyphonic dictionary reading.
+- Passed backend `npx tsc --noEmit -p .`, frontend `npx next build` (existing lint
+  warnings), deterministic cache/concurrency/failure checks and real-route/local
+  WebSocket checks including the timeout. Six live fresh/cache clips have identical
+  replay bytes and DB reads of 2–5 ms. `check-tts-words.ts` retains the 序 ASR mismatch.
+- Final Russian phone and desktop Chromium checks: all six real MP3s/replays,
+  auth, range/immutable cache, new word URLs, slow word clip with pitch preserved,
+  Cherry sentence 1×/0.75× and matching Reader/word-page clip/rate; controlled
+  fallback passes. Throwaway users cleaned up. Six native-WAV/final-MP3 waveform
+  comparisons have correlation ≥0.9895 and no gross truncation. Existing Windows
+  WebKit API-media fallback and actual Safari voice acoustics remain unverified.
+- Final listening fixtures: `http://127.0.0.1:8766/zhijia-service/`; repeatable
+  diagnostic scripts and earlier comparisons below. Native reference recordings
+  are not shipped in the app; their unspecified upstream license version therefore
+  does not block this selected TTS implementation. No schema migration.
+
+**Investigation record.** Earlier experiments and interim pending decisions below
+are superseded by the final result above.
+
+**Original code findings.** `services/tts.ts` used Bailian `qwen3-tts-flash` / `Cherry`
 by default and cached MP3. Words of 1–4 Han characters get a full stop and up to
 three ASR-checked takes. The check uses `toneType: "none"`; it checks syllables,
 not tone accuracy. `scripts/check-tts-words.ts` also ignores tones. This establishes
@@ -443,6 +481,209 @@ when automated evidence cannot establish tone accuracy.
 alone/in context, normal/slow. No extra syllables, wrong language or clipped onset;
 cache hits retain speed. Record model/provider and limits. Do not claim accurate
 Mandarin tones solely because the current ASR tests pass.
+
+**2026-10-20 implementation and investigation.** Kept Bailian Beijing
+(`dashscope.aliyuncs.com`), `qwen3-tts-flash` / Cherry, Chinese, 24 kHz WAV →
+48 kbps MP3. No model/voice switch, carrier sentence, trimming, migration or global
+cache wipe. Current [Qwen API](https://help.aliyun.com/zh/model-studio/qwen-tts-api),
+[voice list](https://help.aliyun.com/en/model-studio/qwen-tts-voice-list) and
+[instruction scope](https://help.aliyun.com/en/model-studio/non-realtime-tts-user-guide)
+were checked. Instructions are scoped to Instruct models, not the configured base
+model. Both `qwen3-tts-instruct-flash` and `qwen3-tts-flash-2025-11-27` returned
+404 / “Model not exist” on the configured endpoint; neither is a dependency.
+
+- Controlled raw/full-stop WAV and MP3 fixtures: 18 each for Cherry and Serena;
+  Ethan was also sampled, with no clear recognition advantage and intermittent
+  provider timeouts. Sentences consistently transcribed correctly; isolated takes
+  sometimes added syllables or changed the recognized reading. ASR itself varies
+  on identical audio, so its transcript remains only a filter.
+- Author listening feedback: both sentence voices good, isolated Hanzi weak;
+  Cherry bare 味道 natural, full-stop version lacked the same fourth-tone feel;
+  raw 儿 (“儿爷” transcript) sounded interrupted; raw 序 (“去”) too long/weak.
+  Serena sometimes clearer but 味道 overly expressive. Retained Cherry; no blanket
+  claim that another voice fixes dictionary pronunciation.
+- Prefer bare input for 2–4 Han characters, full stop first for single characters;
+  alternate punctuation after a rejected take. Compare recognized numbered
+  readings, rejecting 二/儿 and 嘘/序 mismatches previously accepted tonelessly.
+  This cannot establish acoustic tones or solve every polyphonic reading.
+- After three rejected takes, use the existing synthesis-error/browser fallback;
+  never retain a rejected “closest” take. An ASR outage can play the provider take
+  with no DB storage and HTTP `no-store`, including range responses.
+- Short-word DB keys use `heard-v2`; browser URLs add `v=word-2` to bypass old
+  year-long immutable entries. Sentence keys, URLs and playback speed stay intact.
+- Passed backend `npx tsc --noEmit -p .`, frontend `npx next build` (existing
+  warnings), deterministic `check-tts-policy.ts`, real-route `check-tts-http.ts`,
+  and existing `check-sentence-audio.mjs`. Final real `check-tts-words.ts`: all six
+  recognized readings match, fresh/cached bytes identical, DB replay 1–3 ms.
+  Initial runs exposed a provider timeout and all-three rejected 序 takes;
+  those failures were retained in the investigation, not counted as successes.
+- Phone and desktop Chromium: six real word MP3s/replays, auth/range/immutable
+  cache, new short-word URLs, sentence 1×/0.75×, same Reader/word-page clip and
+  pace, controlled fallback pass. Throwaway accounts removed. Windows WebKit
+  native API media returns `NotSupportedError` and falls back; Part 4's saved
+  `phone-webkit-pace.json` already records browser-fixture fallback. Its actual
+  browser voice and Safari device acoustics remain unverified.
+- Eighteen WAV/MP3 comparisons preserve waveform correlation (>0.85), full length
+  and ~46 ms encoder delay; no gross onset/tail truncation detected. This does
+  not prove pronunciation or perceptual quality at either playback speed.
+- Repeatable fixtures: `backend/scripts/inspect-tts.ts [voice] [model]`,
+  `check-tts-words.ts [words…]`; artifacts in `.playwright-cli/word-audio`.
+  Serve there with `python -m http.server 8766 --bind 127.0.0.1`; `/Cherry/` and
+  `/Serena/` have IDs 01–18, `/service/` has the six final fresh/cache pairs and
+  pitch-preserving 1×/0.75× controls. Browser check:
+  `node frontend/scripts/check-word-audio.mjs [phone-chromium|desktop-chromium]`.
+
+**Author rejection and second-system investigation (2026-10-20).** The author
+rejected the revised `/service/` clips: isolated words still sound too relaxed,
+especially the drawn-out ending of 味道. Sentence Cherry remains good. The author
+explicitly authorized checking other pronunciation systems, superseding this
+part's original Qwen-only restriction for isolated-word pronunciation.
+
+- Both CosyVoice v2 (`longxiaochun_v2`, `longxiaoxia_v2`) and Sambert
+  (`sambert-zhichu-v1`) work through the existing Bailian Beijing key. Generated
+  six bare words plus two sentence controls per candidate, original WAV only.
+  CosyVoice HTTP synthesis also responds successfully; Sambert uses the documented
+  one-way WebSocket protocol. No new provider account or production switch.
+- Repeatable script: `backend/scripts/inspect-tts-engines.ts
+  [probe|fixtures|recognize]`. Its diagnostic `ws@8.22.0` dependency is confined to
+  ignored `.playwright-cli/tts-tools` (installation command is in the script).
+  `/engines/` on the same local listening server compares A = current Cherry,
+  B/C = CosyVoice, D = Sambert, with unique IDs such as `6-D` and 1×/0.75× controls.
+- All 24 generated WAVs parse as mono PCM; all 30 comparison URLs are available.
+  Phone Chromium plays the Sambert WAV at pitch-preserving 0.75×. Sambert's 味道
+  fixture is 0.425 s versus 0.720 s for these CosyVoice fixtures; shorter duration
+  is not evidence of correct acoustic tones.
+- One ASR screen of all 18 isolated alternatives: all six Sambert recognized
+  readings match; both CosyVoice candidates' 顺 was recognized as 愤/份 and 儿
+  as 嗯. These results help reject candidates but do not establish tone accuracy.
+- Corrected the original diagnostic's overly specific `wèidào` label: the shipped
+  CC-CEDICT entry for 味道 is `wei4 dao5` (neutral 道), while pinyin-pro returns
+  `wei4 dao4`. This distinction does not settle the author's concern about drawn-out
+  delivery. Dictionary-supported pronunciation controls should use dictionary
+  readings when a provider is selected, rather than treating ASR pinyin as truth.
+- Official references: [Sambert protocol](https://help.aliyun.com/en/model-studio/sambert-client-events),
+  [CosyVoice voice list](https://help.aliyun.com/en/model-studio/cosyvoice-voice-list),
+  [CosyVoice HTTP API](https://help.aliyun.com/en/model-studio/cosyvoice-tts-http-api),
+  [SSML pronunciation controls](https://help.aliyun.com/en/model-studio/ssml-latex-user-guide).
+  Sambert is Beijing-only; documented price is ¥1/10,000 input characters,
+  CosyVoice v2 ¥2/10,000 ([pricing](https://help.aliyun.com/en/model-studio/model-pricing)).
+
+**Remaining acceptance:** author comparison of `/engines/` was requested. Select
+and integrate an acceptable word provider, keep Cherry sentences, version affected
+caches again, and run the focused final checks before marking Part 6 complete and
+pushing. Existing source changes remain experimental and uncommitted. Do not
+describe ASR readings or waveform checks as proof of accurate Mandarin tones.
+
+**Further author feedback and refined candidates.** The author confirmed B/C
+read 顺 like “fen” and fail 儿; D has better pronunciation but a dirty/unpleasant
+timbre and too-short 儿. Cherry remains preferred for sentence voice quality.
+The base Cherry model has no documented instruction control; the tested Instruct
+model is unavailable. No claim that prompt text can reliably repair its tones.
+The author briefly proposed trimming elongated vowels, then explicitly cancelled
+that idea because the main issue is tone pronunciation. No audio trimming or
+duration-compression changes were made.
+
+`inspect-tts-engines.ts refined` generated a separate `/engines/refined.html`:
+E = Sambert Zhiqi (gentle female, native 48 kHz), F = Sambert Zhijia (standard
+female, native 48 kHz), both synthesized at 0.9× to address the short-word pace;
+G = CosyVoice v2 Anpei (education/training voice) with supported SSML phonemes
+explicitly specifying the dictionary readings. Pitch is unchanged; the raw source
+WAVs are preserved. The initial Zhichu comparison used 16 kHz; these new Sambert
+voices use their documented 48 kHz source rate.
+
+The refined ASR screen accepts five E readings (序 → 去) and five F readings
+(序 → 戏); G recognizes 顺/序/顺序/味/味道 correctly or as same-reading homophones,
+but 儿 → Latin “r”. These are unresolved candidate-screen limitations, not acoustic
+tone assessments or production acceptance. All six words plus two context controls
+are saved per candidate, with stable IDs `1-E`…`6-G`. Await listening feedback
+before choosing/integrating a provider. Sentence Cherry is unchanged.
+
+**Acoustic check requested by the author.** Anpei's tones sounded acceptable but
+its voice/pitch too electronic; Zhiqi too soft. Zhijia's timbre was preferred,
+with a concern that isolated 序 sounded prolonged and third-tone-like while the
+final 序 in 顺序 sounded fine. No switch was authorized as fully accepted.
+
+- Added normal-rate Zhijia probes (`inspect-tts-engines.ts zhijia-pitch`): 序,
+  顺序, both with punctuation, same-vowel 虚/徐/许 controls for tones 1/2/3,
+  homophone 续 and fourth-tone 去. Original refined F samples remain at 0.9.
+- `python -B backend/scripts/analyze-word-pitch.py` measures actual PCM with
+  Parselmouth 0.4.7 / Praat 6.1.38, raw autocorrelation and raw cross-correlation,
+  5 ms frames, pitch floors 70/100/130 Hz, ceiling 600 Hz and a voicing/energy gate.
+  Local dependencies are under `.playwright-cli/tts-tools/python`.
+- In the actual reviewed F samples, isolated 序's measured voiced vowel spans
+  ~280 ms and falls from ~305 to 166 Hz; word-final 序 spans ~155 ms, ~252 to
+  162 Hz (CC70; start/end are medians over the first/last 20% of the interval).
+  This establishes a real duration/register difference. The isolated contour is
+  consistently falling across all six tracking settings; the same-voice 许
+  control dips and then rises. These samples do not support calling isolated 序
+  third tone solely on the basis of its pitch contour. This is not a native
+  listener's certification of ideal teaching pronunciation.
+- At synthesis rate 1.0 the corresponding spans are ~265/130 ms, so removing the
+  0.9 setting barely changes the isolated contour or solves the relative length.
+  Full stops produce essentially the same isolated contour. 序 and homophone 续
+  have essentially matching curves. No source audio was trimmed or modified.
+- One raw-AC70 trace doubles F0 at the tail of the word sample; cross-correlation
+  and AC at floors 100/130 continue falling. It is flagged as a possible octave
+  error; raw tracks and sensitivity results are preserved rather than treating
+  this one trace as a real rising tone.
+- Sambert streaming WAVs contain placeholder ~2 GB length fields. Analysis parses
+  only actual PCM bytes, avoiding Praat padding the missing samples. Listening
+  copies fix only container lengths and assert PCM identity; source hashes and
+  PCM hashes are in the report. No pitch/time processing or cropped carrier.
+- Report, plots, source listening copies and full measurements:
+  `http://127.0.0.1:8766/pitch/`, `.playwright-cli/word-audio/pitch/`.
+  Voicing spans are algorithmic and exclude unvoiced /x/, not exact syllable
+  boundaries. Artifact PNGs visually reviewed. This follow-up changes diagnostic
+  scripts/docs only; app builds and learner flows were not repeated.
+
+Part 6 remains open for the final pronunciation/provider decision and integration;
+the acoustic result explains the observed difference without silently switching
+voices or claiming that every Zhijia fourth tone is correct.
+
+**Focused diction test after the author asked how to proceed.** No app/provider
+switch was made: normal-rate Zhijia had not resolved the perceived isolated tone.
+Sambert's current [SDK reference](https://help.aliyun.com/zh/model-studio/sambert-python-sdk)
+links supported [SSML pinyin controls](https://help.aliyun.com/zh/isi/user-guide/ssml-overview).
+`inspect-tts-engines.ts zhijia-diction` now compares A = plain rate 1.0,
+B = explicit numbered pinyin at 1.0, C = plain rate 1.25, D = pinyin at 1.25.
+All native 48 kHz; no trimming, carrier, or client pitch/speed processing.
+- Six inputs: 序, 顺, 味, 去, 顺序, 味道 (the latter explicitly wei4 dao5 in B/D).
+  Explicit pinyin barely changes the four isolated fourth-tone contours/durations.
+- `analyze-word-pitch.py --diction` retains all six Praat tracker settings per take.
+  For 序, measured voiced interval is A/B 265 ms, C 220 ms, D 210 ms. CC70
+  start/end remain about 304→168 Hz (A) and 307→166 Hz (D). Whole clip
+  487.5→390 ms. This establishes shorter delivery, not human tone acceptance.
+- Listening page: `http://127.0.0.1:8766/engines/zhijia-diction.html`.
+  Start with **1-A vs 1-C**, then 1-D; other words are controls, not a required
+  24-clip listening sweep. Browser verifies all 24 valid durations at playback 1×
+  and first-row four clips play to completion at phone width. PCM identity checked
+  when repairing only the WAV length headers. Full measurements are in ignored
+  `.playwright-cli/word-audio/diction-measurements/measurements.json`.
+- Recommendation pending listening: use shorter native synthesis for isolated
+  characters only if the delivery is acceptable; retain Cherry sentences. If it
+  is still unclear, investigate reviewed/licensed native recordings. No recording
+  source selected, downloaded, or integrated. Part 6 remains open; no final
+  production switch, completion claim, commit, or push.
+
+**Native reference follow-up.** Author reports 1-C is better but still less clear
+than 序 inside 顺序; faster synthesis is a partial improvement, not acceptance.
+- Added `npx tsx scripts/inspect-native-words.ts`: downloads unchanged public MP3
+  references from [Audio-cmn](https://github.com/hugolpz/audio-cmn), pinned commit
+  `59dbafbda8b172ffc3b8b295cd5938ae1b3de803`, with SHA-256, source URLs,
+  speaker/credits, upstream README and missing-file records. No learner data.
+  Source states CC BY-SA; its README does not specify a version. Production
+  licensing/attribution must be resolved before integrating a selected set.
+- `/native/` compares Chen Wang's **1-P, standalone xu4**, with shorter Zhijia
+  1-C. Yue Tan's word corpus lacks standalone 序 and 儿; those missing files are
+  not disguised as available recordings. The syllable set supplies xu4 and er2;
+  five whole-word references cover 顺, 味, 去, 顺序, 味道. No syllable stitching.
+- Ten native MP3s downloaded; browser verifies all ten plus twelve existing TTS
+  controls have valid metadata at playback 1×, and native xu4/顺序/味道/er2 play
+  to completion at phone width. Public listening page has credits/source links.
+  No app implementation changed and no app builds repeated for this probe.
+- Author asked to compare only 1-P and 1-C, establishing whether an actual isolated
+  native reading meets the requested delivery. Human review and final integration
+  remain pending. Sentences remain Cherry. No completion claim/commit/push.
 
 ## Finishing each implementation session
 

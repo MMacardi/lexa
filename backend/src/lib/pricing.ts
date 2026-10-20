@@ -1,4 +1,4 @@
-// Qwen pricing for the owner admin dashboard's cost view. Rates are ¥ (CNY) per
+// Bailian pricing for the owner admin dashboard's cost view. Rates are ¥ (CNY) per
 // 1M tokens, split input/output. Kept in one editable place because Bailian
 // revises prices and runs promotions — VERIFY against the Bailian pricing page
 // and adjust here; the dashboard reads cost live from these numbers.
@@ -19,6 +19,8 @@ export const PRICING: Record<string, { in: number; out: number }> = {
   // Speech (services/tts.ts) is billed per character: ¥0.8 per 10,000 = ¥80 per 1M,
   // and its usage rows log characters as prompt tokens. Verified 2026-10-10 (Beijing).
   "qwen3-tts-flash": { in: 80, out: 0 },
+  // Sambert dictionary words: ¥1 per 10,000 characters (Beijing, 2026-10-20).
+  "sambert-zhijia-v1": { in: 100, out: 0 },
 };
 
 // Unknown models fall back to qwen-plus rates so a newly-added model still shows

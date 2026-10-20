@@ -27,6 +27,7 @@
     "pinyin-pro": "^3.29.3",
     "telegraf": "^4.16.3",
     "ts-fsrs": "^5.4.1",
+    "ws": "^8.22.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.5",
     "@types/nodemailer": "^8.0.1",
+    "@types/ws": "^8.18.2",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

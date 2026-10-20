@@ -51,14 +51,20 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ---
 
-0. [ ] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot
+0. [x] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot
    batch; Parts 1 (connection/startup) and 2 (example progress) complete and verified
    on 2026-10-19. Work one session at a time from `PLAN-learner-bug-batch.md`;
    Part 3 (capture examples and removal) completed and verified on 2026-10-20.
    Part 4 (sentence audio controls/placement/pace) completed and verified on 2026-10-20.
    Part 5 (compact popups and accurate Reader copy) completed and verified on 2026-10-20;
    shared saved/add status survives cold links/reload, and capture checks the exact pair.
-   Part 6 remains open: short-word Mandarin pronunciation.
+   Part 6 completed and verified 2026-10-20: author accepted Zhijia after a native
+   xu4 comparison. Short words use Sambert/Zhijia (single characters rate 1.25,
+   longer words 1.0), sentences retain Cherry. New word DB/browser cache versions,
+   bounded provider failure handling, actual-model cost logging; live ASR gate
+   removed because it rejects the reviewed xu4 even in raw WAV. Builds, focused
+   transport/cache checks, six fresh/replay clips, phone/desktop Chromium and
+   WAV/MP3 preservation pass. See Part 6 for listening evidence and limits.
    Separate mobile Reader request (2026-10-20): keep the
    small popup at the bottom, center and fix the second card popup, remove hold.
    Follow-up complete (2026-10-20): selecting a saved text resets Reader to the top;

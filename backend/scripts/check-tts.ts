@@ -1,10 +1,8 @@
-// Proves Bailian's voice (services/tts.ts): a text becomes an MP3 that says it, is
-// stored once, and is served from the database the second time. The "says it" part
-// goes the other way through qwen3-asr-flash: the clip, transcribed, must give the
-// text back. Costs a few hundredths of a yuan (two short texts, once each).
+// Checks MP3 encoding, DB replay and recognized text through qwen3-asr-flash.
+// Recognition does not establish acoustic tone accuracy. Costs a few hundredths
+// of a yuan (two short texts, once each). Use the LOCAL development database.
 //   cd backend && npx tsx scripts/check-tts.ts
-import { createHash } from "node:crypto";
-import { speechClip, wavToMp3, TTS_MODEL } from "../src/services/tts.js";
+import { speechClip, speechCacheKey, wavToMp3 } from "../src/services/tts.js";
 import { transcribeAudio } from "../src/services/llm.js";
 import { prisma } from "../src/services/db.js";
 
@@ -40,7 +38,7 @@ const isMp3 = (b: Buffer) => b.toString("ascii", 0, 3) === "ID3" || (b[0] === 0x
 }
 
 for (const text of ["服务器", "海鸥在头顶盘旋，狭窄的石板街道里弥漫着海盐的味道。"]) {
-  const key = createHash("sha256").update(`${TTS_MODEL}|${process.env.BAILIAN_TTS_VOICE || "Cherry"}|${text}`).digest("hex");
+  const key = speechCacheKey(text);
   await prisma.ttsClip.deleteMany({ where: { key } }); // start from a miss
   let t0 = Date.now();
   const first = await speechClip(text);

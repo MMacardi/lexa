@@ -1,18 +1,16 @@
 import { createHash } from "node:crypto";
 import { Mp3Encoder } from "@breezystack/lamejs";
-import { pinyin } from "pinyin-pro";
 import { env } from "../lib/env.js";
 import { prisma } from "./db.js";
 import { currentUserId } from "../lib/usageContext.js";
-import { transcribeAudio } from "./llm.js";
+import { WORD_TTS_MODEL, wordSpeechRate, wordWav } from "./wordTts.js";
 
 // Chinese read aloud by Bailian's voice instead of the browser's: on Windows the
 // browser's Chinese voice is the robotic Huihui, and some Android phones have none.
-// Each text is synthesised once (¥0.8 per 10,000 characters, verified 2026-10-10 at
-// help.aliyun.com/zh/model-studio/qwen3-tts-flash), stored as MP3 (TtsClip), and
-// every later play by anyone is a DB read — a browser-cache hit after that.
+// Sentences use Qwen/Cherry; short dictionary words use Sambert/Zhijia. Both use
+// the existing Bailian key. Accepted clips are stored as MP3 for later plays.
 export const TTS_MODEL = process.env.BAILIAN_TTS_MODEL || "qwen3-tts-flash";
-const TTS_VOICE = process.env.BAILIAN_TTS_VOICE || "Cherry"; // standard Mandarin, female
+export const TTS_VOICE = process.env.BAILIAN_TTS_VOICE || "Cherry";
 export const TTS_MAX_CHARS = 300; // the API takes 600; a word or a sentence is far below
 const MP3_KBPS = 48; // speech at 24 kHz mono: ~6 KB a second instead of WAV's 48
 
@@ -20,41 +18,29 @@ const MP3_KBPS = 48; // speech at 24 kHz mono: ~6 KB a second instead of WAV's 4
 // (Beijing or Singapore, whichever BAILIAN_BASE_URL points at).
 const ENDPOINT = () => `${new URL(env.BAILIAN_BASE_URL).origin}/api/v1/services/aigc/multimodal-generation/generation`;
 
-// A word on its own is where the voice slips (the author, 2026-10-14: 味 sounded
-// like "wait", 儿 unnatural, 味道 with a "ts" after it). Sampled the same day, 味
-// alone sometimes grew extra syllables ("喂，弗雷") or seconds of babble, 儿 came back
-// as "Are we?" or 哎, 味道 once as 那道. Ended with a full stop it steadies (味。 and
-// 味道。 3 of 3), and every take of a short word is heard back by the ASR and made
-// again, up to TAKES times, when its syllables aren't the word's (儿。 was right 1
-// time in 3). Each clip is made once and kept, so a bad take used to stay for good.
-// Sentences read fine and go out as they are.
+// Author listening preferred Zhijia's dictionary delivery after comparison with
+// a native xu4 recording. Single characters use its shorter 1.25 synthesis rate;
+// multi-character words use 1.0. No punctuation/carrier, trimming, or pitch edits.
 const SHORT = /^\p{Script=Han}{1,4}$/u;
-const TAKES = 3;
-// Short words carry "heard" in their key, so the clips made before the check are made again.
-const keyOf = (text: string) =>
+// v3 retires Cherry short clips and includes the word model/rate/encoding policy.
+// frontend/lib/api.ts also versions their URLs: browsers keep MP3s for a year.
+export const speechCacheKey = (text: string) =>
   createHash("sha256")
-    .update(`${TTS_MODEL}|${TTS_VOICE}|${SHORT.test(text) ? "heard|" : ""}${text}`)
+    .update(SHORT.test(text) ? `${WORD_TTS_MODEL}|${wordSpeechRate(text)}|dictionary-v3|mp3-96|${text}` : `${TTS_MODEL}|${TTS_VOICE}|${text}`)
     .digest("hex");
-
-// Toneless syllables of the Han characters in `text` (an ASR answer may add a full
-// stop, or come back in Latin letters, which has none).
-const syllables = (text: string) => {
-  const han = text.replace(/[^\p{Script=Han}]/gu, "");
-  return han ? (pinyin(han, { toneType: "none", type: "array" }) as string[]) : [];
-};
 
 // Two taps on the same new word while it is being made share one synthesis.
 const pending = new Map<string, Promise<Buffer>>();
 
 /** The MP3 of `text` read in Mandarin: stored if anyone played it before, made now if not. */
 export async function speechClip(text: string): Promise<Buffer> {
-  const key = keyOf(text);
+  const key = speechCacheKey(text);
   const hit = await prisma.ttsClip.findUnique({ where: { key }, select: { mp3: true } });
   if (hit) return Buffer.from(hit.mp3);
   let job = pending.get(key);
   if (!job) {
-    job = (SHORT.test(text) ? heardWord(text) : synthesize(text))
-      .then(async (mp3) => {
+    job = (SHORT.test(text) ? synthesizeWord(text) : synthesize(text))
+      .then(async mp3 => {
         // A second server instance may have stored it meanwhile; theirs is as good.
         await prisma.ttsClip.create({ data: { key, mp3: new Uint8Array(mp3), chars: text.length } }).catch(() => {});
         return mp3;
@@ -65,23 +51,13 @@ export async function speechClip(text: string): Promise<Buffer> {
   return job;
 }
 
-// A short word, read until the ASR hears its syllables (homophones pass: 喂 for 味
-// is the right sound). With no take heard right, the closest one; with the ASR
-// unreachable, the take as it is.
-async function heardWord(word: string): Promise<Buffer> {
-  const want = syllables(word);
-  let best: { mp3: Buffer; score: number } | null = null;
-  for (let take = 0; take < TAKES; take++) {
-    const mp3 = await synthesize(`${word}。`);
-    const heard = await transcribeAudio({ base64: mp3.toString("base64"), format: "mp3", sourceLang: "zh" });
-    if (!heard) return mp3;
-    const got = syllables(heard);
-    if (got.join(" ") === want.join(" ")) return mp3;
-    const score = want.filter((s, i) => got[i] === s).length / Math.max(want.length, got.length);
-    console.log(`[tts] take ${take + 1} of ${word} heard as ${JSON.stringify(heard)}`);
-    if (!best || score > best.score) best = { mp3, score };
-  }
-  return best!.mp3;
+// ASR remains a diagnostic: it calls the reviewed isolated xu4 "戏" even in raw
+// WAV, so it must not replace that audio with a browser voice or certify tones.
+async function synthesizeWord(word: string): Promise<Buffer> {
+  const started = Date.now();
+  const mp3 = wavToMp3(await wordWav(word), 96);
+  logTts(WORD_TTS_MODEL, word.length, Date.now() - started);
+  return mp3;
 }
 
 async function synthesize(text: string): Promise<Buffer> {
@@ -104,33 +80,36 @@ async function synthesize(text: string): Promise<Buffer> {
   const wav = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!wav.ok) throw new Error(`TTS audio download failed (${wav.status})`);
   const mp3 = wavToMp3(Buffer.from(await wav.arrayBuffer()));
-  logTts(body.usage?.characters ?? text.length, Date.now() - t0);
+  logTts(TTS_MODEL, body.usage?.characters ?? text.length, Date.now() - t0);
   return mp3;
 }
 
 // Same row shape as llm.ts logUsage, so the admin dashboard counts the voice's cost:
 // characters stand in for prompt tokens (pricing.ts prices them per character).
-function logTts(chars: number, ms: number) {
+function logTts(model: string, chars: number, ms: number) {
   console.log(`[llm usage] tts chars=${chars} ms=${ms}`);
   void prisma.tokenUsage
     .create({
-      data: { feature: "tts", model: TTS_MODEL, kind: "tts", promptTokens: chars, totalTokens: chars, ms, telegramId: currentUserId() },
+      data: { feature: "tts", model, kind: "tts", promptTokens: chars, totalTokens: chars, ms, telegramId: currentUserId() },
     })
     .catch(() => {});
 }
 
 /** 16-bit PCM WAV → mono MP3. Reads the chunks rather than assuming a 44-byte header. */
-export function wavToMp3(wav: Buffer): Buffer {
+export function wavToMp3(wav: Buffer, kbps = MP3_KBPS): Buffer {
   if (wav.toString("ascii", 0, 4) !== "RIFF" || wav.toString("ascii", 8, 12) !== "WAVE") throw new Error("TTS audio isn't WAV");
-  let channels = 1;
-  let rate = 24_000;
-  let bits = 16;
+  let channels = 0;
+  let rate = 0;
+  let bits = 0;
+  let format = 0;
   let pcm: Buffer | null = null;
   for (let at = 12; at + 8 <= wav.length; ) {
     const id = wav.toString("ascii", at, at + 4);
     const size = wav.readUInt32LE(at + 4);
     const start = at + 8;
     if (id === "fmt ") {
+      if (size < 16 || start + 16 > wav.length) throw new Error("TTS audio has an invalid WAV format");
+      format = wav.readUInt16LE(start);
       channels = wav.readUInt16LE(start + 2);
       rate = wav.readUInt32LE(start + 4);
       bits = wav.readUInt16LE(start + 14);
@@ -142,11 +121,11 @@ export function wavToMp3(wav: Buffer): Buffer {
     }
     at = start + size + (size % 2);
   }
-  if (!pcm || bits !== 16) throw new Error("TTS audio isn't 16-bit PCM");
+  if (!pcm?.length || format !== 1 || bits !== 16 || channels < 1 || channels > 2 || !rate || pcm.length % (2 * channels)) throw new Error("TTS audio isn't complete 16-bit PCM");
   const frames = Math.floor(pcm.length / (2 * channels));
   const mono = new Int16Array(frames);
   for (let i = 0; i < frames; i++) mono[i] = pcm.readInt16LE(i * 2 * channels); // first channel
-  const enc = new Mp3Encoder(1, rate, MP3_KBPS);
+  const enc = new Mp3Encoder(1, rate, kbps);
   const out: Uint8Array[] = [];
   for (let i = 0; i < mono.length; i += 1152) {
     const chunk = enc.encodeBuffer(mono.subarray(i, i + 1152));
