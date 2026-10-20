@@ -887,14 +887,13 @@ final frontend build passed (existing frontend lint warnings).
 
 Runtime configuration remains Sambert/Zhijia (`sambert-zhijia-v1`) for short words
 and Qwen/Cherry (`qwen3-tts-flash`) for sentences; accepted word-engine rates,
-encoding, cache keys and URLs are unchanged. **Tone report limit:** screenshot 13
-and its word/clip are not attached in this session. The exact word/reading was
-requested; no new listening comparison or claim that the reported tone is fixed
-is possible until it is identified. Do not retune all voices from that report.
+encoding, cache keys and URLs are unchanged. The author confirmed the fourth-tone
+issue was already fixed in Part 6 and closed that follow-up. No additional tone
+diagnosis or clip is pending.
 
 **Report.** Exercise items 31–34 in screenshot 2 have no terminal punctuation;
-their controls appear to use a browser voice. Screenshot 13 reports an incorrect
-fourth tone. Preserve the accepted Part 6 word engine while isolating this clip.
+their controls appear to use a browser voice. Preserve the accepted Part 6 word
+engine; the screenshot 13 tone concern was already resolved, per the author.
 
 **Initial code findings.** Before this part, `frontend/lib/sentences.ts` handled
 list numbers and some newlines, but remained punctuation-led.
@@ -919,12 +918,6 @@ switch to a different voice. If browser fallback remains, expose it as an explic
 choice. Preserve other-language speech, stop/loading cancellation, iOS unlocking,
 pitch-preserving speed, and accepted Sambert/Zhijia word versus Qwen/Cherry
 sentence behavior. Shared speech changes must keep review/quiz audio working.
-
-Reproduce screenshot 13's exact word, reading, provider, cache and playback rate
-when identifiable. If the clip/word cannot be identified from the supplied
-material, record that limit and request the word rather than guess or alter all
-voices. Compare a fresh clip with replay and the accepted Part 6 fixtures. Tone
-acceptance requires listening; ASR text or an F0 trace alone cannot certify it.
 
 **Acceptance.** Items 31–34, a >300-character unpunctuated paragraph, short plain
 lines, decimals and normal punctuated sentences all use the intended audio path.

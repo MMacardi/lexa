@@ -69,8 +69,8 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    occurrence-specific repeat-tap/keyboard closing, bounded scrollable Reader
    popups and dictionary pinyin/localized graph previews. Part 9 is verified:
    numbered/plain-line speech units, bounded complete server playback, visible
-   failures and failed-chunk retry; accepted word voices preserved. The reported
-   fourth-tone clip still needs its exact word/reading from the author.
+   failures and failed-chunk retry; accepted word voices preserved. The author
+   confirmed the fourth-tone issue was already fixed in Part 6; follow-up closed.
    Parts 10–18 remain open; Parts 1–9 are complete. Keep hidden features and
    deferred landing work out of scope; this explicit batch takes priority over
    the time-gated retention proof.

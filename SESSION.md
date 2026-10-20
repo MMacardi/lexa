@@ -12,8 +12,8 @@
   Retry resumes the failed chunk; stop/switch invalidates late chunk events.
   Non-Mandarin browser speech and the shared iOS-unlocked element are preserved.
 - Preserve accepted Part 6 audio: Sambert/Zhijia short words; Qwen/Cherry sentences.
-  Engine/rates/cache policy unchanged. Screenshot 13 word/reading/clip unavailable;
-  requested from author. Tone diagnosis/listening comparison awaits identification.
+  Engine/rates/cache policy unchanged. Author confirmed the fourth-tone issue was
+  already fixed in Part 6; no tone diagnosis remains pending.
 - Relevant: frontend/lib/{sentences,speak}.ts, SpeakButton.tsx, i18n.tsx,
   review/quiz pages; backend route comment; plan Part 9 and backlog updated.
 - Checks passed: backend npx tsc --noEmit -p .; frontend npx next build (existing
