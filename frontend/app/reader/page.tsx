@@ -1911,9 +1911,9 @@ export default function ReaderPage() {
               className={mobile ? "pointer-events-none fixed left-0 top-[var(--vv-top,0px)] z-[85] flex h-[var(--vv-h,100dvh)] w-screen items-center justify-center p-4" : "fixed right-4 top-20 z-[85] w-[360px]"}
               style={mobile ? undefined : { transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
             >
-              <div role="dialog" aria-label={w.word} className="pointer-events-auto anim-fade-up w-full max-w-[360px] overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+              <div role="dialog" aria-label={w.word} className="pointer-events-auto anim-fade-up relative w-full max-w-[360px] overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
                 {/* title bar: reset (left) · grip drag handle (center) · close (right) */}
-                <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
+                {!mobile && <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
                   {!mobile && (cardOffset.x !== 0 || cardOffset.y !== 0) && (
                     <HoverTip title={t("tutor.resetPos")} className="inline-flex">
                       <button
@@ -1943,10 +1943,20 @@ export default function ReaderPage() {
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </div>
-                <div className="max-h-[calc(var(--vv-h,100dvh)-5rem)] overflow-y-auto p-5 md:max-h-[calc(70vh-2.75rem)]">
+                </div>}
+                {mobile && (
+                  <button
+                    type="button"
+                    onClick={() => setCardPanel(null)}
+                    aria-label={t("common.cancel")}
+                    className="absolute right-3 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface/95 text-ink-faint transition-colors hover:bg-paper hover:text-ink"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                <div className="max-h-[calc(var(--vv-h,100dvh)-3rem)] overflow-y-auto p-5 md:max-h-[calc(70vh-2.75rem)]">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className={cn("flex items-center gap-2", mobile && "pr-12")}>
                     <div className={cn("min-w-0 font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>
                     <SpeakButton text={w.word} lang={w.sourceLang} size="sm" />
                   </div>

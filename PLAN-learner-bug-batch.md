@@ -358,7 +358,9 @@ pace comparisons and local MP3). Throwaway local accounts are cleaned up.
 **Separate mobile request (2026-10-20).** The small Reader word popup stays at
 the bottom with its existing layout. Only the second popup, opened by «Открыть
 карточку», is centered in the visible viewport and cannot be dragged on phones;
-long cards scroll internally. Mobile hold-to-open is removed; tap the saved word,
+long cards scroll internally. Follow-up: close sits beside the word, with the empty
+mobile title strip removed, and stays accessible while scrolling. Mobile hold-to-open
+is removed; tap the saved word,
 then open its card. Reader hints match this in ru/en/zh; desktop hold remains.
 This scoped change does not complete the shared-popup work below.
 Verified with backend tsc, frontend production build (existing warnings), and
