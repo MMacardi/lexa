@@ -52,7 +52,7 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
-   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 10 next and
+   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 11 next and
    complete only one part per implementation session. Covers truthful HSK level/
    target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
    numbered/unpunctuated audio and the reported fourth tone; whole-text listening
@@ -71,7 +71,10 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    numbered/plain-line speech units, bounded complete server playback, visible
    failures and failed-chunk retry; accepted word voices preserved. The author
    confirmed the fourth-tone issue was already fixed in Part 6; follow-up closed.
-   Parts 10–18 remain open; Parts 1–9 are complete. Keep hidden features and
+   Part 10 is verified: whole-text listening with pause/resume, four speeds,
+   fragment seek/progress, bounded prefetch/cache, failed-chunk retry and one
+   audio owner; real Russian phone playback and text lifecycle checks passed.
+   Parts 11–18 remain open; Parts 1–10 are complete. Keep hidden features and
    deferred landing work out of scope; this explicit batch takes priority over
    the time-gated retention proof.
 

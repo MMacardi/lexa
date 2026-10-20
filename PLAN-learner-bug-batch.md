@@ -5,8 +5,8 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–9
-are complete; Parts 10–18 remain open. Next implementation session: **Part 10**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–10
+are complete; Parts 11–18 remain open. Next implementation session: **Part 11**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -927,7 +927,52 @@ spot-check and a focused shared review/quiz smoke check; no universal tone claim
 
 ## Part 10 — Whole-text Reader playback, speed and progress
 
-- [ ] Implement and verify after Part 9.
+- [x] Implemented and verified 2026-10-20.
+
+**Delivered.** Chinese Reader has a separate compact “Слушать текст” player;
+pronunciation practice retains its separate entry and 12-sentence limit. Listening
+uses every source unit and Part 9's 120-character chunks, with pause/resume,
+stop/replay, 0.75×/1×/1.25×/1.5× pitch-preserving speed, accessible fragment seeking,
+current-passage highlighting and a locate button. Progress names fragments, shows
+the number ready and marks loading even when seeking while paused; no unknown
+total duration is presented. Following pauses while words/popups are selected.
+
+`lib/readerPlayback.ts` leases `speak.ts`'s shared unlocked element. The current
+chunk plus at most one next chunk are fetched with session credentials. A pending
+prefetch is reused on advancement; the text-local blob cache is bounded to 64
+clips/24 MiB, with backend/browser cache reuse after eviction. Speed never changes
+the request/cache key. Stop, editing, deletion, text switch and navigation abort
+queued fetches; generation checks isolate late media and request callbacks. Retry
+starts at the failed chunk, and word/sentence playback cancels whole-text audio.
+The gesture primer starts before asynchronous loading and its play promise settles
+before the loaded clip replaces its source. Accepted Sambert/Zhijia word and
+Qwen/Cherry sentence configuration is unchanged.
+
+**Verification.** Backend `npx tsc --noEmit -p .` and frontend `npx next build`
+passed (existing lint warnings). `node frontend/scripts/check-reader-playback.mjs`
+covers bounded prefetch, delayed unlocking, pause during load, live rate, seeking,
+stale events/fetches, failed-chunk retry, word interruption and effect cleanup/replay.
+The shared engine checks in `check-sentence-audio.mjs` also passed.
+`node frontend/scripts/check-reader-listening.mjs phone-chromium` passed with real
+local MP3 playback: 16 source units/18 chunks, a 342-character unpunctuated passage,
+all units past twelve, complete cached replay, all four speeds without requests or
+position reset, pause/resume, seek, mid-text 502/retry, an actual saved-word
+interruption, selection without forced scrolling, leaving Reader and late-response
+cancellation. Its `lifecycle-only` mode verified editing, saved content replacement,
+deletion and switching to another text before the old response returns. Phone
+screenshots were inspected; artifacts are in `.playwright-cli/reader-listening`.
+Throwaway accounts were removed. Windows Playwright WebKit cannot decode the same
+MP3 by either direct URL (including range responses) or blob (`NotSupportedError`);
+its optional native-media check is an environment limitation, not proof of Safari
+playback. Actual iOS hardware remains unverified; the required phone flow passed
+on Chromium without media mocks.
+
+**Part 18 accounting handoff.** This player calls the existing authenticated TTS
+route; actual synthesis retains `feature=tts`, `kind=tts`, the actual model and
+character units. Replay/rate changes do not synthesize copies. Prefetched work can
+finish server-side after cancellation and remains real provider usage; distinguish
+that from listening uses/cache hits when adding logical-function accounting in
+Part 18. No new payment limit or duplicate usage log was introduced here.
 
 **Report.** Add AI reading for the complete Reader text, faster playback and a
 useful audio progress tracker. Existing “Чтение вслух” is pronunciation practice

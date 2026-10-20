@@ -2,7 +2,7 @@
 
 import { capturePreferences } from "@/lib/capturePreferences";
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DictEntry, type HskVersion, type ReaderTextFull, type ReaderLevelSource } from "@/lib/api";
@@ -36,6 +36,8 @@ import {
 import { segment, wordKey, type Token } from "@/lib/segment";
 import { sentences, sentenceGroups, splitSentenceTokens } from "@/lib/sentences";
 import { stopSpeech } from "@/lib/speak";
+import { ReaderPlayback } from "@/lib/readerPlayback";
+import { ReaderListeningPlayer } from "@/components/ReaderListeningPlayer";
 import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { MobileSheet } from "@/components/MobileSheet";
@@ -422,7 +424,28 @@ export default function ReaderPage() {
   const baseTokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
   const tokens = useMemo(() => splitSentenceTokens(baseTokens, sentenceSpans), [baseTokens, sentenceSpans]);
   const audioGroups = useMemo(() => sentenceGroups(tokens, sentenceSpans), [tokens, sentenceSpans]);
-  useEffect(() => () => stopSpeech(), [text, reading, sourceLang]);
+  const listeningOwner = useId();
+  const playback = useMemo(() => new ReaderPlayback(reading ? text : "", sourceLang, listeningOwner),
+    // A different saved text with identical content still cancels playback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [text, reading, sourceLang, listeningOwner, openText?.id]);
+  const listening = useSyncExternalStore(playback.subscribe, playback.getSnapshot, playback.getSnapshot);
+  useEffect(() => { playback.activate(); return playback.dispose; }, [playback]);
+  useEffect(() => () => stopSpeech(), [text, reading, sourceLang, openText?.id]);
+  const passageRef = useRef<HTMLDivElement>(null);
+  const locatePassage = useCallback(() => {
+    passageRef.current?.querySelector(`[data-reader-unit="${playback.getSnapshot().unit}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [playback]);
+  useEffect(() => {
+    if (listening.status !== "playing" || selected.size || activeToken || gloss || knownPop || window.getSelection()?.toString()) return;
+    const el = passageRef.current?.querySelector(`[data-reader-unit="${listening.unit}"]`);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top < 160 || rect.bottom > window.innerHeight - 90) locatePassage();
+    // Follow passage changes only; closing a popup must not move the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening.unit, listening.status, locatePassage]);
   // Reset after the reading view replaces the library, before it is painted.
   useLayoutEffect(() => {
     if (reading) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -648,6 +671,7 @@ export default function ReaderPage() {
 
   // Start a new text; keep the input only if autosave failed.
   function leaveReading() {
+    stopSpeech();
     if (currentSaved) {
       setText("");
       setTranslation(null);
@@ -668,6 +692,7 @@ export default function ReaderPage() {
 
   async function editText() {
     if (textBusy || translating) return;
+    stopSpeech();
     setToolsOpen(false);
     setTextBusy(true);
     try {
@@ -694,6 +719,7 @@ export default function ReaderPage() {
         tone: "danger",
       });
       if (!ok) return;
+      stopSpeech();
       await api.deleteReaderText(currentSaved.id, accountId);
       await qc.invalidateQueries({ queryKey: ["reader-texts", accountId] });
       leaveReading();
@@ -707,6 +733,7 @@ export default function ReaderPage() {
   // Open a saved text: restore its content, pair, translation and the words the
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
+    stopSpeech();
     setAlignment(validAlignment(full.translationAlignment, full.content, full.translation ?? ""));
     setText(full.content);
     setTextLevel(full.level ?? null);
@@ -1777,8 +1804,13 @@ export default function ReaderPage() {
           columns + min-w-0: a grid column otherwise grows to the text's
           min-content width, which is the longest line when a browser finds no
           break inside the pinyin. */}
+      {isChineseLang(sourceLang) && <div className="sticky top-2 z-20 mb-3">
+        <ReaderListeningPlayer playback={playback} locate={locatePassage} />
+      </div>}
       <div className={cn("grid grid-cols-1 gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
+          ref={passageRef}
+          data-reader-source
           className={cn(
             "min-w-0 select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
             rubyOn ? "leading-[2.7]" : "leading-[1.9]",
@@ -1787,10 +1819,13 @@ export default function ReaderPage() {
         >
           {audioGroups.map((group, i) => <Fragment key={i}>
             {group.before.map(renderToken)}
-            {group.head.map(renderToken)}
-            {group.text && <span data-sentence-tail className="whitespace-nowrap [&_wbr]:hidden">
-              {group.tail.map(renderToken)}
-              <SpeakButton text={group.text} lang={sourceLang} size="inline" sentence className="ml-0.5" />
+            {group.text && <span data-reader-unit={i} data-listening-active={listening.unit === i && listening.status !== "idle" ? "true" : undefined}
+              className={cn("scroll-mt-40", listening.unit === i && listening.status !== "idle" && "rounded bg-sage-tint/60")}>
+              {group.head.map(renderToken)}
+              <span data-sentence-tail className="whitespace-nowrap [&_wbr]:hidden">
+                {group.tail.map(renderToken)}
+                <SpeakButton text={group.text} lang={sourceLang} size="inline" sentence className="ml-0.5" />
+              </span>
             </span>}
           </Fragment>)}
         </div>

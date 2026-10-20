@@ -67,7 +67,7 @@ for (const config of [
     assert.equal(await page.locator('[data-sentence-tail]').first().locator('button').count(),2);
     assert.equal(await page.getByRole('button',{name:'Скорость предложения: 1×',exact:true}).count(),units.length);
     const displayed=await page.locator('[data-sentence-tail]').first().evaluate(el=>{
-      const source=el.parentElement.cloneNode(true);source.querySelectorAll('[data-sentence-audio]').forEach(c=>c.remove());
+      const source=el.closest('[data-reader-source]').cloneNode(true);source.querySelectorAll('[data-sentence-audio]').forEach(c=>c.remove());
       return source.textContent;
     });
     assert.equal(displayed,source.trim(),'every accepted source character/label is displayed exactly once');

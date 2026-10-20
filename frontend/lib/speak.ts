@@ -93,6 +93,7 @@ export function useSpeechLoading(text: string): boolean {
 let playId = 0;
 const pending = new Set<ReturnType<typeof setTimeout>>();
 let removeVoiceWait: (() => void) | null = null;
+let releasePlayer: (() => void) | null = null;
 const RATE_KEY = "lexa.sentenceRate";
 let sentenceRate: 1 | 0.75 = 1;
 const emit = () => listeners.forEach((l) => l());
@@ -138,6 +139,8 @@ function later(id: number, fn: () => void, ms: number) {
 export function stopSpeech(owner?: string) {
   if (owner && state?.owner !== owner) return;
   playId++;
+  const release = releasePlayer;
+  releasePlayer = null;
   pending.forEach(clearTimeout); pending.clear();
   removeVoiceWait?.(); removeVoiceWait = null;
   if (player) {
@@ -149,6 +152,16 @@ export function stopSpeech(owner?: string) {
   if (canSynth() && (keepAlive || window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel();
   keepAlive = null;
   setState(null);
+  release?.();
+}
+
+/** Lease the same iOS-unlocked element; any other speech cancels this owner. */
+export function claimSpeechPlayer(owner: string, onStop: () => void) {
+  stopSpeech();
+  const unlocked = unlockSpeech();
+  releasePlayer = onStop;
+  setState({ text: "", lang: "zh", status: "playing", rate: 1, sentence: false, owner });
+  return { element: getPlayer(), unlocked: unlocked ?? Promise.resolve() };
 }
 
 let mediaId = 0;
@@ -238,15 +251,16 @@ export function hasVoice(lang: string): boolean | null {
  * listening card, a listening quiz): iOS lets speech start only from a gesture,
  * and once it has, from anywhere on the page.
  */
-export function unlockSpeech() {
-  const active = state && state.status !== "error";
+export function unlockSpeech(owner?: string) {
+  const active = state && state.status !== "error" && !(owner && state.owner === owner);
+  let unlocked: Promise<void> | undefined;
   if (!active && typeof Audio !== "undefined" && (!player || player.paused)) {
     const el = getPlayer();
     silence ??= silenceUrl();
     el.src = silence;
-    el.play().catch(() => {});
+    unlocked = el.play().catch(() => {});
   }
-  if (active || !canSynth()) return;
+  if (active || !canSynth()) return unlocked;
   try {
     const u = new SpeechSynthesisUtterance("​");
     u.volume = 0;
@@ -254,6 +268,7 @@ export function unlockSpeech() {
   } catch {
     /* ignore */
   }
+  return unlocked;
 }
 
 // Keep a reference to the active utterance. Chromium garbage-collects the

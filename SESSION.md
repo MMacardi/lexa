@@ -1,28 +1,26 @@
 # Session handoff — 2026-10-20
 
-- Task: Part 9 — Reliable audio for numbered and unpunctuated passages, complete.
-- Next implementation: Part 10 of PLAN-learner-bug-batch.md. Parts 1–9 complete;
-  Parts 10–18 open. Implement only one part per session.
-- Reader speech spans keep exact source offsets; numbered labels and inline/
-  separate A–F options stay displayed but are not spoken. Bare labels have no audio.
-- speak.ts queues bounded chunks within each logical unit; no whole-text player yet.
-  300-character provider synthesis timed out locally; 120-character chunks passed.
-  Source pauses/word boundaries preferred; surrogate pairs preserved.
-- Mandarin media errors are visible with retry, never a silent browser fallback.
-  Retry resumes the failed chunk; stop/switch invalidates late chunk events.
-  Non-Mandarin browser speech and the shared iOS-unlocked element are preserved.
-- Preserve accepted Part 6 audio: Sambert/Zhijia short words; Qwen/Cherry sentences.
-  Engine/rates/cache policy unchanged. Author confirmed the fourth-tone issue was
-  already fixed in Part 6; no tone diagnosis remains pending.
-- Relevant: frontend/lib/{sentences,speak}.ts, SpeakButton.tsx, i18n.tsx,
-  review/quiz pages; backend route comment; plan Part 9 and backlog updated.
-- Checks passed: backend npx tsc --noEmit -p .; frontend npx next build (existing
-  lint warnings); node frontend/scripts/check-sentence-audio.mjs; node
-  frontend/scripts/check-sentence-audio-ui.mjs (desktop + Russian phone Chromium).
-  Final phone rerun passed after copy/unlock changes; retry screenshot inspected.
-- Evidence: .playwright-cli/sentence-audio; 342 characters played as 120/120/102,
-  real HTTP 206 media and cached HTTP 200 MP3 bytes; review/quiz smoke passed.
-  Throwaway local accounts removed. Restart Docker frontend after local edits if
-  its Windows file watcher serves stale code; wait for startup before browser tests.
-- Grouped-word retention proof still needs actual evidence; landing deferred.
+- Task: Part 10 — Whole-text Reader playback, speed and progress, complete.
+- Next: Part 11 of PLAN-learner-bug-batch.md. Parts 1–10 complete;
+  Parts 11–18 open. Implement only one part per session.
+- ReaderListeningPlayer + lib/readerPlayback.ts: all source units, 120-char
+  chunks, pause/resume/stop/replay, 0.75/1/1.25/1.5×, accessible fragment seek,
+  honest loading/ready counts, passage highlight/locate, selection-safe following.
+- Uses speak.ts's shared unlocked element; word/sentence playback cancels queue.
+  Fetches current + one next; bounded 64-clip/24-MiB cache, no synthesis by speed.
+  Abort/generation guards cover switches, edits, deletion and navigation;
+  retry resumes failed chunk. Primer settles before first async clip replaces it.
+- Pronunciation practice stays separate and limited to 12 sentences; listening
+  has no such limit. Accepted Sambert/Zhijia words and Qwen/Cherry unchanged.
+- Checks: backend npx tsc --noEmit -p .; frontend npx next build passed
+  (existing lint warnings); check-reader-playback.mjs + check-sentence-audio.mjs.
+- check-reader-listening.mjs phone-chromium passed: real MP3s, 16 units/18
+  chunks, 342-char unit, complete replay, rate/pause/seek, 502/retry, saved-word
+  interruption, selection, navigation/late fetch. lifecycle-only passed edit,
+  content replacement, delete and quick text switch; test accounts removed.
+- Evidence/screenshots: .playwright-cli/reader-listening. Windows WebKit fails
+  the same MP3 directly and as a blob (NotSupportedError); actual iOS unverified.
+- Part 18 must distinguish listening uses, cache hits, actual synthesis and
+  prefetched work finishing after cancel; existing tts character/model log kept.
+- Grouped-word retention proof needs evidence; landing deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
