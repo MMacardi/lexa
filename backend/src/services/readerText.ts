@@ -28,7 +28,7 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     },
     orderBy: { updatedAt: "desc" },
     take: 100,
-    select: { id: true, title: true, content: true, status: true, collection: true, level: true, sourceLang: true, targetLang: true, updatedAt: true },
+    select: { id: true, title: true, content: true, status: true, collection: true, level: true, levelSource: true, sourceLang: true, targetLang: true, updatedAt: true },
   });
   // What the learner knows, per pair, for each text's "you know 82%". Worked out
   // on every list rather than stored: it moves each time a card graduates.
@@ -56,6 +56,7 @@ export async function listTexts(telegramId: string, q?: string, collection?: str
     status: r.status,
     collection: r.collection,
     level: r.level,
+    levelSource: r.levelSource,
     sourceLang: r.sourceLang,
     targetLang: r.targetLang,
     knownPct: knownPct(r),
@@ -107,22 +108,20 @@ async function titleFor(content: string, sourceLang?: string): Promise<string> {
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 
-// Cheaply estimate a text's level in one short call: CEFR, or HSK for Chinese. Best-effort.
+// CEFR behavior for other languages stays as before. Chinese vocabulary is
+// analyzed from the full tagged Reader tokens, never estimated by a model.
 async function estimateLevel(content: string, sourceLang?: string): Promise<string | null> {
+  if (isHskLang(sourceLang)) return null;
   const source = langName(sourceLang ?? "en");
-  const hsk = isHskLang(sourceLang);
   try {
     const r = await chatJson({
       system:
-        (hsk
-          ? `Estimate the HSK level of the ${source} text (one of 1, 2, 3, 4, 5, 6, or 7 for HSK 7–9) `
-          : `Estimate the CEFR level of the ${source} text (one of A1, A2, B1, B2, C1, C2) `) +
+        `Estimate the CEFR level of the ${source} text (one of A1, A2, B1, B2, C1, C2) ` +
         `by its vocabulary and grammar. Respond as JSON: {"level": string}.`,
       user: content.trim().slice(0, 1500),
       schema: z.object({ level: z.string().min(1).max(12) }),
       timeoutMs: 15000,
     });
-    if (hsk) return levelTag(r.level, sourceLang);
     const lvl = r.level.trim().toUpperCase();
     return (LEVELS as readonly string[]).includes(lvl) ? lvl : null;
   } catch {
@@ -163,14 +162,15 @@ export async function createText(
         return tx.readerText.update({
           where: { id: same.id },
           data: { updatedAt: new Date() },
-          select: { id: true, title: true, level: true, translation: true, translationAlignment: true },
+          select: { id: true, title: true, level: true, levelSource: true, translation: true, translationAlignment: true },
         });
       }
       return tx.readerText.create({
         data: { userId: uid, title: data.title.trim() || data.content.trim().replace(/\s+/g, " ").slice(0, 40), content: data.content,
           sourceLang: data.sourceLang ?? null, targetLang: data.targetLang ?? null, level: autoLevel,
+          levelSource: autoLevel ? (data.level ? "manual" : "estimated") : null,
           collection: data.collection?.trim() || null, clickedWords: data.clickedWords ?? [], translation: data.translation?.trim() || null },
-        select: { id: true, title: true, level: true, translation: true, translationAlignment: true },
+        select: { id: true, title: true, level: true, levelSource: true, translation: true, translationAlignment: true },
       });
     });
   }
@@ -197,10 +197,11 @@ export async function createText(
       translation: data.translation?.trim() || null,
       clickedWords: data.clickedWords ?? [],
       level,
+      levelSource: level ? (data.level?.trim() ? "manual" : "estimated") : null,
       sourceLang: data.sourceLang ?? null,
       targetLang: data.targetLang ?? null,
     },
-    select: { id: true, title: true, level: true, translation: true },
+    select: { id: true, title: true, level: true, levelSource: true, translation: true },
   });
 }
 
@@ -237,7 +238,7 @@ export async function updateText(
       ...(data.title !== undefined ? { title: data.title.trim() || "Untitled" } : {}),
       ...(data.content !== undefined ? { content: data.content } : {}),
       ...(data.collection !== undefined ? { collection: data.collection?.trim() || null } : {}),
-      ...(data.level !== undefined ? { level: levelTag(data.level, owned.sourceLang) } : {}),
+      ...(data.level !== undefined ? { level: levelTag(data.level, owned.sourceLang), levelSource: levelTag(data.level, owned.sourceLang) ? "manual" : null } : {}),
       ...(contentChanged || data.translation !== undefined ? { translation: finalTranslation } : {}),
       ...(contentChanged || translationChanged || data.translationAlignment !== undefined
         ? { translationAlignment: alignment ? alignment as unknown as Prisma.InputJsonValue : Prisma.DbNull } : {}),
@@ -245,7 +246,7 @@ export async function updateText(
     },
   });
   if (!written.count) throw new Error("Text changed; reopen it before saving");
-  return prisma.readerText.findUniqueOrThrow({ where: { id }, select: { id: true, title: true, level: true } });
+  return prisma.readerText.findUniqueOrThrow({ where: { id }, select: { id: true, title: true, level: true, levelSource: true } });
 }
 
 export async function deleteText(telegramId: string, id: string): Promise<void> {
@@ -310,6 +311,7 @@ export async function startGeneration(telegramId: string, params: GenParams) {
       content: "",
       status: "generating",
       level: chosenLevel,
+      levelSource: chosenLevel ? "requested" : null,
       sourceLang: params.sourceLang ?? null,
       targetLang: params.targetLang ?? null,
     },
@@ -321,7 +323,13 @@ export async function startGeneration(telegramId: string, params: GenParams) {
       const { title, content } = await generateOne(params);
       // If the learner didn't pick a level, estimate it from the generated text.
       const level = chosenLevel ?? (await estimateLevel(content, params.sourceLang));
-      await prisma.readerText.update({ where: { id: row.id }, data: { title, content, status: "ready", level } });
+      // Keep any manual level set while generation was running; publish the
+      // finished content and its metadata together.
+      await prisma.$transaction(async (tx) => {
+        if (!chosenLevel) await tx.readerText.updateMany({ where: { id: row.id, level: null, levelSource: null },
+          data: { level, levelSource: level ? "estimated" : null } });
+        await tx.readerText.update({ where: { id: row.id }, data: { title, content, status: "ready" } });
+      });
     } catch (err) {
       console.error("reader generation failed:", err);
       await prisma.readerText.update({ where: { id: row.id }, data: { status: "failed" } }).catch(() => {});

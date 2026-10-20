@@ -1,24 +1,25 @@
 # Session handoff — 2026-10-20
 
-- Task: plan the author's new Reader/dictionary/Mika screenshot batch.
-- Added ordered Parts 7–18 to PLAN-learner-bug-batch.md; all are open.
-  Next implementation session: Part 7 (Reader HSK level and target counts).
-  Parts 1–6 remain complete; do not restart their implementation.
-- Part 7 findings: AI estimates first 1,500 characters; “for HSK 4” counts
-  unique new words at levels <=4, not HSK-4-only. Plan full-text vocabulary
-  analysis on the chosen HSK list; distinguish manual/requested text levels.
-- Follow-up parts cover popup toggle/bounds/previews, reliable passage audio,
-  whole-text player, Russian dictionary/sense consistency, stale card links,
-  settings copy, Mika memory/ruby pinyin, zoom, saved-word pinyin search.
-- Author clarified: inventory every AI function and count use for future
-  paywall preparation; no new billing limits, blanket badges or default changes.
-- Existing memory is read by Mika but the floating hook does not update it;
-  retain existing per-account/language controls and the hidden-feature boundary.
-- Preserve accepted Part 6 audio: Sambert/Zhijia short words; Cherry sentences.
-  Investigate new tone/voice reports before changing engines or clearing caches.
-- Added the new open backlog item before the completed original batch.
-- Checks: docs diff/plan references/status consistency only; no app code changed.
-- Implement one part per session; required builds + focused local behavior check
-  after code changes. Do not use production data. No new part implemented yet.
+- Task: Part 7 — Reader level and honest HSK vocabulary counts, complete.
+- Next implementation: Part 8 of PLAN-learner-bug-batch.md. Parts 1–7 complete;
+  Parts 8–18 open. Implement only one part per session; do not restart earlier work.
+- Reader now analyzes all tagged tokens on the chosen HSK 2.0/3.0 list: lowest
+  level covering >=95% of listed occurrences; off-list counts shown separately.
+  New words remain unique keys; target copy names HSK 1–4 / 1–9, including zero.
+- Chinese level estimation uses no LLM. Other-language CEFR behavior is unchanged.
+- Nullable ReaderText.levelSource migration applied locally; no content/level
+  backfill. Distinct manual/requested/legacy labels; reopen recomputes vocabulary.
+  Untouched edit pickers and export/import preserve the original level/source.
+- Relevant files: readerVocabulary.ts, ReaderLevelBadge.tsx, Reader page/library/
+  save tools, readerText.ts, accountData.ts, Prisma migration, ru/en/zh copy.
+- Checks passed: backend npx tsc --noEmit -p .; frontend npx next build (existing
+  lint warnings); backend/scripts/check-reader-vocabulary.ts; one Russian WebKit
+  phone flow frontend/scripts/check-reader-vocabulary.mjs (also en/zh copy).
+- 76/62 fixture: 76 unique words; 62 <=HSK 4; HSK 3 covers 558/572 occurrences.
+  Verified 95% boundary, repeats, off-list/names, >1,500 chars, both lists, 7–9,
+  metadata preservation/reopen, generation sources, CEFR and export/import.
+  Phone evidence: .playwright-cli/reader-vocabulary/; throwaway users removed.
+- Preserve Part 6 audio: Sambert/Zhijia short words; Cherry sentences. Diagnose
+  new reports before engine/cache changes. Mika memory/AI accounting remain later.
 - Grouped-word retention proof still needs actual evidence; landing deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.

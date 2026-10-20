@@ -9,6 +9,7 @@ import { isFixedPair, langLabel } from "@/lib/langs";
 import { getShowTextLevel } from "@/lib/learnPrefs";
 import { Select } from "@/components/ui/Select";
 import { SaveModal } from "@/components/ReaderTextTools";
+import { ReaderLevelBadge } from "@/components/ReaderLevelBadge";
 import { LayoutGrid, List, Clock, TriangleAlert, Trash2, Pencil, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -181,7 +182,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-ink-soft">
                   {it.status === "generating" ? t("reader.generating") : it.snippet}
                 </p>
-                <div className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
                   {it.collection && <span className="shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-ink-muted">{it.collection}</span>}
                   {pair(it.sourceLang, it.targetLang) && <span className="truncate text-ink-faint">{pair(it.sourceLang, it.targetLang)}</span>}
                   {it.knownPct != null && (
@@ -190,7 +191,7 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                     </span>
                   )}
                   {showLevel && it.level && (
-                    <span className={cn("shrink-0 rounded-full bg-sage-tint px-1.5 py-0.5 text-sage-deep", it.knownPct == null && "ml-auto")}>~{it.level}</span>
+                    <ReaderLevelBadge {...it} className={cn(it.knownPct == null && "ml-auto")} />
                   )}
                 </div>
               </button>
@@ -235,8 +236,8 @@ export function SavedTexts({ onOpen }: { onOpen: (full: ReaderTextFull) => void 
                 <span title={t("reader.knownPctHint")} className="w-[4.5rem] text-right text-ink-muted">
                   {it.knownPct != null && t("reader.knownPctShort", { n: it.knownPct })}
                 </span>
-                <span className="flex w-9 justify-end">
-                  {showLevel && it.level && <span className="rounded-full bg-sage-tint px-1.5 py-0.5 text-[11px] text-sage-deep">~{it.level}</span>}
+                <span className="flex max-w-[120px] justify-end sm:max-w-none">
+                  {showLevel && <ReaderLevelBadge {...it} className="truncate" />}
                 </span>
                 <span className="hidden w-[190px] truncate text-right font-medium text-ink-faint sm:block">{pair(it.sourceLang, it.targetLang)}</span>
                 {it.collection && <span className="hidden max-w-[110px] shrink-0 truncate rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[11px] text-ink-muted md:inline">{it.collection}</span>}

@@ -443,6 +443,7 @@ export async function importAccount(telegramId: string, file: Rec): Promise<Impo
           translation: strN(x.translation),
           clickedWords: strs(x.clickedWords),
           level: strN(x.level),
+          levelSource: x.levelSource === "manual" || x.levelSource === "requested" || x.levelSource === "estimated" ? x.levelSource : null,
           sourceLang: strN(x.sourceLang),
           targetLang: strN(x.targetLang),
           createdAt: at,

@@ -242,6 +242,8 @@ export interface AuthIdentity {
   subject: string;
 }
 
+export type ReaderLevelSource = "manual" | "requested" | "estimated";
+
 export interface ReaderTextSummary {
   id: string;
   title: string;
@@ -249,6 +251,7 @@ export interface ReaderTextSummary {
   status: string; // ready | generating | failed
   collection?: string | null;
   level?: string | null;
+  levelSource?: ReaderLevelSource | null;
   sourceLang?: string | null;
   targetLang?: string | null;
   // Share of the text's running words the learner knows (the Reader's "you know
@@ -266,6 +269,7 @@ export interface ReaderTextFull {
   translation?: string | null;
   clickedWords?: string[];
   level?: string | null;
+  levelSource?: ReaderLevelSource | null;
   sourceLang?: string | null;
   targetLang?: string | null;
 }
@@ -1461,7 +1465,7 @@ export const api = {
     targetLang?: string;
     autosave?: boolean; // the Reader keeps every text it opens: dedupes, never AI-names
   }) =>
-    http<{ id: string; title: string; level?: string | null; translation?: string | null; translationAlignment?: TranslationAlignment | null }>(`/api/reader/texts`, {
+    http<{ id: string; title: string; level?: string | null; levelSource?: ReaderLevelSource | null; translation?: string | null; translationAlignment?: TranslationAlignment | null }>(`/api/reader/texts`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -1479,7 +1483,7 @@ export const api = {
       expectedTranslation?: string | null;
       clickedWords?: string[];
     },
-  ) => http<{ id: string; title: string; level?: string | null }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  ) => http<{ id: string; title: string; level?: string | null; levelSource?: ReaderLevelSource | null }>(`/api/reader/texts/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteReaderText: (id: string, telegramId: string) =>
     http<{ ok: true }>(`/api/reader/texts/${id}`, { method: "DELETE", body: JSON.stringify({ telegramId }) }),
   // Kicks off background generation; returns the new row id (poll readerText for status).

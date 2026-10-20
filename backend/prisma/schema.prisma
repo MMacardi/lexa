@@ -339,7 +339,8 @@ model ReaderText {
   translation String? // cached whole-text translation, saved with the text
   translationAlignment Json? // versioned UTF-16 spans bound to the exact source and translation
   clickedWords String[] @default([]) // normalized keys of words the reader engaged with
-  level      String? // estimated CEFR level of the text (e.g. "B2"), optional
+  level      String? // saved text/generation level; Chinese vocabulary is analyzed on read
+  levelSource String? // manual | requested | estimated; null = legacy, origin unknown
   sourceLang String?
   targetLang String?
   createdAt  DateTime @default(now())

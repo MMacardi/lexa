@@ -5,10 +5,12 @@ import { capturePreferences } from "@/lib/capturePreferences";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib/api";
+import { api, type DictEntry, type HskVersion, type ReaderTextFull, type ReaderLevelSource } from "@/lib/api";
 import { downscaleImage, imageFiles } from "@/lib/image";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
+import { ReaderLevelBadge } from "@/components/ReaderLevelBadge";
+import { readerCoverage, readerVocabulary, hskRange, hskTop } from "@/lib/readerVocabulary";
 import { PasteButton } from "@/components/PasteButton";
 import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
@@ -89,10 +91,6 @@ const HSK_DECOR: Record<number, string> = {
   7: "decoration-hsk7",
 };
 
-// A token the coverage counts: a word with a letter in it — a year or a page
-// number is not a word to know. Twin of countsAsWord in backend services/coverage.ts.
-const countsAsWord = (tk: Token) => tk.wordLike && /\p{L}/u.test(tk.text);
-
 // Is `b` an edit of `a` (an OCR slip fixed) rather than a different text? Edits
 // keep most of the start and the end; a new paste shares almost none of either.
 function sameText(a: string, b: string) {
@@ -139,7 +137,8 @@ export default function ReaderPage() {
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
   const [reading, setReading] = useState(false);
-  const [textLevel, setTextLevel] = useState<string | null>(null); // CEFR of the open saved text
+  const [textLevel, setTextLevel] = useState<string | null>(null);
+  const [textLevelSource, setTextLevelSource] = useState<ReaderLevelSource | null>(null);
   const [openText, setOpenText] = useState<ReaderTextFull | null>(null); // the saved text being read (for edit-in-place on save)
   // A "open in Reader" hand-off that references a saved text by title (from a card
   // example) — resolved to the full text once the account id is available.
@@ -474,36 +473,13 @@ export default function ReaderPage() {
   const readAloudSentences = useMemo(() => sentenceSpans.slice(0, 12).map((s) => s.text), [sentenceSpans]);
   const readAloudHidden = Math.max(0, sentenceSpans.length - 12);
 
-  // The line over the text: "You know 82% · 14 new, 6 of them for HSK 4". The %
-  // is of running words, repeats included (Migaku's comprehension score; the
-  // saved-text list counts the same way). "New" is distinct words with no card,
-  // and the HSK part counts the ones on the learner's exam list — every level up
-  // to the target, since that is what the exam asks.
-  const { knownPct, newKeys, newForTarget, levelsHere } = useMemo(() => {
-    let total = 0;
-    let known = 0;
-    const fresh = new Set<string>();
-    const forTarget = new Set<string>();
-    const levels = new Set<number>();
-    for (const tk of tokens) {
-      if (!countsAsWord(tk)) continue;
-      total++;
-      const k = wordKey(tk.text);
-      const lvl = tk.hsk?.[hskVersion];
-      if (lvl) levels.add(lvl);
-      if (knownKeys.has(k)) known++;
-      if (!knownMap.has(k) && !added.has(k)) {
-        fresh.add(k);
-        if (lvl && hskTarget && lvl <= hskTarget) forTarget.add(k);
-      }
-    }
-    return {
-      knownPct: total ? Math.round((known / total) * 100) : null,
-      newKeys: fresh,
-      newForTarget: forTarget.size,
-      levelsHere: Array.from(levels).sort((a, b) => a - b),
-    };
-  }, [tokens, knownMap, knownKeys, added, hskVersion, hskTarget]);
+  const { knownPct, newKeys, newForTarget, levelsHere } = useMemo(
+    () => readerCoverage(tokens, hskVersion, hskTarget, knownMap, knownKeys, added),
+    [tokens, knownMap, knownKeys, added, hskVersion, hskTarget]);
+  // Wait for the dictionary tags: browser fallback tokens cannot distinguish
+  // genuinely off-list words from words whose HSK tags have not loaded yet.
+  const vocabulary = useMemo(() => isChineseLang(sourceLang) && dictTokens
+    ? readerVocabulary(tokens, hskVersion) : null, [tokens, dictTokens, sourceLang, hskVersion]);
 
   const busy = queueing;
 
@@ -637,6 +613,7 @@ export default function ReaderPage() {
     setSelected(new Set());
     setShowTr(false);
     setTextLevel(null); // a freshly pasted text has no level until it's saved
+    setTextLevelSource(null);
     setOpenText(null); // fresh paste → Save creates a new text, not an update
     setReading(true);
     autosave(from.trim());
@@ -651,6 +628,9 @@ export default function ReaderPage() {
       if (prev && sameText(prev.content, content)) {
         if (prev.content !== content) await api.updateReaderText(prev.id, { telegramId: accountId, content });
         setSavedRow({ ...prev, content });
+        const full = await api.readerText(prev.id, accountId);
+        setTextLevel(full.level ?? null);
+        setTextLevelSource(full.levelSource ?? null);
       } else {
         const saved = await api.saveReaderText({
           telegramId: accountId,
@@ -662,7 +642,8 @@ export default function ReaderPage() {
           targetLang,
         });
         setSavedRow({ id: saved.id, content, title: saved.title });
-        if (saved.level) setTextLevel(saved.level);
+        setTextLevel(saved.level ?? null);
+        setTextLevelSource(saved.levelSource ?? null);
         if (saved.translation && translatedFor.current !== text) {
           setTranslation(saved.translation);
           setAlignment(validAlignment(saved.translationAlignment, text, saved.translation));
@@ -739,6 +720,7 @@ export default function ReaderPage() {
     setAlignment(validAlignment(full.translationAlignment, full.content, full.translation ?? ""));
     setText(full.content);
     setTextLevel(full.level ?? null);
+    setTextLevelSource(full.levelSource ?? null);
     setOpenText(full); // editing this one → Save updates it instead of duplicating
     setSavedRow({ id: full.id, content: full.content, title: full.title });
     // Attribute words added from this text to its title (falls back to "Reader").
@@ -1544,7 +1526,7 @@ export default function ReaderPage() {
           {langLabel(sourceLang)} → {langLabel(targetLang)}
         </span>
         {textLevel && (
-          <span className="hidden rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep md:inline">~{textLevel}</span>
+          <ReaderLevelBadge level={textLevel} levelSource={textLevelSource} sourceLang={sourceLang} className="hidden md:inline" />
         )}
 
         {currentSaved && (
@@ -1744,9 +1726,29 @@ export default function ReaderPage() {
 
       {/* how much of it you know, what's new, and the key to the underlines */}
       <div className="mb-3 space-y-1">
+        {isChineseLang(sourceLang) && getShowTextLevel() && (
+          vocabulary ? (
+            <details data-testid="reader-vocabulary" className="text-[13px] text-ink-muted">
+              <summary className="cursor-pointer font-medium">
+                {vocabulary.level
+                  ? t("reader.vocabularyEstimate", { version: hskVersion, level: vocabulary.level === 7 ? "7–9" : vocabulary.level })
+                  : t("reader.vocabularyUnlisted", { version: hskVersion })}
+              </summary>
+              <p className="mt-1">{t("reader.vocabularyRule")}</p>
+              <p className="mt-1">{t("reader.vocabularyDistribution", { n: vocabulary.listed })}{" "}
+                {vocabulary.occurrences.flatMap((n, level) => n ? [`HSK ${level === 7 ? "7–9" : level}: ${n}`] : []).join(" · ")}
+              </p>
+            </details>
+          ) : <p className="text-[13px] text-ink-faint">{t("reader.vocabularyPending")}</p>
+        )}
+        {vocabulary && (
+          <p data-testid="reader-off-list" className="text-[13px] text-ink-faint">
+            {t("reader.offListCount", { version: hskVersion, n: vocabulary.offListUnique, total: vocabulary.offList })}
+          </p>
+        )}
         <p className="text-[13px] text-ink-muted">
           {textLevel && (
-            <span className="mr-1.5 rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep md:hidden">~{textLevel}</span>
+            <ReaderLevelBadge level={textLevel} levelSource={textLevelSource} sourceLang={sourceLang} className="mr-1.5 md:hidden" />
           )}
           {knownPct !== null && (
             <>
@@ -1756,8 +1758,8 @@ export default function ReaderPage() {
               {" · "}
             </>
           )}
-          {t("reader.newCount", { n: newKeys.size })}
-          {newForTarget > 0 && hskTarget && `, ${t("reader.newForTarget", { n: newForTarget, level: hskTarget === 7 ? "7–9" : hskTarget })}`}
+          <span data-testid="reader-new-count">{t("reader.newCount", { n: newKeys.size })}</span>
+          {isChineseLang(sourceLang) && dictTokens && hskTarget && <span data-testid="reader-target-count">{`, ${t("reader.newForTarget", { n: newForTarget, level: hskRange(Math.min(hskTarget, hskTop(hskVersion))) })}`}</span>}
         </p>
         {underlines && (levelsHere.length > 0 || knownMap.size > 0) && (
           <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] font-medium text-ink-muted">
@@ -2157,6 +2159,7 @@ export default function ReaderPage() {
             setSavedRow({ id: saved.id, content: saved.content, title: saved.title });
             setText(saved.content);
             setTextLevel(saved.level);
+            setTextLevelSource(saved.levelSource);
             setReaderSource(saved.title);
             setTranslation(saved.translation);
             translatedFor.current = saved.translation ? saved.content : "";

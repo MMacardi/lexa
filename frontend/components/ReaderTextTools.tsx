@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type ReaderLevelSource } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useClosing } from "@/lib/motion";
@@ -111,7 +111,7 @@ export function SaveModal({
   initialCollection?: string;
   initialLevel?: string | null;
   onClose: () => void;
-  onSaved: (saved: { id: string; title: string; content: string; level: string | null; collection: string | null; translation: string | null; clickedWords: string[] }) => void;
+  onSaved: (saved: { id: string; title: string; content: string; level: string | null; levelSource: ReaderLevelSource | null; collection: string | null; translation: string | null; clickedWords: string[] }) => void;
 }) {
   const { accountId } = useAccount();
   const { t } = useI18n();
@@ -122,7 +122,8 @@ export function SaveModal({
   const [aiName, setAiName] = useState(false);
   const [collection, setCollection] = useState(initialCollection ?? "");
   const [known, setKnown] = useState<string[]>([]);
-  const [level, setLevel] = useState<string>(asLevelValue(sourceLang, initialLevel) || getLearnerLevel(sourceLang) || "");
+  const [level, setLevel] = useState<string>(asLevelValue(sourceLang, initialLevel) || (editId || usesHsk(sourceLang) ? "" : getLearnerLevel(sourceLang)) || "");
+  const [levelTouched, setLevelTouched] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -144,7 +145,7 @@ export function SaveModal({
             title: aiName ? undefined : title.trim(),
             content: body,
             collection: collVal,
-            level: level || null,
+            ...(levelTouched ? { level: level || null } : {}),
             translation: keptTranslation,
             clickedWords: keptWords,
           })
@@ -165,7 +166,7 @@ export function SaveModal({
           });
       qc.invalidateQueries({ queryKey: ["reader-texts"] });
       show({ icon: "💾", title: t(editId ? "reader.updated" : "reader.saved") });
-      onSaved({ id: saved.id, title: saved.title, content: body, level: saved.level ?? (level || null), collection: collVal, translation: keptTranslation, clickedWords: keptWords });
+      onSaved({ id: saved.id, title: saved.title, content: body, level: saved.level ?? null, levelSource: saved.levelSource ?? null, collection: collVal, translation: keptTranslation, clickedWords: keptWords });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -234,7 +235,7 @@ export function SaveModal({
             <HoverTip key={lv} title={hint ?? label} className="flex-1">
               <button
                 type="button"
-                onClick={() => setLevel((cur) => (cur === lv ? "" : lv))}
+                onClick={() => { setLevelTouched(true); setLevel((cur) => (cur === lv ? "" : lv)); }}
                 className={
                   "w-full rounded-[10px] border px-0 py-1.5 text-[13px] font-semibold transition-colors " +
                   (level === lv ? "border-sage bg-sage/15 text-ink" : "border-black/[0.08] text-ink-soft hover:bg-black/[0.03]")

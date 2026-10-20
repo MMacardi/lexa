@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is planned as **Parts 7–18** below. Parts 1–6
-remain complete; these new parts are not implemented or verified yet. Next
-implementation session: **Part 7**. Screenshot numbers refer to the author's
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–7
+are complete; Parts 8–18 remain open. Next implementation session: **Part 8**.
+Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
 ## Boundaries and decisions
@@ -722,7 +722,7 @@ than 序 inside 顺序; faster synthesis is a partial improvement, not acceptanc
 
 ## Part 7 — Reader level and honest HSK vocabulary counts
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-20).
 
 **Report.** Screenshot 1 shows `~HSK 3` beside 76 new words, “из них для HSK 4:
 62”. Establish what each number measures before treating 62 as HSK-4-only words.
@@ -756,6 +756,35 @@ and higher-level material after character 1,500. Verify chosen HSK 2.0/3.0, the
 7–9 band, manual level preservation, saved-text reopen and phone display. Assert
 the documented 95% boundary and the <=target count; do not change a legitimate
 HSK 3 result merely to match the screenshot's interpretation.
+
+**Implemented and verified.** `frontend/lib/readerVocabulary.ts` analyzes every
+tagged Reader token on the selected list, using the inclusive 95% occurrence
+boundary. The expandable vocabulary estimate shows the rule and per-level
+occurrences; off-list unique words and occurrences are reported separately.
+New-word counts still use unique keys without a saved card. Target copy now
+names the inclusive range (`HSK 1–4`, or `HSK 1–9`) in ru/en/zh, including zero.
+No Chinese level-estimation LLM call remains; other-language CEFR is unchanged.
+
+The additive nullable `ReaderText.levelSource` migration preserves all existing
+content/levels: unknown legacy origins stay null, new manual picks are `manual`,
+generation requests are `requested`. Labels distinguish these from fresh
+analysis on every reopen. Editing a title/content does not submit an untouched
+level picker or replace metadata with the learner's target. Export/import
+preserves provenance too. No new analysis is written over a saved level.
+
+Checks: backend `npx tsc --noEmit -p .`; frontend `npx next build` (existing lint
+warnings only); `backend/scripts/check-reader-vocabulary.ts`; one Russian WebKit
+phone flow via `frontend/scripts/check-reader-vocabulary.mjs`. The deterministic
+76/62 reconstruction uses 76 distinct words, 62 at HSK <=4; its occurrences are
+HSK 1:180, 2:180, 3:198, 5:14. Thus HSK 3 covers 558/572 = 97.55% and is correct.
+This recreates the reported numbers, not the unavailable original passage.
+Other fixtures cover HSK-4-heavy text, exactly 19/20 versus 18/20, 7–9 material,
+off-list/name-only text, repeats, higher material after character 1,500, both
+lists, saved/added-word exclusion, manual/legacy reopen, generation provenance,
+zero Chinese level calls, CEFR and export/import. Phone checks verified visible
+counts against API token distribution, title-edit preservation, chosen/requested/
+legacy labels, both lists, 1–9 copy, en/zh and no horizontal overflow. Throwaway
+accounts were removed. Evidence: `.playwright-cli/reader-vocabulary/` (local only).
 
 ## Part 8 — Popup toggling, viewport bounds and useful previews
 
