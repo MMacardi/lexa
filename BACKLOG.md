@@ -59,6 +59,8 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    Parts 5–6 remain open: compact popups and accurate Reader copy, short-word
    Mandarin pronunciation. Separate mobile Reader request (2026-10-20): keep the
    small popup at the bottom, center and fix the second card popup, remove hold.
+   Follow-up complete (2026-10-20): selecting a saved text resets Reader to the top;
+   mobile WebKit verified switching/reopening from a scrolled library.
    Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.

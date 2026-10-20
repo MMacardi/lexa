@@ -2,22 +2,18 @@
 
 Updated: 2026-10-20. Replace stale notes; keep under 30 lines.
 
-- Task complete: mobile Reader card popup, explicitly requested by the author.
-- Small word popup retains its original bottom dock, layout and scroll clearance.
-- Second popup (Open card) stays centered in the visible mobile viewport; no drag
-  handle/offset on phones. Close aligns with the word, without an empty header strip,
-  and remains visible while long cards scroll internally.
-- Mobile hold shortcut removed; saved-word tap then Open card is the entry.
-- Desktop hold/drag preserved. Reader hints updated in ru/en/zh.
-- Files: `frontend/app/reader/page.tsx`, `frontend/lib/i18n.tsx`,
-  `BACKLOG.md`, scoped note in Part 5 of `PLAN-learner-bug-batch.md`.
+- Task complete: opening a saved Reader text starts at the top of the page.
+- A layout effect resets scroll on entering reading or switching saved-text IDs,
+  after the library is replaced. Normal scrolling during reading is preserved.
+- Relevant file: `frontend/app/reader/page.tsx`; status note in `BACKLOG.md`.
 - Checks passed: backend `npx tsc --noEmit -p .`, frontend `npx next build`
-  (existing warnings), focused Russian mobile WebKit at 390px and 320px.
-- Browser verified bottom popup, centered second card, attempted drag, internal/page
-  scroll, hold removed, Escape/outside/close, viewport fit and header/close placement.
-- Evidence/check script: `.playwright-cli/reader-centered`,
-  `.playwright-cli/check-reader-centered.mjs`. Throwaway local account removed.
-- Prior Part 4 (sentence audio) complete; Parts 5-6 remain open. No new task started.
+  (existing warnings), Russian mobile WebKit at 390px.
+- Browser: library scroll 930/964px -> reading scroll 0; switching saved texts,
+  reopening the same text, visible top toolbar, normal reading scroll all pass.
+- Check: `.playwright-cli/check-reader-open-scroll.mjs`; local throwaway user removed.
+- Prior mobile popup work complete: small popup stays at bottom; second card is
+  centered/immovable, close sits beside word without a blank strip; hold removed.
+- Part 4 (sentence audio) complete; Parts 5-6 of `PLAN-learner-bug-batch.md` open.
 - Local :3001 serves the verified production build using
   `.playwright-cli/compose.verified.yml`; default compose restores dev mode.
 - Preserve unrelated modified `frontend/.env.example`, untracked `h3.txt`, `p.out`.

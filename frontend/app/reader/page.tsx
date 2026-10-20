@@ -2,7 +2,7 @@
 
 import { capturePreferences } from "@/lib/capturePreferences";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DictEntry, type HskVersion, type ReaderTextFull } from "@/lib/api";
@@ -434,6 +434,10 @@ export default function ReaderPage() {
   const tokens = useMemo(() => splitSentenceTokens(baseTokens, sentenceSpans), [baseTokens, sentenceSpans]);
   const audioGroups = useMemo(() => sentenceGroups(tokens, sentenceSpans), [tokens, sentenceSpans]);
   useEffect(() => () => stopSpeech(), [text, reading, sourceLang]);
+  // Reset after the reading view replaces the library, before it is painted.
+  useLayoutEffect(() => {
+    if (reading) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [reading, openText?.id]);
   const offsets = useMemo(() => { let at = 0; return tokens.map((tk) => { const start = at; at += tk.text.length; return start; }); }, [tokens]);
   const aligned = validAlignment(alignment, text, translation ?? "");
   const highlight = activeToken === null ? null : alignedSpan(aligned, activeToken.start, activeToken.end);
