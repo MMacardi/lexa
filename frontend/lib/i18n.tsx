@@ -406,9 +406,14 @@ const DICT: Record<string, Entry> = {
   },
   "reader.useAsSource": { en: "Use {lang} as source", ru: "Источник — {lang}", zh: "以{lang}为源语言" },
   "reader.holdHint": {
-    en: "Press and hold a word to see its meaning in this sentence.",
-    ru: "Зажми слово, чтобы увидеть его значение в этом предложении.",
-    zh: "长按单词可查看它在该句中的含义。",
+    en: "Press and hold a saved word to open its card.",
+    ru: "Зажми добавленное слово, чтобы открыть карточку.",
+    zh: "长按已添加的词可打开卡片。",
+  },
+  "reader.savedTapHint": {
+    en: "Tap a saved word to see its meaning and open its card.",
+    ru: "Нажми на добавленное слово, чтобы увидеть перевод и открыть карточку.",
+    zh: "点击已添加的词可查看释义并打开卡片。",
   },
   "reader.readAloud": { en: "Read aloud", ru: "Чтение вслух", zh: "朗读" },
   "reader.readAloudSub": {

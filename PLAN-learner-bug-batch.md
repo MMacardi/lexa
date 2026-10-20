@@ -355,6 +355,17 @@ pace comparisons and local MP3). Throwaway local accounts are cleaned up.
 
 - [ ] Implement and verify. Independent if explicitly selected.
 
+**Separate mobile request (2026-10-20).** The small Reader word popup stays at
+the bottom with its existing layout. Only the second popup, opened by «Открыть
+карточку», is centered in the visible viewport and cannot be dragged on phones;
+long cards scroll internally. Mobile hold-to-open is removed; tap the saved word,
+then open its card. Reader hints match this in ru/en/zh; desktop hold remains.
+This scoped change does not complete the shared-popup work below.
+Verified with backend tsc, frontend production build (existing warnings), and
+Russian mobile WebKit at 390px/320px: bottom popup, centered second card, attempted
+drag, internal/page scrolling, hold removed, Escape/outside/close and viewport fit.
+Evidence: `.playwright-cli/reader-centered`; throwaway local account removed.
+
 **Code findings.** `components/WordMeaningPop.tsx` serves example/chat lookups,
 uses a fixed 228px width and uppercase `pop.new`. Reader renders its own smaller
 popup in `app/reader/page.tsx`. Reader combines `reader.tapHint` / `tapHintPlain`
@@ -369,7 +380,8 @@ where useful without rewriting unrelated interaction behavior.
 
 Suggested ru: «Нажми на слово — увидишь перевод. Незнакомые можно выбрать и
 добавить.» Only when saved words exist: «Зажми добавленное слово, чтобы открыть
-карточку.» Keep the visual legend instead of repeating dashed/faded explanations.
+карточку.» (Desktop only; mobile uses the tap/open-card flow above.) Keep the visual
+legend instead of repeating dashed/faded explanations.
 Verify wording with auto-gloss enabled/disabled; adapt en/zh.
 
 **Acceptance.** Example's 长 and Reader's 语言: compact consistent popups, no

@@ -180,7 +180,7 @@ export default function ReaderPage() {
   const [dictSupported, setDictSupported] = useState(false);
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
-  // known word: short tap → small popup (meaning + add example); long-press → card panel
+  // Saved words open a meaning popup; desktop also supports holding for the card.
   const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; x: number; y: number } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
@@ -1163,7 +1163,7 @@ export default function ReaderPage() {
     const lvl = hskLevel(tk);
     const isKnown = knownKeys.has(key);
     // A saved word (including one just added this session) stays clickable:
-    // tap = meaning popup, press-and-hold = the card panel. Freshly-added
+    // tap = meaning popup; desktop hold = the card panel. Freshly-added
     // ones keep the green tint so you can see what you just added.
     if (knownId) {
       return (
@@ -1171,7 +1171,7 @@ export default function ReaderPage() {
           key={i}
           role="button"
           tabIndex={0}
-          onPointerDown={(e) => startPress(e, () => setCardPanel({ wordId: knownId, sentence: sentenceAround(i) }))}
+          onPointerDown={(e) => startPress(e, mobile ? null : () => setCardPanel({ wordId: knownId, sentence: sentenceAround(i) }))}
           onPointerMove={movePress}
           onPointerUp={(e) => {
             const el = e.currentTarget;
@@ -1771,7 +1771,7 @@ export default function ReaderPage() {
           </p>
         )}
         <p className="text-[13px] text-ink-faint">
-          {t(underlines ? "reader.tapHint" : "reader.tapHintPlain")} <span className="opacity-80">{t("reader.holdHint")}</span>
+          {t(underlines ? "reader.tapHint" : "reader.tapHintPlain")} <span className="opacity-80">{t(mobile ? "reader.savedTapHint" : "reader.holdHint")}</span>
         </p>
       </div>
 
@@ -1901,20 +1901,20 @@ export default function ReaderPage() {
           document.body,
         )}
 
-      {/* known word — press-and-hold: the card in a panel (no page switch) */}
+      {/* Saved card: centered on phones, draggable on desktop. */}
       {cardPanel &&
         (() => {
           const w = (words ?? []).find((x) => x.id === cardPanel.wordId);
           if (!w) return null;
           return createPortal(
             <div
-              className="fixed inset-x-3 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-[85] md:inset-x-auto md:right-4 md:top-20 md:bottom-auto md:w-[360px]"
-              style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
+              className={mobile ? "pointer-events-none fixed left-0 top-[var(--vv-top,0px)] z-[85] flex h-[var(--vv-h,100dvh)] w-screen items-center justify-center p-4" : "fixed right-4 top-20 z-[85] w-[360px]"}
+              style={mobile ? undefined : { transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
             >
-              <div className="anim-fade-up overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
+              <div role="dialog" aria-label={w.word} className="pointer-events-auto anim-fade-up w-full max-w-[360px] overflow-hidden rounded-[18px] border border-black/[0.08] bg-surface shadow-[0_18px_44px_rgba(46,42,38,0.26)]">
                 {/* title bar: reset (left) · grip drag handle (center) · close (right) */}
                 <div className="relative flex items-center border-b border-black/[0.06] px-2 py-1.5">
-                  {(cardOffset.x !== 0 || cardOffset.y !== 0) && (
+                  {!mobile && (cardOffset.x !== 0 || cardOffset.y !== 0) && (
                     <HoverTip title={t("tutor.resetPos")} className="inline-flex">
                       <button
                         type="button"
@@ -1926,7 +1926,7 @@ export default function ReaderPage() {
                       </button>
                     </HoverTip>
                   )}
-                  <div
+                  {!mobile && <div
                     onPointerDown={startCardDrag}
                     onPointerMove={moveCardDrag}
                     onPointerUp={endCardDrag}
@@ -1934,7 +1934,7 @@ export default function ReaderPage() {
                     className="absolute left-1/2 flex -translate-x-1/2 cursor-grab touch-none select-none items-center px-6 py-1 text-ink-faint transition-colors hover:text-ink-muted active:cursor-grabbing"
                   >
                     <GripHorizontal className="h-4 w-4" />
-                  </div>
+                  </div>}
                   <button
                     type="button"
                     onClick={() => setCardPanel(null)}
@@ -1944,7 +1944,7 @@ export default function ReaderPage() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="max-h-[calc(70vh-2.75rem)] overflow-y-auto p-5">
+                <div className="max-h-[calc(var(--vv-h,100dvh)-5rem)] overflow-y-auto p-5 md:max-h-[calc(70vh-2.75rem)]">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <div className={cn("min-w-0 font-serif text-[26px] font-semibold text-ink", sourceFont(w.sourceLang))}>{w.word}</div>

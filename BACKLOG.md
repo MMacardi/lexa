@@ -57,7 +57,9 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    Part 3 (capture examples and removal) completed and verified on 2026-10-20.
    Part 4 (sentence audio controls/placement/pace) completed and verified on 2026-10-20.
    Parts 5–6 remain open: compact popups and accurate Reader copy, short-word
-   Mandarin pronunciation. Each part has
+   Mandarin pronunciation. Separate mobile Reader request (2026-10-20): keep the
+   small popup at the bottom, center and fix the second card popup, remove hold.
+   Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.
    Part 1 preserves cached words/details on transient failure, refreshes on reconnect,
