@@ -55,9 +55,18 @@
 - Local: `docker compose up -d` → frontend :3001, API :3000, Postgres host **5433**.
   Never test with production data. Browser tools/profiles/artifacts stay inside this project.
 - Code: backend `npx tsc --noEmit -p .`; frontend `npx next build`, from each directory.
-  Complete changed learner flows locally; builds alone do not prove behavior. Regression,
-  phone, chat and migration commands: `.claude/commands/task.md`.
-  Docs-only: check diffs, references, consistency; no app builds needed.
+  Verify the changed behavior locally with a focused check; builds alone do not prove
+  behavior. For learner UI changes, use one relevant phone/browser spot-check by default.
+  Regression, phone, chat and migration commands: `.claude/commands/task.md`.
+- Keep testing proportional unless the user asks for a broader pass. Run required checks
+  once after the final code changes; do not default to screenshot sweeps, full browser/device
+  matrices, unrelated regression suites, or redundant tests at several layers. Screenshots
+  are for visual changes or diagnosing a visual bug, not routine proof of completion.
+- Expand verification only for a concrete risk or observed failure (such as auth, data
+  safety, offline behavior, or a browser-specific bug), using the smallest check that
+  resolves it. Fix test-harness problems and rerun only the affected check. Once relevant
+  checks pass, stop testing; repeat only for new changes or an unresolved failure.
+- Docs-only: check diffs, references, consistency; no app builds needed.
 - Preserve unrelated work; stage explicit files. Update relevant backlog/idea status and
   `SESSION.md`. Plain commits named by task title, no Co-Authored-By. Until beta testers arrive, push
   finished, verified work to `main` without asking (prod auto-deploys), within workspace rules.
