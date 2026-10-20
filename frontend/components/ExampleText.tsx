@@ -5,6 +5,7 @@ import { capturePreferences } from "@/lib/capturePreferences";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { HighlightWord } from "@/components/HighlightWord";
+import { SpeakButton } from "@/components/SpeakButton";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
 import { toneClass } from "@/components/Pinyin";
 import { api, type Word } from "@/lib/api";
@@ -55,6 +56,7 @@ export function ExampleText({
   targetLang,
   hideWordReading,
   pinyin,
+  audio = false,
 }: {
   text: string;
   word: string;
@@ -62,6 +64,7 @@ export function ExampleText({
   targetLang?: string;
   hideWordReading?: boolean;
   pinyin?: boolean; // the caller's own switch (review's one pinyin toggle), else the saved preference
+  audio?: boolean;
 }) {
   const zh = lang === "zh" || lang === "zh-Hant";
   const pref = useExamplePinyin();
@@ -92,7 +95,18 @@ export function ExampleText({
     };
   }, [on, text]);
 
-  if (!zh) return <HighlightWord text={text} word={word} />;
+  let lastWord = 0;
+  let offset = 0;
+  if (audio) for (const tk of segment(text, lang)) {
+    if (tk.wordLike) lastWord = offset;
+    offset += tk.text.length;
+  }
+  const tailStart = Array.from(text.slice(0, lastWord)).length;
+  const controls = audio ? <SpeakButton text={text} lang={lang} size="inline" sentence className="ml-0.5" /> : null;
+  if (!zh) return <>
+    <HighlightWord text={audio ? text.slice(0, lastWord) : text} word={word} />
+    {audio && <span data-sentence-tail className="whitespace-nowrap"><HighlightWord text={text.slice(lastWord)} word={word} />{controls}</span>}
+  </>;
 
   const chars = Array.from(text);
   const ruby = on && readings && readings.length === chars.length ? readings : null;
@@ -194,7 +208,7 @@ export function ExampleText({
     const reading = ruby ? (hideWordReading && inWord[i] ? "" : ruby[i]) : "";
     // An explicit break chance after each character: with none between ruby
     // elements, an iPhone sized the text to its longest line and scrolled sideways.
-    const brk = !ruby || OPENS.test(chars[i]) || CLOSES.test(chars[i + 1] ?? "") ? null : <wbr />;
+    const brk = !ruby || (audio && i >= tailStart - 1) || OPENS.test(chars[i]) || CLOSES.test(chars[i + 1] ?? "") ? null : <wbr />;
     const body = reading ? (
       <ruby>
         {chars[i]}
@@ -226,21 +240,24 @@ export function ExampleText({
     );
   };
 
-  // The line height rides on the inline wrapper, so the readings get room in any
-  // paragraph this sits in without the caller knowing pinyin is on.
+  const renderRuns = (from: number, to: number) => runs.map((r) => {
+    const a = Math.max(r.from, from);
+    const b = Math.min(r.to, to);
+    if (a >= b) return null;
+    const nodes = [];
+    for (let i = a; i < b; i++) nodes.push(charNode(i));
+    return r.hl ? (
+      <mark key={r.from} className="rounded bg-news-hl px-1 font-semibold text-sage-deep">{nodes}</mark>
+    ) : <Fragment key={r.from}>{nodes}</Fragment>;
+  });
+
+  // The line height gives readings room; the final word keeps its audio controls.
   return (
     <span className={cn(ruby && "leading-[2.2]")} onClick={tappable ? onTap : undefined}>
-      {runs.map((r) => {
-        const nodes = [];
-        for (let i = r.from; i < r.to; i++) nodes.push(charNode(i));
-        return r.hl ? (
-          <mark key={r.from} className="rounded bg-news-hl px-1 font-semibold text-sage-deep">
-            {nodes}
-          </mark>
-        ) : (
-          <Fragment key={r.from}>{nodes}</Fragment>
-        );
-      })}
+      {audio ? <>
+        {renderRuns(0, tailStart)}
+        <span data-sentence-tail className="whitespace-nowrap">{renderRuns(tailStart, chars.length)}{controls}</span>
+      </> : renderRuns(0, chars.length)}
       {pop && (
         // The popover is portalled to <body>, but React still bubbles its taps up
         // this tree: stopped here, so a tap inside it doesn't flip the review card.

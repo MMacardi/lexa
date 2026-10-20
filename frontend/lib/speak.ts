@@ -68,7 +68,10 @@ let silence: string | null = null;
 
 // What the player is doing, for a speaker button to show a spinner while a clip
 // nobody has played before is being made (~2-3 s the first time, instant after).
-type SpeechState = { text: string; loading: boolean } | null;
+type SpeechState = {
+  text: string; lang: string; status: "loading" | "playing";
+  rate: number; sentence: boolean; owner?: string; onUnavailable?: () => void;
+} | null;
 let state: SpeechState = null;
 const listeners = new Set<() => void>();
 function setState(s: SpeechState) {
@@ -84,7 +87,7 @@ const subscribe = (l: () => void) => {
 export function useSpeechLoading(text: string): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => Boolean(state?.loading && state.text === text),
+    () => Boolean(state?.status === "loading" && state.text === text),
     () => false,
   );
 }
@@ -92,31 +95,94 @@ export function useSpeechLoading(text: string): boolean {
 // Each play gets a number, so a clip that fails after the learner has already tapped
 // something else doesn't fall back to the browser voice over the new one.
 let playId = 0;
+const pending = new Set<ReturnType<typeof setTimeout>>();
+let removeVoiceWait: (() => void) | null = null;
+const RATE_KEY = "lexa.sentenceRate";
+let sentenceRate: 1 | 0.75 = 1;
+const emit = () => listeners.forEach((l) => l());
+function readRate() {
+  try { sentenceRate = localStorage.getItem(RATE_KEY) === "0.75" ? 0.75 : 1; } catch { /* storage disabled */ }
+}
+if (typeof window !== "undefined") {
+  readRate();
+  window.addEventListener("storage", (e) => {
+    if (e.key === RATE_KEY || e.key === null) { readRate(); applySentenceRate(); emit(); }
+  });
+}
+export function useSentenceRate() {
+  return useSyncExternalStore(subscribe, () => sentenceRate, () => 1 as const);
+}
+export function useSpeechState(text: string, lang: string) {
+  return useSyncExternalStore(subscribe,
+    () => state?.text === text && state.lang === lang ? state.status : "stopped",
+    () => "stopped" as const);
+}
+export function setSentenceRate(rate: 1 | 0.75) {
+  sentenceRate = rate;
+  try { localStorage.setItem(RATE_KEY, String(rate)); } catch { /* storage disabled */ }
+  applySentenceRate();
+  emit();
+}
+function applySentenceRate() {
+  if (!state?.sentence) return;
+  if (keepAlive) {
+    // Web Speech has no reliable live rate setter; replay with the chosen pace.
+    speak(state.text, state.lang, { ...state, rate: sentenceRate });
+  } else {
+    state = { ...state, rate: sentenceRate };
+    if (player) player.playbackRate = sentenceRate;
+  }
+}
+function later(id: number, fn: () => void, ms: number) {
+  const timer = setTimeout(() => { pending.delete(timer); if (id === playId) fn(); }, ms);
+  pending.add(timer);
+}
+/** Invalidate callbacks before cancelling either engine (cancel may fire events). */
+export function stopSpeech(owner?: string) {
+  if (owner && state?.owner !== owner) return;
+  playId++;
+  pending.forEach(clearTimeout); pending.clear();
+  removeVoiceWait?.(); removeVoiceWait = null;
+  if (player) {
+    player.onplaying = player.onended = player.onerror = null;
+    player.pause();
+    player.removeAttribute("src");
+    player.load();
+  }
+  if (canSynth() && (keepAlive || window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel();
+  keepAlive = null;
+  setState(null);
+}
 
-function playServer(text: string, lang: string) {
+function playServer(text: string, lang: string, id: number) {
   const el = getPlayer();
-  const id = ++playId;
-  if (canSynth() && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel();
   const done = () => {
     if (id === playId) setState(null);
   };
   el.onplaying = () => {
-    if (id === playId) setState({ text, loading: false });
+    if (id === playId && state) setState({ ...state, status: "playing" });
   };
   el.onended = done;
-  el.onerror = () => {
-    if (id !== playId) return;
-    done();
-    speakBrowser(text, lang); // offline, signed out, the service down: the browser's voice
+  let fellBack = false;
+  const fallback = () => {
+    if (id !== playId || fellBack) return;
+    fellBack = true;
+    el.onplaying = el.onended = el.onerror = null;
+    el.pause(); el.removeAttribute("src"); el.load();
+    if (state) setState({ ...state, status: "loading" });
+    if (!speakBrowser(text, lang, id)) unavailable(id);
   };
-  setState({ text, loading: true });
+  el.onerror = fallback;
   el.src = ttsUrl(text, lang);
+  el.preservesPitch = true;
+  // Older Safari exposes the same pitch-preserving switch with a prefix.
+  (el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+  el.playbackRate = state?.rate ?? 1;
   el.play().catch((e: Error) => {
     // AbortError: a newer tap replaced this clip. NotAllowedError: played outside a
     // tap before anything unlocked the element — the browser's voice may still go.
     if (id !== playId || e?.name === "AbortError") return;
-    done();
-    if (e?.name === "NotAllowedError") speakBrowser(text, lang);
+    fallback();
   });
 }
 
@@ -171,13 +237,13 @@ export function hasVoice(lang: string): boolean | null {
  * and once it has, from anywhere on the page.
  */
 export function unlockSpeech() {
-  if (typeof Audio !== "undefined" && (!player || player.paused)) {
+  if (!state && typeof Audio !== "undefined" && (!player || player.paused)) {
     const el = getPlayer();
     silence ??= silenceUrl();
     el.src = silence;
     el.play().catch(() => {});
   }
-  if (!canSynth()) return;
+  if (state || !canSynth()) return;
   try {
     const u = new SpeechSynthesisUtterance("​");
     u.volume = 0;
@@ -196,83 +262,82 @@ let keepAlive: SpeechSynthesisUtterance | null = null;
  * no speech engine, or no voice for the language (the caller says so rather than
  * let another language's voice read it).
  */
-export function speak(text: string, lang = "en"): boolean {
+type SpeakOptions = { sentence?: boolean; rate?: number; owner?: string; onUnavailable?: () => void };
+export function speak(text: string, lang = "en", options: SpeakOptions = {}): boolean {
   if (!text.trim()) return false;
+  const wasSpeaking = canSynth() && (window.speechSynthesis.speaking || window.speechSynthesis.pending);
+  stopSpeech();
+  const id = playId;
+  setState({ text, lang, status: "loading", sentence: options.sentence ?? false,
+    rate: options.rate ?? (options.sentence ? sentenceRate : 0.95),
+    owner: options.owner, onUnavailable: options.onUnavailable });
   if (serverVoice(text, lang)) {
-    playServer(text, lang);
+    // Server clips retain their natural rate unless sentence speed was selected.
+    state = { ...state!, rate: options.rate ?? (options.sentence ? sentenceRate : 1) };
+    playServer(text, lang, id);
     return true;
   }
-  return speakBrowser(text, lang);
+  const ok = speakBrowser(text, lang, id, Boolean(wasSpeaking));
+  if (!ok) setState(null);
+  return ok;
 }
 
-function speakBrowser(text: string, lang: string): boolean {
-  if (!canSynth()) return false;
-  if (hasVoice(lang) === false) return false;
-  if (player && !player.paused) player.pause();
-  playId++;
-  setState(null);
+function unavailable(id: number) {
+  if (id !== playId) return;
+  const report = state?.onUnavailable;
+  stopSpeech();
+  report?.();
+}
+
+function speakBrowser(text: string, lang: string, id: number, afterCancel = false): boolean {
+  if (!canSynth() || hasVoice(lang) === false) return false;
   const synth = window.speechSynthesis;
   const want = BCP47[lang] ?? lang;
-
   const fire = () => {
+    if (id !== playId || !state) return;
+    // Voices may have loaded during the wait; never use the wrong language.
+    if (hasVoice(lang) === false) { unavailable(id); return; }
     const u = new SpeechSynthesisUtterance(text);
-    keepAlive = u; // anti-GC
+    keepAlive = u;
     u.lang = want;
     const match = pickVoice(lang, want);
-    if (match) u.voice = match; // otherwise let the engine use its default voice
-    u.rate = 0.95;
+    if (match) u.voice = match;
+    u.rate = state.sentence ? state.rate : 0.95;
+    u.pitch = 1;
+    u.onstart = () => {
+      if (id === playId && state) setState({ ...state, status: "playing" });
+    };
     u.onend = () => {
-      if (keepAlive === u) keepAlive = null;
+      if (id === playId) { keepAlive = null; setState(null); }
     };
-    u.onerror = () => {
-      if (keepAlive === u) keepAlive = null;
-    };
-
+    u.onerror = () => unavailable(id);
     const speakNow = () => {
-      // Chromium clips the first ~200ms of a fresh utterance ("little" → "tle").
-      // Queue a near-instant silent primer first; it absorbs the clip so the real
-      // word plays from the start.
-      const warm = new SpeechSynthesisUtterance("​"); // zero-width space
+      if (id !== playId) return;
+      // Keep the silent primer: Chromium otherwise clips the onset of a word.
+      const warm = new SpeechSynthesisUtterance("\u200b");
       warm.volume = 0;
       warm.rate = 2;
       try {
         synth.speak(warm);
-      } catch {
-        /* ignore */
-      }
-      synth.speak(u);
-      // Some Chromium builds start paused — nudge it.
-      setTimeout(() => {
-        if (synth.paused) synth.resume();
-      }, 90);
+        synth.speak(u);
+        later(id, () => { if (synth.paused) synth.resume(); }, 90);
+      } catch { unavailable(id); }
     };
-
-    // Only cancel when something is actually playing — an unconditional cancel()
-    // right before speak() is itself a cause of the clipped/garbled start.
-    if (synth.speaking || synth.pending) {
-      synth.cancel();
-      setTimeout(speakNow, 140);
-    } else {
-      speakNow();
-    }
+    if (afterCancel) later(id, speakNow, 140);
+    else speakNow();
   };
-
-  // If voices haven't loaded yet, wait one tick so we don't fire into an empty
-  // engine (which stays silent on the first interaction).
   if (!cachedVoices.length && synth.getVoices().length === 0) {
     let done = false;
     const go = () => {
-      if (done) return;
+      if (done || id !== playId) return;
       done = true;
-      synth.removeEventListener?.("voiceschanged", go);
+      removeVoiceWait?.(); removeVoiceWait = null;
       loadVoices();
       fire();
     };
     synth.addEventListener?.("voiceschanged", go);
-    setTimeout(go, 300); // fallback if the event never fires
-    return true;
-  }
-
-  fire();
+    removeVoiceWait = () => synth.removeEventListener?.("voiceschanged", go);
+    later(id, go, 300);
+  } else fire();
   return true;
 }

@@ -31,6 +31,8 @@ import {
   setReaderUnderlines,
 } from "@/lib/learnPrefs";
 import { segment, wordKey, type Token } from "@/lib/segment";
+import { sentences, sentenceGroups, splitSentenceTokens } from "@/lib/sentences";
+import { stopSpeech } from "@/lib/speak";
 import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { MobileSheet } from "@/components/MobileSheet";
@@ -427,7 +429,11 @@ export default function ReaderPage() {
     enabled: reading && (sourceLang === "zh" || sourceLang === "zh-Hant") && text.trim().length > 0,
     staleTime: Infinity,
   });
-  const tokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
+  const sentenceSpans = useMemo(() => sentences(reading ? text : ""), [reading, text]);
+  const baseTokens = reading && dictTokens && (sourceLang === "zh" || sourceLang === "zh-Hant") ? dictTokens : localTokens;
+  const tokens = useMemo(() => splitSentenceTokens(baseTokens, sentenceSpans), [baseTokens, sentenceSpans]);
+  const audioGroups = useMemo(() => sentenceGroups(tokens, sentenceSpans), [tokens, sentenceSpans]);
+  useEffect(() => () => stopSpeech(), [text, reading, sourceLang]);
   const offsets = useMemo(() => { let at = 0; return tokens.map((tk) => { const start = at; at += tk.text.length; return start; }); }, [tokens]);
   const aligned = validAlignment(alignment, text, translation ?? "");
   const highlight = activeToken === null ? null : alignedSpan(aligned, activeToken.start, activeToken.end);
@@ -461,20 +467,8 @@ export default function ReaderPage() {
   const hskTarget = profile?.hskTarget ?? null;
   const hskLevel = (tk: Token) => tk.hsk?.[hskVersion] ?? null;
 
-  // Sentences for read-aloud practice: split on terminal punctuation and line breaks,
-  // drop empties, cap the panel so it stays scannable. Chinese puts no space after
-  // 。, so it splits right there (after any closing quote): a whole paragraph read as
-  // one take ran past the recorder's limit. Stable across renders so the panel
-  // doesn't reset its scores on every keystroke elsewhere.
-  const { sentences: readAloudSentences, hidden: readAloudHidden } = useMemo(() => {
-    if (!reading) return { sentences: [] as string[], hidden: 0 };
-    const parts = text
-      .split(/(?<=[.!?…])\s+|(?<=[。！？][”’」』）)]*)(?![。！？”’」』）)])|\n+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 1);
-    const list = parts.length ? parts : text.trim() ? [text.trim()] : [];
-    return { sentences: list.slice(0, 12), hidden: Math.max(0, list.length - 12) };
-  }, [reading, text]);
+  const readAloudSentences = useMemo(() => sentenceSpans.slice(0, 12).map((s) => s.text), [sentenceSpans]);
+  const readAloudHidden = Math.max(0, sentenceSpans.length - 12);
 
   // The line over the text: "You know 82% · 14 new, 6 of them for HSK 4". The %
   // is of running words, repeats included (Migaku's comprehension score; the
@@ -948,16 +942,8 @@ export default function ReaderPage() {
 
   // The sentence a token belongs to (for provided example / context).
   function sentenceAround(index: number): string {
-    const isBoundary = (s: string) => /[.!?。！？\n]/.test(s);
-    let a = index;
-    let b = index;
-    while (a > 0 && !isBoundary(tokens[a - 1].text)) a--;
-    while (b < tokens.length - 1 && !isBoundary(tokens[b].text)) b++;
-    return tokens
-      .slice(a, b + 1)
-      .map((tk) => tk.text)
-      .join("")
-      .trim();
+    const at = offsets[index];
+    return sentenceSpans.find((s) => at >= s.start && at < s.end)?.text ?? "";
   }
 
   // The first sentence in the text that contains a given (normalized) word.
@@ -1163,6 +1149,108 @@ export default function ReaderPage() {
     );
   };
   const breakBefore = (i: number) => (rubyOn && i > 0 && !OPENS_BEFORE.test(tokens[i - 1].text) ? <wbr /> : null);
+
+  const renderToken = (i: number) => {
+    const tk = tokens[i];
+    if (!tk.wordLike) return <span key={i}>{tk.text}</span>;
+    const key = wordKey(tk.text);
+    const knownId = knownMap.get(key);
+    const isAdded = added.has(key);
+    const isSel = selected.has(key);
+    // Colour = the word's HSK level; line = where the learner stands on it:
+    // solid for a word with no card, dashed while its card is in learning,
+    // none (and faded) once it is known.
+    const lvl = hskLevel(tk);
+    const isKnown = knownKeys.has(key);
+    // A saved word (including one just added this session) stays clickable:
+    // tap = meaning popup, press-and-hold = the card panel. Freshly-added
+    // ones keep the green tint so you can see what you just added.
+    if (knownId) {
+      return (
+        <span
+          key={i}
+          role="button"
+          tabIndex={0}
+          onPointerDown={(e) => startPress(e, () => setCardPanel({ wordId: knownId, sentence: sentenceAround(i) }))}
+          onPointerMove={movePress}
+          onPointerUp={(e) => {
+            const el = e.currentTarget;
+            endPress(() => { pickActiveToken(i); openKnownPop(knownId, tk.text, i, el); });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              pickActiveToken(i);
+              openKnownPop(knownId, tk.text, i, e.currentTarget);
+            }
+          }}
+          className="cursor-pointer"
+        >
+          {breakBefore(i)}
+          {wordNode(
+            tk.text,
+            cn(
+              "rounded-[5px] underline-offset-4",
+              isAdded
+                ? "bg-sage-tint px-0.5 text-sage-deep"
+                : isKnown
+                  ? "text-ink-faint"
+                  : underlines && cn("underline decoration-dashed decoration-2", lvl ? HSK_DECOR[lvl] : "decoration-ink-faint/60"),
+            ),
+            isKnown,
+          )}
+        </span>
+      );
+    }
+    // Added but its card id hasn't resolved yet (enrichment lag) → green.
+    if (isAdded) {
+      return (
+        <span key={i} role="button" tabIndex={0} onClick={() => pickActiveToken(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickActiveToken(i); } }}>
+          {breakBefore(i)}
+          {wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}
+        </span>
+      );
+    }
+    const onPick = (el: HTMLElement) => {
+      pickActiveToken(i);
+      const wasSelected = selected.has(key);
+      toggle(key);
+      if (wasSelected) setGloss(null); // deselecting → hide gloss
+      else if (autoGloss) openGloss(key, tk.text, el, sentenceAround(i)); // selecting → quick translation (opt-in)
+    };
+    return (
+      <span
+        key={i}
+        role="button"
+        tabIndex={0}
+        onPointerDown={(e) => startPress(e, null)}
+        onPointerMove={movePress}
+        onPointerUp={(e) => {
+          const el = e.currentTarget;
+          endPress(() => onPick(el));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onPick(e.currentTarget);
+          }
+        }}
+        className="cursor-pointer"
+      >
+        {breakBefore(i)}
+        {wordNode(
+          tk.text,
+          cn(
+            "rounded-[5px] px-0.5 transition-colors",
+            isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
+            underlines && !isSel && lvl != null && cn("underline decoration-2 underline-offset-4", HSK_DECOR[lvl]),
+          ),
+        )}
+      </span>
+    );
+  };
+
+
 
   // The two word popups' contents, shown under the word or docked (phone), where
   // the type is larger and the panel has its own close button.
@@ -1699,119 +1787,14 @@ export default function ReaderPage() {
             sourceFont(sourceLang),
           )}
         >
-          {tokens.map((tk, i) => {
-            // After each sentence, a play button that says it (Du Chinese plays every sentence).
-            // A full-width 。！？ is mostly empty on its right, so the button pulls into it.
-            if (!tk.wordLike)
-              return /[.!?。！？]/.test(tk.text) ? (
-                <span key={i}>
-                  {tk.text}
-                  <SpeakButton
-                    text={sentenceAround(i)}
-                    lang={sourceLang}
-                    size="inline"
-                    className={/[。！？]$/.test(tk.text) ? "-ml-[0.3em]" : "ml-0.5"}
-                  />
-                </span>
-              ) : (
-                <span key={i}>{tk.text}</span>
-              );
-            const key = wordKey(tk.text);
-            const knownId = knownMap.get(key);
-            const isAdded = added.has(key);
-            const isSel = selected.has(key);
-            // Colour = the word's HSK level; line = where the learner stands on it:
-            // solid for a word with no card, dashed while its card is in learning,
-            // none (and faded) once it is known.
-            const lvl = hskLevel(tk);
-            const isKnown = knownKeys.has(key);
-            // A saved word (including one just added this session) stays clickable:
-            // tap = meaning popup, press-and-hold = the card panel. Freshly-added
-            // ones keep the green tint so you can see what you just added.
-            if (knownId) {
-              return (
-                <span
-                  key={i}
-                  role="button"
-                  tabIndex={0}
-                  onPointerDown={(e) => startPress(e, () => setCardPanel({ wordId: knownId, sentence: sentenceAround(i) }))}
-                  onPointerMove={movePress}
-                  onPointerUp={(e) => {
-                    const el = e.currentTarget;
-                    endPress(() => { pickActiveToken(i); openKnownPop(knownId, tk.text, i, el); });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      pickActiveToken(i);
-                      openKnownPop(knownId, tk.text, i, e.currentTarget);
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  {breakBefore(i)}
-                  {wordNode(
-                    tk.text,
-                    cn(
-                      "rounded-[5px] underline-offset-4",
-                      isAdded
-                        ? "bg-sage-tint px-0.5 text-sage-deep"
-                        : isKnown
-                          ? "text-ink-faint"
-                          : underlines && cn("underline decoration-dashed decoration-2", lvl ? HSK_DECOR[lvl] : "decoration-ink-faint/60"),
-                    ),
-                    isKnown,
-                  )}
-                </span>
-              );
-            }
-            // Added but its card id hasn't resolved yet (enrichment lag) → green.
-            if (isAdded) {
-              return (
-                <span key={i} role="button" tabIndex={0} onClick={() => pickActiveToken(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickActiveToken(i); } }}>
-                  {breakBefore(i)}
-                  {wordNode(tk.text, "rounded-[5px] bg-sage-tint px-0.5 text-sage-deep")}
-                </span>
-              );
-            }
-            const onPick = (el: HTMLElement) => {
-              pickActiveToken(i);
-              const wasSelected = selected.has(key);
-              toggle(key);
-              if (wasSelected) setGloss(null); // deselecting → hide gloss
-              else if (autoGloss) openGloss(key, tk.text, el, sentenceAround(i)); // selecting → quick translation (opt-in)
-            };
-            return (
-              <span
-                key={i}
-                role="button"
-                tabIndex={0}
-                onPointerDown={(e) => startPress(e, null)}
-                onPointerMove={movePress}
-                onPointerUp={(e) => {
-                  const el = e.currentTarget;
-                  endPress(() => onPick(el));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onPick(e.currentTarget);
-                  }
-                }}
-                className="cursor-pointer"
-              >
-                {breakBefore(i)}
-                {wordNode(
-                  tk.text,
-                  cn(
-                    "rounded-[5px] px-0.5 transition-colors",
-                    isSel ? "bg-sage text-white" : "hover:bg-sage-tint/60",
-                    underlines && !isSel && lvl != null && cn("underline decoration-2 underline-offset-4", HSK_DECOR[lvl]),
-                  ),
-                )}
-              </span>
-            );
-          })}
+          {audioGroups.map((group, i) => <Fragment key={i}>
+            {group.before.map(renderToken)}
+            {group.head.map(renderToken)}
+            {group.text && <span data-sentence-tail className="whitespace-nowrap [&_wbr]:hidden">
+              {group.tail.map(renderToken)}
+              <SpeakButton text={group.text} lang={sourceLang} size="inline" sentence className="ml-0.5" />
+            </span>}
+          </Fragment>)}
         </div>
 
         {showTr && trReady && (

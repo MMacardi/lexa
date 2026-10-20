@@ -8,6 +8,7 @@ import { ToastProvider } from "@/lib/toast";
 import { DialogProvider } from "@/lib/dialog";
 import { UpsellProvider } from "@/lib/upsell";
 import { I18nProvider } from "@/lib/i18n";
+import { SpeechLifecycle } from "@/components/SpeechLifecycle";
 
 // TanStack Query needs a client created on the React tree. useState keeps a
 // single client per browser session (not recreated on every render).
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={client}>
+      <SpeechLifecycle />
       <ThemeProvider>
         <I18nProvider>
           <AccountProvider>

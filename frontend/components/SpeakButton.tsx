@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { canSpeak, speak, useSpeechLoading } from "@/lib/speak";
+import { useEffect, useId, useState } from "react";
+import { canSpeak, speak, stopSpeech, useSpeechLoading, useSpeechState, useSentenceRate, setSentenceRate } from "@/lib/speak";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { langLabel } from "@/lib/langs";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Loader2, Volume2 } from "lucide-react";
+import { Loader2, Square, Volume2 } from "lucide-react";
 
 /** A speaker icon that spins while `text` is being fetched to be spoken (the first play of a new clip). */
 export function SpeakingIcon({ text, className }: { text: string; className?: string }) {
@@ -22,17 +22,24 @@ export function SpeakButton({
   lang = "en",
   size = "md",
   className,
+  sentence = false,
 }: {
   text: string;
   lang?: string;
   // "inline": a bare icon in running text (the Reader's play after each sentence).
   size?: "inline" | "sm" | "md";
   className?: string;
+  sentence?: boolean;
 }) {
   const { t } = useI18n();
   const { show } = useToast();
   const [ok, setOk] = useState(false);
+  const owner = useId();
+  const status = useSpeechState(text, lang);
+  const rate = useSentenceRate();
+  const active = status !== "stopped";
   useEffect(() => setOk(canSpeak()), []);
+  useEffect(() => () => stopSpeech(owner), [owner, text, lang]);
   if (!ok) return null;
 
   const frame = "border border-black/[0.08] bg-surface text-sage-deep hover:bg-sage-tint";
@@ -42,27 +49,40 @@ export function SpeakButton({
       : size === "sm"
         ? cn("h-7 w-7 text-[13px]", frame)
         : cn("h-9 w-9 text-[16px]", frame);
-  const label = t("speak.play");
+  const label = t(active ? "speak.stop" : "speak.play");
+  const noVoice = () => show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(lang) }) });
   return (
-    // Inline, the box's baseline is the icon's bottom edge, so on the text's baseline
-    // the icon's middle sits ~7px up, level with a character's middle (the old -0.3em
-    // put it on the baseline). The caller sets the left margin: after 。 it pulls in.
-    <HoverTip title={label} className={cn("inline-flex shrink-0", size === "inline" && "mr-0.5 align-baseline", className)}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!speak(text, lang)) show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(lang) }) });
-        }}
-        aria-label={label}
-        className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-full transition-colors active:scale-95",
-          dim,
-        )}
-      >
-        <SpeakingIcon text={text} className="h-[1em] w-[1em]" />
-      </button>
-    </HoverTip>
+    // The group shares the final word's baseline and stays on the same line.
+    <span data-sentence-audio={sentence ? "" : undefined} data-speech-state={status}
+      className={cn("inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap align-baseline leading-none", className)}>
+      <HoverTip title={label} className="inline-flex">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (active) stopSpeech();
+            else if (!speak(text, lang, { sentence, owner, onUnavailable: noVoice })) noVoice();
+          }}
+          aria-label={label}
+          aria-busy={status === "loading"}
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center rounded-full transition-colors active:scale-95",
+            dim,
+          )}
+        >
+          {status === "loading" ? <span className="relative inline-flex h-[1em] w-[1em]">
+            <Loader2 className="absolute inset-0 h-full w-full animate-spin" />
+            <Square className="m-auto h-[0.4em] w-[0.4em] fill-current" />
+          </span> : active ? <Square className="h-[0.8em] w-[0.8em] fill-current" /> : <Volume2 className="h-[1em] w-[1em]" />}
+        </button>
+      </HoverTip>
+      {sentence && <button type="button" aria-label={t("speak.speed", { rate: rate === 1 ? "1" : "0.75" })}
+        title={t(rate === 1 ? "speak.slower" : "speak.normal")}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSentenceRate(rate === 1 ? 0.75 : 1); }}
+        className="inline-flex h-6 min-w-9 items-center justify-center rounded-full px-1 font-sans text-[11px] font-semibold tabular-nums text-ink-faint transition-colors hover:bg-sage-tint hover:text-sage-deep">
+        {rate === 1 ? "1×" : "0.75×"}
+      </button>}
+    </span>
   );
 }

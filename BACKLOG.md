@@ -55,8 +55,9 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    batch; Parts 1 (connection/startup) and 2 (example progress) complete and verified
    on 2026-10-19. Work one session at a time from `PLAN-learner-bug-batch.md`;
    Part 3 (capture examples and removal) completed and verified on 2026-10-20.
-   Parts 4–6 remain open: sentence audio controls/placement/pace, compact
-   popups and accurate Reader copy, short-word Mandarin pronunciation. Each part has
+   Part 4 (sentence audio controls/placement/pace) completed and verified on 2026-10-20.
+   Parts 5–6 remain open: compact popups and accurate Reader copy, short-word
+   Mandarin pronunciation. Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.
    Part 1 preserves cached words/details on transient failure, refreshes on reconnect,

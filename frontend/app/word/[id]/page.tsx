@@ -372,9 +372,8 @@ export default function WordDetailPage() {
           >
             <div className="flex items-start gap-3">
               <p className="min-w-0 flex-1 whitespace-pre-line font-serif text-[19px] leading-relaxed text-ink">
-                <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} />
+                <ExampleText text={ex.sentenceEn} word={word.word} lang={word.sourceLang} targetLang={word.targetLang} audio />
               </p>
-              <SpeakButton text={ex.sentenceEn} lang={word.sourceLang} size="sm" className="mt-1" />
               <button type="button" aria-label={t("example.remove")} title={t("example.remove")}
                 disabled={removingExample !== null} onClick={() => removeExample(ex.id)}
                 className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-ink-faint hover:bg-clay/10 hover:text-clay disabled:opacity-50">

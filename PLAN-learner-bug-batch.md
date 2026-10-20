@@ -294,7 +294,7 @@ ownership and concurrent-write paths were reviewed. Parts 4–6 remain open.
 
 ## Part 4 — Sentence audio controls, placement and pace
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-20).
 
 **Code findings.** `components/SpeakButton.tsx` only starts playback.
 `lib/speak.ts` shares one audio element, loading state and browser fallback at 0.95.
@@ -321,6 +321,35 @@ multiline/pinyin, desktop and 390px phone. Play → slow → stop → replay, st
 loading, rapid switches, fallback, unavailable voice and route change. Compare
 identical text on both pages at 1×. No duplicated controls, overlap, stuck states
 or clipped onset. Listening review/quiz still works.
+
+**Completed and verified (2026-10-20).** Reader now uses source-offset sentence
+spans for playback and capture context: list markers/decimals do not add controls,
+closing quotes stay with punctuation, and wrapped lines do not each get a toolbar.
+One compact Play/Stop + 1×/0.75× group stays with the final word, including ruby;
+My words examples use the same placement and saved sentence-speed preference.
+Server playback changes speed on the existing clip with pitch preservation;
+browser speech replays at the selected rate with unchanged pitch. No speed-specific
+clip/cache entries are created. Word pronunciation defaults remain unchanged.
+
+Shared playback tracks loading/playing/stopped on both engines. Stop invalidates
+callbacks, clears delayed starts/voice listeners, cancels synthesis and unloads
+pending media. Ownership cleanup and route/page-hide cleanup prevent late starts;
+the shared iOS-unlocked element and browser onset primer are retained.
+
+Checks: backend `npx tsc --noEmit -p .` (refreshed stale local generated Prisma
+client first); frontend `npx next build` passes with existing lint warnings.
+`node frontend/scripts/check-sentence-audio.mjs` covers list/decimal/quote/paragraph
+boundaries and exact text reconstruction, stale media/utterance/rejection callbacks,
+stop during voice loading/cancel delay, rate changes, unavailable voices and unlock.
+`node frontend/scripts/check-sentence-audio-ui.mjs` passes Russian 390px WebKit and
+desktop Chromium against the production build: pinyin layout without overflow or
+isolated controls, play/slow/stop/replay, held-response cancellation, rapid switching,
+fallback/end/unavailable voice, internal navigation/reload, review and quiz audio.
+Chromium plays the real Qwen MP3: identical text uses the same URL, duration and
+1× rate in Reader/My words. Windows WebKit cannot play this MP3 in the test runtime;
+its fallback uses a controlled speech engine, so physical iOS audio/listening is
+not claimed. Evidence: `.playwright-cli/sentence-audio` (layouts, screenshots,
+pace comparisons and local MP3). Throwaway local accounts are cleaned up.
 
 ## Part 5 — Compact popups and accurate Reader copy
 
