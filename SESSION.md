@@ -2,12 +2,23 @@
 
 Updated: 2026-10-19. Replace stale notes; keep under 30 lines.
 
-- Active task: none; session-context cleanup complete (docs checks only).
-- Rules: `AGENTS.md`. Runtime checks: `.claude/commands/task.md` on demand.
+- Task: plan the new screenshot bug batch; planning complete, app fixes not started.
+- Next: `PLAN-learner-bug-batch.md` Part 1 (connection failures and startup).
+- Six parts, one per implementation session; user may explicitly choose another.
+- Findings: account refresh clears auth on all failures; My words skips offline cache;
+  example polling infers readiness from dictionary fields; Reader context disables
+  generated examples; short-word TTS checks syllables without tones.
+- Plan includes example deletion/preferences, progress without reload, playback
+  stop/speed/layout, compact popups and accurate ru/en/zh instructions.
+- Model settings and copyable session prompt are in the plan; current official
+  OpenAI model guidance checked. Only the external openai-docs SKILL.md was read,
+  with the user's explicit permission; no permission for other outside files.
+- Checks: docs-only diff, plan/backlog references and status consistency; no app
+  builds, live application API calls or learner-flow checks in this planning session.
+- Preserve unrelated work: modified `frontend/.env.example`; untracked `h3.txt`,
+  `p.out`. Stage only plan, backlog and this handoff for the planning commit.
 - `PLAN-reader-mika-fixes.md`: all eight parts complete; do not restart it.
-- First incomplete backlog item: **New words that learn well together, straight
-  from the dictionary**, `PLAN-word-groups.md` Part 4. Parts 1–3 done.
-- Blocker: proof needs a week of grouped reviews, earliest ~2026-10-21;
-  time elapsed is not proof. Leave open; never access production data.
-- Explicit user task first; otherwise ask which task to take while blocked.
-- Landing remains deferred until explicitly requested.
+- `PLAN-word-groups.md` Part 4: still needs seven-day review evidence, earliest
+  approximately 2026-10-21; leave open and never access production data.
+- Landing copy/layout/screenshots, including any final pass, remain deferred until
+  explicitly requested. Auth routing fixes are within the new batch's scope.
