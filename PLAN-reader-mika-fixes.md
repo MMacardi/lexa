@@ -75,8 +75,8 @@ approximately 2026-10-21. It is not a blocker for this explicitly requested bug 
   changed learner flow locally; include narrow regression scripts where they test behavior.
 - No new LLM provider: Qwen through Bailian only. No model pass over all stored data without
   first estimating its size/cost and following the established project workflow.
-- Begin a fresh session with: “Read AGENTS.md and CLAUDE.md; continue the first unfinished part
-  of PLAN-reader-mika-fixes.md. Do not change the landing.”
+- All eight parts are complete. For a fresh session, use `SESSION.md`; do not restart
+  this plan or change the landing unless explicitly requested.
 
 ## Completed work
 

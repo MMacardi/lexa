@@ -1,50 +1,68 @@
-# Workspace Access & Security Rules
+# Onomika — shared Codex and Claude instructions
 
-You are operating in Full Access mode, but you must strictly follow these boundaries.
+## Workspace and security
+- Only this project directory is authorized. Read/create/change/move/delete freely here;
+  ask explicitly before accessing anything outside it, including through symlinks.
+  Never explore personal files, browser profiles, SSH keys, credentials, unrelated
+  repositories, processes, applications, or services.
+- Internet, development CLIs, package managers, Docker, downloads, public APIs, dependency
+  installation, tests, and debugging are allowed. Never upload private files/secrets.
+  Inspect remote installation scripts before execution. Prefer project-local dependencies;
+  avoid global installs. Never modify system settings, global configuration, environment
+  variables outside the project, or home-directory files, or run destructive commands outside it.
+- Work autonomously inside these boundaries. Explain conflicts and request permission for
+  outside access. Full Access never overrides these rules; they apply throughout the session
+  and take priority over conflicting project guidance.
 
-## 1. Workspace Isolation
+## Sessions and context
+- This file is the shared source of rules; `CLAUDE.md` only imports it. If already supplied
+  in context, do not reread either file. Start with `SESSION.md` and `git status --short`.
+- The user's explicit task takes priority; otherwise resume the active handoff task first.
+  For new backlog work, take the first incomplete item in `BACKLOG.md` **Open**, in order
+  (some lack checkboxes). Locate its heading with `rg -n`; read only that item/plan section.
+  If time/data/a decision blocks it, leave it open and ask before skipping it.
+- One focused task per session by default; related fixes can stay together. Do not start
+  another item automatically. Read `.claude/commands/task.md` when implementing, not at startup.
+- Keep `SESSION.md` under 30 lines: task, relevant files/plan section, decisions, checks run,
+  remaining steps/blockers. Update before stopping; replace completed notes, never grow a
+  history. Check notes against Git rather than assuming they are current.
+- Search before reading; bound output. Skip dependencies, build output, lockfiles, large
+  datasets, full browser snapshots, and unrelated docs. Search `IDEAS.md`/`STRATEGY.md` by
+  heading; never read them or the backlog whole. Keep replies concise; do not repeat checks
+  without changes/failures. Do not delegate unless explicitly requested.
 
-- Treat the current project directory as your **only authorized workspace**.
-- You may freely read, create, modify, move, and delete files **inside the project directory**.
-- Never read, modify, delete, or explore files outside the project directory unless I explicitly authorize it.
-- Do not access personal files, browser profiles, SSH keys, credentials, or unrelated repositories.
-- Do not follow symlinks or other paths that lead outside the project workspace.
+## Product and code
+- Onomika: Russian speakers learning Chinese; web + Telegram `@onomikabot`. CEDICT first,
+  AI only for dictionary gaps.
+  Instant cards, FSRS, daily HSK words, Reader, Mika. Test before progress claims; choose
+  frequent words built from known characters, one situation at a time, with level-fit examples.
+  No mock HSK exams; IELTS later. Hide out-of-focus features, do not delete them.
+  Coach/scenes/readiness expansion waits for the backlog's two-week self-test.
+  Sole-author university project; no defence materials needed.
+- Backend: Express, Prisma/Postgres, TypeScript ESM; `backend/src/index.ts` entry,
+  `routes/` HTTP, `services/` logic, `agents/` prompts, `lib/` helpers; `bot/index.ts`
+  runs Telegraf in-process with `ENABLE_TELEGRAM_BOT=true`.
+- Frontend: Next.js 15 App Router, Tailwind 4, TanStack Query. `frontend/lib/api.ts` is
+  the typed API client, `lib/i18n.tsx` ru/en/zh, `app/` pages, `components/` UI.
+- Qwen via Bailian only (`backend/src/services/llm.ts`, OpenAI SDK). Every `/api` route
+  needs session + invite (`lib/gate.ts`); identity only from session cookie, never
+  body/query `telegramId`. Match existing style/comment density; use Lucide, not system emoji.
+- Russian copy/learner flows first; adapt every new UI string to English and Chinese.
+  Landing copy/layout/screenshots, including a final pass, require explicit request.
+  Mention deferred landing work when asked what is next; never start it automatically.
 
-## 2. Internet & CLI Access
+## Verify and finish
+- Local: `docker compose up -d` → frontend :3001, API :3000, Postgres host **5433**.
+  Never test with production data. Browser tools/profiles/artifacts stay inside this project.
+- Code: backend `npx tsc --noEmit -p .`; frontend `npx next build`, from each directory.
+  Complete changed learner flows locally; builds alone do not prove behavior. Regression,
+  phone, chat and migration commands: `.claude/commands/task.md`.
+  Docs-only: check diffs, references, consistency; no app builds needed.
+- Preserve unrelated work; stage explicit files. Update relevant backlog/idea status and
+  `SESSION.md`. Plain commits named by task title, no Co-Authored-By. Until beta testers arrive, push
+  finished, verified work to `main` without asking (prod auto-deploys), within workspace rules.
 
-- You have full permission to use the internet for development purposes.
-- You may execute CLI commands, install dependencies, use package managers, download documentation, access public APIs, and run development tools.
-- You may use Git, npm, pnpm, pip, Docker, and other necessary development tools.
-- Network access does not grant permission to upload private files, credentials, or project secrets.
-- Do not execute remote installation scripts without inspecting them first.
-
-## 3. System Protection
-
-- Never modify system settings, environment variables outside the project, global configurations, or files in the user's home directory.
-- Avoid global package installations. Prefer project-local dependencies and environments.
-- Never run destructive commands targeting anything outside the project.
-- Do not interact with unrelated processes, applications, or services.
-
-## 4. Autonomous Development
-
-- Work autonomously within these boundaries without requesting approval for routine development tasks.
-- You may research solutions online, install project dependencies, run tests, debug code, and modify project files.
-- If an operation requires accessing or modifying anything outside the project directory, stop and ask for explicit permission.
-- Never interpret Full Access as permission to bypass these restrictions.
-
-## 5. Priority
-
-These restrictions apply throughout the entire session, regardless of task complexity. If a task conflicts with these rules, explain the conflict and request permission before proceeding.
-
-## Project workflow inherited from Claude
-
-Read and follow the project-root [CLAUDE.md](CLAUDE.md) at the start of each session. It is the shared source of project architecture, commands, coding conventions, verification requirements, and commit/push rules for both Claude and Codex. The workspace and security boundaries above take priority over any conflicting project guidance.
-
-- Continue the current unfinished task before starting another. For new backlog work, use the ordered list in [BACKLOG.md](BACKLOG.md) and the workflow in [.claude/commands/task.md](.claude/commands/task.md).
-- Match existing code style; use Qwen via Bailian only; keep new UI text in English, Russian, and Chinese. Use the existing Lucide icons instead of system emoji.
-- Russian is the primary product language and audience. Write and review Russian copy first, prioritize Russian learner flows and screenshots, then adapt English and Chinese to the same meaning.
-- Change landing copy, layout and screenshots only when the user explicitly asks for landing work. Do not automatically start a final landing pass after bugs are fixed. When the user asks what is next, you may remind them about the deferred landing work. This preference persists across sessions (confirmed 2026-10-19).
-- Verify learner-facing work by running the complete flow on the local app. Run the relevant checks and builds; never test against production data.
-- Keep changes focused, preserve unrelated work, and stage files explicitly. Update the relevant backlog and idea status when finished.
-- Use plain commit messages without a Co-Authored-By trailer. Follow CLAUDE.md's standing instruction to push finished, verified work to main during the solo phase, subject to the workspace boundaries above.
-- Prefer project-local tools. Do not read Claude's files outside this workspace unless explicitly authorized for that task.
+## On-demand references
+`BACKLOG.md`: ordered work · `IDEAS.md`: details/history · `STRATEGY.md`: rationale/triage ·
+`DEPLOY.md`: Railway/Vercel · `BETA_CHECKLIST.md`: launch · `UNIT_ECONOMICS.md`: costs.
+`onomika_old` holds the full build; do not access it if outside this workspace.

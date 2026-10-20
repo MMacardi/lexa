@@ -1,33 +1,35 @@
 ---
-description: Do one BACKLOG focus-pass item end to end
-argument-hint: F0 | F1 | F2 … (or the item's name)
+description: Complete one focused task and update the handoff
+argument-hint: item title (or resume SESSION.md)
 ---
 
-Work **one** backlog item: **$ARGUMENTS**
+Work on **$ARGUMENTS** under `AGENTS.md`. Explicit user task first; otherwise resume
+`SESSION.md`, then take the first incomplete `BACKLOG.md` Open item in order.
 
-1. Read that item in `BACKLOG.md` (and only that item). If its intent is unclear, grep
-   `STRATEGY.md` for the matching row in §G — don't read either file whole.
-2. Grep before reading, and read only the line ranges you need.
-3. Implement it. Match the surrounding code style and comment density. Every new UI
-   string goes in en/ru/zh (`frontend/lib/i18n.tsx`).
-4. Verify: `cd backend && npx tsc --noEmit -p .` and `cd frontend && npx next build`.
-   If the item touches the schema, say what the migration does before running it.
-5. Tick the item in `BACKLOG.md`, commit with a plain message (no Co-Authored-By trailer),
-   push to `main`, then stop — one item per session.
+1. Search headings, then read only the item and relevant plan section. Search
+   `IDEAS.md`/`STRATEGY.md` if intent is unclear; never load them whole.
+2. Implement within scope. Record unrelated findings in backlog/ideas. Ask for
+   unresolved decisions; leave time/data-gated work open and ask before skipping.
+   Russian first, all new UI strings in ru/en/zh; hide out-of-focus features.
+3. Code: backend `npx tsc --noEmit -p .`, frontend `npx next build`.
+   Explain migrations before running backend `npx prisma migrate dev --name <name>`
+   against local Docker. Review schema/learner-model persistence before pushing;
+   for the former F2/F3 changes, run `/code-review` in Claude or equivalent review.
+4. Verify changed learner flows locally, Russian phone UI first where relevant.
+   Never test production data. Useful commands/patterns:
+   - `backend/scripts/check-*.ts`: meaningful behavior checks with a throwaway local
+     user; clean it up. `check-account-delete.ts` is the pattern.
+   - `node frontend/scripts/phone-audit.mjs <out>`: phone pages in WebKit/Chromium/Firefox.
+   - Chat prompts: `backend/scripts/check-chat-identity.ts` (Mika never names the model)
+     and `backend/scripts/check-chat-format.ts`.
+   - Browser is authorized locally; prefer project-local tools. If needed,
+     `npx -y @playwright/cli@latest <cmd>` runs inside the workspace, with profiles
+     and artifacts here. Search saved snapshots; avoid full dumps and Playwright
+     MCP's large per-action snapshots where smaller output works.
+   - Docs-only: diff/reference/consistency checks, no app builds.
+5. Update relevant backlog/idea status and the short `SESSION.md`. Preserve unrelated
+   dirty files, stage explicitly, commit by title without Co-Authored-By, push finished
+   verified work to `main`, then stop. Save remaining steps/checks before interrupting.
 
-Rules for this item:
-- **Don't expand scope.** If you find something else worth doing, add a line to
-  `BACKLOG.md`/`IDEAS.md` instead of doing it now.
-- If the item turns out to need a decision the backlog doesn't answer, stop and ask
-  rather than guessing.
-- Hide things behind the focus flag; don't delete. `onomika_old` holds the full build.
-
-Effort (set the slider before starting):
-| Item | Effort |
-|---|---|
-| F0 metadata/og/locale, F8 pickers | low–medium — mechanical |
-| F1 analytics, F7 focus flag | medium |
-| F4 HSK lists + readiness, F5 onboarding, F6 CC-CEDICT senses, F9 bot identity | high |
-| F2 review log + server-side prefs, F3 production state | **xhigh / Ultracode** — schema, one-way door, can't be backfilled |
-
-Run `/code-review` before pushing F2 and F3.
+Why runtime verification matters: on 2026-09-23 the gap deck passed builds while
+ignoring selected words and giving an HSK 4 learner the start of HSK 1.

@@ -1,7 +1,9 @@
 # Backlog — one item per session
 
-**One list, in order — take the top unchecked item, do it, tick it, `/clear`.** Position is the
-priority, so the numbers move; name items by **title** in commits, never by number. Bracketed tags
+**One list, in order — resume `SESSION.md` first; otherwise take the first incomplete item.**
+Do it, mark it complete, update the handoff, then start a fresh session for unrelated work.
+Some incomplete items have no checkbox; leave time/data-gated items open and ask before skipping.
+Position is the priority, so the numbers move; name items by **title** in commits, never by number. Bracketed tags
 like `[H1]` are the old prefixes, kept only so older commits and `IDEAS.md` headings still resolve.
 Details for an item: grep `IDEAS.md` for the quoted heading. The reasoning behind the ordering is
 `STRATEGY.md`; the state of the app is §Done.
@@ -1316,6 +1318,14 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
   edge over SmallTalk2Me and co. is calibration against users' real band scores. `[S3]`
 
 ## Done
+
+### Token-efficient Codex and Claude sessions (2026-10-19)
+- Consolidated shared rules in `AGENTS.md`; `CLAUDE.md` now imports that file.
+- Added a short `SESSION.md` handoff and made detailed task docs load only when relevant;
+  startup no longer requires reading both instruction files or the full backlog/history.
+- Kept workspace boundaries, local learner-flow verification, translations, and commit/push
+  rules. Preserved the grouped-word retention blocker and explicit-request-only landing work.
+- Documentation checks only; no app behavior changed.
 
 ### Landing screenshot corrections; bugs first, landing last (2026-10-19)
 - Reader captures now preserve the app's scroll adjustment, keeping the selected word above the
