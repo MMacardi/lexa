@@ -27,10 +27,10 @@ import {
   type CardField,
   type CardLayout,
 } from "@/lib/learnPrefs";
-import { langLabel, pairLabel } from "@/lib/langs";
+import { pairLabel } from "@/lib/langs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SpeakButton, SpeakingIcon } from "@/components/SpeakButton";
+import { SpeakButton, SpeakingIcon, useSpeechNotice } from "@/components/SpeakButton";
 import { FitText } from "@/components/FitText";
 import { DictMeaningLabel } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
@@ -219,6 +219,11 @@ export default function FlashcardsPage() {
   const flying = useRef(false); // a graded card is still on its way off screen
   const [undoing, setUndoing] = useState(false);
   const { show } = useToast();
+  const speechNotice = useSpeechNotice();
+  function say(w: Word) {
+    const onUnavailable = () => speechNotice(w.sourceLang);
+    if (!speak(w.word, w.sourceLang, { onUnavailable })) onUnavailable();
+  }
 
   const swipeUpDown = useSwipeUpDown();
   const toneColors = useToneColors();
@@ -247,7 +252,7 @@ export default function FlashcardsPage() {
   // inside the user's own gesture.
   function reveal(w: Word) {
     setFlipped(true);
-    if (playOnFlip) speak(w.word, w.sourceLang);
+    if (playOnFlip) say(w);
   }
 
   // A listening card (the sound on the front) says its word as the card comes up;
@@ -257,7 +262,7 @@ export default function FlashcardsPage() {
   useEffect(() => {
     const w = deck[index];
     if (!listenFront || !cardId || !w) return;
-    const id = window.setTimeout(() => speak(w.word, w.sourceLang), 120);
+    const id = window.setTimeout(() => say(w), 120);
     return () => window.clearTimeout(id);
     // Keyed on the card shown, not the deck: an "Again" appended to it changes nothing on screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1138,8 +1143,7 @@ export default function FlashcardsPage() {
             <button
               type="button"
               onClick={() => {
-                if (!speak(word.word, word.sourceLang))
-                  show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(word.sourceLang) }) });
+                say(word);
               }}
               aria-label={t("speak.play")}
               className="flex h-20 w-20 items-center justify-center rounded-full bg-sage-tint text-sage-deep transition-colors hover:bg-sage-tint/70 active:scale-95"

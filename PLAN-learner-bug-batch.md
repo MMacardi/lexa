@@ -5,8 +5,8 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–8
-are complete; Parts 9–18 remain open. Next implementation session: **Part 9**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–9
+are complete; Parts 10–18 remain open. Next implementation session: **Part 10**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -855,17 +855,53 @@ and centered, bounded direct card opening. Screenshots visually inspected in
 
 ## Part 9 — Reliable audio for numbered and unpunctuated passages
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-20).
+
+**Result and evidence.** Numbered questions, separate/inline A–F options and plain
+lines now form speech units without reading their labels. Bare labels/numbers have
+no controls. Spoken spans match their exact source offsets; displayed labels,
+whitespace and the full paragraph remain intact. Provider chunks prefer source
+pauses/word boundaries and avoid splitting surrogate pairs. One logical unit keeps
+one control, regardless of its chunk count.
+
+An actual 300-character Qwen request exceeded the provider timeout locally, so
+playback uses chunks of at most **120 characters**, below the unchanged backend
+300-character limit. A 342-character unpunctuated fixture played completely as
+120/120/102 characters: real media responses were HTTP 206 `audio/mpeg`; cached
+HTTP 200 reads returned 164016/138528/116064 MP3 bytes. Evidence is saved under
+`.playwright-cli/sentence-audio/*-chunks.json`. Queue verification accelerates only
+the test player; normal 1×/0.75× playback and pitch preservation are checked separately.
+
+Mandarin media errors now show a localized notice and persistent retry icon;
+retry resumes at the failed chunk. No automatic browser-voice fallback remains.
+Stop/loading cancellation, rapid switches, stale chunk callbacks, speed changes,
+the shared iOS-unlocked element (including after error), and non-Mandarin browser
+speech are covered by `node frontend/scripts/check-sentence-audio.mjs`.
+`node frontend/scripts/check-sentence-audio-ui.mjs` passed with real local MP3s on
+Chromium desktop and Russian Chromium phone: items 31–34/options, decimals, plain
+lines, normal punctuation, complete long-unit playback, controlled 502/retry,
+loading stop, switching/navigation, Reader/example replay, and review/quiz smoke.
+The final phone run also verified the shortened error copy; its screenshot was
+visually inspected. Throwaway accounts were removed. Backend TypeScript and the
+final frontend build passed (existing frontend lint warnings).
+
+Runtime configuration remains Sambert/Zhijia (`sambert-zhijia-v1`) for short words
+and Qwen/Cherry (`qwen3-tts-flash`) for sentences; accepted word-engine rates,
+encoding, cache keys and URLs are unchanged. **Tone report limit:** screenshot 13
+and its word/clip are not attached in this session. The exact word/reading was
+requested; no new listening comparison or claim that the reported tone is fixed
+is possible until it is identified. Do not retune all voices from that report.
 
 **Report.** Exercise items 31–34 in screenshot 2 have no terminal punctuation;
 their controls appear to use a browser voice. Screenshot 13 reports an incorrect
 fourth tone. Preserve the accepted Part 6 word engine while isolating this clip.
 
-**Code findings.** `frontend/lib/sentences.ts` handles list numbers and some
-newlines, but remains punctuation-led. `frontend/lib/speak.ts::serverVoice`
-rejects text longer than 300 characters, or text with no Han characters, and
-`playServer` silently falls back to browser speech on media failure. Backend
-`services/tts.ts` also caps input at 300. A standalone `31.` span or oversized
+**Initial code findings.** Before this part, `frontend/lib/sentences.ts` handled
+list numbers and some newlines, but remained punctuation-led.
+`frontend/lib/speak.ts::serverVoice` rejected text longer than 300 characters,
+or text with no Han characters, and `playServer` silently fell back to browser
+speech on media failure. Backend `services/tts.ts` caps input at 300.
+A standalone `31.` span or oversized
 unpunctuated span is a plausible route to browser audio; this is not yet a
 runtime diagnosis of the supplied screenshot. Browser voice provider is not
 established by its perceived sound.

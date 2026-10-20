@@ -12,8 +12,7 @@ import { langLabel, pairLabel } from "@/lib/langs";
 import { BookOpen, Headphones, Keyboard, ListChecks, Pencil, Shuffle, Target, TextCursorInput, Volume2, X, Zap } from "lucide-react";
 import { getRecentPairs } from "@/lib/learnPrefs";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
-import { SpeakingIcon } from "@/components/SpeakButton";
-import { useToast } from "@/lib/toast";
+import { SpeakingIcon, useSpeechNotice } from "@/components/SpeakButton";
 import { Pinyin } from "@/components/Pinyin";
 import { isChineseLang } from "@/lib/dictEntry";
 import { Button } from "@/components/ui/button";
@@ -361,7 +360,7 @@ export default function QuizPage() {
   const [misses, setMisses] = useState(0);
   const [decoys, setDecoys] = useState<Word[]>([]);
   const [listVersion, setListVersion] = useState<HskVersion | null>(null);
-  const { show } = useToast();
+  const speechNotice = useSpeechNotice();
   // Listening needs a speech engine; read after mount, where the browser's is.
   const [voice, setVoice] = useState(false);
   useEffect(() => setVoice(canSpeak()), []);
@@ -380,8 +379,8 @@ export default function QuizPage() {
   // Play a listening question's word (inside the tap that brings it up, for iOS).
   function say(q: Question | undefined) {
     if (q?.kind !== "listen") return;
-    if (!speak(q.word.word, q.word.sourceLang))
-      show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(q.word.sourceLang) }) });
+    const onUnavailable = () => speechNotice(q.word.sourceLang);
+    if (!speak(q.word.word, q.word.sourceLang, { onUnavailable })) onUnavailable();
   }
 
   const words = allWords ?? [];

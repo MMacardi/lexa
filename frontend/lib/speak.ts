@@ -1,11 +1,12 @@
 // Text-to-speech for pronunciation. Chinese is read by Bailian's voice from the
 // server (GET /api/tts, backend services/tts.ts): the browser's own Chinese voice is
-// the robotic Huihui on Windows and missing on some Android phones. Everything else,
-// and Chinese whenever the server can't answer, uses the browser's Web Speech API
+// the robotic Huihui on Windows and missing on some Android phones. Other languages
+// use the browser's Web Speech API
 // (window.speechSynthesis), which ships in all modern browsers.
 
 import { useSyncExternalStore } from "react";
 import { ttsUrl } from "./api";
+import { speechChunks } from "./sentences";
 
 const BCP47: Record<string, string> = {
   en: "en-US",
@@ -29,10 +30,6 @@ function canSynth(): boolean {
 
 // ── The server's voice ────────────────────────────────────────────────────────
 const SERVER_LANGS = new Set(["zh", "zh-Hant"]);
-const SERVER_MAX = 300; // the backend's TTS_MAX_CHARS
-const HAN = /\p{Script=Han}/u;
-const serverVoice = (text: string, lang: string) =>
-  SERVER_LANGS.has(lang) && HAN.test(text) && text.length <= SERVER_MAX && typeof Audio !== "undefined";
 
 // One <audio> element for every clip. iOS lets an element play outside a tap once it
 // has played inside one, so the listening card and quiz, which speak on their own
@@ -69,7 +66,7 @@ let silence: string | null = null;
 // What the player is doing, for a speaker button to show a spinner while a clip
 // nobody has played before is being made (~2-3 s the first time, instant after).
 type SpeechState = {
-  text: string; lang: string; status: "loading" | "playing";
+  text: string; lang: string; status: "loading" | "playing" | "error"; chunk?: number;
   rate: number; sentence: boolean; owner?: string; onUnavailable?: () => void;
 } | null;
 let state: SpeechState = null;
@@ -92,8 +89,7 @@ export function useSpeechLoading(text: string): boolean {
   );
 }
 
-// Each play gets a number, so a clip that fails after the learner has already tapped
-// something else doesn't fall back to the browser voice over the new one.
+// Each play gets a number so late media events cannot change the newer clip.
 let playId = 0;
 const pending = new Set<ReturnType<typeof setTimeout>>();
 let removeVoiceWait: (() => void) | null = null;
@@ -125,6 +121,7 @@ export function setSentenceRate(rate: 1 | 0.75) {
 }
 function applySentenceRate() {
   if (!state?.sentence) return;
+  if (state.status === "error") { state = { ...state, rate: sentenceRate }; return; }
   if (keepAlive) {
     // Web Speech has no reliable live rate setter; replay with the chosen pace.
     speak(state.text, state.lang, { ...state, rate: sentenceRate });
@@ -154,35 +151,40 @@ export function stopSpeech(owner?: string) {
   setState(null);
 }
 
-function playServer(text: string, lang: string, id: number) {
+let mediaId = 0;
+function playServer(text: string, lang: string, id: number, chunk = 0) {
+  const chunks = speechChunks(text);
+  // Whitespace remains in source offsets, but needs no separate synthesis.
+  while (chunk < chunks.length && !chunks[chunk].text.trim()) chunk++;
+  if (chunk === chunks.length) { setState(null); return; }
+  if (state) setState({ ...state, status: "loading", chunk });
   const el = getPlayer();
-  const done = () => {
-    if (id === playId) setState(null);
-  };
+  const attempt = ++mediaId;
+  const current = () => id === playId && attempt === mediaId;
   el.onplaying = () => {
-    if (id === playId && state) setState({ ...state, status: "playing" });
+    if (current() && state) setState({ ...state, status: "playing" });
   };
-  el.onended = done;
-  let fellBack = false;
-  const fallback = () => {
-    if (id !== playId || fellBack) return;
-    fellBack = true;
-    el.onplaying = el.onended = el.onerror = null;
-    el.pause(); el.removeAttribute("src"); el.load();
-    if (state) setState({ ...state, status: "loading" });
-    if (!speakBrowser(text, lang, id)) unavailable(id);
+  el.onended = () => {
+    if (!current()) return;
+    mediaId++;
+    if (chunk + 1 < chunks.length) playServer(text, lang, id, chunk + 1);
+    else setState(null);
   };
-  el.onerror = fallback;
-  el.src = ttsUrl(text, lang);
+  const failed = () => {
+    if (!current()) return;
+    mediaId++;
+    unavailable(id);
+  };
+  el.onerror = failed;
+  el.src = ttsUrl(chunks[chunk].text, lang);
   el.preservesPitch = true;
   // Older Safari exposes the same pitch-preserving switch with a prefix.
   (el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
   el.playbackRate = state?.rate ?? 1;
-  el.play().catch((e: Error) => {
-    // AbortError: a newer tap replaced this clip. NotAllowedError: played outside a
-    // tap before anything unlocked the element — the browser's voice may still go.
-    if (id !== playId || e?.name === "AbortError") return;
-    fallback();
+  el.play().catch(() => {
+    // New taps/chunks invalidate old promises; current media failures need a retry.
+    if (!current()) return;
+    failed();
   });
 }
 
@@ -237,13 +239,14 @@ export function hasVoice(lang: string): boolean | null {
  * and once it has, from anywhere on the page.
  */
 export function unlockSpeech() {
-  if (!state && typeof Audio !== "undefined" && (!player || player.paused)) {
+  const active = state && state.status !== "error";
+  if (!active && typeof Audio !== "undefined" && (!player || player.paused)) {
     const el = getPlayer();
     silence ??= silenceUrl();
     el.src = silence;
     el.play().catch(() => {});
   }
-  if (state || !canSynth()) return;
+  if (active || !canSynth()) return;
   try {
     const u = new SpeechSynthesisUtterance("​");
     u.volume = 0;
@@ -265,16 +268,18 @@ let keepAlive: SpeechSynthesisUtterance | null = null;
 type SpeakOptions = { sentence?: boolean; rate?: number; owner?: string; onUnavailable?: () => void };
 export function speak(text: string, lang = "en", options: SpeakOptions = {}): boolean {
   if (!text.trim()) return false;
+  const retryChunk = state?.status === "error" && state.text === text && state.lang === lang ? state.chunk : 0;
   const wasSpeaking = canSynth() && (window.speechSynthesis.speaking || window.speechSynthesis.pending);
   stopSpeech();
   const id = playId;
   setState({ text, lang, status: "loading", sentence: options.sentence ?? false,
     rate: options.rate ?? (options.sentence ? sentenceRate : 0.95),
     owner: options.owner, onUnavailable: options.onUnavailable });
-  if (serverVoice(text, lang)) {
+  if (SERVER_LANGS.has(lang)) {
+    if (typeof Audio === "undefined") { setState(null); return false; }
     // Server clips retain their natural rate unless sentence speed was selected.
     state = { ...state!, rate: options.rate ?? (options.sentence ? sentenceRate : 1) };
-    playServer(text, lang, id);
+    playServer(text, lang, id, retryChunk);
     return true;
   }
   const ok = speakBrowser(text, lang, id, Boolean(wasSpeaking));
@@ -284,8 +289,10 @@ export function speak(text: string, lang = "en", options: SpeakOptions = {}): bo
 
 function unavailable(id: number) {
   if (id !== playId) return;
+  const failed = state;
   const report = state?.onUnavailable;
   stopSpeech();
+  if (failed) setState({ ...failed, status: "error" });
   report?.();
 }
 

@@ -1080,6 +1080,12 @@ const DICT: Record<string, Entry> = {
   "pop.addedToast": { en: "Saved “{word}” to your words", ru: "«{word}» сохранено в твои слова", zh: "已将“{word}”加入你的单词" },
   "speak.play": { en: "Play pronunciation", ru: "Прослушать", zh: "朗读" },
   "speak.stop": { en: "Stop playback", ru: "Остановить", zh: "停止朗读" },
+  "speak.retry": { en: "Audio failed. Retry playback", ru: "Ошибка аудио. Повторить", zh: "音频播放失败，点击重试" },
+  "speak.serverError": {
+    en: "Audio failed. Press play again.",
+    ru: "Ошибка аудио. Повтори.",
+    zh: "音频播放失败，请重试。",
+  },
   "speak.speed": { en: "Sentence speed: {rate}×", ru: "Скорость предложения: {rate}×", zh: "句子语速：{rate}倍" },
   "speak.slower": { en: "Slow down to 0.75×", ru: "Замедлить до 0.75×", zh: "减速至0.75倍" },
   "speak.normal": { en: "Natural speed: 1×", ru: "Обычная скорость: 1×", zh: "正常语速：1倍" },

@@ -7,7 +7,15 @@ import { useToast } from "@/lib/toast";
 import { langLabel } from "@/lib/langs";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
-import { Loader2, Square, Volume2 } from "lucide-react";
+import { CircleAlert, Loader2, Square, Volume2 } from "lucide-react";
+
+/** Automatic review/quiz speech needs the same visible failure as manual play. */
+export function useSpeechNotice() {
+  const { t } = useI18n();
+  const { show } = useToast();
+  return (lang: string) => show({ icon: "🔇", title: lang === "zh" || lang === "zh-Hant"
+    ? t("speak.serverError") : t("speak.noVoice", { lang: langLabel(lang) }) });
+}
 
 /** A speaker icon that spins while `text` is being fetched to be spoken (the first play of a new clip). */
 export function SpeakingIcon({ text, className }: { text: string; className?: string }) {
@@ -32,12 +40,13 @@ export function SpeakButton({
   sentence?: boolean;
 }) {
   const { t } = useI18n();
-  const { show } = useToast();
+  const notice = useSpeechNotice();
   const [ok, setOk] = useState(false);
   const owner = useId();
   const status = useSpeechState(text, lang);
   const rate = useSentenceRate();
-  const active = status !== "stopped";
+  const active = status === "loading" || status === "playing";
+  const failed = status === "error";
   useEffect(() => setOk(canSpeak()), []);
   useEffect(() => () => stopSpeech(owner), [owner, text, lang]);
   if (!ok) return null;
@@ -49,8 +58,8 @@ export function SpeakButton({
       : size === "sm"
         ? cn("h-7 w-7 text-[13px]", frame)
         : cn("h-9 w-9 text-[16px]", frame);
-  const label = t(active ? "speak.stop" : "speak.play");
-  const noVoice = () => show({ icon: "🔇", title: t("speak.noVoice", { lang: langLabel(lang) }) });
+  const label = t(active ? "speak.stop" : failed ? "speak.retry" : "speak.play");
+  const noVoice = () => notice(lang);
   return (
     // The group shares the final word's baseline and stays on the same line.
     <span data-sentence-audio={sentence ? "" : undefined} data-speech-state={status}
@@ -69,12 +78,13 @@ export function SpeakButton({
           className={cn(
             "inline-flex shrink-0 items-center justify-center rounded-full transition-colors active:scale-95",
             dim,
+            failed && "text-warn-text",
           )}
         >
           {status === "loading" ? <span className="relative inline-flex h-[1em] w-[1em]">
             <Loader2 className="absolute inset-0 h-full w-full animate-spin" />
             <Square className="m-auto h-[0.4em] w-[0.4em] fill-current" />
-          </span> : active ? <Square className="h-[0.8em] w-[0.8em] fill-current" /> : <Volume2 className="h-[1em] w-[1em]" />}
+          </span> : active ? <Square className="h-[0.8em] w-[0.8em] fill-current" /> : failed ? <CircleAlert className="h-[1em] w-[1em]" /> : <Volume2 className="h-[1em] w-[1em]" />}
         </button>
       </HoverTip>
       {sentence && <button type="button" aria-label={t("speak.speed", { rate: rate === 1 ? "1" : "0.75" })}

@@ -1504,7 +1504,7 @@ wordsRouter.get("/tts", ttsLimiter, async (req, res) => {
     mp3 = await speechClip(parsed.data.text);
   } catch (err) {
     console.error("tts:", (err as Error).message);
-    res.status(502).json({ error: "tts_failed" }); // the browser falls back to its own voice
+    res.status(502).json({ error: "tts_failed" }); // the learner can retry the same voice
     return;
   }
   res.setHeader("Content-Type", "audio/mpeg");
