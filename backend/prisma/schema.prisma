@@ -269,6 +269,8 @@ model Word {
   synonyms     String[]
   antonyms     String[]
   notes        String?   // free-form personal notes (P.S.), user-authored
+  enrichmentStatus String @default("ready") // queued | generating | ready | failed
+  exampleStatus String @default("disabled") // queued | generating | ready | failed | disabled
   explainCache String?   // cached AI "explain / when to use" text; cleared on meaningful edits
   senses       Json?     // cached word-page senses { v, list: [{pos, meaning, phrases[]}] }; cleared when the word/pair changes
   familyAt     DateTime? // when synonyms/antonyms were filled in for a card that arrived without them (library decks); set even when the answer was empty, so we ask once

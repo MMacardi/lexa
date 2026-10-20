@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { updateWordCaches } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +49,8 @@ type ImportTracker = {
   errors: string[];
   errorMessage: string | null;
   removed?: number; // cards Stop took back (undo the add)
+  cardIds?: string[];
+  canUndo?: boolean;
 };
 
 /** An add on its way (`startAdd`): `done` hands the bar the job that fills the cards in, `fail` takes it down. */
@@ -75,10 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // enrich). We keep every active job and show ONE combined tracker so the count
   // stays correct (0/4, not 0/1 when the second job would overwrite the first).
   const [jobs, setJobs] = useState<ImportTracker[]>([]);
-  // Once enrichment finishes, resolve the enriched words → their card ids so the
-  // list in the toast is clickable (opens the freshly-made word page).
-  const [wordIds, setWordIds] = useState<Record<string, string>>({});
-  const mappedRef = useRef<Set<string>>(new Set()); // jobIds whose words we've resolved
+  const mappedRef = useRef<Set<string>>(new Set()); // jobs whose completed cards reached the cache
   const [trackerOpen, setTrackerOpen] = useState(false); // the word list under the bar
   const [trackerHover, setTrackerHover] = useState(false);
   const [trackerFocus, setTrackerFocus] = useState(false);
@@ -97,7 +97,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Stop = undo the add: every running job stops and takes back its cards, bar
   // any the learner has already reviewed (the server keeps those).
   const stopTracker = useCallback(async () => {
-    const active = jobs.filter((j) => !isTerminal(j.status) && j.status !== "adding");
+    const active = jobs.filter((j) => !isTerminal(j.status) && j.status !== "adding" && j.canUndo !== false);
     const results = await Promise.all(active.map((j) => api.cancelImportJob(j.jobId).catch(() => null)));
     setJobs((cur) =>
       cur.map((x) => {
@@ -134,7 +134,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const active = cur.filter((j) => !isTerminal(j.status));
       if (active.some((j) => j.jobId === payload.jobId)) return cur;
       if (active.length === 0) {
-        setWordIds({});
         mappedRef.current = new Set();
       }
       return [...active, { ...payload, status: "queued", errors: [], errorMessage: null }];
@@ -152,7 +151,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       setJobs((cur) => {
         const active = cur.filter((j) => !isTerminal(j.status));
         if (active.length === 0) {
-          setWordIds({});
           mappedRef.current = new Set();
         }
         return [...active, { jobId: key, telegramId: accountId, words, total: words.length, processed: 0, status: "adding", errors: [], errorMessage: null }];
@@ -185,7 +183,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             setJobs((cur) =>
               cur.map((x) =>
                 x.jobId === j.jobId
-                  ? { ...x, status: next.status, total: next.total, processed: next.processed, errors: next.errors, errorMessage: next.errorMessage }
+                  ? { ...x, status: next.status, total: next.total, processed: next.processed, errors: next.errors, errorMessage: next.errorMessage, cardIds: next.cards.map((c) => c.id), words: next.cards.length ? next.cards.map((c) => c.word) : x.words }
                   : x,
               ),
             );
@@ -204,9 +202,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, [jobs, accountId]);
 
-  // When a job completes, map its enriched words to their new card ids (once).
+  // When a job completes, refresh its cards in both caches once.
   useEffect(() => {
-    const done = jobs.filter((j) => (j.status === "completed" || j.status === "cancelled") && !mappedRef.current.has(j.jobId));
+    const done = jobs.filter((j) => isTerminal(j.status) && !mappedRef.current.has(j.jobId));
     if (done.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -216,15 +214,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         // Push the freshly-enriched cards into the query cache so every view (My
         // words, the word page…) shows the filled-in meaning/example without an F5.
         qc.setQueryData(["words", accountId], list);
+        const ids = new Set(done.flatMap((j) => j.cardIds ?? []));
+        updateWordCaches(qc, accountId, list.filter((w) => ids.has(w.id)));
         qc.invalidateQueries({ queryKey: ["stats"] });
-        const wanted = new Set(done.flatMap((j) => j.words).map((w) => w.trim().toLowerCase()));
-        const map: Record<string, string> = {};
-        for (const w of list) {
-          const k = w.word.trim().toLowerCase();
-          if (wanted.has(k) && !map[k]) map[k] = w.id;
-        }
         done.forEach((j) => mappedRef.current.add(j.jobId));
-        setWordIds((prev) => ({ ...prev, ...map }));
       } catch {
         /* ignore — links just won't be available */
       }
@@ -239,7 +232,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (jobs.length === 0) return null;
     const allTerminal = jobs.every((j) => isTerminal(j.status));
     const status: ImportTracker["status"] = allTerminal
-      ? jobs.every((j) => j.status === "failed")
+      ? jobs.some((j) => j.status === "failed" || j.errors.length > 0)
         ? "failed"
         : jobs.some((j) => j.status === "cancelled")
           ? "cancelled"
@@ -253,6 +246,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       total: jobs.reduce((s, j) => s + j.total, 0),
       processed: jobs.reduce((s, j) => s + j.processed, 0),
       words: jobs.flatMap((j) => j.words),
+      cardIds: jobs.flatMap((j) => j.words.map((_, i) => j.cardIds?.[i])),
       removed: jobs.reduce((s, j) => s + (j.removed ?? 0), 0),
       errors: jobs.flatMap((j) => j.errors),
       errorMessage: jobs.find((j) => j.errorMessage)?.errorMessage ?? null,
@@ -333,7 +327,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform", trackerOpen && "rotate-180")} />
                   )}
                 </button>
-                {running && !adding && (
+                {running && !adding && jobs.some((j) => !isTerminal(j.status) && j.canUndo !== false) && (
                   <button
                     type="button"
                     onClick={() => void stopTracker()}
@@ -368,7 +362,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                       {tracker.words.map((word, index) => {
                         const done = index < tracker.processed;
                         const active = index === tracker.processed && tracker.status !== "completed" && !adding;
-                        const id = wordIds[word.trim().toLowerCase()];
+                        const id = tracker.cardIds[index];
                         const label = (
                           <span className={done ? "text-sage-deep" : active ? "font-semibold text-ink" : "text-ink-soft"}>
                             {word}

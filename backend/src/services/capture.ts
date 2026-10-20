@@ -445,8 +445,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
       );
     }
   }
-  // The example before the details: the pages poll until the part of speech lands,
-  // so their own sentence has to be there by then to be seen without a reload.
+  // Save the personalized sentence before finishing the upgrade.
   if (personal && entry.example && brief) {
     let written = { sentence: entry.example, translation: entry.exampleTranslation };
     // The word must be in it as a word, as the pool's are: 出发之前 has 之 only inside
@@ -489,7 +488,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // Two by default: a word the pool has no sentence for (off the lists, a sense of
   // its own), or whose own one the editor turned down, gets another of theirs,
   // written to differ from what is there.
-  if (personal && brief) {
+  if (opts.withExample !== false && opts.exampleStyle !== "none" && !met) {
     const have = await prisma.example.findMany({ where: { wordId: card.id }, select: { sentenceEn: true } });
     if (have.length < 2) {
       await runExampleSearch({
@@ -501,10 +500,11 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
         exampleStyle: style,
         level: opts.level,
         avoid: have.map((e) => e.sentenceEn),
-        brief,
+        brief: brief ?? await exampleBrief(card.userId, card.sourceLang, card.id),
         sense: own?.described,
-      }).catch((err) => console.error(`[capture] second example failed for ${card.word}`, err));
+      });
     }
+    if (await prisma.example.count({ where: { wordId: card.id } }) < 2) throw new Error("Example generation returned no usable sentence");
   }
   // An HSK word's part of speech and family are its page's, the same for everyone
   // (services/wordPages.ts) — the picked sense's own part of speech (背 «нести на

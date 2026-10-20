@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type LookupHit } from "@/lib/api";
@@ -130,7 +130,7 @@ export function AddWordForm({
   const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
-  const { show } = useToast();
+  const { show, startAdd } = useToast();
   const { confirm, choose } = useDialog();
 
   const [mode, setMode] = useState<Mode>("auto");
@@ -352,6 +352,7 @@ export function AddWordForm({
 
   // Adds a word. `manual:true` skips the AI agents and creates a bare/manual
   // card — used in Manual mode.
+  const checkingAdd = useRef(false);
   const mutation = useMutation({
     mutationFn: async ({ chosen, manual, sourceLangOverride, level, exampleStyle, sense, senseIndex, asTyped }: AddVars) => {
       const base = {
@@ -361,43 +362,51 @@ export function AddWordForm({
         targetLang,
         notes: notes.trim() || undefined,
       };
-      let created;
-      if (manual) {
-        const fromForm = mode === "manual";
-        const rows = fromForm ? manualEx.filter((r) => r.en.trim()).slice(0, MAX_EX) : [];
-        const single = rows.length === 1 ? rows[0] : undefined;
-        created = await api.addWordManual({
-          ...base,
-          meaningZh: fromForm ? meaning.trim() || undefined : undefined,
-          example: single
-            ? { sentenceEn: single.en.trim(), sentenceZh: single.tr.trim() || undefined, sourceName: src.trim() || undefined }
-            : undefined,
-        });
-        // More than one example → set the full list on the freshly-created card.
-        if (rows.length > 1) {
-          created = await api.updateWord(created.id, {
-            examples: rows.map((r) => ({ sentenceEn: r.en.trim(), sentenceZh: r.tr.trim(), sourceName: src.trim() || "Manual entry" })),
+      const progress = !manual ? startAdd([base.word]) : null;
+      try {
+        let created;
+        if (manual) {
+          const fromForm = mode === "manual";
+          const rows = fromForm ? manualEx.filter((r) => r.en.trim()).slice(0, MAX_EX) : [];
+          const single = rows.length === 1 ? rows[0] : undefined;
+          created = await api.addWordManual({
+            ...base,
+            meaningZh: fromForm ? meaning.trim() || undefined : undefined,
+            example: single
+              ? { sentenceEn: single.en.trim(), sentenceZh: single.tr.trim() || undefined, sourceName: src.trim() || undefined }
+              : undefined,
+          });
+          // More than one example → set the full list on the freshly-created card.
+          if (rows.length > 1) {
+            created = await api.updateWord(created.id, {
+              examples: rows.map((r) => ({ sentenceEn: r.en.trim(), sentenceZh: r.tr.trim(), sourceName: src.trim() || "Manual entry" })),
+            });
+          }
+        } else {
+          created = await api.addWord({
+            ...base,
+            level,
+            // CEFR synonym levels are for exam prep in other languages; Chinese has HSK.
+            synonymLevel: usesHsk(base.sourceLang) ? undefined : getSynonymLevel() || undefined,
+            exampleStyle,
+            // Free plan: never send Pro-only params (web source, custom meaning) — the
+            // UI locks them, this is the safety net against a stale pref. Every card
+            // gets two examples, the pool's and their own: no count to send.
+            exampleSource: pro ? getExampleSource() : "ai",
+            meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
+            sense,
+            senseIndex,
+            asTyped,
           });
         }
-      } else {
-        created = await api.addWord({
-          ...base,
-          level,
-          // CEFR synonym levels are for exam prep in other languages; Chinese has HSK.
-          synonymLevel: usesHsk(base.sourceLang) ? undefined : getSynonymLevel() || undefined,
-          exampleStyle,
-          // Free plan: never send Pro-only params (web source, custom meaning) — the
-          // UI locks them, this is the safety net against a stale pref. Every card
-          // gets two examples, the pool's and their own: no count to send.
-          exampleSource: pro ? getExampleSource() : "ai",
-          meaningPrompt: pro ? getMeaningPrompt() || undefined : undefined,
-          sense,
-          senseIndex,
-          asTyped,
-        });
+        await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
+        progress?.done(created.job);
+        qc.setQueryData(["word", created.id], created);
+        return created;
+      } catch (error) {
+        progress?.fail();
+        throw error;
       }
-      await Promise.all(collIds.map((id) => api.addWordToCollection(id, created.id)));
-      return created;
     },
     onSuccess: (created) => {
       pushRecentPair(created.sourceLang, created.targetLang);
@@ -427,49 +436,52 @@ export function AddWordForm({
 
   // Run pre-add checks (level prompt + duplicate warning), then add.
   async function addWithChecks(vars: AddVars) {
-    if (mutation.isPending) return;
-    const effLang = vars.sourceLangOverride ?? sourceLang;
+    if (mutation.isPending || checkingAdd.current) return;
+    checkingAdd.current = true;
+    try {
+      const effLang = vars.sourceLangOverride ?? sourceLang;
 
-    // Level applies to AI example search in a concrete source language.
-    let level: string | undefined;
-    if (!vars.manual && effLang !== "auto") {
-      const had = getLearnerLevel(effLang);
-      level = await ensureLevel(effLang);
-      // First-time picker dismissed without a choice → don't proceed.
-      if (!had && !level) return;
-    }
-    // …then (once) what AI-written examples should sound like, shown with sample
-    // sentences in the language being learned. Never blocks the add.
-    let exampleStyle = style;
-    if (!vars.manual && exMode === "ai") exampleStyle = await ensureStyle(effLang);
-
-    // Duplicate warning. Manual-from-form: only when the same translation
-    // already exists; otherwise: any card with the same spelling.
-    if (!skipDupWarn) {
-      const w = vars.chosen.trim().toLowerCase();
-      const matches = (words ?? []).filter((x) => x.word.toLowerCase() === w);
-      const fromForm = vars.manual && mode === "manual";
-      const isDup = fromForm
-        ? matches.some((x) => (x.meaningZh ?? "").trim().toLowerCase() === meaning.trim().toLowerCase())
-        : matches.length > 0;
-      if (isDup) {
-        const existingMeaning = matches.map((x) => x.meaningZh).find(Boolean);
-        let dontAsk = false;
-        const ok = await confirm({
-          title: t("dup.title"),
-          message: existingMeaning
-            ? t("dup.withMeaning", { word: vars.chosen.trim(), meaning: existingMeaning })
-            : t("dup.plain", { word: vars.chosen.trim() }),
-          confirmLabel: t("dup.addAnyway"),
-          checkboxLabel: t("dup.dontAsk"),
-          onResult: (c) => (dontAsk = c),
-        });
-        if (dontAsk) skipDupWarn = true;
-        if (!ok) return;
+      // Level applies to AI example search in a concrete source language.
+      let level: string | undefined;
+      if (!vars.manual && effLang !== "auto") {
+        const had = getLearnerLevel(effLang);
+        level = await ensureLevel(effLang);
+        // First-time picker dismissed without a choice → don't proceed.
+        if (!had && !level) return;
       }
-    }
+      // …then (once) what AI-written examples should sound like, shown with sample
+      // sentences in the language being learned. Never blocks the add.
+      let exampleStyle = style;
+      if (!vars.manual && exMode === "ai") exampleStyle = await ensureStyle(effLang);
 
-    mutation.mutate({ ...vars, level, exampleStyle });
+      // Duplicate warning. Manual-from-form: only when the same translation
+      // already exists; otherwise: any card with the same spelling.
+      if (!skipDupWarn) {
+        const w = vars.chosen.trim().toLowerCase();
+        const matches = (words ?? []).filter((x) => x.word.toLowerCase() === w);
+        const fromForm = vars.manual && mode === "manual";
+        const isDup = fromForm
+          ? matches.some((x) => (x.meaningZh ?? "").trim().toLowerCase() === meaning.trim().toLowerCase())
+          : matches.length > 0;
+        if (isDup) {
+          const existingMeaning = matches.map((x) => x.meaningZh).find(Boolean);
+          let dontAsk = false;
+          const ok = await confirm({
+            title: t("dup.title"),
+            message: existingMeaning
+              ? t("dup.withMeaning", { word: vars.chosen.trim(), meaning: existingMeaning })
+              : t("dup.plain", { word: vars.chosen.trim() }),
+            confirmLabel: t("dup.addAnyway"),
+            checkboxLabel: t("dup.dontAsk"),
+            onResult: (c) => (dontAsk = c),
+          });
+          if (dontAsk) skipDupWarn = true;
+          if (!ok) return;
+        }
+      }
+
+      await mutation.mutateAsync({ ...vars, level, exampleStyle }).catch(() => {});
+    } finally { checkingAdd.current = false; }
   }
 
   // Live "you typed your own language" detection, shown under the field BEFORE

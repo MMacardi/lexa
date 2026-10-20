@@ -2,26 +2,24 @@
 
 Updated: 2026-10-19. Replace stale notes; keep under 30 lines.
 
-- Task complete: `PLAN-learner-bug-batch.md` Part 1 (connection/startup).
-- Next explicit session: Part 2 (example progress after every add); Parts 2–6 open.
-  Stop after Part 1 in this session; previous Reader/Mika plan is complete.
-- Transient auth failures preserve the shell; minimal display snapshot and scoped
-  IndexedDB words/details support cached reading. Server cookie/invite gates remain
-  authoritative. Logout/switch/revocation clear caches; offline logout retries.
-- Queued writes now carry an account owner; legacy queues require a matching old
-  prefs marker. Status no longer covers phone grades. Failed quick-add preloads
-  are handled; verified refresh cancels pending cache reads before fetching.
-- `/auth/me.hasWords` removes full-list onboarding blocking; no schema/migrations.
-- Checks passed: backend `npx tsc --noEmit -p .` (Prisma client regenerated), final
-  frontend `npx next build` (existing lint warnings), focused diff/reference review.
-- Final local production-build flows pass: desktop Chromium; phone Chromium 360,
-  iPhone 13 WebKit, Firefox 390. Offline read/review/queue/reload, reconnect, timeout,
-  5xx, 401/403, invite revocation, 404, switching, logout and onboarding covered.
-- `frontend/scripts/check-connection.mjs` creates/deletes only its test accounts;
-  `measure-startup.mjs` records before/after; evidence and limits are in the plan.
-- Cached slow-API word paint: 4,440 → 930 ms. Uncached assets/content still need
-  network; no PWA rewrite. First dev compilation varied; no first-visit speed claim.
+- Task complete: `PLAN-learner-bug-batch.md` Part 2 (example progress after every add).
+- Word enrichment/example states persist independently; single adds use the import
+  queue. Retry preserves the original sense/options and card, including partial
+  example failure. Explicit no-example stays disabled; Reader translation is tracked.
+- Main/dictionary/Reader/popup progress updates query + offline caches; job links
+  use actual card IDs. Double-tap guards and retry cancellation preserve saved cards.
+- Migration `20261019180000_card_example_progress` applied to local Docker DB :5433;
+  two status columns only, no example/schedule rewrites. Server applies on startup.
+- Passed: backend tsc, final frontend build (existing lint warnings), focused backend
+  example-progress checks, existing enrich-fast checks, full desktop Reader/Mika fixtures.
+- Final production-build UI suite passes desktop Chromium, phone Chromium 360,
+  iPhone 13 WebKit and Firefox 390, including console checks and phone layout.
+- A held job stayed visibly pending 125 seconds, then completed without reload;
+  expired leases, navigation/reload and both IndexedDB snapshots verified.
+- Plan/backlog updated; focused diff, ownership and schema/persistence review passed.
+- Local :3001 runs a production build via `.playwright-cli/compose.production.yml`;
+  default `docker compose up` restores dev command. Restart for changed host sources.
+- Stop after Part 2. Next explicit session is Part 3; Parts 3–6 remain open.
 - Preserve unrelated modified `frontend/.env.example`, untracked `h3.txt`, `p.out`.
-- Docker dev file watching missed some host edits; restart before retesting changes.
-- Grouped-word Part 4 still needs actual seven-day evidence (~2026-10-21 earliest).
-- Landing work stays deferred until explicitly requested. Workspace-only access.
+- Grouped-word proof still needs seven-day evidence (~2026-10-21 earliest).
+- Landing work remains deferred until explicitly requested. Workspace-only access.

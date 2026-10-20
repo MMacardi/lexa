@@ -143,6 +143,7 @@ export default function ReaderPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [queueing, setQueueing] = useState(false);
+  const queueingRef = useRef(false);
   // whole-text translation (on-demand; cached for the text it was made from)
   const [translation, setTranslation] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
@@ -1045,7 +1046,8 @@ export default function ReaderPage() {
 
   async function addSelected() {
     const keys = Array.from(selected);
-    if (keys.length === 0 || busy) return;
+    if (keys.length === 0 || busy || queueingRef.current) return;
+    queueingRef.current = true;
     const enrich = isAiSupported(sourceLang);
     setQueueing(true);
     try {
@@ -1074,6 +1076,7 @@ export default function ReaderPage() {
     } catch (e) {
       show({ icon: "⚠️", title: t("reader.someFailed", { n: keys.length }), subtitle: errText(e, t) });
     } finally {
+      queueingRef.current = false;
       setQueueing(false);
     }
   }

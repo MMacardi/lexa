@@ -145,19 +145,19 @@ revocation and the unchanged server 403 gate, `/auth/me` 401/403, data-route 403
 detail 404 and empty-account onboarding. No unexpected JavaScript page errors;
 the harness classifies WebKit's deliberately aborted local-resource reports as
 expected network failures. Phone offline layout inspected; status does not cover
-the words or grading controls. Parts 2–6 remain open.
+the words or grading controls. Part 1 ended with Parts 2–6 open; see Part 2 below.
 
 ## Part 2 — Example progress after every add
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-19).
 
-**Code findings.** `components/AddWordForm.tsx` dictionary rows use `addHit` →
+**Original code findings.** `components/AddWordForm.tsx` dictionary rows use `addHit` →
 `addWithChecks` → the same mutation as the main field; quick add does not simply
 omit generation. `components/DictMeaningLabel.tsx` infers pending status from
 `dictMeaning` / `dictDefault`, missing part of speech and a two-minute window,
 not example generation. This can stop polling a dictionary-complete card before
-its personalized example arrives: a likely contributor, not a reproduced runtime
-diagnosis. Word pages already poll through this helper.
+its personalized example arrives; the runtime reproduction is recorded below.
+Word pages already polled through this helper.
 
 **Implement.** Reproduce both 顺序 add paths and establish the actual job lifecycle.
 Track example readiness separately from meaning using reliable server/job state
@@ -176,6 +176,53 @@ Preserve the tracker behavior completed in the previous Reader/Mika plan.
 create once → open immediately → visibly pending → examples arrive without reload.
 Test work beyond two minutes, failure/retry, navigation/reload, disabled examples,
 already-owned words, intentional separate senses and double taps. Record paths tested.
+
+**Implementation (2026-10-19).** Reproduced both `顺序` paths: creation returned in
+36/23 ms, already with a part of speech and one pool sentence; the old pending
+helper returned false, then the personalized example arrived about four seconds
+later. Single-card upgrades now use the durable import queue. Word records track
+`enrichmentStatus` and `exampleStatus` independently; polling has no age cutoff.
+The worker records queued/generating/ready/failed states, including failures after
+only one of two examples. Explicit no-example cards remain disabled. Retries queue
+the existing card once and preserve sense/style/level options; cancelling a retry
+cannot undo the original add. Reader/popup captures track their supplied sentence's
+translation; their second personalized example is still Part 3.
+
+List rows (including phones), immediate card opening and the existing tracker show
+progress; completion refreshes list/detail query and offline caches. Tracker links
+use the job's actual card IDs, including same-spelling cards and skipped words.
+Synchronous guards cover double taps in the form, Reader and example popup. All
+new copy has ru/en/zh versions. Migration `20261019180000_card_example_progress`
+adds two terminal-by-default status columns; existing examples and schedules stay
+as they were. Applied only to local Docker Postgres on port 5433 for verification.
+
+**Verification.** Backend `npx tsc --noEmit -p .` and final frontend `npx next build`
+pass (existing lint warnings). `backend/scripts/check-example-progress.ts` passes:
+both add variants, dictionary-complete/three-minute-old pending cards, model failure,
+concurrent retry, partial-example recovery, original sense, disabled examples,
+Reader translation, already-owned skip, intentional duplicates, Stop and retry
+cancellation. The existing `check-enrich-fast.ts` passes, retaining two examples,
+pool attribution, level targeting and three-card concurrency.
+
+`frontend/scripts/check-example-progress.mjs` exercises real local Qwen/worker
+completion with controlled job holds: main field, dictionary row/plus, two-word
+Reader batch and example-word popup; open while pending, navigation/reload, list
+progress, failure/retry, disabled examples, duplicate confirmation, double taps and
+both IndexedDB snapshots. Desktop Chromium, phone Chromium 360, iPhone 13 WebKit
+and Firefox 390 pass on the final production build, including the console check.
+A held job stayed
+visibly pending for 125 seconds before real worker completion without reload;
+expired-lease recovery is also exercised. This is a controlled slow-job check,
+not a claim about normal model latency. Screenshots: `.playwright-cli/example-progress/`.
+WebKit navigation-cancelled local resource reports are classified separately, as
+in Part 1. The harness lets lazy component scripts finish before full navigation
+while API polling continues; this avoids a Firefox navigation-aborted chunk report.
+The full desktop `check-reader-mika.mjs --fixtures` regression passes,
+including tracker fade/hover/focus, links, failed-state persistence and new work.
+Its fixture now includes job card IDs and its stale alignment-copy assertion was
+updated to the existing UI wording. Test accounts are deleted by both harnesses.
+Focused diff, ownership, migration and learner-state persistence review passed.
+Parts 3–6 remain open; stop after Part 2.
 
 ## Part 3 — Capture examples, preferences and removal
 

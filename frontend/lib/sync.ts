@@ -69,6 +69,12 @@ export async function mirrorWords(accountId: string, words: Word[]): Promise<voi
   await kvSet(wordsKey(accountId), words, () => sameScope(accountId, revision));
 }
 
+export async function mirrorWord(accountId: string, word: Word): Promise<void> {
+  const { revision } = cacheScope();
+  if (cacheScope().owner !== accountId) return;
+  await kvSet(wordKey(accountId, word.id), word, () => sameScope(accountId, revision));
+}
+
 /** Send a review grade now, or queue it if offline/failed. Returns true if it
  *  reached the server. */
 export async function submitReview(wordId: string, grade: number, source: ReviewSource = "review"): Promise<boolean> {

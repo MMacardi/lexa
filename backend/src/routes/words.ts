@@ -20,6 +20,7 @@ import { previewImportedWords, importWordsForUser } from "../services/importWord
 import { listTexts, listCollections as listReaderCollections, getText, createText, updateText, deleteText, startGeneration } from "../services/readerText.js";
 import { listSessions, getSession, createSession, saveSession, deleteSession } from "../services/sceneSession.js";
 import { getImportJobForUser, cancelImportJobForUser } from "../services/importWorker.js";
+import { queueCardUpgrade } from "../services/cardJobs.js";
 import { suggestDailyPicks } from "../agents/coachSuggest.js";
 import { suggestStarterClusters } from "../agents/starterCandidates.js";
 import { importedCardSchema } from "../lib/schemas.js";
@@ -31,7 +32,7 @@ import { hskLevelLeft, hskNextWords, learnWord, levelCards, readyCards, unlearnW
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
 import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
-import { fillMissingPhonetic, refreshCardReadings, upgradeCard } from "../services/capture.js";
+import { fillMissingPhonetic, refreshCardReadings } from "../services/capture.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
 import { segmentChinese } from "../services/segment.js";
 import { wordCharacters } from "../services/characters.js";
@@ -945,8 +946,8 @@ wordsRouter.post("/words/:id/example/manual", async (req, res) => {
 wordsRouter.post("/words/:id/enrich", async (req, res) => {
   if (!(await guardWord(req, res))) return;
   try {
-    await upgradeCard(req.params.id);
-    res.json(await getWord(req.params.id));
+    const job = await queueCardUpgrade(req.params.id);
+    res.json({ ...await getWord(req.params.id), job });
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });

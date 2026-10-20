@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { runExampleSearch } from "../agents/exampleSearch.js";
 import { runTutor } from "../agents/tutor.js";
 import { enrichWordEntry } from "../agents/enrich.js";
@@ -7,8 +6,9 @@ import { prisma } from "./db.js";
 import { runAsUser } from "../lib/usageContext.js";
 import { translateDictMeanings, upgradeCard } from "./capture.js";
 import { isChinese } from "./cedict.js";
+import { queuedCardsSchema } from "./cardJobs.js";
+import type { z } from "zod";
 
-const queuedCardsSchema = z.array(z.object({ id: z.string(), word: z.string() }));
 const LEASE_MS = 5 * 60_000;
 const POLL_MS = 2_000;
 let working = false;
@@ -79,7 +79,7 @@ const CHUNK = 3;
 
 /** Process a claimed job's cards a few at a time and persist progress. Exported for scripts/check-enrich-fast.ts. */
 export async function processImportJob(job: ImportJob) {
-  let cards: { id: string; word: string }[];
+  let cards: z.infer<typeof queuedCardsSchema>;
   try {
     cards = queuedCardsSchema.parse(job.cards);
   } catch {
@@ -123,6 +123,15 @@ export async function processImportJob(job: ImportJob) {
       data: { status: "completed", completedAt: new Date(), leaseUntil: null },
     });
   } catch (error) {
+    const ids = cards.map((c) => c.id);
+    await prisma.word.updateMany({
+      where: { id: { in: ids }, userId: job.userId, enrichmentStatus: { in: ["queued", "generating"] } },
+      data: { enrichmentStatus: "failed" },
+    });
+    await prisma.word.updateMany({
+      where: { id: { in: ids }, userId: job.userId, exampleStatus: { in: ["queued", "generating"] } },
+      data: { exampleStatus: "failed" },
+    });
     await prisma.importJob.updateMany({
       where: { id: job.id, status: "processing" },
       data: { status: "failed", errorMessage: (error as Error).message, completedAt: new Date(), leaseUntil: null },
@@ -131,16 +140,23 @@ export async function processImportJob(job: ImportJob) {
 }
 
 /** Enrich one queued card; returns what to report when it is gone or left blank. */
-async function processCard(job: ImportJob, card: { id: string; word: string }): Promise<string | null> {
+async function processCard(job: ImportJob, card: z.infer<typeof queuedCardsSchema>[number]): Promise<string | null> {
   const word = await prisma.word.findUnique({
     where: { id: card.id },
-    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true },
+    select: { id: true, word: true, userId: true, sourceLang: true, targetLang: true, meaningZh: true, exampleStatus: true },
   });
   if (!word || word.userId !== job.userId) return `${card.word}: card no longer exists`;
 
+  const wantsExample = job.generateExamples && job.exampleStyle !== "none";
+  const tracksExample = wantsExample || ["queued", "generating"].includes(word.exampleStatus);
+  await prisma.word.updateMany({
+    where: { id: word.id },
+    data: { enrichmentStatus: "generating", ...(tracksExample ? { exampleStatus: "generating" } : {}) },
+  });
+
   let failed = false;
   try {
-    const wantAiExample = job.generateExamples && job.exampleSource !== "web";
+    const wantAiExample = wantsExample && job.exampleSource !== "web";
     if (job.generateDetails && isChinese(word.sourceLang) && job.exampleSource !== "web") {
       // Chinese: the card already stands on the dictionary (instant capture).
       // One grounded call upgrades it — the meaning in the learner's language,
@@ -150,6 +166,7 @@ async function processCard(job: ImportJob, card: { id: string; word: string }): 
         withExample: wantAiExample,
         level: job.level ?? undefined,
         exampleStyle: job.exampleStyle ?? undefined,
+        ...card.upgrade,
       });
       if (!job.generateExamples) await translateProvidedExample(word);
     } else if (job.generateDetails && wantAiExample) {
@@ -200,7 +217,7 @@ async function processCard(job: ImportJob, card: { id: string; word: string }): 
           preserveMeaning: Boolean(word.meaningZh?.trim()),
         });
       }
-      if (job.generateExamples) {
+      if (wantsExample) {
         await runExampleSearch({
           userId: job.userId,
           word: word.word,
@@ -219,10 +236,12 @@ async function processCard(job: ImportJob, card: { id: string; word: string }): 
     console.error(`Import enrichment failed for ${card.word}`, error);
     failed = true;
   }
+  const examples = await prisma.example.count({ where: { wordId: word.id } });
+  if (wantsExample && !examples) failed = true;
+  const exampleFailed = failed;
   // Never leave a blank card. If enrichment threw or produced no meaning,
-  // fall back to a plain translation so the card is at least usable. Only a
-  // card that is STILL blank afterwards counts as skipped — a card that got
-  // its meaning (just missing example/synonyms) is fine and isn't reported.
+  // fall back to a plain translation so the card is at least usable. Report
+  // incomplete enrichment even when the fallback left a usable meaning.
   const fresh = await prisma.word.findUnique({ where: { id: word.id }, select: { meaningZh: true } });
   if (!fresh?.meaningZh?.trim()) {
     try {
@@ -233,12 +252,19 @@ async function processCard(job: ImportJob, card: { id: string; word: string }): 
       });
       const meaning = translation.trim();
       if (meaning) await prisma.word.update({ where: { id: word.id }, data: { meaningZh: meaning } });
-      else if (failed) return card.word;
+      else failed = true;
     } catch {
-      if (failed) return card.word;
+      failed = true;
     }
   }
-  return null;
+  await prisma.word.updateMany({
+    where: { id: word.id },
+    data: {
+      enrichmentStatus: failed ? "failed" : "ready",
+      ...(tracksExample ? { exampleStatus: exampleFailed ? "failed" : "ready" } : {}),
+    },
+  });
+  return failed ? card.word : null;
 }
 
 /**
@@ -257,6 +283,7 @@ async function translateProvidedExample(word: { id: string; sourceLang: string; 
       sourceLang: word.sourceLang,
       targetLang: word.targetLang,
     });
+    if (!translation.trim()) throw new Error("Example translation is empty");
     await prisma.example.updateMany({ where: { id: ex.id, sentenceEn: ex.sentenceEn, sentenceZh: ex.sentenceZh }, data: { sentenceZh: translation } });
   }
 }
@@ -280,8 +307,17 @@ export async function cancelImportJobForUser(jobId: string, telegramId: string) 
   });
   const parsed = queuedCardsSchema.safeParse(job.cards);
   const ids = parsed.success ? parsed.data.map((c) => c.id) : [];
-  const removed = ids.length
-    ? (await prisma.word.deleteMany({ where: { id: { in: ids }, userId: user.id, reps: 0, reviewCount: 0 } })).count
+  await prisma.word.updateMany({
+    where: { id: { in: ids }, userId: user.id, enrichmentStatus: { in: ["queued", "generating"] } },
+    data: { enrichmentStatus: "failed" },
+  });
+  await prisma.word.updateMany({
+    where: { id: { in: ids }, userId: user.id, exampleStatus: { in: ["queued", "generating"] } },
+    data: { exampleStatus: "failed" },
+  });
+  const undoIds = parsed.success ? parsed.data.filter((c) => c.undoAdd !== false).map((c) => c.id) : [];
+  const removed = undoIds.length
+    ? (await prisma.word.deleteMany({ where: { id: { in: undoIds }, userId: user.id, reps: 0, reviewCount: 0 } })).count
     : 0;
   const state = await getImportJobForUser(jobId, telegramId);
   return state ? { ...state, removed } : null;
@@ -290,7 +326,7 @@ export async function cancelImportJobForUser(jobId: string, telegramId: string) 
 export async function getImportJobForUser(jobId: string, telegramId: string) {
   const user = await prisma.user.findUnique({ where: { telegramId }, select: { id: true } });
   if (!user) return null;
-  return prisma.importJob.findFirst({
+  const job = await prisma.importJob.findFirst({
     where: { id: jobId, userId: user.id },
     select: {
       id: true,
@@ -301,6 +337,10 @@ export async function getImportJobForUser(jobId: string, telegramId: string) {
       errorMessage: true,
       createdAt: true,
       completedAt: true,
+      cards: true,
     },
   });
+  if (!job) return null;
+  const parsed = queuedCardsSchema.safeParse(job.cards);
+  return { ...job, cards: parsed.success ? parsed.data.map(({ id, word }) => ({ id, word })) : [] };
 }

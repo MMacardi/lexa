@@ -161,6 +161,7 @@ export async function importWordsForUser(params: {
           synonyms: params.keepProvidedExtras && item.synonyms.length ? item.synonyms : (page?.synonyms ?? []),
           collocations: page?.collocations ?? [],
           antonyms: page?.antonyms ?? [],
+          exampleStatus: params.keepProvidedExtras && item.example ? "ready" : "disabled",
           collections: collectionIds.length ? { connect: collectionIds.map((id) => ({ id })) } : undefined,
           examples:
             params.keepProvidedExtras && item.example
@@ -206,19 +207,32 @@ export async function importWordsForUser(params: {
 
   const job =
     created.length && (params.generateDetails || params.generateExamples)
-      ? await prisma.importJob.create({
-          data: {
-            userId: user.id,
-            total: created.length,
-            generateDetails: Boolean(params.generateDetails),
-            generateExamples: Boolean(params.generateExamples),
-            level: params.level ?? null,
-            exampleStyle: params.exampleStyle ?? null,
-            exampleSource: params.exampleSource ?? null,
-            cards: created,
-            errors: [],
-          },
-          select: { id: true, status: true, total: true, processed: true },
+      ? await prisma.$transaction(async (tx) => {
+          await tx.word.updateMany({
+            where: { id: { in: created.map((c) => c.id) }, userId: user.id },
+            data: {
+              enrichmentStatus: "queued",
+              ...(params.generateExamples && params.exampleStyle !== "none" ? { exampleStatus: "queued" } : {}),
+            },
+          });
+          if (params.generateDetails && params.keepProvidedExtras) await tx.word.updateMany({
+            where: { id: { in: created.map((c) => c.id) }, examples: { some: { sentenceZh: "" } } },
+            data: { exampleStatus: "queued" },
+          });
+          return tx.importJob.create({
+            data: {
+              userId: user.id,
+              total: created.length,
+              generateDetails: Boolean(params.generateDetails),
+              generateExamples: Boolean(params.generateExamples),
+              level: params.level ?? null,
+              exampleStyle: params.exampleStyle ?? null,
+              exampleSource: params.exampleSource ?? null,
+              cards: created,
+              errors: [],
+            },
+            select: { id: true, status: true, total: true, processed: true },
+          });
         })
       : null;
 

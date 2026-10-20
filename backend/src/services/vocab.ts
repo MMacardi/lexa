@@ -16,10 +16,11 @@ import { productionDays, productionSummary } from "./production.js";
 import { hskTagFor } from "./hsk.js";
 import { FOCUS } from "../lib/env.js";
 import { cedictCredit, cedictInventory, isChinese, measureWordsFor } from "./cedict.js";
-import { cardSense, dictCardFields, hasDictMeaning, pageCardFields, pickedSense, upgradeCard } from "./capture.js";
+import { cardSense, dictCardFields, hasDictMeaning, pageCardFields, pickedSense } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
 import { track } from "./analytics.js";
+import { queueCardUpgrade } from "./cardJobs.js";
 import { headGloss, hskPage, pageSenses } from "./wordPages.js";
 import { asTimeZone, beforeExam, DEFAULT_TZ, easyFloor, placeDue, type Placing } from "./schedule.js";
 
@@ -151,22 +152,21 @@ export async function addWordForUser(params: {
     }
     const upgrade = { level: params.level, exampleStyle: params.exampleStyle };
     // Two examples by default, the pool's and theirs (or two of theirs): upgradeCard.
-    void upgradeCard(created.id, {
+    const job = await queueCardUpgrade(created.id, {
       ...upgrade,
       synonymLevel: params.synonymLevel,
       withExample,
       meaningInstruction: params.meaningPrompt,
       sense,
-    })
-      // The card already stands on the dictionary; the word page offers "fill this in".
-      .catch((err) => console.error(`[capture] upgrade failed for ${params.word}`, err));
+    });
     track("word_add", { telegramId: params.telegramId, props: { mode: "ai", dict: true, ...asTyped } });
-    return withDerived(
-      await prisma.word.findUniqueOrThrow({
+    return {
+      ...withDerived(await prisma.word.findUniqueOrThrow({
         where: { id: created.id },
         include: { examples: { orderBy: { createdAt: "desc" } }, collections: { select: { id: true, name: true } } },
-      }),
-    );
+      })),
+      job,
+    };
   }
 
   let wordId: string;
@@ -256,6 +256,10 @@ export async function addWordForUser(params: {
 
   track("word_add", { telegramId: params.telegramId, props: { mode: "ai", ...asTyped } });
 
+  await prisma.word.update({ where: { id: wordId }, data: {
+    exampleStatus: withExample ? (await prisma.example.count({ where: { wordId } }) >= 2 ? "ready" : "failed") : "disabled",
+  } });
+
   return prisma.word.findUniqueOrThrow({
     where: { id: wordId },
     include: {
@@ -307,7 +311,7 @@ export async function addWordManual(params: {
   // Duplicates are allowed, so always create a new card rather than upserting
   // onto an existing same-spelling row.
   const wordRecord = await prisma.word.create({
-    data: { userId: user.id, word, ...data },
+    data: { userId: user.id, word, ...data, exampleStatus: params.example?.sentenceEn?.trim() ? "ready" : "disabled" },
   });
 
   if (params.example?.sentenceEn?.trim()) {

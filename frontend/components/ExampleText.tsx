@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { HighlightWord } from "@/components/HighlightWord";
 import { WordMeaningPop, type WordPopTarget } from "@/components/WordMeaningPop";
@@ -73,6 +73,7 @@ export function ExampleText({
   const [pop, setPop] = useState<WordPopTarget | null>(null);
   const [span, setSpan] = useState<{ from: number; to: number } | null>(null);
   const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -153,7 +154,8 @@ export function ExampleText({
   // The Reader's capture: the dictionary's card at once, filled in behind, and this
   // sentence as its example (attributed to the card it was met on).
   async function add(target: WordPopTarget) {
-    if (adding || !targetLang) return;
+    if (addingRef.current || !targetLang) return;
+    addingRef.current = true;
     setAdding(true);
     try {
       const r = await api.batchAddWords({
@@ -172,6 +174,7 @@ export function ExampleText({
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   }

@@ -1,13 +1,13 @@
 "use client";
 
 import { HskBadge } from "@/components/HskBadge";
-import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
+import { DictMeaningLabel, examplePending, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { wordsQuery } from "@/lib/wordQueries";
+import { updateWordCaches, wordsQuery } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
@@ -81,20 +81,27 @@ export default function WordsPage() {
     refetchInterval: (q) => ((q.state.data ?? []).filter(upgradePending).length > MAX_POLLED ? pollWhileUpgrading(q.state.data) : false),
   });
   // Polling only the cards still filling in, not the whole list (~600 KB for 800
-  // cards, every 3 s for up to two minutes after an add).
+  // cards, every 3 s until the server reports completion).
   const pendingIds = (data ?? []).filter(upgradePending).map((w) => w.id);
   const pendingKey = pendingIds.join(",");
   useEffect(() => {
     const ids = pendingKey ? pendingKey.split(",") : [];
     if (!ids.length || ids.length > MAX_POLLED) return;
-    const timer = setInterval(async () => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
       const fresh = await Promise.all(ids.map((id) => api.getWord(id).catch(() => null)));
-      qc.setQueryData<Word[]>(["words", accountId], (list) =>
-        list?.map((w) => fresh.find((f) => f?.id === w.id) ?? w),
-      );
-    }, POLL_MS);
-    return () => clearInterval(timer);
+      if (active) {
+        updateWordCaches(qc, accountId, fresh.filter((w): w is Word => !!w));
+        timer = setTimeout(poll, POLL_MS);
+      }
+    };
+    timer = setTimeout(poll, POLL_MS);
+    return () => { active = false; clearTimeout(timer); };
   }, [pendingKey, qc, accountId]);
+  useEffect(() => {
+    if (data) updateWordCaches(qc, accountId, data.filter((w) => !!qc.getQueryData(["word", w.id])), { list: false });
+  }, [data, qc, accountId]);
   const { data: collections } = useQuery({
     queryKey: ["collections", accountId],
     queryFn: () => api.collections(accountId),
@@ -375,6 +382,11 @@ export default function WordsPage() {
                       {shownMeaning(w)?.trim() ? w.meaningZh : <span className="inline-block h-3 w-28 animate-pulse rounded bg-sage/25 align-middle" />}
                     </span>
                     <DictMeaningLabel word={w} className="block truncate sm:hidden" />
+                    {(examplePending(w) || w.exampleStatus === "failed") && (
+                      <span className="block truncate text-[11px] text-ink-faint sm:hidden">
+                        {t(examplePending(w) ? "capture.examplePending" : "capture.exampleFailed")}
+                      </span>
+                    )}
                   </Link>
                   <span className="hidden min-w-0 sm:block">
                     <span className={cn("block truncate text-[17px] text-sage-deep", targetFont(w.targetLang))}>
@@ -383,7 +395,7 @@ export default function WordsPage() {
                     <DictMeaningLabel word={w} className="block truncate" />
                   </span>
                   <span className="hidden text-sm font-medium text-ink-soft sm:block">
-                    {w.examples[0]?.sourceName ?? (upgradePending(w) ? t("words.exampleComing") : "—")}
+                    {examplePending(w) ? t("capture.examplePending") : w.exampleStatus === "failed" ? t("capture.exampleFailed") : w.examples[0]?.sourceName ?? "—"}
                   </span>
                   <div className="flex items-center justify-end gap-3">
                     <MasteryDots count={w.reviewCount} />

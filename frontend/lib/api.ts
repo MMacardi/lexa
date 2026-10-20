@@ -43,6 +43,9 @@ export interface Word {
   nextReviewAt: string | null;
   createdAt: string;
   examples: Example[];
+  enrichmentStatus?: "queued" | "generating" | "ready" | "failed";
+  exampleStatus?: "queued" | "generating" | "ready" | "failed" | "disabled";
+  job?: Pick<ImportJob, "id" | "status" | "total" | "processed"> | null;
   collections?: { id: string; name: string }[];
   // Credit when the card was copied from someone's shared deck.
   sharedFrom?: string | null;
@@ -890,6 +893,7 @@ export interface ImportOptions {
 }
 
 export interface ImportJob {
+  cards: { id: string; word: string }[];
   id: string;
   status: "queued" | "processing" | "completed" | "failed" | "cancelled";
   total: number;

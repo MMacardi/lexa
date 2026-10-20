@@ -192,13 +192,18 @@ for (const config of configs.filter((c) => !selectedConfig || c.name === selecte
     // Actual saved cards, with controlled enrichment completion/error timing.
     let job = 0;
     let fail = false;
+    let jobCards = [];
     await page.route('**/api/words/batch', async (route) => {
-      const response = await route.fetch({ postData: JSON.stringify({ ...route.request().postDataJSON(), enrich: false }) });
+      const payload = route.request().postDataJSON();
+      const response = await route.fetch({ postData: JSON.stringify({ ...payload, enrich: false }) });
       const body = await response.json();
+      const saved = await ctx.request.get(api + '/api/words').then((r) => r.json());
+      const wanted = payload.items?.map((i) => i.word) ?? payload.words ?? [];
+      jobCards = wanted.map((word) => saved.find((w) => w.word === word)).filter(Boolean).map(({ id, word }) => ({ id, word }));
       await route.fulfill({ response, json: { ...body, job: { id: 'uitracker' + ++job, total: 1 } } });
     });
     await page.route('**/api/words/import/uitracker*', async (route) => {
-      await route.fulfill({ status: 200, json: { id: 'uitracker' + job, total: 1, processed: 1, status: fail ? 'failed' : 'completed', errors: fail ? ['test failure'] : [], errorMessage: fail ? 'test failure' : null } });
+      await route.fulfill({ status: 200, json: { id: 'uitracker' + job, total: 1, processed: 1, status: fail ? 'failed' : 'completed', errors: fail ? ['test failure'] : [], errorMessage: fail ? 'test failure' : null, cards: jobCards } });
     });
     async function addWord(term) {
       // Clear selection by toggling any selected source words first.
@@ -261,7 +266,7 @@ for (const config of configs.filter((c) => !selectedConfig || c.name === selecte
     assert.equal(await page.getByTestId('translation-highlight').textContent(), 'Мамина');
     await original.getByRole('button', { name: '了', exact: true }).click();
     assert.equal(await page.getByTestId('translation-highlight').textContent(), 'Она ушла.');
-    await page.getByText('У слова нет отдельного перевода — подсвечено предложение целиком.', { exact: true }).waitFor();
+    await page.getByText('Точное соответствие слова не найдено — подсвечено предложение целиком.', { exact: true }).waitFor();
     console.log(name + ': possessive phrase and particle sentence fallback');
     // Old cached example translations change only after an explicit editor save.
     const oldTranslation = 'Мелкий дождь сказал, что завтра едет в Пекин.';

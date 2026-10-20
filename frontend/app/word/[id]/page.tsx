@@ -8,6 +8,7 @@ import Link from "next/link";
 import { api, isTransientError, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { fetchWordCached, readWordCache } from "@/lib/sync";
+import { updateWordCaches } from "@/lib/wordQueries";
 import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, isFixedPair, pairLabel } from "@/lib/langs";
@@ -32,8 +33,8 @@ import { WordSenses } from "@/components/WordSenses";
 import { WordCharacters } from "@/components/WordCharacters";
 import { AddExampleInline } from "@/components/AddExampleInline";
 import { openMikaOnCard } from "@/lib/mobileNav";
-import { DictMeaningLabel, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
-import { Link as LinkIcon, BookOpen, Lightbulb, Sparkles, Trash2 } from "lucide-react";
+import { DictMeaningLabel, examplePending, pollWhileUpgrading, shownMeaning, upgradePending } from "@/components/DictMeaningLabel";
+import { Link as LinkIcon, BookOpen, Lightbulb, Sparkles, Trash2, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 // Heavy, on-demand widgets: the physics word-family graph and the canvas-based
@@ -85,7 +86,7 @@ export default function WordDetailPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const { confirm } = useDialog();
-  const { show } = useToast();
+  const { show, trackImport } = useToast();
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -106,6 +107,9 @@ export default function WordDetailPage() {
     refetchInterval: (q) => pollWhileUpgrading(q.state.data ? [q.state.data] : null),
   });
   useEffect(() => {
+    if (word) updateWordCaches(qc, accountId, [word], { details: false });
+  }, [word, accountId, qc]);
+  useEffect(() => {
     let active = true;
     void readWordCache(accountId, id).then((cached) => {
       const error = qc.getQueryState(["word", id])?.error;
@@ -124,7 +128,7 @@ export default function WordDetailPage() {
       const fresh = await api.enrichWord(word.id);
       qc.setQueryData(["word", id], fresh);
       qc.invalidateQueries({ queryKey: ["words"] });
-      show({ icon: "✨", title: t("capture.filled") });
+      if (fresh.job) trackImport({ jobId: fresh.job.id, telegramId: accountId, words: [fresh.word], total: fresh.job.total, processed: 0, canUndo: false });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
     } finally {
@@ -184,7 +188,8 @@ export default function WordDetailPage() {
   const needsFill =
     isAiSupported(word.sourceLang) &&
     !upgradePending(word) &&
-    (!word.meaningZh?.trim() || Boolean(word.dictMeaning) || neverUpgraded);
+    word.exampleStatus !== "failed" &&
+    (!word.meaningZh?.trim() || Boolean(word.dictMeaning) || neverUpgraded || word.enrichmentStatus === "failed");
 
   return (
     <div className="anim-fade-up space-y-7">
@@ -289,6 +294,18 @@ export default function WordDetailPage() {
           </p>
         )}
       </div>
+
+      {examplePending(word) && (
+        <p role="status" className="flex items-center gap-2 text-sm text-ink-soft" data-testid="example-progress">
+          <Loader2 className="h-4 w-4 animate-spin" />{t("capture.examplePending")}
+        </p>
+      )}
+      {word.exampleStatus === "failed" && (
+        <div role="status" className="flex items-center gap-3 text-sm text-ink-soft" data-testid="example-progress">
+          <span>{t("capture.exampleFailed")}</span>
+          <button type="button" disabled={filling} onClick={() => void fillIn()} className="font-semibold text-sage-deep disabled:opacity-50">{t("errState.retry")}</button>
+        </div>
+      )}
 
       {word.notes && word.notes.trim() && (
         <div className="rounded-[18px] border border-black/[0.06] bg-paper/60 p-4">
