@@ -5,6 +5,11 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
+The 2026-10-20 screenshot follow-up is planned as **Parts 7–18** below. Parts 1–6
+remain complete; these new parts are not implemented or verified yet. Next
+implementation session: **Part 7**. Screenshot numbers refer to the author's
+message; reported symptoms without a visible example still need reproduction.
+
 ## Boundaries and decisions
 
 - Preserve unrelated work: modified `frontend/.env.example`; untracked `h3.txt`
@@ -18,6 +23,18 @@ order, unless the author explicitly chooses another part. The previous
   deduplication: separate senses may be intentional. Do not modify existing data.
 - Grouped-word retention proof remains open until actual seven-day evidence
   exists (earliest approximately 2026-10-21). This explicit bug batch takes priority.
+- For the new batch, Russian explanations must stay Russian while quoted Chinese,
+  examples and pinyin remain available. Preserve en/zh localization and existing
+  language pairs; do not remove language support to fix the Russian experience.
+- The author clarified the AI request: inventory every AI function and count its
+  usage so none are missed before a future paywall. No blanket badge rollout,
+  changing defaults, new payment restriction or pricing decision is requested.
+- Repair Mika's existing personalization/memory in its useful floating popup and
+  full page. This does not reopen hidden Coach/scenes/readiness expansion or bypass
+  the two-week self-test. Keep those surfaces hidden.
+- Reproduce reports against current local code first: some screenshots overlap
+  completed work. Do not undo accepted Part 6 audio or label old screenshots as
+  proof that a current regression was reproduced.
 
 ## Session order and Codex settings
 
@@ -32,6 +49,24 @@ OpenAI requirement. Use GPT-6.1 Sol when available; GPT-6 Sol is a fallback.
 | 4 | Sentence playback: stop, slow speed, placement and consistent pace | GPT-6.1 Sol | High |
 | 5 | Compact popups and short, accurate Reader instructions | GPT-6.1 Sol | Medium |
 | 6 | Diagnose and improve isolated-word Mandarin pronunciation | GPT-6.1 Sol | High |
+
+The new batch is ordered by outcome below. Settings above describe the original
+six sessions; the new sessions do not require a particular model or delegation.
+
+| Part | Outcome | Screenshot / request |
+| --- | --- | --- |
+| 7 | Reader level and vocabulary counts explain the same HSK scale | 1 |
+| 8 | Repeat-tap close, bounded popups, useful pinyin/meaning previews | 3, 14; repeat-tap request |
+| 9 | Numbered and unpunctuated passages retain reliable Mandarin audio | 2, 13 |
+| 10 | Whole-text Reader audio with speed and playback progress | Whole-text audio request; depends on 9 |
+| 11 | Russian dictionary loading and consistent saved meanings | 4, 8; CC-CEDICT question |
+| 12 | Open the existing card; remove stale links and server-status copy | 5, 6, 7 |
+| 13 | Understandable Han-language setting for legacy and new accounts | 9 |
+| 14 | Mika learns and recalls account-specific preferences across chats | 10; floating popup first |
+| 15 | Russian Mika explanations and optional inline ruby pinyin | 11; pinyin-toggle request |
+| 16 | Reader and Mika remain usable at browser zoom | 12 |
+| 17 | My words finds saved Chinese words by unspaced pinyin | nihao → 你好 request |
+| 18 | Complete AI-function inventory and usage accounting | Author's paywall-preparation clarification |
 
 Part 5 can also use GPT-6 Luna / High. For part 6, Astra / Medium is an optional
 escalation after controlled tests leave the cause ambiguous; it cannot replace
@@ -684,6 +719,424 @@ than 序 inside 顺序; faster synthesis is a partial improvement, not acceptanc
 - Author asked to compare only 1-P and 1-C, establishing whether an actual isolated
   native reading meets the requested delivery. Human review and final integration
   remain pending. Sentences remain Cherry. No completion claim/commit/push.
+
+## Part 7 — Reader level and honest HSK vocabulary counts
+
+- [ ] Implement and verify.
+
+**Report.** Screenshot 1 shows `~HSK 3` beside 76 new words, “из них для HSK 4:
+62”. Establish what each number measures before treating 62 as HSK-4-only words.
+
+**Code findings.** `backend/src/services/readerText.ts::estimateLevel` asks the
+model about only the first 1,500 characters and has no selected HSK-version
+input. `frontend/app/reader/page.tsx` counts unique new word keys at **all levels
+up to** `profile.hskTarget` on `profile.hskVersion`, not just at that level.
+`reader.newForTarget` in `frontend/lib/i18n.tsx` does not explain “up to”. Saved or
+generation-requested `level` is also rendered with the same approximate badge.
+
+**Implement.** Make the target-count label explicit: for example, “из них HSK
+1–4: 62”, with correct HSK 7–9 handling and ru/en/zh equivalents. Compute Chinese
+vocabulary difficulty over the complete segmented text on the learner's chosen
+HSK list. Use a documented coverage rule: the lowest level covering 95% of
+HSK-listed word occurrences; keep unique-new-word counts distinct and report
+off-list vocabulary separately. Name the result a vocabulary estimate, not a
+grammar assessment or a learner proficiency score. A few higher-level words
+alone must not force the whole text to the maximum level.
+
+Distinguish an explicitly chosen text/generation level from analyzed vocabulary
+difficulty. Preserve manual choices; do not overwrite saved text content or
+quietly rewrite user metadata. Reopening older texts must not leave an obsolete
+AI estimate masquerading as the new analysis. Avoid a fresh LLM call for Chinese
+vocabulary counts; keep other-language CEFR behavior scoped out of this fix.
+
+**Acceptance.** Reconstruct the visible example and compare displayed counts
+with the actual token distribution. Use a deterministic HSK-4-heavy passage, a
+low-level passage with one advanced word, off-list/name-only text, repetition,
+and higher-level material after character 1,500. Verify chosen HSK 2.0/3.0, the
+7–9 band, manual level preservation, saved-text reopen and phone display. Assert
+the documented 95% boundary and the <=target count; do not change a legitimate
+HSK 3 result merely to match the screenshot's interpretation.
+
+## Part 8 — Popup toggling, viewport bounds and useful previews
+
+- [ ] Implement and verify.
+
+**Report.** Tapping the same word again should close its popup; outside taps
+must still close it. Screenshot 3 clips a popup at the bottom. Screenshot 14's
+black preview repeats 拒绝; show short dictionary meaning and pinyin instead.
+
+**Code findings.** Reader `openKnownPop` already closes for the same anchor, and
+unknown-word deselection clears its gloss. Reproduce event ordering and the
+actual affected surface before adding a second toggle. Reader's desktop `popAt`
+clamps horizontally but puts the popup below the word without measuring its
+height. `components/WordMeaningPop.tsx` already measures both axes and visual
+viewport changes. Reader has separate phone docking and centered card-panel
+behavior from earlier work. The exact renderer of screenshot 14's black preview
+is not established; trace its trigger rather than changing every native title.
+
+**Implement.** Same-anchor second tap/Enter/Space closes; a different word opens
+its own popup. Keep outside-dismiss, Escape, selectable text and popup actions.
+Anchor to the actual occurrence so two instances of the same word do not collide.
+Measure loaded popup height and available viewport space; flip above or constrain
+and scroll when needed. Preserve the phone's bottom meaning popup and centered,
+fixed card panel; do not restore hold as a required interaction.
+
+For the reported word preview, use the existing dictionary's short localized
+meaning plus its reading, rather than a second hanzi label. Reuse cached/local
+dictionary data; while localized meaning is pending, show loading, not English
+or a fabricated definition. Keep select/remove actions independently accessible.
+
+**Acceptance.** Reproduce same-word taps and switching occurrences, including
+pointerdown/up versus outside-dismiss races. Check a bottom/right-edge word,
+long loaded meaning, scrolling, and one narrow phone view. Verify preview for
+拒绝, keyboard access, saved/new words and no viewport overflow. A pending
+lookup after close must not reopen the popup or show another word's meaning.
+
+## Part 9 — Reliable audio for numbered and unpunctuated passages
+
+- [ ] Implement and verify.
+
+**Report.** Exercise items 31–34 in screenshot 2 have no terminal punctuation;
+their controls appear to use a browser voice. Screenshot 13 reports an incorrect
+fourth tone. Preserve the accepted Part 6 word engine while isolating this clip.
+
+**Code findings.** `frontend/lib/sentences.ts` handles list numbers and some
+newlines, but remains punctuation-led. `frontend/lib/speak.ts::serverVoice`
+rejects text longer than 300 characters, or text with no Han characters, and
+`playServer` silently falls back to browser speech on media failure. Backend
+`services/tts.ts` also caps input at 300. A standalone `31.` span or oversized
+unpunctuated span is a plausible route to browser audio; this is not yet a
+runtime diagnosis of the supplied screenshot. Browser voice provider is not
+established by its perceived sound.
+
+**Implement.** Form useful speech units from numbered multiline Chinese
+exercises, including A/B/C options, and plain unpunctuated paragraphs. Do not
+attach speech to bare list labels or read exercise markers as the sentence.
+Split longer spoken units into bounded provider chunks, preferring source
+boundaries, while retaining exact source offsets for the displayed text and
+captured examples. Keep one understandable control per logical unit, and prevent
+number-only controls, duplicate icons and truncated text.
+
+For Mandarin, server playback failure must be visible and retryable; no silent
+switch to a different voice. If browser fallback remains, expose it as an explicit
+choice. Preserve other-language speech, stop/loading cancellation, iOS unlocking,
+pitch-preserving speed, and accepted Sambert/Zhijia word versus Qwen/Cherry
+sentence behavior. Shared speech changes must keep review/quiz audio working.
+
+Reproduce screenshot 13's exact word, reading, provider, cache and playback rate
+when identifiable. If the clip/word cannot be identified from the supplied
+material, record that limit and request the word rather than guess or alter all
+voices. Compare a fresh clip with replay and the accepted Part 6 fixtures. Tone
+acceptance requires listening; ASR text or an F0 trace alone cannot certify it.
+
+**Acceptance.** Items 31–34, a >300-character unpunctuated paragraph, short plain
+lines, decimals and normal punctuated sentences all use the intended audio path.
+Verify actual route requests/audio bytes and complete coverage, provider error
+and explicit recovery, rapid switches and stop while loading. One phone audio
+spot-check and a focused shared review/quiz smoke check; no universal tone claim.
+
+## Part 10 — Whole-text Reader playback, speed and progress
+
+- [ ] Implement and verify after Part 9.
+
+**Report.** Add AI reading for the complete Reader text, faster playback and a
+useful audio progress tracker. Existing “Чтение вслух” is pronunciation practice
+(`ReadAloudCheck`), not whole-text listening; do not silently replace that feature.
+
+**Code findings.** Reader already has sentence spans/audio groups, but only
+per-unit `SpeakButton`s. `frontend/lib/speak.ts` shares one audio element and
+sentence rate; there is no complete-text queue, pause/resume or text-wide seek.
+
+**Implement.** Add a compact, clearly named listening player: play/pause/resume,
+stop, playback speed including 1.25×/1.5× as well as normal/slower playback,
+and an accessible progress/seek control. Read all source units in order with
+the reliable bounded chunks from Part 9. Lazy-load and prefetch a bounded next
+chunk; do not eagerly synthesize the entire library. Replay reuses cached audio;
+speed changes preserve pitch and do not synthesize extra copies.
+
+Track the current passage location and allow seeking to a loaded chunk/time;
+show loading and partial progress honestly when later clip durations are unknown.
+Do not invent an exact total duration before it is known. A chunk/paragraph
+position is an acceptable initial progress metric with clearly labeled seeking.
+Keep the active passage visible without forced scrolling while the learner is
+selecting words. Sentence playback and whole-text playback must have one owner,
+so they cannot overlap. Switching/deleting/editing text or leaving Reader cancels
+queued playback and late requests; retry starts at the failed unit.
+
+**Acceptance.** Read a text beyond 300 characters and beyond 12 sentences from
+start to end; pronunciation practice's 12-sentence limit must not limit listening.
+Check speed during playback, pause/resume without restart, seek, replay, failure
+mid-text/retry, quick text switch and single-word playback interruption. Verify
+the actual voice, one phone autoplay/unlocking flow, no stale audio after leaving,
+and reuse of clips across speeds. Count AI synthesis consistently in Part 18.
+
+## Part 11 — Russian dictionary loading and one saved meaning
+
+- [ ] Implement and verify.
+
+**Report.** 照镜子 briefly shows English before Russian in screenshot 4. 仔细's
+new card meaning differs from its Definitions in screenshot 8. Keep CC-CEDICT
+as the dictionary foundation; do not resolve discrepancies with unrelated AI
+definitions or ask the learner to repair every newly created card.
+
+**Code findings.** `components/AddWordForm.tsx` explicitly displays lookup rows
+flagged `english` until `/dict/glosses` supplies Russian; it also retains previous
+query data. Reader already suppresses some English card placeholders, so the
+paths are inconsistent. `services/capture.ts::dictCardFields` can fall back to
+the dictionary English gloss. `services/lookup.ts` supplies prepared localized
+defaults and composes page-sense meanings; `WordSenses.tsx` separately compares
+the saved card against senses and offers repair. Whether 仔细 is a real sense
+mismatch or wording/comparison mismatch needs a fresh-add reproduction.
+
+**Implement.** For a Russian target, show pinyin immediately and a stable loading
+placeholder until Russian meaning is ready. On failure, offer retry; do not flash
+English or another query's old meaning. Apply the same rule to add suggestions,
+new cards and touched popup paths, including off-HSK compounds such as 照镜子.
+Retain valid English output when English is the selected target.
+
+Unify dictionary reading/sense identity and localized wording across lookup,
+creation, enrichment, detail senses and the card being reviewed. A newly created
+card must identify which displayed sense(s) it tests, without a false “none of
+the meanings” warning for punctuation/synonym variants. Keep genuine alternate
+senses and user-written meanings; do not auto-deduplicate cards or rewrite old
+manual choices. Preserve context-specific meaning where it is valid, with accurate
+sense mapping rather than replacing it with the first dictionary entry.
+
+Use CC-CEDICT for covered entries/readings and existing localized prepared data
+first; cache any required translation/adaptation. Use AI to fill actual gaps and
+for the existing learner-friendly wording/examples. Keep dictionary attribution
+and distinguish adapted/generated material from dictionary quotations.
+
+**Acceptance.** Fresh 照镜子, 仔细 and 及时; a multi-sense/polyphonic word, an
+off-list dictionary entry and a dictionary gap. Under delayed/failed translation,
+English never replaces a Russian placeholder. Compare lookup → add → enrichment
+→ detail → review → reload. Verify selected sense and manual meaning survive
+retries and in-flight enrichment; test one Russian phone add/detail flow.
+
+## Part 12 — Existing-card action, deleted-card links and useful errors
+
+- [ ] Implement and verify.
+
+**Report.** Add “Открыть карточку” to screenshot 5's duplicate dialog. Removing
+及时 then following the old success link leads to “Слово не найдено” with
+“Сервер запущен?” in screenshots 6–7. Remove that developer-facing hint.
+
+**Code findings.** `AddWordForm.tsx::addWithChecks` uses a confirm dialog with
+Cancel/Add anyway but no existing-card action. The form's `lastAdded` link is
+held separately from the live word list. `app/word/[id]/page.tsx` shows generic
+`ErrorState` for a missing word; `ErrorState.tsx` unconditionally renders
+`errState.hint`, even for a genuine 404 unrelated to connectivity.
+
+**Implement.** Offer the existing card alongside Cancel/Add anyway without
+creating a new card. Match the exact source/target pair; if multiple senses/cards
+exist, choose explicitly or show the relevant matches, not an arbitrary account's
+or language pair's word. Preserve intentional duplicate creation and its preference.
+
+Invalidate/clear deleted IDs in the add success banner and touched popup/list/detail
+caches. An old direct URL must still show a calm deleted/not-found state with a
+route back to My words. Remove “Сервер запущен?” from user-facing errors in every
+locale, and separate not-found/auth/transient failure so retry appears where it
+can help. Keep cached content on transient failure as implemented in Part 1.
+
+**Acceptance.** Open existing → same owned ID, no extra card; Cancel and Add
+anyway still work. Delete the just-added card then revisit Add, Reader popup and
+the original URL; no live stale action or misleading server hint. Check exact
+pairs, multiple same-word senses and one transient API failure with cached data.
+
+## Part 13 — Clear Han-language settings, including legacy accounts
+
+- [ ] Implement and verify.
+
+**Report/code findings.** Screenshot 9 matches `app/account/page.tsx`: the
+`han.remembered` row directly renders 中文/日本語/한국어 instead of a localized
+language name. It is conditional on `useHanLang()` (`lib/learnPrefs.ts`), so a
+legacy remembered preference can expose a row absent on a new account.
+
+**Implement.** Explain the purpose in Russian, e.g. which language ambiguous
+Han input is treated as, and render “Китайский” through the existing localized
+language-label helper. Make “change/reset” describe its result. Retain the useful
+preference without redundant/confusing detection jargon. Adapt en/zh. Preserve
+the value and its existing account/browser scope; do not reset legacy settings
+as a substitute for fixing copy or account isolation.
+
+**Acceptance.** Locally seeded remembered zh/ja/ko and unset preferences, change
+and reset, reload, and account switch. Russian language names remain readable;
+reset has its advertised effect in Add. One phone settings check; no unrelated
+settings rearrangement or hidden-feature expansion.
+
+## Part 14 — Mika memory in the floating popup and full page
+
+- [ ] Implement and verify.
+
+**Report.** The frequently used small Mika popup should act as a personal tutor
+and remember the learner, rather than restarting its understanding every time.
+Distinguish reopening the same conversation from remembering across new chats.
+
+**Code findings.** `lib/useTutorChat.ts` and server `services/tutorChats.ts` persist
+conversation history. `/tutor/ask` already injects `coachNote/profilePreamble`.
+`CoachMemory` in Prisma stores per-user/per-source-language goals/interests/notes,
+and `services/coachMemory.ts::rememberFromSession` can update notes. The floating
+chat hook has no `coachRemember` call; one exists in the hidden scene flow.
+`CoachMemorySection` already supports viewing/editing/clearing existing memory.
+The longer dialogue window completed in the previous plan is not durable memory.
+
+**Implement.** Connect ordinary Mika use to reliable, bounded memory updates
+based on completed persisted turns, including the floating popup. Prefer server
+updates/checkpoints that survive closing or navigation over relying exclusively
+on unload requests. Avoid an extra LLM call on every token, duplicate extraction
+on each reopen, and concurrent summaries overwriting newer notes. Explicit goals,
+preferences, interests and recurring learning difficulties should inform later
+replies; model speculation and temporary Reader text should not become facts.
+
+Keep one conversation/history across widget/full-page transitions. Provide access
+to the existing memory controls from the active Mika experience; hide nothing
+needed to inspect/correct/clear what is remembered. Clearing/deleting an account
+must invalidate memory and pending updates; no resurrection or cross-account/
+cross-language leakage. Respect explicit learner edits over inferred updates.
+Identity must come from the session cookie; do not extend legacy body-ID fallback.
+
+**Acceptance.** On throwaway user A, state a specific learning preference in the
+popup, close/reopen, move to full page, reload and start a new chat: the appropriate
+preference is available and influences a focused reply. User B and another source
+language cannot see it. Verify explicit edit/clear with an in-flight update,
+retries/duplicate saves, and late writes after deletion. Review persistence and
+session identity before push. Record deterministic lifecycle evidence separately
+from one live personalization check; do not promise unlimited autobiographical
+memory or start a new autonomous Coach system.
+
+## Part 15 — Russian Mika explanations and toggleable ruby pinyin
+
+- [ ] Implement and verify.
+
+**Report.** Screenshot 11 reports Chinese leaking into a Russian explanation.
+Add a pinyin button that reveals readings above Han characters, like Reader;
+default off for users **above HSK 4** (HSK 5+, not HSK 4 itself).
+
+**Code findings.** `services/tutorChat.ts` already asks for target-language
+explanations and pinyin lines beneath every Chinese example. `TutorThread.tsx`
+shares `RichText.tsx` between widget and full page; its safe markdown renderer
+has no ruby/pinyin toggle. Reader and `ExampleText.tsx` have existing transcription
+and ruby approaches; reuse suitable parts rather than editing stored prose.
+
+**Implement.** Keep Russian explanations coherent, with Han only in intentional
+words, quotations and examples; Russian translations should not accidentally
+contain untranslated Chinese clauses. Strengthen output structure/validation and
+bounded recovery where needed, rather than stripping every Han character from
+valid examples. Preserve streaming and clear failure behavior.
+
+Provide a persistent, accessible pinyin toggle shared by both Mika surfaces,
+scoped to account and learning language. With no explicit preference: on through
+HSK 4, off from HSK 5 onward; a manual choice wins after reload/level changes.
+Render context-appropriate readings as ruby for Chinese spans while preserving
+Russian text, punctuation, word highlights, lists, copy and selection. Avoid
+duplicate model pinyin lines beside generated ruby. Handle old saved replies and
+partial streamed text safely; never use unsanitized HTML or recalculate/fetch
+readings for every streamed character. Keep stored conversation meaning intact.
+
+**Acceptance.** Russian explanation containing examples of 拒绝/照镜子 and a
+polyphonic word; no unexplained Chinese fragment in the Russian translation.
+Toggle a completed reply, receive a streamed reply, reopen saved history, and
+move between widget/full page. HSK 4 starts on, HSK 5 starts off, manual setting
+persists and account switch isolates it. Ruby aligns at phone width and copy
+remains useful; a focused live format check complements deterministic rendering.
+
+## Part 16 — Usable Reader and Mika at browser zoom
+
+- [ ] Implement and verify.
+
+**Report.** Screenshot 12 shows a zoomed layout with excessive blank/clipped
+space. Reproduce page zoom separately from mobile pinch zoom and text size.
+
+**Code findings.** `GlobalTutor.tsx` has a fixed 400px desktop panel with a 75vh
+maximum height and a separate mobile sheet; Reader has desktop anchored popups,
+phone docks and a draggable card panel. `TutorThread`/`TutorComposer`, `AppShell`
+and `/mika` participate in scroll/viewport sizing. No single layout cause has
+been demonstrated from the screenshot alone.
+
+**Implement.** Fix the reproduced overflow/empty-height problem at the effective
+viewport size; use natural responsive sizing and bounded scroll areas. Keep the
+composer, close/send controls, sidebar/navigation and reading text reachable.
+Re-clamp dragged panels after viewport changes; do not disable browser zoom,
+shrink all typography, conceal content or redesign the landing page.
+
+**Acceptance.** One desktop browser at normal size then 200% page zoom, with
+Reader, full-page Mika and its floating panel using long content and pinyin on.
+Check a scrolled conversation and composer focus, no horizontal page overflow or
+inaccessible buttons, then one normal phone/keyboard spot-check. Add pinch-zoom
+coverage only if the reproduced failure involves the visual viewport. Capture
+before/after for the actual visual failure, not a full-site screenshot sweep.
+
+## Part 17 — Search saved words by pinyin without spaces
+
+- [ ] Implement and verify.
+
+**Report/code findings.** `app/words/page.tsx` currently searches only `word` and
+`meaningZh`. Typing `nihao` should find a saved 你好; it must not search/add the
+entire dictionary as a side effect.
+
+**Implement.** Match saved Chinese readings with or without spaces/tone marks;
+support `nihao`, `ni hao`, `nǐhǎo` and numbered tones (`ni3hao3`). Normalize case,
+separator and ü/u:/v variants consistently. Prefer the saved/dictionary reading
+for polyphonic words, with the existing local transcription fallback for old
+cards missing phonetics. Avoid AI calls/network requests on typing. Preserve
+hanzi/Russian search and current pair, collection and study-status filters;
+prepare reusable normalized fields rather than repeated whole-deck transcription
+on every keystroke. Update the search hint in ru/en/zh if necessary.
+
+**Acceptance.** Save 你好 and 女孩 and find them with the listed tone/spacing
+variants, including nvhai/nü hai/nu:hai; an unsaved word does not appear. Test a
+legacy no-phonetic card, its actual alternate reading, clear query and combined
+filters. One Russian phone search check; no regression of Russian/hanzi matching.
+
+## Part 18 — AI-function inventory and complete usage accounting
+
+- [ ] Audit, implement missing accounting and verify.
+
+**Author clarification.** “We should count which AI functions are used so don't
+forget anything before we start a paywall.” Inventory and usage accounting are
+the outcome; actual payment limits, prices and enabling all options are not.
+
+**Code findings.** `services/llm.ts` logs text/OCR/ASR usage with feature labels
+and `lib/usageContext.ts` attributes calls. `services/tts.ts` logs TTS character
+usage and the actual word/sentence model. Prisma `TokenUsage` and `/ai/usage`
+already exist. Provider/token cost logs alone do not establish that every
+user-visible function, cache hit, background job or failed attempt is counted.
+Existing Pro/free behavior must be inspected and documented, not expanded here.
+
+**Implement.** Add a maintained project-local inventory mapping each AI function
+to its UI/bot entry, route, service/job, feature identifier, provider/model, usage
+unit, cache behavior and current accounting. Trace shared provider wrappers and
+direct SDK/fetch/WebSocket calls so background or indirect uses are not missed.
+Include active and hidden callers (keep hidden ones hidden): Mika text/photos/
+speech and memory, Reader generation/translation/alignment/glosses/listening/
+pronunciation, dictionary gap/translation and card enrichment/examples/details,
+word relations, and any other discovered AI route. A plain checklist is not proof
+that an endpoint is counted; follow its runtime path.
+
+Reuse existing logging and feature IDs where possible. Define separately a
+logical function use, provider attempts, cache hits and successful/billable
+provider usage; one streamed reply or retry must not inflate the user's feature
+count by its token chunks. Cover background jobs with the initiating account's
+identity from the authenticated session, not supplied body/query IDs. Record
+failure/cancel semantics and units, including TTS characters, without storing
+raw private prompts in accounting. Mark deterministic CEDICT/HSK/FSRS/local
+pinyin operations as non-AI; do not count them as paid model calls.
+
+Fix concrete coverage gaps and expose per-feature use counts through the existing
+appropriate admin/report path if it cannot show them yet. Keep provider-cost
+totals reconcilable with their underlying events; do not invent token costs for
+cached/local work or introduce a paywall. If a persistence change is necessary,
+explain its additive migration and review retention/account deletion before use.
+
+**Acceptance.** Cross-check the inventory against all provider entry points and
+route/job labels; every AI function has a counted path. Record discovered gaps
+and fix them before marking this part complete. Exercise representative text
+stream, OCR/ASR, dictionary
+gap/enrichment background job, memory and word/sentence/whole-text TTS using
+local test accounts and controlled provider responses. Verify cache hit versus
+fresh provider call, retry/failure/cancel, no double count, actual model/unit and
+no cross-account attribution. Reconcile a focused real-call sample with provider
+usage. Finish the inventory before calling paywall preparation complete.
 
 ## Finishing each implementation session
 

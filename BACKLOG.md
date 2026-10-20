@@ -51,6 +51,22 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ---
 
+0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
+   Planned as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 7 next and
+   complete only one part per implementation session. Covers truthful HSK level/
+   target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
+   numbered/unpunctuated audio and the reported fourth tone; whole-text listening
+   with speed/progress; Russian dictionary loading and consistent saved senses;
+   open-existing/deleted-card actions and useful errors; legacy Han-language copy;
+   durable Mika memory in the floating popup; Russian explanations and optional
+   ruby pinyin (default off above HSK 4); zoom layout; saved-word pinyin search;
+   and a complete AI-function inventory with usage accounting before a future
+   paywall. The author clarified that accounting is requested, not enabling all
+   AI options or introducing payment restrictions. Code findings and focused
+   acceptance checks are in each part. Planning only; no app fix verified yet.
+   Parts 1–6 remain complete. Keep hidden features and deferred landing work out
+   of scope; this explicit batch takes priority over the time-gated retention proof.
+
 0. [x] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot
    batch; Parts 1 (connection/startup) and 2 (example progress) complete and verified
    on 2026-10-19. Work one session at a time from `PLAN-learner-bug-batch.md`;
