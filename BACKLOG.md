@@ -1336,6 +1336,23 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Mika keyboard, card scrolling and copy fixes (2026-10-19, asked for directly)
+- Pinned training pages recover their document position after the keyboard closes; Mika
+  blurs her input before closing. Header and message actions retain focus until the tap
+  completes, avoiding a keyboard-driven layout shift midway through a Safari tap.
+- Long card backs use native vertical touch scrolling instead of JS scroll/momentum;
+  horizontal swipes still grade. Text selection keeps native gestures in overlays.
+- Both Mika views offer copy for user messages and replies, with a clipboard fallback
+  and localized failure feedback. Copy targets are 36px.
+- Mika's upper handle/title now closes the sheet by dragging down, including after reopening.
+- Removed the permanent context paragraph. The localized notice appears only when the
+  120-message / 64,000-character window actually drops messages. No automatic summary
+  or new-chat handoff was added; old messages still leave context and saved history.
+- Checks passed: `frontend/scripts/check-mika-card-touch.mjs` with WebKit and Chromium,
+  backend typecheck and frontend production build. Artifacts: `.playwright-cli/mika-card-touch`.
+  Desktop WebKit simulates keyboard viewport readings; real iPhone keyboard/FPS remain
+  device-only checks. No production data used.
+
 ### Token-efficient Codex and Claude sessions (2026-10-19)
 - Consolidated shared rules in `AGENTS.md`; `CLAUDE.md` now imports that file.
 - Added a short `SESSION.md` handoff and made detailed task docs load only when relevant;

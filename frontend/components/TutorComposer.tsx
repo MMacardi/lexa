@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { useMicInput } from "@/lib/useMicInput";
 import { imageFiles } from "@/lib/image";
+import { chatWindow } from "@/lib/readerContext";
 import { cn } from "@/lib/utils";
 import { ArrowUp, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
 
@@ -61,7 +62,9 @@ export function TutorComposer({
 
   return (
     <div>
-      <p className="mb-1 text-[11px] text-ink-faint">{t("tutor.contextLimit")}</p>
+      {chatWindow(chat.messages).length < chat.messages.length && (
+        <p role="status" className="mb-1 text-xs text-ink-faint">{t("tutor.contextLimit")}</p>
+      )}
       {input.length > 20_000 && <p role="alert" className="mb-1 text-xs text-warn-text">{t("tutor.textLimit")}</p>}
       {mic.phase !== "idle" && (
         <div className="mb-2 flex items-center gap-2.5 rounded-[14px] border border-warn/30 bg-warn-bg/60 px-3.5 py-2">

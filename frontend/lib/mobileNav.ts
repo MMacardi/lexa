@@ -114,6 +114,8 @@ const isField = (t: EventTarget | null) =>
   t instanceof HTMLElement &&
   (t.isContentEditable || t.matches("textarea, select, input:not([type=checkbox], [type=radio], [type=range], [type=button], [type=submit], [type=file])"));
 
+const selectingText = () => window.getSelection()?.isCollapsed === false;
+
 export function useViewportVars() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -150,6 +152,9 @@ export function useViewportVars() {
     const sync = () => {
       const kb = keyboardUp();
       if (!kb) {
+        // Safari can leave the document panned after Done, even with overflow
+        // hidden. A pinned training screen has no way to scroll back by hand.
+        if (pins > 0 && vv.scale === 1 && (window.scrollY || vv.offsetTop)) window.scrollTo(0, 0);
         restTop = vv.offsetTop;
         restH = vv.height;
       } else if (performance.now() < holdUntil) return; // the keyboard on its way out
@@ -234,6 +239,8 @@ export function useOverlayTouchGuard() {
     const onMove = (e: TouchEvent) => {
       if (!first) return;
       first = false;
+      // Selection handles belong to the browser, including at a scroller's edge.
+      if (selectingText()) return;
       if (!overlay || e.touches.length !== 1 || !e.cancelable || !(e.target instanceof Element)) return;
       const dx = e.touches[0].clientX - x0;
       const dy = e.touches[0].clientY - y0;
@@ -268,7 +275,7 @@ export function useDragDownDismiss(area: RefObject<HTMLElement | null>, bar: Ref
       const y = e.touches[0]?.clientY ?? 0;
       const down = y > lastY;
       lastY = y;
-      if (!down || y - startY < 24 || !("kb" in document.documentElement.dataset)) return;
+      if (!down || y - startY < 24 || selectingText() || !("kb" in document.documentElement.dataset)) return;
       const field = document.activeElement;
       if (!(field instanceof HTMLElement) || !bar.current?.contains(field)) return;
       if (y >= bar.current.getBoundingClientRect().top) field.blur();
@@ -320,9 +327,12 @@ export function useLockScroll(active: boolean) {
   useEffect(() => {
     if (!active) return;
     const prev = document.body.style.overflow;
+    const x = window.scrollX;
+    const y = window.scrollY;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
+      window.scrollTo(x, y);
     };
   }, [active]);
 }
@@ -347,6 +357,13 @@ export function usePinnedPage(on: boolean) {
     let allow = false;
     const onStart = (e: TouchEvent) => {
       allow = false;
+      const target = e.target instanceof Element ? e.target : null;
+      // Overlays have their own touch guard; fields and native selection must
+      // keep caret/selection gestures even when the chat has nothing to scroll.
+      if (target?.closest(".vv-overlay, .mika-chat, [data-own-touch]") || isField(target)) {
+        allow = true;
+        return;
+      }
       for (let n = e.target as Element | null; n && n !== document.body; n = n.parentElement) {
         const oy = getComputedStyle(n).overflowY;
         if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) {
@@ -356,7 +373,7 @@ export function usePinnedPage(on: boolean) {
       }
     };
     const onMove = (e: TouchEvent) => {
-      if (!allow && e.cancelable) e.preventDefault();
+      if (!allow && !selectingText() && e.cancelable) e.preventDefault();
     };
     document.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: false });
@@ -425,6 +442,7 @@ export function useSheetDrag(
   },
   closing: boolean,
   onDismiss: () => void,
+  on = true,
 ) {
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
@@ -445,7 +463,7 @@ export function useSheetDrag(
 
   useEffect(() => {
     const p = panel.current;
-    if (!p) return;
+    if (!on || !p) return;
     let mode: null | "pending" | "drag" | "thrown" = null;
     let fromGrip = false;
     let startX = 0;
@@ -474,6 +492,7 @@ export function useSheetDrag(
       const target = e.target as Node;
       if (target instanceof Element && target.closest("[data-own-touch]")) return;
       fromGrip = !!grip.current?.contains(target);
+      if (!fromGrip && selectingText()) return;
       const b = body.current;
       if (!fromGrip && !(b?.contains(target) && b.scrollTop <= 0)) return;
       startX = e.touches[0].clientX;
@@ -482,6 +501,7 @@ export function useSheetDrag(
     };
     const onMove = (e: TouchEvent) => {
       if (mode !== "pending" && mode !== "drag") return;
+      if (!fromGrip && selectingText()) { mode = null; return; }
       const { clientX: x, clientY: y } = e.touches[0];
       if (mode === "pending") {
         const ddx = x - startX;
@@ -558,5 +578,5 @@ export function useSheetDrag(
       p.removeEventListener("touchcancel", onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [on]);
 }

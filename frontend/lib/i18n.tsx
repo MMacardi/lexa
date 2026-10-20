@@ -15,7 +15,7 @@ type Entry = { en: string; ru: string; zh: string };
 const DICT: Record<string, Entry> = {
   "tutor.openReader": { ru: "Открыть в Читалке", en: "Open in Reader", zh: "在阅读器中打开" },
   "tutor.readerContext": { ru: "Текст из Читалки", en: "Reader text", zh: "阅读器文本" },
-  "tutor.contextLimit": { ru: "Мика учитывает до 60 последних пар сообщений, в пределах 64 000 символов. Старые реплики остаются в истории, пока чат не превысит этот объём.", en: "Mika uses up to the last 60 exchanges, within 64,000 characters. Older turns remain in history until the chat exceeds this size.", zh: "米卡最多参考最近60轮对话，总计不超过64,000个字符。超过此容量后，最早的消息将不再保留。" },
+  "tutor.contextLimit": { ru: "Этот чат стал длинным: его начало больше не входит в контекст и сохранённую историю. Напомни важные детали или начни новый чат.", en: "This chat is long: its oldest messages are no longer included in context or saved history. Repeat important details or start a new chat.", zh: "聊天内容较长，最早的消息已不再纳入上下文和保存的记录。请重述重要细节，或开始新聊天。" },
   "tutor.textLimit": { ru: "В одном сообщении — до 20 000 символов. Раздели текст на части: он ещё не отправлен.", en: "A message can contain up to 20,000 characters. Split this text into parts; it has not been sent.", zh: "每条消息最多20,000个字符。请分段发送；这条消息尚未发送。" },
   "tutor.readerLimit": { ru: "Для Читалки и Мики — до 20 000 символов в одном тексте. Раздели его на части.", en: "Reader and Mika accept up to 20,000 characters per passage. Split it into parts.", zh: "阅读器和米卡每篇最多支持20,000个字符，请分成几篇。" },
   "reader.translationLimit": { ru: "За один раз можно перевести до 6000 символов. Раздели текст на части — перевод ещё не запущен.", en: "Translate up to 6,000 characters at a time. Split this text into parts; translation has not started.", zh: "每次最多翻译6,000个字符，请将文本分段；翻译尚未开始。" },
@@ -177,6 +177,7 @@ const DICT: Record<string, Entry> = {
   "tutor.stop": { en: "Stop", ru: "Остановить", zh: "停止" },
   "tutor.copy": { en: "Copy", ru: "Копировать", zh: "复制" },
   "tutor.copied": { en: "Copied", ru: "Скопировано", zh: "已复制" },
+  "tutor.copyFailed": { en: "Couldn't copy. Select the text and choose Copy.", ru: "Не удалось скопировать. Выдели текст и нажми «Копировать».", zh: "复制失败。请选中文字后点击“复制”。" },
   "tutor.regenerate": { en: "Answer again", ru: "Ответить заново", zh: "重新回答" },
   "tutor.retry": { en: "Try again", ru: "Повторить", zh: "重试" },
   "tutor.edit": { en: "Edit and resend", ru: "Изменить и отправить заново", zh: "编辑后重发" },

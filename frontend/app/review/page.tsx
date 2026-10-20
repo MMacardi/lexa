@@ -272,13 +272,11 @@ export default function FlashcardsPage() {
   // re-render on touch-down cost the first frames of the drag.
   const startX = useRef(0);
   const startY = useRef(0);
-  // Direction lock, decided on the first few px; "s" is scrolling the answer text.
-  const axis = useRef<"" | "x" | "y" | "s">("");
-  // A drag that began on answer text long enough to scroll, and where it was then.
-  const textScroll = useRef<{ el: HTMLElement; top: number } | null>(null);
+  // Direction lock, decided on the first few px.
+  const axis = useRef<"" | "x" | "y">("");
+  const nativeScroll = useRef(false);
   // A press on a word in an example: the card takes the pointer only once it moves.
   const captureLate = useRef(false);
-  const glideId = useRef(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const gradesRef = useRef<HTMLDivElement | null>(null);
   // Phones: the card gives up height so the four grades are on screen without a
@@ -425,8 +423,7 @@ export default function FlashcardsPage() {
   // scroll, so no swipe or thumb arc can move it, and every drag belongs to the card.
   // iOS still rubber-bands a page that can't scroll (a drag slid the whole screen
   // down and, held, pushed it around), so usePinnedPage also cancels the browser's
-  // touch scrolling. The card scrolls a long answer itself (touch-action none), and
-  // a sheet or dialog whose content overflows keeps its own scroll.
+  // touch scrolling. Long answers and overlays keep their own native scroll.
   const onCard = started && index < deck.length;
   usePinnedPage(onCard && pinned);
   // The setup and the end screen: pinned too whenever they fit.
@@ -1283,20 +1280,9 @@ export default function FlashcardsPage() {
   const frontFields = visibleFields(layout.front, true, frontTr);
   const backFields = visibleFields(layout.back, false, backTr);
 
-  const cardTouch = swipeUpDown || pinned ? "none" : "pan-y";
-
-  // Scrolling the answer text by hand keeps its momentum, as a native scroll would.
-  function glideText(el: HTMLElement, v: number) {
-    cancelAnimationFrame(glideId.current);
-    let step = v * 16; // px per frame
-    const tick = () => {
-      if (Math.abs(step) < 0.5) return;
-      el.scrollTop += step;
-      step *= 0.94;
-      glideId.current = requestAnimationFrame(tick);
-    };
-    glideId.current = requestAnimationFrame(tick);
-  }
+  // touch-action is intersected with ancestors: the outer card must allow pan-y
+  // too, or Safari cannot scroll the answer on its compositor with native inertia.
+  const cardTouch = flipped && backScrolls ? "pan-y" : swipeUpDown || pinned ? "none" : "pan-y";
 
   // Drag/flip via pointer capture on the card itself — no window listeners, so a
   // lost pointerup (e.g. switching to a new tab) can never leave a stuck state.
@@ -1324,10 +1310,8 @@ export default function FlashcardsPage() {
     sampleT.current = e.timeStamp;
     prevD.current = 0;
     prevT.current = e.timeStamp;
-    cancelAnimationFrame(glideId.current);
     const back = backRef.current;
-    textScroll.current =
-      pinned && flipped && backScrolls && back?.contains(e.target as Node) ? { el: back, top: back.scrollTop } : null;
+    nativeScroll.current = e.pointerType === "touch" && flipped && backScrolls && !!back?.contains(e.target as Node);
     if (cardRef.current) cardRef.current.style.transition = "none";
     grabbing(true);
   };
@@ -1341,10 +1325,12 @@ export default function FlashcardsPage() {
     // steeply: it takes a clearly vertical start (over ~55°) to go up or down.
     if (!axis.current && Math.hypot(dx, dy) > 10) {
       let vertical = Math.abs(dy) > 1.4 * Math.abs(dx);
-      if (vertical && textScroll.current) {
-        // Up or down on answer text that scrolls: scroll it, the card stays put.
-        axis.current = "s";
+      if (vertical && nativeScroll.current) {
+        // Leave vertical text scrolling and momentum entirely to the browser.
         draggedRef.current = true;
+        pointerActive.current = false;
+        grabbing(false);
+        return;
       } else if (vertical && !swipeUpDown) {
         if (!pinned) {
           // Vertical scrolling is the browser's here — let go of the card entirely.
@@ -1357,11 +1343,9 @@ export default function FlashcardsPage() {
         // A pinned page has nothing to scroll: a steep drag still moves the card sideways.
         vertical = false;
       }
-      if (axis.current !== "s") {
-        axis.current = vertical ? "y" : "x";
-        draggedRef.current = true;
-        follow.start(0, 0);
-      }
+      axis.current = vertical ? "y" : "x";
+      draggedRef.current = true;
+      follow.start(0, 0);
       if (captureLate.current) {
         captureLate.current = false;
         (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -1370,16 +1354,14 @@ export default function FlashcardsPage() {
     // Locked vertical, then carried further sideways than up or down: that was a
     // sideways swipe after all, so the card follows it instead of sinking to Hard
     // (or staying put while the answer text scrolls).
-    if ((axis.current === "y" || axis.current === "s") && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
-      if (axis.current === "s") follow.start(0, 0);
+    if (axis.current === "y" && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
       axis.current = "x";
       sampleD.current = prevD.current = dx;
       sampleT.current = prevT.current = e.timeStamp;
     }
     if (!axis.current) return;
     const d = axis.current === "x" ? dx : dy;
-    if (axis.current === "s" && textScroll.current) textScroll.current.el.scrollTop = textScroll.current.top - dy;
-    else follow.to(axis.current === "y" ? 0 : dx, axis.current === "y" ? dy : 0);
+    follow.to(axis.current === "y" ? 0 : dx, axis.current === "y" ? dy : 0);
     if (e.timeStamp - sampleT.current > 30) {
       prevD.current = sampleD.current;
       prevT.current = sampleT.current;
@@ -1399,11 +1381,6 @@ export default function FlashcardsPage() {
     // the direction it was pulled away from.
     const dt = e.timeStamp - prevT.current;
     const v = dt > 0 ? (d - prevD.current) / dt : 0;
-    if (axis.current === "s") {
-      if (textScroll.current) glideText(textScroll.current.el, -v);
-      axis.current = "";
-      return;
-    }
     const fired = Math.abs(d) > SWIPE_PX || (Math.abs(d) > FLICK_PX && Math.abs(v) > FLICK_V && v * d > 0);
     if (fired && axis.current === "x")
       return d > 0
@@ -1624,11 +1601,8 @@ export default function FlashcardsPage() {
                     // with ~250px free below, BACKLOG 1l).
                     !fitH && "max-h-[300px] sm:max-h-[max(300px,calc(100dvh-390px))]",
                   )}
-                  // Long text: an up/down drag scrolls it and a sideways one still swipes
-                  // the card. On a pinned phone page the card does that scroll itself
-                  // (onPointerMove), so a thumb arc that starts steeply can still turn
-                  // into a swipe; elsewhere the browser scrolls it. A tap flips it.
-                  style={{ touchAction: backScrolls && !pinned ? "pan-y" : cardTouch }}
+                  // Long text scrolls natively; a horizontal gesture still grades.
+                  style={{ touchAction: backScrolls ? "pan-y" : cardTouch }}
                 >
                   {backFields.map((f, i) => {
                     // The reading and the part of speech sit under what's above them, no rule between.

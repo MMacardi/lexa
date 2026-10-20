@@ -14,7 +14,7 @@ import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
-import { OPEN_MIKA, takeMikaOpen, useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { OPEN_MIKA, takeMikaOpen, useDragDownDismiss, useIsMobile, useLockScroll, useSheetDrag } from "@/lib/mobileNav";
 import { useChatScroll } from "@/lib/chatScroll";
 import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ export function GlobalTutor() {
   const mobile = useIsMobile();
   // The phone sheet slides back off the edge and the desktop panel shrinks into
   // its corner before either unmounts.
-  const { closing, close } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
+  const { closing, close: animateClose } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
   useLockScroll(open && mobile);
   useReportPanelOpen(open);
   useEffect(() => {
@@ -57,6 +57,10 @@ export function GlobalTutor() {
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  function close() {
+    inputRef.current?.blur();
+    animateClose();
+  }
   const fileRef = useRef<HTMLInputElement>(null);
   // Draggable panel: offset from its docked corner, remembered across opens and
   // page reloads (localStorage). The "reset position" button clears it.
@@ -136,8 +140,11 @@ export function GlobalTutor() {
   const { away, toLatest } = useChatScroll(scrollRef, messages, open, busy);
   // Dragging down across the input box puts the keyboard away, as in Telegram.
   const sheetRef = useRef<HTMLDivElement>(null);
+  const shadeRef = useRef<HTMLDivElement>(null);
+  const gripRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
   useDragDownDismiss(sheetRef, footerRef, open && mobile);
+  useSheetDrag({ shade: shadeRef, panel: sheetRef, grip: gripRef, body: scrollRef }, closing, close, open && mobile);
 
   function fillTemplate(template: string) {
     chat.fillTemplate(template);
@@ -160,7 +167,7 @@ export function GlobalTutor() {
 
       {/* chat panel — a bottom sheet over a scrim on phones */}
       {open && (
-        <SheetScrim mobile={mobile} closing={closing} onClose={close}>
+        <SheetScrim mobile={mobile} closing={closing} onClose={close} shadeRef={shadeRef}>
         <div
           data-closing={closing || undefined}
           ref={mobile ? sheetRef : panelRef}
@@ -180,7 +187,7 @@ export function GlobalTutor() {
           {/* header — title, centered drag handle, clickable language pair, actions.
               On a phone the grab bar sits inside it, under the same tint: above it,
               it left a white strip across the top of the sheet. */}
-          <div className={cn("border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pb-4", mobile ? "pt-2" : "pt-3")}>
+          <div ref={gripRef} className={cn("border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pb-4", mobile ? "touch-none pt-2" : "pt-3")}>
             {mobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />}
             <div className="relative flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
@@ -224,6 +231,7 @@ export function GlobalTutor() {
                 <HoverTip title={t("tutor.openPage")} className="inline-flex">
                   <Link
                     href="/mika"
+                    onPointerDown={(e) => e.preventDefault()}
                     onClick={close}
                     aria-label={t("tutor.openPage")}
                     className="rounded-lg p-1.5 text-ink-faint hover:bg-black/[0.04] hover:text-ink"
@@ -233,6 +241,9 @@ export function GlobalTutor() {
                 </HoverTip>
                 <button
                   type="button"
+                  // Keep focus until click: Safari otherwise dismisses the keyboard
+                  // on pointerdown and moves this button before the tap finishes.
+                  onPointerDown={(e) => e.preventDefault()}
                   onClick={close}
                   aria-label={t("common.cancel")}
                   className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-black/[0.05] hover:text-ink"
@@ -308,14 +319,15 @@ export function GlobalTutor() {
 
 // Phones: dim the page and dock the panel to the bottom of the visible viewport
 // (above the keyboard). Desktop: render the floating panel as-is.
-function SheetScrim({ mobile, closing, onClose, children }: { mobile: boolean; closing: boolean; onClose: () => void; children: React.ReactNode }) {
+function SheetScrim({ mobile, closing, onClose, shadeRef, children }: { mobile: boolean; closing: boolean; onClose: () => void; shadeRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode }) {
   if (!mobile) return <>{children}</>;
   return (
     <div
       data-closing={closing || undefined}
-      className="vv-overlay anim-scrim z-[60] flex flex-col justify-end bg-black/35"
+      className="vv-overlay anim-scrim z-[60] flex flex-col justify-end"
       onClick={onClose}
     >
+      <div ref={shadeRef} aria-hidden className="absolute inset-0 bg-black/35" />
       {children}
     </div>
   );

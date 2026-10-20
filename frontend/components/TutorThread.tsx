@@ -44,10 +44,10 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
 
   async function copy(text: string) {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyMessage(text);
       show({ icon: "📋", title: t("tutor.copied") });
     } catch {
-      /* clipboard blocked (http, old browser) — nothing useful to say */
+      show({ icon: "⚠️", title: t("tutor.copyFailed") });
     }
   }
 
@@ -56,7 +56,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
       {messages.map((m, i) =>
         m.role === "assistant" ? (
           <div key={i} className="anim-msg space-y-2">
-            <RichText text={m.content} streaming={m.streaming} className={cn("text-ink", large ? "text-[15px]" : "text-[14px]")} />
+            <RichText text={m.content} streaming={m.streaming} className={cn("select-text text-ink", large ? "text-[15px]" : "text-[14px]")} />
             {!m.streaming && m.readerText && (
               <button type="button" disabled={chat.openingReader} onClick={() => chat.openInReader(m.readerText!)}
                 className="inline-flex items-center gap-2 rounded-xl border border-sage/40 bg-sage-tint px-3 py-2 text-sm font-semibold text-sage-deep disabled:opacity-50">
@@ -228,6 +228,11 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                 that shrinks to the bubble itself (that wrapped "Explain “由于”" after
                 one character). The pencil sits level with the bubble's middle. */}
             <div className="flex w-full items-center justify-end gap-1">
+              {m.content && (
+                <MsgAction label={t("tutor.copy")} onClick={() => copy(m.content)} className="text-ink-faint">
+                  <Copy className="h-3.5 w-3.5" />
+                </MsgAction>
+              )}
               {i === lastUser && !busy && (
                 <MsgAction label={t("tutor.edit")} onClick={editLast} className="text-ink-faint">
                   <Pencil className="h-3.5 w-3.5" />
@@ -238,7 +243,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
                 // most messages are lowercase ("привет").
                 <span
                   className={cn(
-                    "max-w-[85%] whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 pt-[7px] pb-[9px] font-medium text-white",
+                    "max-w-[85%] select-text whitespace-pre-wrap rounded-[14px] rounded-br-sm bg-sage px-3.5 pt-[7px] pb-[9px] font-medium text-white",
                     large ? "text-[15px]" : "text-[13px]",
                   )}
                 >
@@ -275,14 +280,44 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
   );
 }
 
+async function copyMessage(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    // Older WebViews can expose the API but reject it. Keep the fallback inside
+    // the chat's visible viewport, without raising another software keyboard.
+    const field = document.createElement("textarea");
+    const focused = document.activeElement;
+    const selection = window.getSelection();
+    const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, i) => selection.getRangeAt(i).cloneRange()) : [];
+    field.value = text;
+    field.readOnly = true;
+    field.style.cssText = "position:fixed;top:var(--vv-top,0px);left:0;opacity:0;font-size:16px";
+    document.body.appendChild(field);
+    try {
+      field.focus({ preventScroll: true });
+      field.select();
+      field.setSelectionRange(0, text.length);
+      if (!document.execCommand("copy")) throw new Error("Copy rejected");
+    } finally {
+      field.remove();
+      if (focused instanceof HTMLElement) focused.focus({ preventScroll: true });
+      selection?.removeAllRanges();
+      ranges.forEach((range) => selection?.addRange(range));
+    }
+  }
+}
+
 function MsgAction({ label, onClick, className, children }: { label: string; onClick: () => void; className?: string; children: React.ReactNode }) {
   return (
     <button
       type="button"
+      onPointerDown={(e) => e.preventDefault()}
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={cn("rounded-lg p-1.5 transition-colors hover:bg-black/[0.05] hover:text-ink", className)}
+      className={cn("inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-1.5 transition-colors hover:bg-black/[0.05] hover:text-ink", className)}
     >
       {children}
     </button>
