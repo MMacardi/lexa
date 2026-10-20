@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { wordsQuery } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
@@ -74,8 +75,7 @@ export default function WordsPage() {
   const [visible, setVisible] = useState(PAGE);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
+    ...wordsQuery(accountId),
     // Cards just made from the dictionary get their meaning a few seconds later. A
     // few are polled one by one below; a Reader batch of many reloads the list.
     refetchInterval: (q) => ((q.state.data ?? []).filter(upgradePending).length > MAX_POLLED ? pollWhileUpgrading(q.state.data) : false),

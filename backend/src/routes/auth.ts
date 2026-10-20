@@ -274,6 +274,7 @@ authRouter.get("/auth/me", async (req, res) => {
       deleteAfter: true,
       ...learnerPrefsSelect,
       identities: { select: { provider: true, subject: true }, orderBy: { createdAt: "asc" } },
+      _count: { select: { words: true } },
     },
   });
   // A signed cookie whose account no longer exists: deleted from another device
@@ -286,7 +287,8 @@ authRouter.get("/auth/me", async (req, res) => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json({ ...user, isAdmin: isAdmin(telegramId) });
+  const { _count, ...profile } = user;
+  res.json({ ...profile, hasWords: _count.words > 0, isAdmin: isAdmin(telegramId) });
 });
 
 // PATCH /api/auth/me — update the learner's own display name / privacy flags /

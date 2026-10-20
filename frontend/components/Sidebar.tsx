@@ -6,6 +6,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, isDue } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { wordsQuery } from "@/lib/wordQueries";
+import { CONNECTION_FAILED } from "@/lib/sessionCache";
 import { useI18n } from "@/lib/i18n";
 import { usePresence } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -77,7 +79,7 @@ export function Sidebar() {
   useLockScroll(sheet !== null);
   const openAdd = () => {
     if (AddWordForm) setSheet("add");
-    else loadAddWordForm().then(() => setSheet("add"));
+    else void loadAddWordForm().then(() => setSheet("add")).catch(() => window.dispatchEvent(new Event(CONNECTION_FAILED)));
   };
   // Pages can open the quick-add sheet too (e.g. My words' compact "Add a word" row).
   useEffect(() => {
@@ -90,7 +92,7 @@ export function Sidebar() {
     if (!window.matchMedia("(max-width: 767px)").matches) return; // the sheet is phone-only
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
     idle(() => {
-      void loadAddWordForm();
+      if (navigator.onLine) void loadAddWordForm().catch(() => {});
       // The form's "Add to set" row appears once the sets are known.
       if (accountId) void qc.prefetchQuery({ queryKey: ["collections", accountId], queryFn: () => api.collections(accountId) });
     });
@@ -104,8 +106,7 @@ export function Sidebar() {
   const moreSheet = usePresence(sheet === "more", 200);
   const addSheet = usePresence(sheet === "add", 200);
   const { data } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
+    ...wordsQuery(accountId),
   });
   const words = data ?? [];
   const total = words.length;

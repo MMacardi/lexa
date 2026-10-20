@@ -1,7 +1,7 @@
 # Reader, examples, audio and connection fixes
 
-Requested 2026-10-19 from the author's screenshots. Planning only: no application
-fixes or runtime verification in this session. Implement one part per session, in
+Requested 2026-10-19 from the author's screenshots. Implementation status and
+verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
@@ -44,7 +44,7 @@ repeatable work. Account/client availability varies.
 
 ## Part 1 — Connection failures and startup
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-19).
 
 **Code findings.** `frontend/lib/account.tsx` catches every `/auth/me` failure,
 tries Telegram auto-login, then clears account/profile. `components/AppShell.tsx`
@@ -78,6 +78,74 @@ word navigation, reconnect, slow API, API 5xx, actual sign-out/forbidden respons
 logout and account switching. No landing on transient failure, endless spinner or
 cross-account data. Record before/after startup timings under identical conditions
 and document offline limits.
+
+**Implementation (2026-10-19).** Account verification now distinguishes HTTP
+401/403 from transient errors. A minimal display snapshot restores the learner
+shell, with ru/en/zh offline/reconnecting feedback and retry; absent a snapshot,
+failed verification offers retry instead of the guest landing. Protected reads
+wait for the cookie-backed `/auth/me` result, and stale responses/writes are
+discarded when the account scope changes. Logout, switching and confirmed invite
+revocation clear account caches; offline logout persists until the server cookie
+can be cleared. Telegram auto-login runs only after a confirmed 401.
+
+My words, Today, Sidebar and Review share the account-scoped IndexedDB list;
+visited details keep their own snapshot. Local queries use `networkMode: always`,
+and reconnect cancels pending cache reads before starting verified refreshes.
+Cached content stays readable during refresh. The queue carries its account owner;
+legacy operations migrate only with the previous matching prefs owner marker.
+Queue status sits above content so it cannot cover phone grading controls, and
+failed background quick-add chunk preloads no longer throw unhandled errors.
+`/auth/me.hasWords` removes the full-list onboarding gate for returning learners
+without an HSK target. No schema changes or migrations.
+
+**Offline limits.** The stored shell identity is display-only, never a credential.
+Only cached words/details and the existing review/outbox work offline. API-offline
+reloads are supported when app assets can load. A full browser reload without
+reachable/cached HTML and JS, unvisited route chunks, new dictionary/AI content,
+and full PWA/service-worker asset caching are outside this part.
+
+**Startup measurements.** `node frontend/scripts/measure-startup.mjs before|after`,
+local Docker dev server, Chromium 1280×900, Russian, one saved word and no HSK
+target; identical browser/routing/data setup. Cold = fresh browser context with
+no account/content snapshot; warm = reload after that visit. Throttled runs add
+1,500 ms to every API request. Values below are navigation-to-shell / readable
+word, in milliseconds; raw request traces stay in `.playwright-cli/connection/`.
+
+| Scenario | Before, shell / word | After, shell / word |
+| --- | --- | --- |
+| Cold, no API delay (includes first dev compilation) | 7,623 / 7,642 | 14,349 / 14,481 |
+| Warm, no API delay | 1,155 / 1,173 | 945 / 1,009 |
+| Cold, 1,500 ms API delay | 5,613 / 5,621 | 3,889 / 5,735 |
+| Warm, 1,500 ms API delay | 4,434 / 4,440 | 879 / 930 |
+
+The controlled bottleneck was `/auth/me` → full words list → onboarding shell.
+Measured from the first `/auth/me` request, the throttled cold shell wait fell
+from 3,359 to 1,805 ms: it now waits for profile verification, then loads words
+in the background. Profile is included in `/auth/me`, without a second profile
+request. Words, collections, usage and stats then run in parallel. Warm cached
+content paints before verification finishes. QueryClient's existing 30 s in-memory
+cache does not survive a reload, hence the IndexedDB hydration. The first dev
+compile varies substantially and got slower in this sample; these diagnostic
+timings do not establish production first-visit performance. An uncached word
+still waits for its network request, as the throttled cold content numbers show.
+
+**Verification.** Backend `npx tsc --noEmit -p .` and final frontend
+`npx next build` pass; the stale local Prisma client was regenerated, without a
+schema change. Existing lint warnings remain outside the changed logic. The final
+`frontend/scripts/check-connection.mjs` run passes against the local production
+build in desktop Chromium, 360 px phone Chromium, iPhone 13 WebKit and 390 px
+phone Firefox. All use throwaway local users, removed in `finally`.
+
+Covered: loaded app offline, API-offline reload/list/direct detail, cached review
+grading, queue persistence and reconnect flush, `/auth/me` and words 5xx,
+10 s timeout with/without a snapshot, retry and fresh content, no Telegram
+auto-login on 5xx, legacy matching/mismatching queue owners, account switching,
+online/offline logout (including reload and cookie cleanup), actual invite
+revocation and the unchanged server 403 gate, `/auth/me` 401/403, data-route 403,
+detail 404 and empty-account onboarding. No unexpected JavaScript page errors;
+the harness classifies WebKit's deliberately aborted local-resource reports as
+expected network failures. Phone offline layout inspected; status does not cover
+the words or grading controls. Parts 2–6 remain open.
 
 ## Part 2 — Example progress after every add
 

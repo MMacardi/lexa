@@ -52,12 +52,17 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot
-   batch; planning only, implementation has not started. Work one session at a time
-   from `PLAN-learner-bug-batch.md`: connection/startup, example progress on every add,
+   batch; Part 1 (connection/startup) complete and verified on 2026-10-19.
+   Work one session at a time from `PLAN-learner-bug-batch.md`; Parts 2–6 remain open:
+   example progress on every add,
    capture examples and removal, sentence audio controls/placement/pace, compact
    popups and accurate Reader copy, short-word Mandarin pronunciation. Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.
+   Part 1 preserves cached words/details on transient failure, refreshes on reconnect,
+   isolates account caches/queues and removes the full-list onboarding gate. Backend
+   tsc, frontend build and local desktop/phone Chromium/WebKit/Firefox flows pass;
+   startup timings and offline asset limits are recorded in the plan.
 
 0. [x] **Reader and Mika fixes from the author's screenshots (2026-10-19).** All eight parts
    complete; the author requested the whole remaining plan in the final session. Details

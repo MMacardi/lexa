@@ -3,6 +3,7 @@
 import type { TutorChatEntry, TutorMsg } from "./useTutorChat";
 import type { ReaderContext } from "./readerContext";
 import type { TranslationAlignment } from "./translationAlignment";
+import { ACCESS_REVOKED, CONNECTION_FAILED, cacheScope, ConnectionError } from "./sessionCache";
 
 // When NEXT_PUBLIC_API_URL is set (local dev), call the backend directly. When it's
 // empty/unset (Vercel prod), BASE is "" so every request is same-origin (/api/…) and
@@ -310,6 +311,7 @@ export type PrivacyLevel = "hidden" | "friends" | "everyone";
 
 export interface Profile {
   id?: string; // user id (opens /profile/<id>)
+  hasWords?: boolean; // /me: avoids loading the whole word list to decide onboarding
   telegramId: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -635,19 +637,50 @@ function simulateFreeHeader(): Record<string, string> {
   }
 }
 
-async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: "include", // send the session cookie cross-site
-    ...init,
-    headers: { "Content-Type": "application/json", ...simulateFreeHeader(), ...(init?.headers ?? {}) },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const err = new Error(body.error ?? `Request failed: ${res.status}`);
-    if (body.code) (err as Error & { code?: string }).code = body.code;
-    throw err;
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
   }
-  return res.json() as Promise<T>;
+}
+
+export const isAccessError = (error: unknown) => error instanceof ApiError && (error.status === 401 || error.status === 403);
+export const isTransientError = (error: unknown) => !(error instanceof ApiError) || error.status === 408 || error.status === 429 || error.status >= 500;
+
+async function http<T>(path: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
+  const auth = path.startsWith("/api/auth/");
+  const scope = cacheScope();
+  // A restored snapshot must not fetch another cookie owner's data while /me is pending.
+  if (scope.blockRequests && (!auth || (path === "/api/auth/me" && init?.method && init.method !== "GET"))) throw new ConnectionError();
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      credentials: "include", // send the session cookie cross-site
+      ...init,
+      ...(controller ? { signal: controller.signal } : {}),
+      headers: { "Content-Type": "application/json", ...simulateFreeHeader(), ...(init?.headers ?? {}) },
+    });
+    const body = await res.json().catch(() => {
+      if (res.ok) throw new Error("Invalid response");
+      return {};
+    });
+    if (!auth && scope.revision !== cacheScope().revision) throw new ConnectionError();
+    if (!res.ok) {
+      const error = new ApiError(body.error ?? `Request failed: ${res.status}`, res.status, body.code);
+      if (!auth && typeof window !== "undefined" && (res.status === 401 || (res.status === 403 && body.code === "invite_required"))) {
+        window.dispatchEvent(new CustomEvent(ACCESS_REVOKED, { detail: error }));
+      }
+      throw error;
+    }
+    return body as T;
+  } catch (error) {
+    if (!auth && isTransientError(error) && scope.revision === cacheScope().revision && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(CONNECTION_FAILED));
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 // Streaming variant of http() for the NDJSON coach endpoints. POSTs the payload with
@@ -662,6 +695,8 @@ async function streamHttp<T>(
   payload: unknown,
   opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
 ): Promise<T> {
+  const scope = cacheScope();
+  if (scope.blockRequests) throw new ConnectionError();
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     credentials: "include",
@@ -669,10 +704,13 @@ async function streamHttp<T>(
     headers: { "Content-Type": "application/json", ...simulateFreeHeader() },
     body: JSON.stringify({ ...(payload as object), stream: true }),
   });
+  if (scope.revision !== cacheScope().revision) throw new ConnectionError();
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const err = new Error(body.error ?? `Request failed: ${res.status}`);
-    if (body.code) (err as Error & { code?: string }).code = body.code;
+    const err = new ApiError(body.error ?? `Request failed: ${res.status}`, res.status, body.code);
+    if (typeof window !== "undefined" && (res.status === 401 || (res.status === 403 && body.code === "invite_required"))) {
+      window.dispatchEvent(new CustomEvent(ACCESS_REVOKED, { detail: err }));
+    }
     throw err;
   }
 
@@ -865,8 +903,8 @@ export interface ImportJob {
 
 export const api = {
   listWords: (telegramId: string) =>
-    http<Word[]>(`/api/words?telegramId=${encodeURIComponent(telegramId)}`),
-  getWord: (id: string) => http<Word>(`/api/words/${id}`),
+    http<Word[]>(`/api/words?telegramId=${encodeURIComponent(telegramId)}`, undefined, 10_000),
+  getWord: (id: string) => http<Word>(`/api/words/${id}`, undefined, 10_000),
   addWord: (payload: AddAuto) =>
     http<Word>(`/api/words`, {
       method: "POST",
@@ -1199,7 +1237,7 @@ export const api = {
     http<{ ok: true }>(`/api/collections/${collectionId}/words/${wordId}`, { method: "DELETE" }),
 
   // --- auth ---
-  me: () => http<Profile>(`/api/auth/me`),
+  me: () => http<Profile>(`/api/auth/me`, undefined, 10_000),
   updateName: (displayName: string) =>
     http<{ displayName: string | null }>(`/api/auth/me`, { method: "PATCH", body: JSON.stringify({ displayName }) }),
   updatePrivacy: (patch: { hideEmail?: boolean; hideTag?: boolean; profileVisibility?: PrivacyLevel; decksVisibility?: PrivacyLevel }) =>
@@ -1228,7 +1266,7 @@ export const api = {
     }),
   // Telegram Mini App: sign in with the WebApp initData (verified server-side).
   loginTelegramWebApp: (initData: string) =>
-    http<Profile>(`/api/auth/telegram/webapp`, { method: "POST", body: JSON.stringify({ initData }) }),
+    http<Profile>(`/api/auth/telegram/webapp`, { method: "POST", body: JSON.stringify({ initData }) }, 10_000),
   // Deep-link login via the bot: get a one-time token, then poll until the user
   // confirms in Telegram (poll returns null while still pending).
   startTelegramLogin: () => http<{ token: string }>(`/api/auth/telegram/start`, { method: "POST" }),
@@ -1494,7 +1532,7 @@ export const api = {
   adminReports: () => http<ModerationQueue>(`/api/admin/reports`),
   moderateDeck: (id: string, action: "dismiss" | "delist" | "restore") =>
     http<{ ok: true }>(`/api/admin/decks/${id}/moderate`, { method: "POST", body: JSON.stringify({ action }) }),
-  logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }),
+  logout: () => http<{ ok: true }>(`/api/auth/logout`, { method: "POST" }, 10_000),
   // Everything we hold about you, as a file. Not http<T>: the response is a
   // download, not a payload the app parses.
   exportAccount: downloadExport,
@@ -1551,12 +1589,15 @@ async function uploadExport(file: File): Promise<ImportSummary> {
 }
 
 async function downloadExport(): Promise<void> {
+  const scope = cacheScope();
+  if (scope.blockRequests) throw new ConnectionError();
   const res = await fetch(`${BASE}/api/account/export`, { credentials: "include" });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);
   }
   const blob = await res.blob();
+  if (scope.revision !== cacheScope().revision) throw new ConnectionError();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

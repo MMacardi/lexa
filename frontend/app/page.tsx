@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, isFresh, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { wordsQuery } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { FirstRun } from "@/components/FirstRun";
@@ -58,8 +59,7 @@ export default function TodayPage() {
   const { t, locale } = useI18n();
   const newPerDay = useNewPerDay();
   const { data: words, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
+    ...wordsQuery(accountId),
   });
   // The panels below mount only once the list is in, and each would start its own
   // fetch then — four round trips in a row. Start them all with the list instead.

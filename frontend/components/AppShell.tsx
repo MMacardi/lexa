@@ -12,6 +12,8 @@ import { DeletionPending } from "@/components/DeletionPending";
 import { AchievementWatcher } from "@/components/AchievementWatcher";
 import { TutorChatProvider } from "@/components/TutorChatProvider";
 import { useOverlayTouchGuard, useViewportVars } from "@/lib/mobileNav";
+import { ErrorState } from "@/components/ErrorState";
+import { WifiOff } from "lucide-react";
 
 // Routes that render without the auth gate (session-establishing or public legal).
 const PUBLIC_ROUTES = ["/login/verify", "/privacy", "/terms"];
@@ -27,7 +29,7 @@ const BugReport = dynamic(() => import("@/components/BugReport").then((m) => m.B
 // loading state; signed-out users get the login screen; signed-in users get the
 // full sidebar + content shell.
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, authed, profile } = useAccount();
+  const { ready, authed, profile, connection, refresh, accountId } = useAccount();
   const { t } = useI18n();
   const pathname = usePathname();
   useViewportVars();
@@ -43,6 +45,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
     );
 
+  if (!authed && connection !== "online") return (
+    <main className="flex min-h-screen items-center justify-center bg-paper p-4">
+      <ErrorState message={t("connection.unverified")} onRetry={() => void refresh()} />
+    </main>
+  );
   if (!authed) return <GuestExperience />;
 
   // Closed beta: a signed-in user who hasn't redeemed an invite code is gated here
@@ -53,12 +60,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (profile.deleteAfter) return <DeletionPending deleteAfter={profile.deleteAfter} />;
 
   return (
-    <OnboardingGate>
+    <OnboardingGate key={accountId}>
     <TutorChatProvider>
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
       <main className="min-w-0 flex-1 bg-paper">
         <div className="mx-auto max-w-[1040px] px-4 py-6 pb-24 sm:px-10 sm:py-10 md:pb-12">
+          {connection !== "online" && (
+            <div role="status" data-testid="connection-status" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-black/[0.08] bg-surface p-3 text-sm text-ink-soft">
+              <WifiOff className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1">{t(connection === "offline" ? "connection.offline" : "connection.reconnecting")}</span>
+              <button type="button" onClick={() => void refresh()} className="min-h-9 px-2 font-semibold text-sage-deep">{t("errState.retry")}</button>
+            </div>
+          )}
+          <SyncStatus />
           {children}
         </div>
       </main>
@@ -66,7 +81,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <AchievementWatcher />
       {/* the /mika page is the full-size tutor — no floating copy on top of it */}
       {!pathname?.startsWith("/mika") && <GlobalTutor />}
-      <SyncStatus />
       <BugReport />
     </div>
     </TutorChatProvider>

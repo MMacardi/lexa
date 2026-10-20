@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { wordsQuery } from "@/lib/wordQueries";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { FinishGuestPlan } from "@/components/GuestPlan";
@@ -21,27 +21,26 @@ import { LangMenu } from "@/components/LandingChrome";
 // Decided once per load, then it steps aside for good (an account that later
 // empties itself isn't sent back through it).
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
-  const { accountId, profile } = useAccount();
+  const { accountId, profile, verified } = useAccount();
   const { t } = useI18n();
   const [plan] = useState(readGuestPlan);
   const [mode, setMode] = useState<"plan" | "onboarding" | "app" | null>(() => (plan ? "plan" : null));
-  // An account with a target is past onboarding whatever it holds: the app opens on
-  // the profile alone. Only one with no target waits for its word list (614 KB for
-  // 800 cards) to tell an empty account from one that skipped the target.
+  // /me supplies hasWords so onboarding no longer waits for the full list.
   const hasTarget = profile?.hskTarget != null;
+  const knownApp = hasTarget || profile?.hasWords === true || !verified;
   const { data: words, isError } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
-    enabled: !!accountId && mode === null && !!profile && !hasTarget,
+    ...wordsQuery(accountId),
+    enabled: !!accountId && mode === null && !!profile && !knownApp && profile.hasWords === undefined,
   });
 
   useEffect(() => {
-    if (mode !== null) return;
-    if (hasTarget || isError) setMode("app");
+    if (mode !== null || !verified) return;
+    if (knownApp || isError) setMode("app");
+    else if (profile?.hasWords === false) setMode("onboarding");
     else if (words && profile) setMode(words.length === 0 ? "onboarding" : "app");
-  }, [mode, words, profile, hasTarget, isError]);
+  }, [mode, words, profile, knownApp, isError, verified]);
 
-  if (mode === "app" || (mode === null && hasTarget)) return <>{children}</>;
+  if (mode === "app" || (mode === null && knownApp)) return <>{children}</>;
   if (mode === null)
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper">

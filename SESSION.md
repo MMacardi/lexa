@@ -2,23 +2,26 @@
 
 Updated: 2026-10-19. Replace stale notes; keep under 30 lines.
 
-- Task: plan the new screenshot bug batch; planning complete, app fixes not started.
-- Next: `PLAN-learner-bug-batch.md` Part 1 (connection failures and startup).
-- Six parts, one per implementation session; user may explicitly choose another.
-- Findings: account refresh clears auth on all failures; My words skips offline cache;
-  example polling infers readiness from dictionary fields; Reader context disables
-  generated examples; short-word TTS checks syllables without tones.
-- Plan includes example deletion/preferences, progress without reload, playback
-  stop/speed/layout, compact popups and accurate ru/en/zh instructions.
-- Model settings and copyable session prompt are in the plan; current official
-  OpenAI model guidance checked. Only the external openai-docs SKILL.md was read,
-  with the user's explicit permission; no permission for other outside files.
-- Checks: docs-only diff, plan/backlog references and status consistency; no app
-  builds, live application API calls or learner-flow checks in this planning session.
-- Preserve unrelated work: modified `frontend/.env.example`; untracked `h3.txt`,
-  `p.out`. Stage only plan, backlog and this handoff for the planning commit.
-- `PLAN-reader-mika-fixes.md`: all eight parts complete; do not restart it.
-- `PLAN-word-groups.md` Part 4: still needs seven-day review evidence, earliest
-  approximately 2026-10-21; leave open and never access production data.
-- Landing copy/layout/screenshots, including any final pass, remain deferred until
-  explicitly requested. Auth routing fixes are within the new batch's scope.
+- Task complete: `PLAN-learner-bug-batch.md` Part 1 (connection/startup).
+- Next explicit session: Part 2 (example progress after every add); Parts 2–6 open.
+  Stop after Part 1 in this session; previous Reader/Mika plan is complete.
+- Transient auth failures preserve the shell; minimal display snapshot and scoped
+  IndexedDB words/details support cached reading. Server cookie/invite gates remain
+  authoritative. Logout/switch/revocation clear caches; offline logout retries.
+- Queued writes now carry an account owner; legacy queues require a matching old
+  prefs marker. Status no longer covers phone grades. Failed quick-add preloads
+  are handled; verified refresh cancels pending cache reads before fetching.
+- `/auth/me.hasWords` removes full-list onboarding blocking; no schema/migrations.
+- Checks passed: backend `npx tsc --noEmit -p .` (Prisma client regenerated), final
+  frontend `npx next build` (existing lint warnings), focused diff/reference review.
+- Final local production-build flows pass: desktop Chromium; phone Chromium 360,
+  iPhone 13 WebKit, Firefox 390. Offline read/review/queue/reload, reconnect, timeout,
+  5xx, 401/403, invite revocation, 404, switching, logout and onboarding covered.
+- `frontend/scripts/check-connection.mjs` creates/deletes only its test accounts;
+  `measure-startup.mjs` records before/after; evidence and limits are in the plan.
+- Cached slow-API word paint: 4,440 → 930 ms. Uncached assets/content still need
+  network; no PWA rewrite. First dev compilation varied; no first-visit speed claim.
+- Preserve unrelated modified `frontend/.env.example`, untracked `h3.txt`, `p.out`.
+- Docker dev file watching missed some host edits; restart before retesting changes.
+- Grouped-word Part 4 still needs actual seven-day evidence (~2026-10-21 earliest).
+- Landing work stays deferred until explicitly requested. Workspace-only access.

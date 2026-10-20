@@ -50,7 +50,8 @@ import { SheetRow } from "@/components/SheetRow";
 import { useFitPinned, useIsMobile, useLockScroll, usePinnedPage } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { previewMinutes, applyGradeLocally, dueToday, fmtInterval } from "@/lib/fsrsPreview";
-import { fetchWordsCached, mirrorWords, submitLearn, submitReview, undoLearn, undoReview } from "@/lib/sync";
+import { mirrorWords, submitLearn, submitReview, undoLearn, undoReview } from "@/lib/sync";
+import { wordsQuery } from "@/lib/wordQueries";
 import { useToast } from "@/lib/toast";
 import { ArrowLeft, ArrowRight, BookOpen, Captions, Dumbbell, ExternalLink, Library, MoveVertical, Palette, Pencil, Repeat, Settings, Sparkles, Undo2, Volume2, VolumeX } from "lucide-react";
 import { canSpeak, speak, unlockSpeech } from "@/lib/speak";
@@ -110,8 +111,7 @@ export default function FlashcardsPage() {
     setCardLayout({ ...layout, [side]: next });
   };
   const { data: allWords, isLoading } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => fetchWordsCached(accountId),
+    ...wordsQuery(accountId),
   });
 
   const { data: collections } = useQuery({

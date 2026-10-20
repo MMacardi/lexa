@@ -1,12 +1,13 @@
 "use client";
 
 import { HskBadge } from "@/components/HskBadge";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type Word } from "@/lib/api";
+import { api, isTransientError, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
+import { fetchWordCached, readWordCache } from "@/lib/sync";
 import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, isFixedPair, pairLabel } from "@/lib/langs";
@@ -92,15 +93,27 @@ export default function WordDetailPage() {
   const examplePinyin = useExamplePinyin();
   const toneColors = useToneColors();
   const { accountId } = useAccount();
-  const { data: word, isLoading, isError, refetch } = useQuery({
+  const { data: word, isLoading, error, refetch } = useQuery({
     queryKey: ["word", id],
-    queryFn: () => api.getWord(id),
+    queryFn: () => fetchWordCached(accountId, id),
+    networkMode: "always",
+    refetchOnReconnect: true,
+    enabled: !!accountId,
     // Tapped from the list or a review: the card is already in the list's cache, so
     // the page draws at once and the fetch only refreshes it.
     placeholderData: () => qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === id),
     // A card made from the dictionary a moment ago: its meaning is on its way.
     refetchInterval: (q) => pollWhileUpgrading(q.state.data ? [q.state.data] : null),
   });
+  useEffect(() => {
+    let active = true;
+    void readWordCache(accountId, id).then((cached) => {
+      const error = qc.getQueryState(["word", id])?.error;
+      if (error && !isTransientError(error)) return;
+      if (active && cached && !qc.getQueryData(["word", id])) qc.setQueryData(["word", id], cached);
+    });
+    return () => { active = false; };
+  }, [accountId, id, qc]);
 
   // "Fill this in": the recovery for a card whose enrichment failed or was
   // stopped, so no card stays without a meaning in the learner's language.
@@ -151,7 +164,7 @@ export default function WordDetailPage() {
         <Skeleton className="h-28 rounded-[18px]" />
       </div>
     );
-  if (isError || !word)
+  if (!word || (error && !isTransientError(error)))
     return (
       <div className="space-y-4">
         <Link href="/words" className="inline-flex min-h-[32px] items-center text-sm font-semibold text-ink-soft hover:text-ink">
