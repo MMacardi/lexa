@@ -5,8 +5,8 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–7
-are complete; Parts 8–18 remain open. Next implementation session: **Part 8**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–8
+are complete; Parts 9–18 remain open. Next implementation session: **Part 9**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -788,7 +788,7 @@ accounts were removed. Evidence: `.playwright-cli/reader-vocabulary/` (local onl
 
 ## Part 8 — Popup toggling, viewport bounds and useful previews
 
-- [ ] Implement and verify.
+- [x] Implement and verify.
 
 **Report.** Tapping the same word again should close its popup; outside taps
 must still close it. Screenshot 3 clips a popup at the bottom. Screenshot 14's
@@ -820,6 +820,38 @@ pointerdown/up versus outside-dismiss races. Check a bottom/right-edge word,
 long loaded meaning, scrolling, and one narrow phone view. Verify preview for
 拒绝, keyboard access, saved/new words and no viewport overflow. A pending
 lookup after close must not reopen the popup or show another word's meaning.
+
+**Implemented and verified (2026-10-20).** The saved-word same-anchor toggle
+already worked. New-word selection was keyed by spelling, so tapping a second
+occurrence deselected it rather than opening that occurrence. Reader now separates
+the selected word from its popup anchor and exempts that anchor from pointerdown
+dismissal; repeat tap/Enter/Space closes, other occurrences open independently.
+Opening a saved/new word clears the other popup and cancels its close timer.
+Each lookup opening has a distinct request identity, invalidated on close.
+
+Desktop `ReaderWordPopup` measures loaded content, flips above when needed and
+constrains height to the available side, with internal scrolling. It follows page
+scroll and visual viewport changes without rerendering the Reader text. Keeping
+the anchor uncovered matters: a viewport-height popup otherwise blocked its own
+repeat tap. Phone bottom docking and the centered fixed card panel remain intact.
+
+The repeating black preview was traced to `WordFamilyGraph`'s word `title`,
+rendered by `TitleTips`. Only those word previews now use `DictionaryPreview`:
+existing cached dictionary data, pinyin and a short localized meaning, loading
+while pending and an honest unavailable state for dictionary gaps. English gloss
+is used only for an English target. Hover/focus/Escape work; related-word
+activation and removal remain separate keyboard-accessible controls. New copy
+is present in ru/en/zh. No new AI lookup was added for previews.
+
+Checks passed: backend `npx tsc --noEmit -p .`; frontend `npx next build`
+(existing lint warnings); `node frontend/scripts/check-reader-popups.mjs`.
+The focused local check uses a throwaway invited account, real dictionary data
+and controlled gloss latency: saved/new pointer and keyboard toggles, repeated
+occurrences, late responses after close/switch, long loaded meanings, bottom/right
+placement, resize/scroll, outside dismissal, selectable text, 拒绝 preview and
+keyboard removal. Russian WebKit iPhone check confirms the bottom meaning dock
+and centered, bounded direct card opening. Screenshots visually inspected in
+`.playwright-cli/reader-popups/`; throwaway account/cards removed.
 
 ## Part 9 — Reliable audio for numbered and unpunctuated passages
 

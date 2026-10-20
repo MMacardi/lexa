@@ -10,6 +10,7 @@ import { downscaleImage, imageFiles } from "@/lib/image";
 import { useAccount } from "@/lib/account";
 import { ReaderTextTools, SaveModal } from "@/components/ReaderTextTools";
 import { ReaderLevelBadge } from "@/components/ReaderLevelBadge";
+import { ReaderWordPopup } from "@/components/ReaderWordPopup";
 import { readerCoverage, readerVocabulary, hskRange, hskTop } from "@/lib/readerVocabulary";
 import { PasteButton } from "@/components/PasteButton";
 import { SavedTexts } from "@/components/SavedTexts";
@@ -60,18 +61,6 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Trash2, Underline } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
-
-// Where a word popup sits: centred under its word, kept 140px off either edge so
-// the 240px card stays on screen, in *document* coordinates. The popup is
-// `absolute`, so the page's own scroll carries it with its word (lib/anchor.ts
-// has the story: a `fixed` popup re-measured per scroll event slid off its word
-// on a fast swipe, and every event re-rendered the whole text).
-function popAt(rect: DOMRect) {
-  return {
-    x: window.scrollX + Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2)),
-    y: window.scrollY + rect.bottom,
-  };
-}
 
 // Pinyin mode: an explicit break opportunity before each word, except right after
 // an opening bracket or quote (a line mustn't end on one). A browser that finds no
@@ -158,7 +147,7 @@ export default function ReaderPage() {
   const translationMark = useRef<HTMLElement | null>(null);
   const translatedFor = useRef<string>("");
   // per-word quick gloss popover (tap a word → its translation)
-  const [gloss, setGloss] = useState<{ key: string; word: string; x: number; y: number } | null>(null);
+  const [gloss, setGloss] = useState<{ key: string; word: string } | null>(null);
   const [glossText, setGlossText] = useState<string | null>(null);
   const [glossTr, setGlossTr] = useState<string>(""); // transcription (pinyin/romaji)
   const [glossLoading, setGlossLoading] = useState(false);
@@ -167,6 +156,7 @@ export default function ReaderPage() {
   // is tapped while the contextual gloss (a model call) is still on its way.
   const [glossCedict, setGlossCedict] = useState<DictEntry | null>(null);
   const glossKeyRef = useRef<string>("");
+  const glossRequest = useRef(0);
   const glossElRef = useRef<HTMLElement | null>(null); // the tapped word, to follow on scroll
   const glossPopRef = useRef<HTMLDivElement | null>(null); // popup box, to ignore taps inside it
   const [glossClosing, setGlossClosing] = useState(false);
@@ -180,7 +170,7 @@ export default function ReaderPage() {
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
   // Saved words open a meaning popup; desktop also supports holding for the card.
-  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; x: number; y: number } | null>(null);
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string } | null>(null);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [knownClosing, setKnownClosing] = useState(false);
@@ -764,10 +754,13 @@ export default function ReaderPage() {
   // `sentence` is the one the token sits in, so the gloss is the sense used there.
   function openGloss(key: string, wordText: string, el: HTMLElement, sentence: string) {
     const cacheKey = JSON.stringify([sourceLang, targetLang, key, sentence]);
+    const requestKey = `${++glossRequest.current}:${cacheKey}`;
+    if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
+    setKnownPop(null);
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     setGlossClosing(false);
-    setGloss({ key, word: wordText, ...popAt(el.getBoundingClientRect()) });
-    glossKeyRef.current = cacheKey;
+    setGloss({ key, word: wordText });
+    glossKeyRef.current = requestKey;
     glossElRef.current = el;
     // The dictionary answers at once, with no model call: the reading, and the
     // shared default meaning in the learner's language. The contextual gloss
@@ -776,7 +769,7 @@ export default function ReaderPage() {
     setGlossCedict(zh ? (peekDictEntry(wordText, targetLang) ?? null) : null);
     if (zh) {
       void dictEntry(wordText, targetLang).then((e) => {
-        if (glossKeyRef.current === cacheKey) setGlossCedict(e);
+        if (glossKeyRef.current === requestKey) setGlossCedict(e);
       });
     }
     // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
@@ -796,14 +789,14 @@ export default function ReaderPage() {
       .then((r) => {
         const entry = { gloss: r.meaning, tr: r.transcription };
         glossCache.current.set(cacheKey, entry);
-        if (glossKeyRef.current === cacheKey) {
+        if (glossKeyRef.current === requestKey) {
           setGlossText(entry.gloss);
           if (entry.tr) setGlossTr(entry.tr);
           setGlossLoading(false);
         }
       })
       .catch(() => {
-        if (glossKeyRef.current === cacheKey) {
+        if (glossKeyRef.current === requestKey) {
           // No contextual sense, but the default is still a meaning.
           setGlossText(peekDictEntry(wordText, targetLang)?.meaning ?? t("reader.translateFailed"));
           setGlossLoading(false);
@@ -813,6 +806,7 @@ export default function ReaderPage() {
 
   // Animate the gloss out, then unmount (a re-open cancels a pending close).
   const closeGloss = useCallback(() => {
+    glossKeyRef.current = "";
     setGlossClosing(true);
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     glossCloseTimer.current = window.setTimeout(() => {
@@ -821,29 +815,23 @@ export default function ReaderPage() {
     }, 150);
   }, []);
 
-  // The page's scroll carries the gloss with its word (see popAt); only a resize
-  // (rotation, reflow) moves the word from under it. Dismiss on Escape or a tap
-  // *outside* the popup. Taps inside stay put so the meaning can be
-  // selected/copied, and a swipe that starts on it scrolls the page, card and all.
+  // Exempt the active occurrence at pointerdown: pointerup owns its toggle.
   const glossOpen = gloss !== null;
   useEffect(() => {
     if (!glossOpen) return;
-    const reposition = () => {
-      const el = glossElRef.current;
-      if (!el?.isConnected) return;
-      const at = popAt(el.getBoundingClientRect());
-      setGloss((g) => (g ? { ...g, ...at } : g));
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      closeGloss();
+      glossElRef.current?.focus({ preventScroll: true });
     };
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && closeGloss();
     const onDown = (e: PointerEvent) => {
+      if (glossElRef.current?.contains(e.target as Node)) return;
       if (glossPopRef.current?.contains(e.target as Node)) return;
       closeGloss();
     };
-    window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
     document.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
       document.removeEventListener("pointerdown", onDown);
     };
@@ -865,6 +853,7 @@ export default function ReaderPage() {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeKnown();
+        if (!cardPanel) knownElRef.current?.focus({ preventScroll: true });
         setCardPanel(null);
       }
     };
@@ -872,28 +861,24 @@ export default function ReaderPage() {
     return () => window.removeEventListener("keydown", onEsc);
   }, [knownPop, cardPanel, closeKnown]);
 
-  // Known-word popup: scrolls with its word like the gloss, and closes on a tap
-  // anywhere outside the popup itself (its buttons stay clickable).
   const knownOpen = knownPop !== null;
   useEffect(() => {
     if (!knownOpen) return;
-    const reposition = () => {
-      const el = knownElRef.current;
-      if (!el?.isConnected) return;
-      const at = popAt(el.getBoundingClientRect());
-      setKnownPop((p) => (p ? { ...p, ...at } : p));
-    };
     const onDown = (e: PointerEvent) => {
       if (knownElRef.current?.contains(e.target as Node)) return;
       if (!knownPopRef.current?.contains(e.target as Node)) closeKnown();
     };
-    window.addEventListener("resize", reposition);
     document.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("resize", reposition);
       document.removeEventListener("pointerdown", onDown);
     };
   }, [knownOpen, closeKnown]);
+
+  useEffect(() => () => {
+    if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
+    if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
+    glossKeyRef.current = "";
+  }, []);
 
   // Phone: the word panel docks at the bottom (Pleco's reader) — in thumb reach,
   // and fixed to the screen, so a fast scroll has nothing to slide off. It must
@@ -940,12 +925,15 @@ export default function ReaderPage() {
 
   // Short tap on a saved word → small popup with its meaning + "add example".
   function openKnownPop(wordId: string, wordText: string, index: number, el: HTMLElement) {
-    if (knownPop && knownElRef.current === el) {
+    if (knownPop && !knownClosing && knownElRef.current === el) {
       closeKnown();
       return;
     }
     if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
     setKnownClosing(false);
+    if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
+    glossKeyRef.current = "";
+    setGloss(null);
     const w = (words ?? []).find((x) => x.id === wordId);
     knownElRef.current = el;
     setKnownPop({
@@ -956,7 +944,6 @@ export default function ReaderPage() {
       dictMeaning: w?.dictMeaning,
       filling: Boolean(w && holdsEnglish(w)),
       sentence: sentenceAround(index),
-      ...popAt(el.getBoundingClientRect()),
     });
   }
 
@@ -1200,9 +1187,14 @@ export default function ReaderPage() {
     const onPick = (el: HTMLElement) => {
       pickActiveToken(i);
       const wasSelected = selected.has(key);
-      toggle(key);
-      if (wasSelected) setGloss(null); // deselecting → hide gloss
-      else if (autoGloss) openGloss(key, tk.text, el, sentenceAround(i)); // selecting → quick translation (opt-in)
+      // Selection is per word; the preview belongs to this occurrence.
+      if (autoGloss && !(gloss && !glossClosing && glossElRef.current === el)) {
+        if (!wasSelected) toggle(key);
+        openGloss(key, tk.text, el, sentenceAround(i));
+      } else {
+        toggle(key);
+        closeGloss();
+      }
     };
     return (
       <span
@@ -1840,12 +1832,12 @@ export default function ReaderPage() {
       {(dockOpen || selected.size > 0 || busy) && (
         <div ref={dockRef} data-reader-dock className="fixed inset-x-0 bottom-[calc(56px_+_env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 px-4 md:bottom-6">
           {dockOpen && gloss && (
-            <div ref={glossPopRef} className={cn(dockBox, glossClosing ? "anim-popover-out" : "anim-fade-up")}>
+            <div ref={glossPopRef} role="dialog" aria-label={gloss.word} className={cn(dockBox, glossClosing ? "anim-popover-out" : "anim-fade-up")}>
               {glossBody(true)}
             </div>
           )}
           {dockOpen && knownPop && !gloss && (
-            <div ref={knownPopRef} className={cn(dockBox, knownClosing ? "anim-popover-out" : "anim-fade-up")}>
+            <div ref={knownPopRef} role="dialog" aria-label={knownPop.word} className={cn(dockBox, knownClosing ? "anim-popover-out" : "anim-fade-up")}>
               {knownBody(true)}
             </div>
           )}
@@ -1871,41 +1863,18 @@ export default function ReaderPage() {
         </div>
       )}
 
-      {/* per-word quick gloss popover (wider screens; a phone docks it) */}
-      {gloss &&
-        !mobile &&
-        createPortal(
-          <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: gloss.x, top: gloss.y + 8 }}>
-            <div
-              ref={glossPopRef}
-              className={cn(
-                "max-w-[240px] rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]",
-                glossClosing ? "anim-popover-out" : "anim-popover",
-              )}
-            >
-              {glossBody(false)}
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* known word — short tap popup: meaning + add example from this sentence */}
-      {knownPop &&
-        !mobile &&
-        createPortal(
-          <div className="absolute z-[90] w-max -translate-x-1/2" style={{ left: knownPop.x, top: knownPop.y + 8 }}>
-            <div
-              ref={knownPopRef}
-              className={cn(
-                "w-[240px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]",
-                knownClosing ? "anim-popover-out" : "anim-popover",
-              )}
-            >
-              {knownBody(false)}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {gloss && !mobile && (
+        <ReaderWordPopup anchor={glossElRef.current} popupRef={glossPopRef} onClose={closeGloss} label={gloss.word}
+          className={cn("rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 shadow-[0_14px_40px_rgba(46,42,38,0.24)]", glossClosing ? "anim-popover-out" : "anim-popover")}>
+          {glossBody(false)}
+        </ReaderWordPopup>
+      )}
+      {knownPop && !mobile && (
+        <ReaderWordPopup anchor={knownElRef.current} popupRef={knownPopRef} onClose={closeKnown} label={knownPop.word}
+          className={cn("rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]", knownClosing ? "anim-popover-out" : "anim-popover")}>
+          {knownBody(false)}
+        </ReaderWordPopup>
+      )}
 
       {/* Saved card: centered on phones, draggable on desktop. */}
       {cardPanel &&

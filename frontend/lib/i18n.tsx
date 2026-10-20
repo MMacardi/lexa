@@ -1073,6 +1073,7 @@ const DICT: Record<string, Entry> = {
     zh: "点对话里的任意单词即可立即看释义，并一键收藏。",
   },
   "pop.loading": { en: "Looking it up…", ru: "Смотрю…", zh: "查询中…" },
+  "pop.noDictionaryMeaning": { en: "No dictionary meaning yet", ru: "В словаре пока нет перевода", zh: "词典暂无释义" },
   "pop.statusFailed": { en: "Couldn't check saved words.", ru: "Не удалось проверить сохранённые слова.", zh: "无法检查已保存的单词。" },
   "pop.add": { en: "Add to my words", ru: "В мои слова", zh: "加入我的单词" },
   "pop.added": { en: "Added", ru: "Добавлено", zh: "已添加" },

@@ -52,7 +52,7 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
-   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 8 next and
+   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 9 next and
    complete only one part per implementation session. Covers truthful HSK level/
    target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
    numbered/unpunctuated audio and the reported fourth tone; whole-text listening
@@ -65,8 +65,10 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    AI options or introducing payment restrictions. Code findings and focused
    acceptance checks are in each part. Part 7 is verified: full-text vocabulary
    coverage on the chosen HSK list, explicit inclusive target counts, off-list
-   counts and preserved manual/requested/legacy metadata. Parts 8–18 remain open.
-   Parts 1–7 are complete. Keep hidden features and deferred landing work out
+   counts and preserved manual/requested/legacy metadata. Part 8 is verified:
+   occurrence-specific repeat-tap/keyboard closing, bounded scrollable Reader
+   popups and dictionary pinyin/localized graph previews. Parts 9–18 remain open.
+   Parts 1–8 are complete. Keep hidden features and deferred landing work out
    of scope; this explicit batch takes priority over the time-gated retention proof.
 
 0. [x] **Reader, examples, audio and connection fixes (2026-10-19).** New screenshot

@@ -16,6 +16,7 @@ import { getExampleSource, getExampleStyle, getLearnerLevel, getGraphAddMethod, 
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useTouchOnly } from "@/lib/mobileNav";
+import { DictionaryPreview } from "@/components/DictionaryPreview";
 
 type Kind = "center" | "syn" | "ant";
 interface SimNode {
@@ -959,39 +960,50 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               onPointerEnter={() => setHovered(n.id)}
               onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
             >
+              <DictionaryPreview word={n.label} sourceLang={word.sourceLang} targetLang={word.targetLang}>
+                {(descriptionId) => (
+                  <button
+                    type="button"
+                    aria-describedby={descriptionId}
+                    {...(touch
+                      ? { onClick: () => void activate(n) }
+                      : {
+                          onPointerDown: (e: React.PointerEvent) => onDown(e, n),
+                          onPointerMove: (e: React.PointerEvent) => onMove(e, n),
+                          onPointerUp: (e: React.PointerEvent) => onUp(e, n),
+                          onPointerCancel: (e: React.PointerEvent) => onUp(e, n, true),
+                        })}
+                    aria-label={saved ? n.label : `+ ${n.label}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        void activate(n);
+                      }
+                    }}
+                    data-kind={n.kind}
+                    data-hot={hovered === n.id || undefined}
+                    style={{ maxWidth: labelMax }}
+                    className={cn(
+                      "graph-pill block rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug",
+                      !touch && "cursor-grab touch-none",
+                      targetFont(word.sourceLang),
+                      saved
+                        ? n.kind === "syn"
+                          ? "border-sage/50 bg-sage-tint text-sage-deep"
+                          : "border-warn/40 bg-warn-bg text-warn-text"
+                        : "border-dashed border-black/25 bg-paper text-ink-muted",
+                    )}
+                  >
+                    <span className="line-clamp-3 break-words">
+                      {!saved && "+ "}
+                      {n.label}
+                    </span>
+                  </button>
+                )}
+              </DictionaryPreview>
+              {/* delete this synonym/antonym from the word (with confirm) */}
               <button
                 type="button"
-                {...(touch
-                  ? { onClick: () => void activate(n) }
-                  : {
-                      onPointerDown: (e: React.PointerEvent) => onDown(e, n),
-                      onPointerMove: (e: React.PointerEvent) => onMove(e, n),
-                      onPointerUp: (e: React.PointerEvent) => onUp(e, n),
-                      onPointerCancel: (e: React.PointerEvent) => onUp(e, n, true),
-                    })}
-                title={saved ? n.label : `+ ${n.label}`}
-                data-kind={n.kind}
-                data-hot={hovered === n.id || undefined}
-                style={{ maxWidth: labelMax }}
-                className={cn(
-                  "graph-pill block rounded-[14px] border px-3 py-1.5 text-center text-[13px] font-semibold leading-snug",
-                  !touch && "cursor-grab touch-none",
-                  targetFont(word.sourceLang),
-                  saved
-                    ? n.kind === "syn"
-                      ? "border-sage/50 bg-sage-tint text-sage-deep"
-                      : "border-warn/40 bg-warn-bg text-warn-text"
-                    : "border-dashed border-black/25 bg-paper text-ink-muted",
-                )}
-              >
-                <span className="line-clamp-3 break-words">
-                  {!saved && "+ "}
-                  {n.label}
-                </span>
-              </button>
-              {/* delete this synonym/antonym from the word (with confirm) */}
-              <span
-                role="button"
                 aria-label={t("common.delete")}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
@@ -999,10 +1011,10 @@ export function WordFamilyGraph({ word }: { word: Word }) {
                   e.stopPropagation();
                   confirmRemove(n);
                 }}
-                className="absolute right-0 top-0 hidden h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-white shadow group-hover:flex"
+                className="absolute right-0 top-0 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-warn text-white opacity-0 shadow group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
               >
                 <X className="h-2.5 w-2.5" strokeWidth={3} />
-              </span>
+              </button>
             </div>
           );
         })}
