@@ -353,7 +353,31 @@ pace comparisons and local MP3). Throwaway local accounts are cleaned up.
 
 ## Part 5 — Compact popups and accurate Reader copy
 
-- [ ] Implement and verify. Independent if explicitly selected.
+- [x] Implemented and verified on 2026-10-20.
+
+Shared example/chat/scene popups now size to content (240px maximum), use Reader's
+compact hierarchy, omit «НОВОЕ», and show a compact add/saved state. Measured
+placement handles viewport corners, asynchronous content, visual viewport changes
+and long-content scrolling. Example words support Enter/Space; Escape and close
+restore focus. Ownership is checked from the account's word query even on a cold
+card link; Add stays disabled until that check succeeds, with retry on failure.
+Batch capture now checks duplicates within the exact language pair: a saved
+Chinese→English word no longer makes Chinese→Russian capture silently skip it.
+No existing cards or separate senses were changed; no schema migration.
+
+Reader hints follow auto-gloss, not underlines, omit repeated legend explanations,
+and show the saved-word instruction only when that pair has saved words. ru/en/zh
+verified; the existing mobile bottom popup and centered second card remain.
+
+Checks: backend `npx tsc --noEmit -p .`, frontend `npx next build` (existing warnings),
+and local Russian phone WebKit / desktop Chromium learner flows in
+`frontend/scripts/check-compact-popups.mjs`. Verified 长 capture, other-pair
+preservation, same-pair repeat skip, saved status on cold navigation/reload,
+keyboard/focus, compact width, both bottom corners, loading/failure states,
+Reader 语言, auto-gloss and underlines on/off, ru/en/zh hints, empty-deck hints,
+desktop hold, and the shared chat/hidden scene callers without exposing features.
+Visual evidence: `.playwright-cli/compact-popups`; throwaway accounts removed.
+Source review checked account/pair scoping and preserved existing records.
 
 **Separate mobile request (2026-10-20).** The small Reader word popup stays at
 the bottom with its existing layout. Only the second popup, opened by «Открыть

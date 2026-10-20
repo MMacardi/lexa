@@ -131,7 +131,7 @@ export async function importWordsForUser(params: {
     synonyms: item.synonyms.map((s) => s.trim()).filter(Boolean),
   }));
   const existing = await prisma.word.findMany({
-    where: { userId: user.id, word: { in: normalized.map((item) => item.word) } },
+    where: { userId: user.id, sourceLang: params.sourceLang, targetLang: params.targetLang, word: { in: normalized.map((item) => item.word) } },
     select: { word: true },
   });
   const existingWords = new Set(existing.map((word) => word.word));

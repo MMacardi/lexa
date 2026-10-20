@@ -140,16 +140,17 @@ export function ExampleText({
     const got = await wordAt(i);
     // The card's own word is the answer (on the front) or already on screen.
     if (!got || got.text === word.trim() || !targetLang) return;
-    const deck = qc.getQueryData<Word[]>(["words", accountId]) ?? [];
-    const owned = deck.find((d) => d.word === got.text && d.sourceLang === lang && d.targetLang === targetLang);
     setSpan({ from: got.from, to: got.to });
     const base = { word: got.text, sentence: text, sourceLang: lang, targetLang, anchor };
-    if (owned) {
-      setPop({ ...base, meaning: owned.meaningZh ?? "", transcription: owned.phonetic ?? "", isNew: false });
-      return;
-    }
     setPop({ ...base, meaning: "", isNew: true, loading: true });
     try {
+      // Lookup may still work offline; the popup separately checks ownership before enabling Add.
+      const deck = await qc.fetchQuery<Word[]>({ queryKey: ["words", accountId], queryFn: () => api.listWords(accountId) }).catch(() => undefined);
+      const owned = deck?.find((d) => d.word === got.text && d.sourceLang === lang && d.targetLang === targetLang);
+      if (owned) {
+        setPop((cur) => cur?.anchor === anchor ? { ...cur, meaning: owned.meaningZh ?? "", transcription: owned.phonetic ?? "", isNew: false, loading: false } : cur);
+        return;
+      }
       const r = await resolveMeaning({ word: got.text, sentence: text, sourceLang: lang, targetLang });
       // The reading always: an unknown word in a sentence is first a sound to learn.
       const transcription = r.transcription || (await localTranscribe(got.text, lang).catch(() => ""));
@@ -159,7 +160,7 @@ export function ExampleText({
     }
   }
 
-  function onTap(e: React.MouseEvent) {
+  function onTap(e: React.MouseEvent | React.KeyboardEvent) {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ci]");
     if (!el) return;
     // Not a flip of the review card, nor a click on whatever holds the sentence.
@@ -229,7 +230,7 @@ export function ExampleText({
     return (
       <Fragment key={i}>
         {tap ? (
-          <span data-ci={i} className={cn("cursor-pointer rounded-sm", lit ? "bg-sage-tint text-sage-deep" : "hover:bg-sage-tint/70")}>
+          <span data-ci={i} role="button" tabIndex={0} className={cn("cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-sage", lit ? "bg-sage-tint text-sage-deep" : "hover:bg-sage-tint/70")}>
             {body}
           </span>
         ) : (
@@ -253,7 +254,12 @@ export function ExampleText({
 
   // The line height gives readings room; the final word keeps its audio controls.
   return (
-    <span className={cn(ruby && "leading-[2.2]")} onClick={tappable ? onTap : undefined}>
+    <span className={cn(ruby && "leading-[2.2]")} onClick={tappable ? onTap : undefined} onKeyDown={tappable ? (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (!(e.target as HTMLElement).matches("[data-ci]")) return;
+      e.preventDefault();
+      onTap(e);
+    } : undefined}>
       {audio ? <>
         {renderRuns(0, tailStart)}
         <span data-sentence-tail className="whitespace-nowrap">{renderRuns(tailStart, chars.length)}{controls}</span>

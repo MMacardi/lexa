@@ -1775,7 +1775,7 @@ export default function ReaderPage() {
           </p>
         )}
         <p className="text-[13px] text-ink-faint">
-          {t(underlines ? "reader.tapHint" : "reader.tapHintPlain")} <span className="opacity-80">{t(mobile ? "reader.savedTapHint" : "reader.holdHint")}</span>
+          {t(autoGloss ? "reader.tapHint" : "reader.tapHintPlain")}{knownMap.size > 0 && <> <span className="opacity-80">{t(mobile ? "reader.savedTapHint" : "reader.holdHint")}</span></>}
         </p>
       </div>
 

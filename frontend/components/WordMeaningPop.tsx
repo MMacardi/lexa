@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Check, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Check, Loader2, X } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { SpeakButton } from "@/components/SpeakButton";
 import { Pinyin } from "@/components/Pinyin";
@@ -39,6 +42,15 @@ export function WordMeaningPop({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const { accountId } = useAccount();
+  // A direct card link can open before the word list has ever been cached.
+  const deck = useQuery({
+    queryKey: ["words", accountId],
+    queryFn: () => api.listWords(accountId),
+    enabled: !!accountId,
+  });
+  const owned = deck.data?.find((w) => w.word.trim().toLowerCase() === target.word.trim().toLowerCase()
+    && w.sourceLang === target.sourceLang && w.targetLang === target.targetLang);
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -46,73 +58,108 @@ export function WordMeaningPop({
 
   // Anchor under the tapped word; follow it while the conversation scrolls; dismiss on
   // Escape, on a tap outside the popover, or when the word scrolls off-screen.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const reposition = () => {
       const el = target.anchor;
       if (!el || !el.isConnected) return close();
       const rect = el.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > window.innerHeight) return close();
-      const x = Math.min(window.innerWidth - 124, Math.max(124, rect.left + rect.width / 2));
-      setPos({ x, y: rect.bottom });
+      const viewport = window.visualViewport;
+      const left = viewport?.offsetLeft ?? 0, top = viewport?.offsetTop ?? 0;
+      const width = viewport?.width ?? window.innerWidth, height = viewport?.height ?? window.innerHeight;
+      if (rect.bottom < top || rect.top > top + height) return close();
+      const box = popRef.current;
+      if (!box) return;
+      box.style.maxWidth = `${Math.min(240, width - 16)}px`;
+      box.style.maxHeight = `${height - 16}px`;
+      const size = { width: box.offsetWidth, height: box.offsetHeight };
+      const x = Math.max(left + 8, Math.min(left + width - size.width - 8, rect.left + (rect.width - size.width) / 2));
+      const below = rect.bottom + 8;
+      const y = Math.max(top + 8, Math.min(top + height - size.height - 8,
+        below + size.height <= top + height - 8 ? below : rect.top - size.height - 8));
+      setPos((cur) => cur?.x === x && cur.y === y ? cur : { x, y });
     };
     reposition();
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    const onDown = (e: PointerEvent) => {
-      if (!popRef.current?.contains(e.target as Node)) close();
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      close();
+      target.anchor.focus({ preventScroll: true });
     };
+    const onDown = (e: PointerEvent) => {
+      if (!popRef.current?.contains(e.target as Node) && !target.anchor.contains(e.target as Node)) close();
+    };
+    const observer = new ResizeObserver(reposition);
+    if (popRef.current) observer.observe(popRef.current);
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
     window.addEventListener("keydown", onEsc);
     document.addEventListener("pointerdown", onDown);
+    window.visualViewport?.addEventListener("resize", reposition);
+    window.visualViewport?.addEventListener("scroll", reposition);
     return () => {
+      observer.disconnect();
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("keydown", onEsc);
       document.removeEventListener("pointerdown", onDown);
+      window.visualViewport?.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("scroll", reposition);
     };
   }, [target.anchor, close]);
 
-  if (!pos) return null;
-  const { word, meaning, transcription, loading, sourceLang, targetLang, isNew } = target;
+  const positioned = pos !== null;
+  useLayoutEffect(() => {
+    if (positioned) popRef.current?.focus({ preventScroll: true });
+  }, [target.anchor, positioned]);
+
+  const { word, sourceLang, targetLang, isNew } = target;
+  const meaning = owned?.meaningZh || target.meaning;
+  const transcription = owned?.phonetic || target.transcription;
+  const loading = target.loading && !owned;
+  const saved = added || !!owned;
 
   return createPortal(
-    <div className="fixed z-[90] -translate-x-1/2" style={{ left: pos.x, top: pos.y + 8 }}>
+    <div className="fixed z-[90] w-max max-w-[calc(100vw-16px)]" style={{ left: pos?.x ?? 0, top: pos?.y ?? 0, visibility: pos ? undefined : "hidden" }}>
       <div
         ref={popRef}
-        className="anim-popover w-[228px] rounded-[14px] border border-black/[0.08] bg-surface p-3 shadow-[0_14px_40px_rgba(46,42,38,0.24)]"
+        role="dialog"
+        aria-label={word}
+        tabIndex={-1}
+        className="anim-popover max-w-[240px] overflow-y-auto overscroll-contain break-words rounded-[12px] border border-black/[0.08] bg-surface px-3 py-2 text-left font-sans text-[13px] font-normal leading-snug outline-none shadow-[0_14px_40px_rgba(46,42,38,0.24)]"
       >
         <div className="flex items-center gap-1.5">
-          <span className={cn("select-text text-[15px] font-semibold text-ink", srcFont(sourceLang))}>{word}</span>
+          <span className={cn("min-w-0 select-text text-[13px] font-semibold text-ink", srcFont(sourceLang))}>{word}</span>
           <SpeakButton text={word} lang={sourceLang} size="sm" />
-          {isNew && (
-            <span className="ml-auto rounded-full bg-warn-bg px-1.5 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-warn-text">
-              {t("pop.new")}
-            </span>
-          )}
+          <button type="button" onClick={() => { close(); target.anchor.focus({ preventScroll: true }); }} aria-label={t("common.close")} className="ml-auto shrink-0 rounded p-1.5 text-ink-faint hover:bg-black/[0.05] hover:text-ink">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
         {transcription && (
-          <div className="mt-0.5 select-text text-[12px] font-medium tracking-wide text-ink-faint">
+          <div className="mt-0.5 select-text text-[12px] font-medium text-ink-faint">
             {sourceLang === "zh" || sourceLang === "zh-Hant" ? <Pinyin text={transcription} /> : transcription}
           </div>
         )}
         {loading ? (
-          <div className="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-faint">
+          <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-faint">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("pop.loading")}
           </div>
         ) : (
           meaning && (
-            <div className={cn("mt-1 select-text text-[13px] leading-snug text-sage-deep", srcFont(targetLang))}>{meaning}</div>
+            <div className={cn("mt-0.5 select-text text-[13px] leading-snug text-sage-deep", srcFont(targetLang))}>{meaning}</div>
           )
         )}
-        {isNew && onAdd && (
+        {saved ? (
+          <div role="status" className="mt-1.5 flex items-center gap-1 text-[12px] font-medium text-sage-deep"><Check className="h-3 w-3" />{t("pop.added")}</div>
+        ) : isNew && onAdd && deck.isError ? (
+          <button type="button" onClick={() => void deck.refetch()} className="mt-1.5 text-[12px] text-ink-muted underline">{t("pop.statusFailed")} {t("errState.retry")}</button>
+        ) : isNew && onAdd && (
           <button
             type="button"
             onClick={onAdd}
-            disabled={adding || added || loading || !meaning}
-            className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-sage px-2.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-60"
+            disabled={adding || loading || !meaning || !deck.data}
+            className="mt-1.5 inline-flex items-center justify-center gap-1 rounded-[8px] bg-sage-tint px-2 py-1.5 text-[12px] font-semibold text-sage-deep transition-colors hover:bg-sage-tint/70 disabled:opacity-60"
           >
-            {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : added ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {added ? t("pop.added") : t("pop.add")}
+            {adding || !deck.data ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+            {t("pop.add")}
           </button>
         )}
       </div>

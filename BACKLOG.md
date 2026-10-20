@@ -56,11 +56,16 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    on 2026-10-19. Work one session at a time from `PLAN-learner-bug-batch.md`;
    Part 3 (capture examples and removal) completed and verified on 2026-10-20.
    Part 4 (sentence audio controls/placement/pace) completed and verified on 2026-10-20.
-   Parts 5–6 remain open: compact popups and accurate Reader copy, short-word
-   Mandarin pronunciation. Separate mobile Reader request (2026-10-20): keep the
+   Part 5 (compact popups and accurate Reader copy) completed and verified on 2026-10-20;
+   shared saved/add status survives cold links/reload, and capture checks the exact pair.
+   Part 6 remains open: short-word Mandarin pronunciation.
+   Separate mobile Reader request (2026-10-20): keep the
    small popup at the bottom, center and fix the second card popup, remove hold.
    Follow-up complete (2026-10-20): selecting a saved text resets Reader to the top;
    mobile WebKit verified switching/reopening from a scrolled library.
+   Separate finding during Part 5 checks: a cold hidden scene `?session=<id>` link
+   returned to setup with a saved local session; investigate resume separately.
+   New scene generation and its shared popup passed; scene surfaces remain hidden.
    Each part has
    code findings, acceptance checks and recommended Codex model/effort settings.
    This explicit request takes priority over the time-gated grouped-word proof.
