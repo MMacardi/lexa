@@ -1,24 +1,22 @@
 # Session handoff — 2026-10-21
 
-- Task: Part 16 — Usable Reader and Mika at browser zoom; complete.
-- Plan: PLAN-learner-bug-batch.md Part 16; Parts 1–16 complete, 17–18 open.
-- Reproduced real Chromium page zoom: 1600×900 → 800×450 CSS px at 200%
-  (DPR 2, visual scale 1). Mika header crushed the thread/overlapped input;
-  sidebar bottom entries were unreachable; dragged Reader card left the window.
-- Changes: wrapping Mika header, full available desktop chat height, fixed natural
-  header/composer sizes with shrinkable thread; floating thread minimum removed.
-  Long drafts scroll within a visible-viewport cap. Sidebar scrolls. Reader card
-  re-clamps after drag/window/panel resize, including responsive transitions.
-- Files: frontend app/{mika,reader}/page.tsx, components/{GlobalTutor,Sidebar,
-  TutorComposer}.tsx; scripts/check-reader-mika-zoom.mjs. No new UI strings/schema.
+- Task: Part 17 — Search saved words by pinyin without spaces; complete.
+- Plan: PLAN-learner-bug-batch.md Part 17; Parts 1–17 complete, 18 open.
+- Reproduced locally: saved 你好 matches hanzi but not nihao; 女孩 not nvhai.
+- Changes: memoized saved-word search fields; Chinese readings normalize tones,
+  spaces/separators/case and ü/u:/v without conflating plain u. Saved readings
+  win; missing/blank zh/zh-Hant phonetics use existing offline localTranscribe.
+  No transcription per keystroke; no dictionary/AI calls or saved-data changes.
+- Files: frontend/lib/useWordSearch.ts, app/words/page.tsx, lib/i18n.tsx,
+  scripts/check-word-pinyin-search.mjs. Search hint/accessible name in ru/en/zh.
 - Checks: backend npx tsc --noEmit -p .; frontend npx next build passed
-  (existing warnings). Browser check passed 13 focused assertions/groups.
-- Behavior: Reader long ruby/end/popup/card controls and bounds; both Mika surfaces
-  at 100/200%, long ruby history/drafts, scrolled focus/send/close/history;
-  sidebar account; 640×360 responsive mode; Russian phone 390×844/390×430.
-  Keyboard coverage is reduced-space simulation, not a native OS keyboard.
-- Evidence: .playwright-cli/reader-mika-zoom/result.json; inspected before/after
-  Mika and Reader card screenshots. No browser errors or horizontal page overflow.
+  (existing warnings); focused browser script passed seven behavior groups.
+- Behavior: tone/spacing/case/separator and ü/u:/v variants; saved chóng versus
+  legacy zhòng for separate 重 cards; legacy traditional/blank phonetics;
+  Russian/hanzi/clear/invalid/unsaved queries; pair/collection/study filters;
+  Russian Chromium phone 390×844 typing/focus/result action. Zero typing API
+  requests or browser errors; card count/readings unchanged.
+- Evidence: .playwright-cli/word-pinyin-search/{before,result}.json.
 - Local throwaway account/data cleaned. No migrations, production data or live AI.
-- Next: Part 17 only when requested. Retention evidence and landing remain deferred.
+- Next: Part 18 only when requested. Retention evidence and landing remain deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.

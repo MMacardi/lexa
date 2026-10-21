@@ -52,8 +52,9 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
-   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 17 next and
-   complete only one part per implementation session. Covers truthful HSK level/
+   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; Parts 7–17 complete.
+   Start Part 18 next; complete only one part per implementation session.
+   Covers truthful HSK level/
    target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
    numbered/unpunctuated audio and the reported fourth tone; whole-text listening
    with speed/progress; Russian dictionary loading and consistent saved senses;

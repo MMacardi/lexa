@@ -25,6 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Segmented } from "@/components/ui/Segmented";
+import { normalizePinyin, useWordSearch } from "@/lib/useWordSearch";
 
 // Sentinel <Select> value for "create a new set from the selection".
 const NEW_SET = "__new__";
@@ -170,6 +171,7 @@ export default function WordsPage() {
     });
 
   const words = data ?? [];
+  const searchableWords = useWordSearch(data);
   const mastered = words.filter((w) => w.reviewCount >= 5).length;
   const learning = words.length - mastered;
   const dueCount = words.filter(isDue).length;
@@ -197,8 +199,9 @@ export default function WordsPage() {
   const pairs = pairCounts.map(([key]) => key);
 
   const q = query.trim().toLowerCase();
-  const filtered = words
-    .filter((w) => {
+  const pinyinQuery = normalizePinyin(q);
+  const filtered = searchableWords
+    .filter(({ card: w, spelling, meaning, pinyin }) => {
       if (filter === "mastered" && w.reviewCount < 5) return false;
       if (filter === "learning" && w.reviewCount >= 5) return false;
       if (filter === "due" && !isDue(w)) return false;
@@ -206,10 +209,12 @@ export default function WordsPage() {
       if (coll !== "all" && !(w.collections ?? []).some((c) => c.id === coll)) return false;
       return (
         !q ||
-        w.word.toLowerCase().includes(q) ||
-        (w.meaningZh ?? "").toLowerCase().includes(q)
+        spelling.includes(q) ||
+        meaning.includes(q) ||
+        (pinyinQuery && pinyin.includes(pinyinQuery))
       );
     })
+    .map(({ card }) => card)
     .sort(sortFns[sort]);
 
   // Reset the visible window whenever the filter/search/sort narrows the list.
@@ -288,6 +293,7 @@ export default function WordsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={t("words.search")}
+                  aria-label={t("words.search")}
                   className="h-10 w-full rounded-full border border-black/[0.07] bg-surface pr-4 pl-10 text-[15px] text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none"
                 />
               </div>

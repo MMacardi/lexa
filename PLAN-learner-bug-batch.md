@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–16
-are complete; Parts 17–18 remain open.
-Next implementation session: **Part 17**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–17
+are complete; Part 18 remains open.
+Next implementation session: **Part 18**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1423,7 +1423,7 @@ no migrations, production data or live AI generation used.
 
 ## Part 17 — Search saved words by pinyin without spaces
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-21).
 
 **Report/code findings.** `app/words/page.tsx` currently searches only `word` and
 `meaningZh`. Typing `nihao` should find a saved 你好; it must not search/add the
@@ -1442,6 +1442,28 @@ on every keystroke. Update the search hint in ru/en/zh if necessary.
 variants, including nvhai/nü hai/nu:hai; an unsaved word does not appear. Test a
 legacy no-phonetic card, its actual alternate reading, clear query and combined
 filters. One Russian phone search check; no regression of Russian/hanzi matching.
+
+**Implemented.** `frontend/lib/useWordSearch.ts` prepares reusable lowercase
+spelling/meaning and normalized Chinese-reading fields when saved cards change.
+Tone marks/numbers, case, whitespace, apostrophes, hyphens and middle dots normalize
+consistently; ü/u:/v stay equivalent without conflating ü with plain u. Saved
+readings take precedence; only missing/blank zh/zh-Hant readings use the existing
+offline `localTranscribe` fallback, independent of transcription display settings.
+Typing filters this local index; no dictionary search, AI request, saved-data
+change or transcription per keystroke. Updated search hint/accessible name in
+ru/en/zh; existing filters and sorting remain in place.
+
+**Verified.** Reproduced the original failure with a local throwaway account:
+saved 你好 matches hanzi but not nihao; saved 女孩 does not match nvhai. After the
+fix, `node frontend/scripts/check-word-pinyin-search.mjs` passed seven focused
+behavior groups: tone/spacing/case/separator variants; ü/u:/v; saved chóng versus
+legacy local zhòng for separate 重 cards; legacy zh-Hant/blank phonetics;
+Russian/hanzi/clear/unsaved/invalid queries; combined pair/collection/status
+filters; Russian Chromium phone 390×844 search/focus/result action. Zero API
+requests during typing, browser errors, added cards or persisted fallback readings.
+Backend `npx tsc --noEmit -p .` and frontend `npx next build` passed (existing
+warnings). Evidence: `.playwright-cli/word-pinyin-search/{before,result}.json`.
+Local fixtures/account cleaned. No schema changes, production data or live AI.
 
 ## Part 18 — AI-function inventory and complete usage accounting
 

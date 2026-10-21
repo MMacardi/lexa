@@ -2174,7 +2174,7 @@ const DICT: Record<string, Entry> = {
   "words.deleteSelected": { en: "Delete", ru: "Удалить", zh: "删除" },
   "words.deleteSelectedTitle": { en: "Delete words", ru: "Удалить слова", zh: "删除单词" },
   "words.deleteSelectedConfirm": { en: "Delete {n} selected word(s)? This can't be undone.", ru: "Удалить выбранные слова ({n})? Отменить нельзя.", zh: "删除选中的 {n} 个单词？无法撤销。" },
-  "words.search": { en: "Search your words", ru: "Поиск по словам", zh: "搜索单词" },
+  "words.search": { en: "Word, pinyin or meaning", ru: "Слово, пиньинь или перевод", zh: "单词、拼音或释义" },
   "words.pill.all": { en: "All {n}", ru: "Все {n}", zh: "全部 {n}" },
   "words.pill.due": { en: "Due {n}", ru: "К повторению {n}", zh: "待复习 {n}" },
   "words.pill.learning": { en: "Learning {n}", ru: "В процессе {n}", zh: "学习 {n}" },
