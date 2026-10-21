@@ -1412,6 +1412,20 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Mika Chinese explanation reliability evaluation (2026-10-21, asked for directly)
+- Reproduced the reported 进行交流 reversal with live Bailian calls. Compared
+  qwen-plus and qwen3.5-plus with current/general accuracy instructions on ten
+  scenarios, then checked two reasoning budgets on the observed failures.
+- 73 live calls total. Both agreement with false objections and defense of a
+  seeded false answer occurred; more reasoning did not eliminate invented rules.
+  No tested variant is recommended for deployment from this diagnostic alone.
+- Repeatable database-isolated harness: backend/scripts/eval-tutor-reliability.ts;
+  method, manual case review, evidence and limits: EVAL-tutor-reliability.md.
+  Raw synthetic responses remain in .playwright-cli/mika-reliability/ locally.
+- Backend and strict script type-checks plus frontend production build passed
+  (existing warnings). No app/model/prompt/UI/schema changes or production data
+  access. Evaluation complete; the underlying reliability issue remains unresolved.
+
 ### Reader source stays with the current text (2026-10-21, asked for directly)
 - A saved text's title was persisted as a global Reader source while the passage
   itself was not restored, leaving an unrelated Chinese title in an empty form.
