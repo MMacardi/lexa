@@ -1,7 +1,6 @@
-// Persistent cache for quick word glosses (tap-to-translate in the Reader and on
-// the word page). Tapping the same word again — even in a later session — then
-// costs no model call. Kept in localStorage, capped so it can't grow unbounded;
-// an in-memory mirror keeps reads instant.
+// Persistent cache for AI fallback glosses after dictionary lookup. A repeat tap
+// in the same sentence costs no model call, even in a later session. Kept in
+// localStorage, capped so it can't grow unbounded; an in-memory mirror keeps reads instant.
 
 export interface GlossEntry {
   gloss: string;

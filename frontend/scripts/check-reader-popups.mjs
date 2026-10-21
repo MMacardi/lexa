@@ -65,6 +65,12 @@ try {
   if (!process.argv.includes('--phone-only')) {
     const {ctx,page,text} = await prepare(desktop,{viewport:{width:960,height:720}});
     const pending = [];
+    // These cases exercise delayed AI fallback; known dictionary meanings bypass it.
+    await page.route('**/api/dict?*', async route => {
+      const response = await route.fetch(), data = await response.json();
+      if (data.entry) data.entry.meaning = null;
+      await route.fulfill({ response, json: data });
+    });
     await page.route('**/api/gloss',route => { pending.push({route,data:route.request().postDataJSON()}); });
     const known = text.getByRole('button',{name:'学习',exact:true});
     const unknown = text.getByRole('button',{name:'拒绝',exact:true});
@@ -140,6 +146,7 @@ try {
     await page.getByTestId('reader-new-count').click(); await dialog('学习').waitFor({state:'detached'});
     record('bottom-edge long saved meaning constrained, scrollable and follows page scroll');
 
+    await page.unroute('**/api/dict?*');
     await page.goto(app+'/word/'+fixture.word,{waitUntil:'domcontentloaded'});
     const pill = page.getByRole('button',{name:'+ 拒绝',exact:true});
     await pill.waitFor(); await pill.scrollIntoViewIfNeeded();

@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { getShowTranscription, hasTranscription } from "@/lib/learnPrefs";
-import { isLocalTr, localTranscribe } from "@/lib/transcribe";
-import { getGloss as getCachedGloss, setGloss as setCachedGloss } from "@/lib/glossCache";
+import { resolveMeaning } from "@/lib/resolveMeaning";
 import { cn } from "@/lib/utils";
 
 const srcFont = (lang: string) => (lang === "zh" || lang === "zh-Hant" || lang === "ja" ? "font-zh" : "");
@@ -36,7 +33,6 @@ export function TapGlossPills({
   const [gloss, setGloss] = useState<string | null>(null);
   const [tr, setTr] = useState("");
   const [loading, setLoading] = useState(false);
-  const cache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
   const keyRef = useRef("");
   const anchorRef = useRef<HTMLElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -94,38 +90,14 @@ export function TapGlossPills({
     const x = Math.min(window.innerWidth - 140, Math.max(140, rect.left + rect.width / 2));
     setPop({ text, x, y: rect.bottom });
     keyRef.current = text;
-    // In-memory first, then the cross-session localStorage cache — a repeat tap
-    // (even in a later session) costs no model call.
-    const cached = cache.current.get(text) ?? getCachedGloss(text, sourceLang, targetLang) ?? undefined;
-    if (cached) {
-      cache.current.set(text, cached);
-      setGloss(cached.gloss);
-      setTr(cached.tr);
-      setLoading(false);
-      return;
-    }
     setGloss(null);
     setTr("");
     setLoading(true);
-    const local = isLocalTr(sourceLang);
-    const showTr = getShowTranscription() && hasTranscription(sourceLang);
-    // Chinese/Korean transcription is computed locally (instant, no model call).
-    if (local && showTr) {
-      localTranscribe(text, sourceLang).then((p) => {
-        if (keyRef.current === text) setTr(p);
-      });
-    }
-    const wantTr = showTr && !local; // only Japanese asks the model
-    api
-      .gloss({ word: text, sentence: text, sourceLang, targetLang, withTranscription: wantTr })
-      .then(async (r) => {
-        const tr = local && showTr ? await localTranscribe(text, sourceLang) : r.transcription ?? "";
-        const entry = { gloss: r.gloss, tr };
-        cache.current.set(text, entry);
-        setCachedGloss(text, sourceLang, targetLang, entry);
+    resolveMeaning({ word: text, sourceLang, targetLang })
+      .then((r) => {
         if (keyRef.current === text) {
-          setGloss(entry.gloss);
-          if (tr) setTr(tr);
+          setGloss(r.meaning);
+          setTr(r.transcription);
           setLoading(false);
         }
       })

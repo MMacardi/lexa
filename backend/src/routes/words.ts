@@ -1183,9 +1183,9 @@ wordsRouter.post("/gloss", async (req, res) => {
 
 // GET /api/dict?word=&lang= -> what a Reader tap shows at once, with no model
 // call: the dictionary's pinyin + English gloss, and the shared default meaning in
-// the learner's language (services/lookup.ts). `settled`: the default is one sense
-// of one reading, so the sentence can't change it and no contextual gloss is asked
-// for. `entry` is null outside the CC-CEDICT subset; `credit` rides along
+// the learner's language (services/lookup.ts). `settled`: one sense of one reading;
+// tap lookup uses any available meaning without a contextual model call.
+// `entry` is null outside CC-CEDICT; `credit` rides along
 // whenever the data is shown (BY-SA).
 wordsRouter.get("/dict", async (req, res) => {
   const word = String(req.query.word ?? "").trim().slice(0, 40);

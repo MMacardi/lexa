@@ -1404,6 +1404,18 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Dictionary meanings on word taps (2026-10-21, asked for directly)
+- Reader, card examples and meaning chips use the existing Chinese dictionary meaning
+  in the learner's language, including words with several senses. English uses CC-CEDICT's
+  gloss directly. Older cached AI answers cannot override an available dictionary meaning.
+- Only missing meanings use the existing contextual AI pipeline and sentence cache;
+  saved deck words continue to show their saved meaning. Reader no longer promises
+  a contextual AI refinement while showing an available dictionary meaning.
+- Checks: backend typecheck and frontend production build passed (existing warnings).
+  `frontend/scripts/check-tap-dictionary.mjs`: Russian phone Reader/card examples,
+  real dictionary, multiple senses, stale AI cache, zero AI requests for known meanings,
+  and controlled AI fallback/cache for a missing Russian meaning. Test account cleaned.
+
 ### Mika keyboard, card scrolling and copy fixes (2026-10-19, asked for directly)
 - Pinned training pages recover their document position after the keyboard closes; Mika
   blurs her input before closing. Header and message actions retain focus until the tap

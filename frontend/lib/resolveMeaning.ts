@@ -1,9 +1,7 @@
-// Resolve the meaning of an arbitrary word on tap — the lookup chain the Reader uses,
-// extracted so the Coach bubbles can reuse it. Cache first (a repeat tap costs no model
-// call, even in a later session). A sentence gets its own cache entry and a contextual
-// gloss: even a single-sense dictionary word can be a person's name. Without a
-// sentence, a settled Chinese default needs no model. The pinyin/romanization for
-// Chinese and Korean is computed on-device instead of asked from the model.
+// Shared tap lookup: the dictionary's meaning and reading first, including words
+// with several senses. Only gaps in the learner's language use a contextual AI
+// gloss, cached per sentence across sessions. Dictionary data takes precedence
+// over older AI cache entries. Chinese/Korean transcription is computed locally.
 
 import { api } from "./api";
 import { getGloss, setGloss } from "./glossCache";
@@ -21,7 +19,7 @@ const inflight = new Map<string, Promise<ResolvedMeaning>>();
 
 export async function resolveMeaning(opts: {
   word: string;
-  /** surrounding text, so the gloss can pick the right sense of an ambiguous word */
+  /** surrounding text for the AI fallback when the dictionary has no meaning */
   sentence?: string;
   sourceLang: string;
   targetLang: string;
@@ -30,9 +28,6 @@ export async function resolveMeaning(opts: {
   if (!word) return { meaning: "", transcription: "" };
 
   const sentence = opts.sentence?.trim() || "";
-  const cached = getGloss(word, opts.sourceLang, opts.targetLang, sentence);
-  if (cached) return { meaning: cached.gloss, transcription: cached.tr };
-
   const key = JSON.stringify([opts.sourceLang, opts.targetLang, word, sentence]);
   const running = inflight.get(key);
   if (running) return running;
@@ -41,9 +36,11 @@ export async function resolveMeaning(opts: {
     const showTr = getShowTranscription() && hasTranscription(opts.sourceLang);
     if (isChineseLang(opts.sourceLang)) {
       const d = await dictEntry(word, opts.targetLang);
-      // The dictionary's reading, like the Reader: a bare 了 is le, not liǎo.
-      if (!sentence && d?.settled && d.meaning) return { meaning: d.meaning, transcription: showTr ? d.phonetic : "" };
+      const meaning = d?.meaning?.trim() || (opts.targetLang === "en" ? d?.gloss.trim() : "");
+      if (d && meaning) return { meaning, transcription: showTr ? d.phonetic : "" };
     }
+    const cached = getGloss(word, opts.sourceLang, opts.targetLang, sentence);
+    if (cached) return { meaning: cached.gloss, transcription: cached.tr };
     const local = isLocalTr(opts.sourceLang); // zh / zh-Hant / ko → no model call
     const [localTr, res] = await Promise.all([
       showTr && local ? localTranscribe(word, opts.sourceLang) : Promise.resolve(""),

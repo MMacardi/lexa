@@ -153,9 +153,7 @@ export default function ReaderPage() {
   const [glossText, setGlossText] = useState<string | null>(null);
   const [glossTr, setGlossTr] = useState<string>(""); // transcription (pinyin/romaji)
   const [glossLoading, setGlossLoading] = useState(false);
-  const glossCache = useRef<Map<string, { gloss: string; tr: string }>>(new Map());
-  // Instant capture: CC-CEDICT's pinyin + English, shown the moment a Chinese word
-  // is tapped while the contextual gloss (a model call) is still on its way.
+  // Dictionary reading and meaning; only missing meanings need an AI fallback.
   const [glossCedict, setGlossCedict] = useState<DictEntry | null>(null);
   const glossKeyRef = useRef<string>("");
   const glossRequest = useRef(0);
@@ -800,7 +798,7 @@ export default function ReaderPage() {
   }
 
   // Show a quick translation of a single word, anchored under the tapped token.
-  // `sentence` is the one the token sits in, so the gloss is the sense used there.
+  // Keep the sentence for the AI fallback when no dictionary meaning is available.
   function openGloss(key: string, wordText: string, el: HTMLElement, sentence: string) {
     const cacheKey = JSON.stringify([sourceLang, targetLang, key, sentence]);
     const requestKey = `${++glossRequest.current}:${cacheKey}`;
@@ -812,8 +810,7 @@ export default function ReaderPage() {
     glossKeyRef.current = requestKey;
     glossElRef.current = el;
     // The dictionary answers at once, with no model call: the reading, and the
-    // shared default meaning in the learner's language. The contextual gloss
-    // then picks this sentence's sense, including names absent from the dictionary.
+    // shared default meaning in the learner's language. AI only fills gaps.
     const zh = isChineseLang(sourceLang);
     setGlossCedict(zh ? (peekDictEntry(wordText, targetLang) ?? null) : null);
     if (zh) {
@@ -821,23 +818,13 @@ export default function ReaderPage() {
         if (glossKeyRef.current === requestKey) setGlossCedict(e);
       });
     }
-    // Per-token in-memory fast path. resolveMeaning owns the rest of the chain —
-    // the cross-session cache, inflight dedupe, local zh/ko transcription and the
-    // gloss request — so the Reader no longer carries its own copy of it.
-    const cached = glossCache.current.get(cacheKey) ?? undefined;
-    if (cached != null) {
-      setGlossText(cached.gloss);
-      setGlossTr(cached.tr);
-      setGlossLoading(false);
-      return;
-    }
+    // One shared resolver keeps dictionary data ahead of cached AI glosses.
     setGlossText(null);
     setGlossTr("");
     setGlossLoading(true);
     resolveMeaning({ word: wordText, sentence, sourceLang, targetLang })
       .then((r) => {
         const entry = { gloss: r.meaning, tr: r.transcription };
-        glossCache.current.set(cacheKey, entry);
         if (glossKeyRef.current === requestKey) {
           setGlossText(entry.gloss);
           if (entry.tr) setGlossTr(entry.tr);
@@ -1308,18 +1295,9 @@ export default function ReaderPage() {
             {glossCedict?.phonetic || glossTr}
           </div>
         ) : null}
-        {glossCedict && !glossCedict.meaning && targetLang === "en" && (
-          <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
-            {glossCedict.gloss}
-            <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
-          </div>
-        )}
         <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
-          {glossLoading ? (glossCedict?.meaning ?? t("reader.translating")) : glossText}
+          {glossLoading ? (glossCedict?.meaning ?? (targetLang === "en" ? glossCedict?.gloss : null) ?? t("reader.translating")) : glossText}
         </div>
-        {glossLoading && glossCedict?.meaning && (
-          <div className={cn("mt-0.5 text-ink-faint", docked ? "text-[12px]" : "text-[11px]")}>{t("reader.contextPending")}</div>
-        )}
         {!glossLoading && glossText === t("reader.translateFailed") && (
           <button type="button" className="mt-1 rounded-md px-2 py-1 text-[13px] font-semibold text-sage-deep"
             onClick={() => { if (glossElRef.current) openGloss(gloss.key, gloss.word, glossElRef.current, sentenceForKey(gloss.key)); }}>
@@ -1614,7 +1592,7 @@ export default function ReaderPage() {
           </button>
         )}
 
-        {/* auto-translate a word on tap (a per-tap model call) — toggle to save it */}
+        {/* Show a dictionary meaning on tap; AI only fills dictionary gaps. */}
         <HoverTip title={t("reader.autoGlossHint")} className="hidden md:inline-flex">
           <button
             type="button"
@@ -2207,7 +2185,6 @@ export default function ReaderPage() {
               setShowTr(false);
               setGloss(null);
               glossKeyRef.current = "";
-              glossCache.current.clear();
               setKnownPop(null);
               setCardPanel(null);
             }

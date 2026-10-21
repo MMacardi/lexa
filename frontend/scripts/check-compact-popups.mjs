@@ -43,6 +43,12 @@ for (const { name, engine, ...options } of [
       if (glossMode === 'failure') { sawGloss(); await glossGate; return route.fulfill({status:502,contentType:'application/json',body:'{"error":"Controlled failure"}'}); }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ gloss: 'длинный', transcription: 'cháng' }) });
     });
+    // Keep loading/failure cases on the AI fallback after dictionary-first taps.
+    await page.route('**/api/dict?*', async route => {
+      const response = await route.fetch(), data = await response.json();
+      if (data.entry) data.entry.meaning = null;
+      await route.fulfill({ response, json: data });
+    });
     let unknownBox = null;
     if (!process.argv.includes('--reader-only') && !process.argv.includes('--shared-only')) {
     await page.goto(app + '/word/' + ids[0], { waitUntil: 'domcontentloaded' });

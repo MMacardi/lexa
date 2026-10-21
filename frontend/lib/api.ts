@@ -101,8 +101,8 @@ export interface Word {
 }
 
 // A tapped Chinese word as the dictionary has it: the reading, CC-CEDICT's English,
-// and the shared default meaning in the learner's language. `settled`: one sense of
-// one reading, so no sentence can change it and no model is asked.
+// and the shared default meaning in the learner's language. `settled`: one sense
+// of one reading. Tap lookup uses any available meaning, including multiple senses.
 export interface DictEntry {
   phonetic: string;
   gloss: string;
