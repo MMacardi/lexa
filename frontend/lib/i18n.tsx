@@ -1424,8 +1424,24 @@ const DICT: Record<string, Entry> = {
   "draw.undo": { en: "Undo stroke", ru: "Отменить черту", zh: "撤销一笔" },
   "draw.clear": { en: "Clear", ru: "Стереть", zh: "清除" },
   "draw.backspace": { en: "Delete last character", ru: "Удалить последний иероглиф", zh: "删除最后一个字" },
-  "han.remembered": { en: "Ideographs are read as", ru: "Иероглифы определяются как", zh: "汉字识别为" },
-  "han.reset": { en: "Ask again", ru: "Спрашивать снова", zh: "重新询问" },
+  "han.remembered": { en: "Language of words written only in Han characters", ru: "Язык слов из иероглифов", zh: "纯汉字词的语言" },
+  "han.hint": {
+    en: "Used in Add when the language is set to Auto-detect. Resetting uses Chinese. This choice is shared by accounts in this browser.",
+    ru: "Для автоматического выбора языка в «Добавить». После сброса используется китайский. Выбор общий для аккаунтов в этом браузере.",
+    zh: "在「添加」中自动选择语言时使用。重置后默认为中文。此选项由本浏览器中的账号共用。",
+  },
+  "han.fixedHint": {
+    en: "Add currently uses a fixed Chinese language setting, so this choice does not affect it.",
+    ru: "Сейчас в «Добавить» задан китайский: эта настройка на него не влияет.",
+    zh: "目前「添加」的语言固定为中文，此选项不会影响它。",
+  },
+  "han.legacyKoreanHint": {
+    en: "Your old choice is preserved. Auto-detect no longer uses Korean for Han-only words; it uses Chinese instead.",
+    ru: "Старый выбор сохранён. При автоматическом выборе корейский больше не используется: слова из одних иероглифов считаются китайскими.",
+    zh: "已保留之前的选择。自动选择语言时，纯汉字词不再按韩语处理，而是按中文处理。",
+  },
+  "han.change": { en: "Change the language for Han-only words", ru: "Изменить язык слов из иероглифов", zh: "更改纯汉字词的语言" },
+  "han.reset": { en: "Reset choice", ru: "Сбросить выбор", zh: "重置选择" },
 
   // --- duplicate warning ---
   "dup.title": { en: "Already in your words", ru: "Такое слово уже есть", zh: "已存在" },

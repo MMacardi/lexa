@@ -20,7 +20,7 @@ import {
   EXAMPLE_STYLES,
   LEVEL_HINT,
   getExampleSource,
-  getHanLang,
+  useHanLang,
   getLearnerLevel,
   levelName,
   levelOptions,
@@ -251,11 +251,8 @@ export function AddWordForm({
   const synLevel = useSynonymLevel();
   const recentPairs = useRecentPairs();
   // Remembered choice for Han-only input (Chinese vs Japanese; never Korean).
-  const [hanChoice, setHanChoice] = useState<"zh" | "ja">("zh");
-  useEffect(() => {
-    const h = getHanLang();
-    if (h === "zh" || h === "ja") setHanChoice(h);
-  }, []);
+  const rememberedHan = useHanLang();
+  const hanChoice = rememberedHan === "ja" ? "ja" : "zh";
   const showHanPicker = sourceLang === "auto" && isAmbiguousHan(word);
 
   // The draw pad (Pleco's handwriting input) for a character you can see but
@@ -1040,10 +1037,7 @@ export function AddWordForm({
             shape="soft"
             itemClassName="px-3 py-1 leading-tight"
             value={hanChoice}
-            onChange={(l) => {
-              setHanChoice(l);
-              setHanLang(l); // remember for the rest of the session
-            }}
+            onChange={setHanLang}
             options={(["zh", "ja"] as const).map((l) => ({
               value: l,
               label: (

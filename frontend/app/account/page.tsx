@@ -15,6 +15,7 @@ import {
   RETENTION_OPTIONS,
   DEFAULT_RETENTION,
   clearHanLang,
+  setHanLang,
   getLearnerLevel,
   levelOptions,
   removeLevel,
@@ -120,18 +121,27 @@ function LevelsSection() {
       )}
 
       {hanLang && (
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
-          <span className="text-[13px] text-ink-soft">
-            {t("han.remembered")}{" "}
-            <span className="font-semibold text-ink">{hanLang === "zh" ? "中文" : hanLang === "ja" ? "日本語" : "한국어"}</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => clearHanLang()}
-            className="rounded-full border border-black/[0.08] px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
-          >
-            {t("han.reset")}
-          </button>
+        <div className="mt-4 border-t border-black/[0.06] pt-4">
+          <p className="text-[15px] font-medium text-ink">{t("han.remembered")}</p>
+          <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("han.hint")}</p>
+          {FIXED_PAIR && <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("han.fixedHint")}</p>}
+          {hanLang === "ko" && <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t("han.legacyKoreanHint")}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Select
+              value={hanLang}
+              onChange={(v) => setHanLang(v as "zh" | "ja" | "ko")}
+              ariaLabel={t("han.change")}
+              className="w-[150px]"
+              options={(hanLang === "ko" ? ["zh", "ja", "ko"] : ["zh", "ja"]).map((code) => ({ value: code, label: langLabel(code) }))}
+            />
+            <button
+              type="button"
+              onClick={() => clearHanLang()}
+              className="rounded-full border border-black/[0.08] px-3 py-2 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03]"
+            >
+              {t("han.reset")}
+            </button>
+          </div>
         </div>
       )}
     </section>

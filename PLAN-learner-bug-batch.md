@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–12
-are complete; Parts 13–18 remain open.
-Next implementation session: **Part 13**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–13
+are complete; Parts 14–18 remain open.
+Next implementation session: **Part 14**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1145,7 +1145,34 @@ pairs, multiple same-word senses and one transient API failure with cached data.
 
 ## Part 13 — Clear Han-language settings, including legacy accounts
 
-- [ ] Implement and verify.
+- [x] Implement and verify.
+
+**Implemented (2026-10-21).** The remembered language uses `langLabel` in a
+localized change selector, with a truthful reset label and explanation in
+ru/en/zh. Copy describes Han-only input in Auto-detect, the Chinese default after
+reset, and the existing browser-wide scope shared by accounts. The focused Add
+flow explicitly uses Chinese and says this preference does not override it.
+Legacy Korean remains stored/readable; its explanation identifies the existing
+Chinese fallback, and Korean is not introduced as a new choice. Unset preferences
+keep the row absent. Add now derives its choice from `useHanLang` so changes and
+reset also update an already mounted form, including across tabs. No storage
+migration, account persistence change, or hidden-feature expansion.
+
+**Verified.** Backend `npx tsc --noEmit -p .`; frontend `npx next build` (existing
+warnings; Docker frontend stopped during build and restarted afterwards).
+Local disposable accounts: seeded unset/zh/ja/ko, Russian language labels,
+change/reset/reload, en/zh labels/actions, A → B → A preserving the labelled
+browser scope, and a real Chinese/Russian manual card after reset. One Russian
+phone Chromium settings screenshot inspected; no horizontal overflow. An isolated
+local full-mode fixture verifies the existing hidden Auto-detect form: Japanese
+remembered, legacy Korean preserved with Chinese fallback, Chinese selection,
+cross-tab reset updating the mounted chooser, manual re-selection and reload
+after reset. Real local API/session/invite gate used; temporary users cleaned;
+final Auto-detect run has no page errors. Evidence/check script:
+`.playwright-cli/han-settings/`. Earlier harness failures were resolved by
+centering mobile pointer clicks, using the desktop inline Add instead of its
+phone trigger, and proxying the fixture to the local API without changing the
+backend CORS allowlist; only the affected checks were resumed.
 
 **Report/code findings.** Screenshot 9 matches `app/account/page.tsx`: the
 `han.remembered` row directly renders 中文/日本語/한국어 instead of a localized

@@ -1,24 +1,24 @@
 # Session handoff — 2026-10-21
 
-- Task: explicit Reader audio layout request, complete.
-- Player starts as a small listening button at the source card's lower-right
-  edge on phone/desktop; expands above navigation, away from the header.
-- Minimize keeps playback/position; a different text starts collapsed. Speed
-  uses the themed Select. Locate has a visible label and hover help in ru/en/zh;
-  locate/follow scrolling keeps the active passage above the expanded panel.
-- Files: ReaderListeningPlayer.tsx, reader/page.tsx, lib/i18n.tsx,
-  scripts/check-reader-listening.mjs; follow-up in BACKLOG and Part 10 plan.
-- Checks: backend npx tsc --noEmit -p . and frontend npx next build passed
-  (existing warnings). Build rerun with Docker frontend stopped to avoid
-  shared .next dev/build collision; frontend restarted afterwards.
-- check-reader-listening.mjs phone-chromium layout-only and desktop-chromium
-  layout-only passed: real local MP3, pause/resume, minimize/reopen, speeds
-  without new fetches, header/nav bounds, long/short text, locate visibility,
-  hover explanation, keyboard/focus and text reset. Screenshots inspected in
-  .playwright-cli/reader-listening; temporary accounts cleaned. Physical iOS
-  remains unverified (Part 10 documents the Windows WebKit MP3 limitation).
-- Next: Part 13 of PLAN-learner-bug-batch.md; Parts 1–12 complete,
-  Parts 13–18 open. Implement only one part per session.
-- Part 18: distinguish listening/cache/synthesis/prefetch usage (Part 10).
+- Task: Part 13, clear Han-language settings including legacy accounts; complete.
+- Files: frontend/app/account/page.tsx, components/AddWordForm.tsx, lib/i18n.tsx;
+  status/evidence in PLAN-learner-bug-batch.md Part 13 and BACKLOG.md.
+- Localized language selector, clear purpose/reset effect in ru/en/zh. Preserve
+  browser-wide preference across accounts; no storage migration. Legacy Korean
+  stays readable/stored with its existing Chinese fallback explained. Focused
+  Add remains explicitly Chinese; unset preference keeps the settings row absent.
+- Add uses useHanLang reactively: changes/reset affect mounted forms across tabs.
+- Checks: backend npx tsc --noEmit -p .; frontend npx next build passed (existing
+  warnings). Docker frontend stopped for build, restarted afterwards.
+- Local disposable accounts: unset/zh/ja/ko, change/reset/reload, en/zh UI,
+  A → B → A/browser scope, real Chinese/Russian manual card after reset. Russian
+  phone Chromium settings screenshot inspected; no horizontal overflow.
+- Isolated full-mode fixture: remembered Japanese, Korean fallback without data
+  reset, Chinese choice, mounted cross-tab reset, selection/reload passed; no
+  page errors. Local API/session gate used; temporary accounts cleaned.
+- Evidence/check script: .playwright-cli/han-settings/; Part 13 explains harness
+  adjustments. No hidden surfaces enabled in the actual app.
+- Next: Part 14 of PLAN-learner-bug-batch.md (Mika memory); Parts 1–13 complete,
+  Parts 14–18 open. Implement only one part per session.
 - Grouped-word retention proof needs evidence; landing remains deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
