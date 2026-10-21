@@ -1535,6 +1535,8 @@ export default function ReaderPage() {
           <div className="flex flex-wrap items-center gap-1.5">
             <PasteButton
               onPaste={(s) => startReading(s)}
+              onPasteImages={scanPhotos}
+              disabled={scanning}
               label={t("reader.pasteRead")}
               className="border-sage/40 text-xs text-sage-deep hover:bg-sage-tint/60"
             />

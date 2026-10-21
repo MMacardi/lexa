@@ -1412,6 +1412,16 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Reader paste without keyboard shortcut hints (2026-10-21, asked for directly)
+- Removed shortcut notation from the Reader placeholder in ru/en/zh. Native text/image
+  paste and the photo picker remain available; the Reader paste button now also accepts
+  clipboard images through the existing OCR flow, preserving editable input.
+- Backend type-check and frontend production build passed (existing lint warnings).
+  Russian 390×844 Chromium check: real keyboard text/image paste, native image paste
+  event, image/text paste button, photo upload to reading, text-only API fallback and
+  denied permission recovery. OCR responses stubbed; no live AI or production data.
+  Phone screenshot inspected; no horizontal overflow. Throwaway local account deleted.
+
 ### Dictionary / contextual AI tap setting (2026-10-21, asked for directly)
 - Settings → More settings → Reading offers Dictionary (default) and AI in context.
   The display preference is stored per account in the browser; ru/en/zh copy explains

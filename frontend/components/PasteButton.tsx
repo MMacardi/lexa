@@ -12,11 +12,13 @@ import { cn } from "@/lib/utils";
 // clipboard (older Firefox); a refused permission says where the paste still works.
 export function PasteButton({
   onPaste,
+  onPasteImages,
   label,
   disabled,
   className,
 }: {
   onPaste: (text: string) => void;
+  onPasteImages?: (files: File[]) => Promise<void>;
   label?: string;
   disabled?: boolean;
   className?: string;
@@ -25,16 +27,41 @@ export function PasteButton({
   const { show } = useToast();
   // Decided after mount: the server render can't know, and guessing would flash.
   const [can, setCan] = useState(false);
-  useEffect(() => setCan(typeof navigator !== "undefined" && !!navigator.clipboard?.readText), []);
+  const [pasting, setPasting] = useState(false);
+  useEffect(() => setCan(!!navigator.clipboard?.readText || (!!onPasteImages && !!navigator.clipboard?.read)), [onPasteImages]);
   if (!can) return null;
 
   async function paste() {
+    if (pasting) return;
+    setPasting(true);
     try {
-      const text = (await navigator.clipboard.readText()).trim();
+      let text = "";
+      if (onPasteImages && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        const files: File[] = [];
+        for (const item of items) {
+          const type = item.types.find((type) => type.startsWith("image/"));
+          if (type) {
+            const blob = await item.getType(type);
+            files.push(new File([blob], "clipboard-image", { type }));
+          } else if (item.types.includes("text/plain")) {
+            text += await (await item.getType("text/plain")).text();
+          }
+        }
+        if (files.length) {
+          await onPasteImages(files);
+          return;
+        }
+      } else {
+        text = await navigator.clipboard.readText();
+      }
+      text = text.trim();
       if (text) onPaste(text);
       else show({ icon: "📋", title: t("paste.empty") });
     } catch {
       show({ icon: "📋", title: t("paste.denied") });
+    } finally {
+      setPasting(false);
     }
   }
 
@@ -42,7 +69,7 @@ export function PasteButton({
     <button
       type="button"
       onClick={paste}
-      disabled={disabled}
+      disabled={disabled || pasting}
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-black/[0.08] bg-surface px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-black/[0.03] disabled:opacity-50",
         className,

@@ -1,22 +1,21 @@
-# Session handoff — 2026-10-21
+﻿# Session handoff — 2026-10-21
 
-- Task: Part 17 — Search saved words by pinyin without spaces; complete.
-- Plan: PLAN-learner-bug-batch.md Part 17; Parts 1–17 complete, 18 open.
-- Reproduced locally: saved 你好 matches hanzi but not nihao; 女孩 not nvhai.
-- Changes: memoized saved-word search fields; Chinese readings normalize tones,
-  spaces/separators/case and ü/u:/v without conflating plain u. Saved readings
-  win; missing/blank zh/zh-Hant phonetics use existing offline localTranscribe.
-  No transcription per keystroke; no dictionary/AI calls or saved-data changes.
-- Files: frontend/lib/useWordSearch.ts, app/words/page.tsx, lib/i18n.tsx,
-  scripts/check-word-pinyin-search.mjs. Search hint/accessible name in ru/en/zh.
+- Task: Reader paste without keyboard shortcut hints; complete.
+- Explicit request: remove Ctrl+V / ⌘V copy; retain paste and photo input.
+- Changed: frontend/lib/i18n.tsx placeholder in ru/en/zh;
+  frontend/components/PasteButton.tsx optional clipboard image support;
+  frontend/app/reader/page.tsx routes pasted images through existing scanPhotos.
+- Text paste still starts reading; clipboard images stay editable after OCR,
+  like file upload. Existing input is preserved; paste is disabled while busy.
 - Checks: backend npx tsc --noEmit -p .; frontend npx next build passed
-  (existing warnings); focused browser script passed seven behavior groups.
-- Behavior: tone/spacing/case/separator and ü/u:/v variants; saved chóng versus
-  legacy zhòng for separate 重 cards; legacy traditional/blank phonetics;
-  Russian/hanzi/clear/invalid/unsaved queries; pair/collection/study filters;
-  Russian Chromium phone 390×844 typing/focus/result action. Zero typing API
-  requests or browser errors; card count/readings unchanged.
-- Evidence: .playwright-cli/word-pinyin-search/{before,result}.json.
-- Local throwaway account/data cleaned. No migrations, production data or live AI.
-- Next: Part 18 only when requested. Retention evidence and landing remain deferred.
+  (existing warnings). Focused Russian Chromium 390×844 browser check passed:
+  real keyboard text/image paste, native image paste event, image/text paste
+  button, photo upload to reading, readText fallback and denied permission.
+- OCR responses stubbed; no live AI or production data. Local account cleaned.
+- Phone screenshot inspected; no horizontal overflow or browser errors.
+- Evidence: .playwright-cli/reader-paste/{result,finish}.json, phone.png;
+  local harness .playwright-cli/check-reader-paste.mjs. An outdated harness
+  selector was corrected; only remaining checks rerun. Startup retry completed.
+- BACKLOG.md Done updated. No migrations or dependency changes.
+- Part 18 remains open; do not start automatically. Retention and landing deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.

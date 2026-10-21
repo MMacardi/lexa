@@ -293,9 +293,9 @@ const DICT: Record<string, Entry> = {
     zh: "粘贴任意文本，点选不认识的词，一键加入单词卡。",
   },
   "reader.placeholder": {
-    en: "Paste text or a screenshot (Ctrl+V / ⌘V)…",
-    ru: "Вставь текст или скриншот (Ctrl+V / ⌘V)…",
-    zh: "粘贴文字或截图（Ctrl+V / ⌘V）…",
+    en: "Paste text or a screenshot…",
+    ru: "Вставь текст или скриншот…",
+    zh: "粘贴文字或截图…",
   },
   "reader.read": { en: "Read", ru: "Читать", zh: "开始阅读" },
   "reader.pasteRead": { en: "Paste & read", ru: "Вставить и читать", zh: "粘贴并阅读" },
