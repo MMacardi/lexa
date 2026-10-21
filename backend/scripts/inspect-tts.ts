@@ -8,7 +8,9 @@ import "dotenv/config";
 // This diagnostic uses only the local development database (encoder/ASR imports).
 process.env.DATABASE_URL = "postgresql://vocab:vocab@localhost:5433/vocab?schema=public";
 const { env } = await import("../src/lib/env.js");
-const { wavToMp3, TTS_MODEL } = await import("../src/services/tts.js");
+const { wavToMp3 } = await import("../src/services/tts.js");
+// This comparison tool uses Qwen's HTTP protocol; application playback uses Sambert.
+const TTS_MODEL = "qwen3-tts-flash";
 const { transcribeAudio } = await import("../src/services/llm.js");
 const { prisma } = await import("../src/services/db.js");
 const voice = process.argv[2] || process.env.BAILIAN_TTS_VOICE || "Cherry";

@@ -91,7 +91,7 @@ for (const { name, engine, ...options } of [
     await example.getByRole('button', { name: 'Прослушать', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('[data-sentence-audio]')?.dataset.speechState === 'playing');
     const normal = await page.evaluate(() => { const a = window.__audio.at(-1); return { src: a.src, rate: a.playbackRate, duration: a.duration }; });
-    assert.equal(normal.rate, 1); assert.equal(new URL(normal.src).searchParams.has('v'), false);
+    assert.equal(normal.rate, 1); assert.equal(new URL(normal.src).searchParams.get('v'), 'zhijia-1');
     await example.getByRole('button', { name: 'Скорость предложения: 1×', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__audio.at(-1).playbackRate), .75);
     await example.getByRole('button', { name: 'Остановить', exact: true }).click();

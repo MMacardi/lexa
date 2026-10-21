@@ -5,6 +5,8 @@ import { env } from "../lib/env.js";
 export const WORD_TTS_MODEL = process.env.BAILIAN_WORD_TTS_MODEL || "sambert-zhijia-v1";
 // Author-reviewed native synthesis settings; playback remains at 1×.
 export const wordSpeechRate = (text: string) => [...text].length === 1 ? 1.25 : 1;
+// At 48 kHz/16-bit mono, a 300-character passage can exceed the old 2 MB word cap.
+const MAX_AUDIO_BYTES = 16 * 1024 * 1024;
 
 /** Sambert accepts the whole text in run-task and streams WAV bytes back. */
 export async function wordWav(text: string): Promise<Buffer> {
@@ -14,7 +16,7 @@ export async function wordWav(text: string): Promise<Buffer> {
     const ws = new WebSocket(endpoint, {
       headers: { Authorization: `Bearer ${env.BAILIAN_API_KEY}` },
       handshakeTimeout: 15_000,
-      maxPayload: 2 * 1024 * 1024,
+      maxPayload: MAX_AUDIO_BYTES,
     });
     const taskId = randomUUID(), chunks: Buffer[] = [];
     let settled = false, bytes = 0;
@@ -24,10 +26,10 @@ export async function wordWav(text: string): Promise<Buffer> {
       clearTimeout(timer);
       ws.terminate();
       if (error) reject(error);
-      else if (!bytes) reject(new Error("Word TTS returned no audio"));
+      else if (!bytes) reject(new Error("TTS returned no audio"));
       else resolve(Buffer.concat(chunks));
     };
-    const timer = setTimeout(() => finish(new Error("Word TTS timed out")), 30_000);
+    const timer = setTimeout(() => finish(new Error("TTS timed out")), 30_000);
     ws.on("open", () => {
       ws.send(JSON.stringify({
         header: { action: "run-task", task_id: taskId, streaming: "out" },
@@ -43,18 +45,18 @@ export async function wordWav(text: string): Promise<Buffer> {
       if (binary) {
         const chunk = Buffer.from(data as Buffer);
         bytes += chunk.length;
-        if (bytes > 2 * 1024 * 1024) finish(new Error("Word TTS audio too large"));
+        if (bytes > MAX_AUDIO_BYTES) finish(new Error("TTS audio too large"));
         else chunks.push(chunk);
         return;
       }
       try {
         const message = JSON.parse(data.toString());
-        if (!message?.header || (message.header.task_id && message.header.task_id !== taskId)) throw new Error("Invalid word TTS response");
+        if (!message?.header || (message.header.task_id && message.header.task_id !== taskId)) throw new Error("Invalid TTS response");
         if (message.header.event === "task-finished") finish();
-        if (message.header.event === "task-failed") finish(new Error(`Word TTS failed: ${message.header.error_code ?? "unknown"}`));
-      } catch (error) { finish(error instanceof Error ? error : new Error("Invalid word TTS response")); }
+        if (message.header.event === "task-failed") finish(new Error(`TTS failed: ${message.header.error_code ?? "unknown"}`));
+      } catch (error) { finish(error instanceof Error ? error : new Error("Invalid TTS response")); }
     });
     ws.on("error", finish);
-    ws.on("close", () => { if (!settled) finish(new Error("Word TTS closed before completion")); });
+    ws.on("close", () => { if (!settled) finish(new Error("TTS closed before completion")); });
   });
 }

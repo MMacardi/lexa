@@ -12,9 +12,9 @@ import { ACCESS_REVOKED, CONNECTION_FAILED, cacheScope, ConnectionError } from "
 const BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 /** Where an <audio> element gets `text` read aloud in Mandarin (Bailian's voice, MP3). */
-// Match the short-word cache generation in backend/services/tts.ts.
+// Version both paths so browsers retire Cherry sentences and preserve accepted word clips.
 export const ttsUrl = (text: string, lang: string) =>
-  `${BASE}/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}${/^\p{Script=Han}{1,4}$/u.test(text.trim()) ? "&v=word-3" : ""}`;
+  `${BASE}/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&v=${/^\p{Script=Han}{1,4}$/u.test(text.trim()) ? "word-3" : "zhijia-1"}`;
 
 export interface Example {
   id: string;

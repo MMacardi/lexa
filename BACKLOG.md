@@ -103,7 +103,7 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    shared saved/add status survives cold links/reload, and capture checks the exact pair.
    Part 6 completed and verified 2026-10-20: author accepted Zhijia after a native
    xu4 comparison. Short words use Sambert/Zhijia (single characters rate 1.25,
-   longer words 1.0), sentences retain Cherry. New word DB/browser cache versions,
+   longer text 1.0); sentences also use Zhijia as of 2026-10-21. Word DB/browser cache versions,
    bounded provider failure handling, actual-model cost logging; live ASR gate
    removed because it rejects the reviewed xu4 even in raw WAV. Builds, focused
    transport/cache checks, six fresh/replay clips, phone/desktop Chromium and
@@ -1403,6 +1403,20 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
   edge over SmallTalk2Me and co. is calibration against users' real band scores. `[S3]`
 
 ## Done
+
+### Zhijia for all Mandarin audio (2026-10-21, asked for directly)
+- Sentences and Reader chunks use the same Sambert/Zhijia voice as words.
+  Single characters keep synthesis rate 1.25; longer text uses 1.0.
+- Preserved accepted word clip keys, replaced Cherry sentence keys and versioned
+  sentence browser URLs. Raised the bounded WAV limit to 16 MB for longer passages;
+  usage accounting records Sambert for sentences too. No schema changes.
+- Backend typecheck and frontend production build passed (existing warnings).
+  TTS policy/HTTP checks cover sentence routing, stale-cache bypass, replay, failure
+  handling and audio beyond the former word cap. Real synthesis/cache passed for
+  a sentence and a 300-character passage; local phone Reader/card playback passed.
+- Checks: `backend/scripts/check-tts-policy.ts`, `check-tts-http.ts`, and
+  `frontend/scripts/check-zhijia-sentences.mjs` (live synthesis passed; corrected the
+  review selector and reran only `--playback-only`). Throwaway accounts cleaned.
 
 ### Dictionary meanings on word taps (2026-10-21, asked for directly)
 - Reader, card examples and meaning chips use the existing Chinese dictionary meaning

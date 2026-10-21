@@ -38,7 +38,8 @@ provider.on("connection", (ws, request) => {
     if (mode === "failed") return event("task-failed", { error_code: "fixture_failure" });
     if (mode === "stall") return;
     event("task-started");
-    if (mode === "oversize") { ws.send(Buffer.alloc(1024 * 1024 + 1)); ws.send(Buffer.alloc(1024 * 1024)); return; }
+    if (mode === "oversize") { for (let i = 0; i < 17; i++) ws.send(Buffer.alloc(1024 * 1024)); return; }
+    if (mode === "long-audio") { ws.send(wav); ws.send(Buffer.alloc(2 * 1024 * 1024)); event("task-finished"); return; }
     if (mode === "invalid-wav") ws.send(Buffer.from("not WAV"));
     else if (mode !== "empty") { ws.send(wav.subarray(0, 44)); ws.send(wav.subarray(44)); }
     event("task-finished");
@@ -70,11 +71,21 @@ try {
   assert.equal(single.parameters.pitch, 1);
   await wordWav("顺序");
   assert.equal(requests.at(-1).payload.parameters.rate, 1);
+  mode = "long-audio";
+  const sentence = "今天我在学校学习中文，明天还想和朋友一起去图书馆。";
+  assert.equal((await wordWav(sentence)).length, wav.length + 2 * 1024 * 1024, "sentence audio can exceed the old word cap");
+  assert.equal(requests.at(-1).payload.input.text, sentence);
+  assert.equal(requests.at(-1).payload.parameters.rate, 1);
   for (const [failure, expected] of [["close", /before completion/], ["malformed", /JSON|Unexpected|Expected/], ["failed", /fixture_failure/], ["empty", /no audio/], ["oversize", /too large/]] as const) {
     mode = failure;
     await assert.rejects(wordWav("序"), expected);
   }
   mode = "ok";
+  const sentenceRes = await nativeFetch(`http://127.0.0.1:${address.port}/api/tts?lang=zh&text=${encodeURIComponent(sentence)}&v=zhijia-1`);
+  assert.equal(sentenceRes.status, 200); await sentenceRes.arrayBuffer();
+  assert.equal(requests.at(-1).payload.model, "sambert-zhijia-v1");
+  assert.equal(requests.at(-1).payload.input.text, sentence);
+  rows.clear();
   let res = await nativeFetch(url);
   assert.equal(res.status, 200);
   assert.match(res.headers.get("cache-control")!, /private.*immutable/);
