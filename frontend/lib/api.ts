@@ -776,6 +776,7 @@ export interface TutorCard {
 
 // Mika (global tutor) chat, in both the streaming and non-streaming flavours.
 export type TutorAskPayload = {
+  chatId?: string;
   readerContext?: ReaderContext;
   // images: downscaled JPEG data: URLs attached to that user turn (photos in the chat)
   messages: { role: "user" | "assistant"; content: string; images?: string[] }[];
@@ -1052,7 +1053,7 @@ export const api = {
   askWord: (
     id: string,
     messages: { role: "user" | "assistant"; content: string }[],
-    opts: { onDelta?: (t: string) => void; signal?: AbortSignal },
+    opts: { onDelta?: (t: string) => void; signal?: AbortSignal; chatId?: string },
   ) =>
     streamHttp<{
       answer: string;
@@ -1060,7 +1061,7 @@ export const api = {
       addAntonyms: string[];
       addWords: string[];
       addExamples: { sentence: string; translation: string }[];
-    }>(`/api/words/${id}/ask`, { messages }, opts),
+    }>(`/api/words/${id}/ask`, { messages, chatId: opts.chatId }, opts),
   // Append a ready-made example (from tutor chat) to a card.
   addManualExample: (id: string, sentenceEn: string, sentenceZh: string) =>
     http<Word>(`/api/words/${id}/example/manual`, {

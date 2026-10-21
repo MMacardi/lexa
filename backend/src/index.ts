@@ -20,6 +20,7 @@ import { requireIdentity, requireInvited } from "./lib/gate.js";
 import { readSession } from "./lib/auth.js";
 import { runAsUser } from "./lib/usageContext.js";
 import { startImportWorker } from "./services/importWorker.js";
+import { startMemoryWorker } from "./services/mikaMemory.js";
 import { launchBot } from "./bot/index.js";
 import { startDeletionPurge } from "./services/accountData.js";
 import { cedictKnows } from "./services/cedict.js";
@@ -134,6 +135,7 @@ monitorExpress(app);
 app.listen(env.PORT, () => {
   console.log(`Backend listening on http://localhost:${env.PORT}`);
   startImportWorker();
+  startMemoryWorker();
   // Onomika Library starter decks for the Community tab (skips unchanged decks).
   seedLibrary().catch((err) => console.error("[library] seed failed:", err));
   // Accounts past their deletion grace period are erased here, hourly.

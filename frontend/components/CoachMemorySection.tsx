@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
@@ -85,6 +85,7 @@ export const LIKES: ChipOption[] = INTERESTS.map((i) => ({ id: i.id, key: `onb.i
 // not follow the learner into their Chinese sessions, so the section is scoped by a
 // language picker and each language has its own row.
 export function CoachMemorySection() {
+  const qc = useQueryClient();
   const { accountId } = useAccount();
   const { t } = useI18n();
   const { show } = useToast();
@@ -96,7 +97,8 @@ export function CoachMemorySection() {
     try {
       if (FIXED_PAIR) return;
       const p = JSON.parse(localStorage.getItem("lexa.wordPair") ?? "null") as { sourceLang?: string } | null;
-      if (p?.sourceLang) setLang(p.sourceLang);
+      const requested = new URLSearchParams(window.location.search).get("memoryLang");
+      if (requested || p?.sourceLang) setLang(requested || p!.sourceLang!);
     } catch {
       /* ignore */
     }
@@ -106,6 +108,8 @@ export function CoachMemorySection() {
     queryKey: ["coach-profile", accountId, lang],
     queryFn: () => api.coachProfile(accountId, lang),
     enabled: !!accountId,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 
   const [goal, setGoal] = useState("");
@@ -114,17 +118,18 @@ export function CoachMemorySection() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (data) {
-      setGoal(data.goal);
-      setInterests(data.interests);
-      setNotes(data.notes);
-    }
+    setGoal(data?.goal ?? "");
+    setInterests(data?.interests ?? "");
+    setNotes(data?.notes ?? "");
   }, [data]);
+
+  const rememberSaved = (value: { goal: string; interests: string; notes: string }) =>
+    qc.setQueryData(["coach-profile", accountId, lang], value);
 
   async function save() {
     setSaving(true);
     try {
-      await api.updateCoachProfile({ telegramId: accountId, lang, goal, interests, notes });
+      rememberSaved(await api.updateCoachProfile({ telegramId: accountId, lang, goal, interests, notes }));
       show({ icon: "💾", title: t("coachmem.saved") });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
@@ -135,24 +140,30 @@ export function CoachMemorySection() {
 
   // A chip is a choice, not a draft: it saves as it's tapped, like the plan does.
   async function saveNow(patch: { goal?: string; interests?: string }) {
+    setSaving(true);
     try {
       await api.updateCoachProfile({ telegramId: accountId, lang, ...patch });
     } catch (e) {
       show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setSaving(false);
     }
   }
 
   async function clearNotes() {
-    setNotes("");
+    setSaving(true);
     try {
-      await api.updateCoachProfile({ telegramId: accountId, lang, notes: "" });
-    } catch {
-      /* ignore */
+      rememberSaved(await api.updateCoachProfile({ telegramId: accountId, lang, notes: "" }));
+      setNotes("");
+    } catch (e) {
+      show({ icon: "⚠️", title: errText(e, t) });
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <section className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+    <section id="mika-memory" className="scroll-mt-24 rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
       <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">
         <Compass className="h-4 w-4 text-sage-deep" /> {t("coachmem.title")}
       </h2>
@@ -220,7 +231,7 @@ export function CoachMemorySection() {
           <div className="flex items-center justify-between">
             <label className="text-[13px] font-semibold text-ink">{t("coachmem.notes")}</label>
             {notes && (
-              <button type="button" onClick={clearNotes} className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-faint hover:text-warn-text">
+              <button type="button" onClick={clearNotes} disabled={saving} className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-faint hover:text-warn-text disabled:opacity-50">
                 <Trash2 className="h-3.5 w-3.5" /> {t("coachmem.clear")}
               </button>
             )}
@@ -228,7 +239,7 @@ export function CoachMemorySection() {
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            maxLength={1000}
+            maxLength={900}
             rows={3}
             placeholder={t("coachmem.notesEmpty")}
             className="mt-1 w-full resize-y rounded-[12px] border border-black/[0.08] bg-surface px-3.5 py-2.5 text-[14px] leading-snug text-ink placeholder:text-ink-faint focus:border-sage focus:outline-none"
@@ -241,7 +252,7 @@ export function CoachMemorySection() {
         <button
           type="button"
           onClick={save}
-          disabled={saving}
+          disabled={saving || !data}
           className="rounded-full bg-sage px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-sage-deep disabled:opacity-50"
         >
           {t("coachmem.save")}

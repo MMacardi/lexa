@@ -174,9 +174,9 @@ function readChatId(accountId: string): string {
   try {
     const id = accountId && sessionStorage.getItem(CHAT_OWNER_KEY) === accountId ? sessionStorage.getItem(CHAT_ID_KEY) : null;
     if (id) return id;
-    const fresh = newChatId();
-    sessionStorage.setItem(CHAT_ID_KEY, fresh);
-    return fresh;
+    // Initializers may run twice in Strict Mode. Mirror the chosen state in the
+    // effect below; writing here could leave storage with the discarded ID.
+    return newChatId();
   } catch {
     return "";
   }
@@ -320,6 +320,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     const trimmed = chatWindow(messages);
     try {
       sessionStorage.setItem(CHAT_KEY, JSON.stringify(trimmed));
+      sessionStorage.setItem(CHAT_ID_KEY, chatId);
       sessionStorage.setItem(CHAT_OWNER_KEY, accountId);
     } catch {
       /* ignore */
@@ -463,7 +464,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
         const r = await api.askWord(
           card.id,
           payloadMessages(msgs).map((m) => ({ role: m.role, content: m.content })),
-          { onDelta, signal: ac.signal },
+          { onDelta, signal: ac.signal, chatId },
         );
         if (inFlight.current !== ac) return; // the chat moved on while we waited
         setMessages((m) =>
@@ -491,6 +492,7 @@ export function useTutorChat({ active = true }: { active?: boolean } = {}) {
     try {
       const r = await api.tutorAskStream(
         {
+          chatId,
           messages: payloadMessages(msgs),
           sourceLang: pair.source,
           targetLang: pair.target,

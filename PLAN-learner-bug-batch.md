@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–13
-are complete; Parts 14–18 remain open.
-Next implementation session: **Part 14**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–14
+are complete; Parts 15–18 remain open.
+Next implementation session: **Part 15**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1193,7 +1193,7 @@ settings rearrangement or hidden-feature expansion.
 
 ## Part 14 — Mika memory in the floating popup and full page
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-21).
 
 **Report.** The frequently used small Mika popup should act as a personal tutor
 and remember the learner, rather than restarting its understanding every time.
@@ -1231,9 +1231,75 @@ session identity before push. Record deterministic lifecycle evidence separately
 from one live personalization check; do not promise unlimited autobiographical
 memory or start a new autonomous Coach system.
 
+**Implemented.** Ordinary `/tutor/ask` and card follow-ups checkpoint a completed
+reply on the server before its final response. The checkpoint persists the latest
+learner statement; extraction excludes earlier assistant claims, photos and
+Reader context. No unload-only extraction or client `coachRemember` call is needed.
+An additive migration introduces durable `CoachMemoryUpdate` checkpoints and
+memory edit revisions/pinned notes. A worker batches up to 20 statements (each
+capped at 4,000 characters), leases work for restart recovery, retries failures
+at most three times and keeps the final notes under 900 characters. Completed/
+failed jobs discard statement text but retain fingerprints for idempotence.
+LLM calls retain the account's usage context under `coach.remember`.
+
+Snapshots taken before generation and compare-and-swap on revision, timestamp
+and prior notes prevent late/concurrent summaries from overwriting edits or
+newer notes. Explicit notes remain pinned through subsequent updates; clearing
+cancels pending jobs. Deletion requests invalidate revisions even if restored;
+hard deletion cascades to checkpoints, and late profile writes cannot upsert a
+user. Import preserves pinned edits; queue internals are not replayed on import.
+Touched HTTP routes use only the session identity. Goals/interests are still
+learner-controlled, and inference is limited to explicit durable facts for the
+source language. Notes use the account's native language where known.
+
+The existing memory controls are linked from the popup and both full-page
+headers, with ru/en/zh copy, correct language selection and save/clear cache
+updates. Strict Mode exposed an existing conversation bug: an initializer wrote
+the discarded chat ID to sessionStorage. The committed-state effect now mirrors
+the ID with its thread/owner, preserving the same server history after reload.
+
+**Deterministic evidence.** `backend/scripts/check-mika-memory.ts` passed against
+local Docker Postgres with disposable users: incomplete turns ignored; retries
+with different answer wording deduplicated; A/B and zh/en isolation; clear/edit
+during extraction; late completed replies; concurrent summaries and conflict
+retries; transient failure and expired-lease recovery; three-attempt limit;
+earlier Reader/assistant claims excluded; scheduled deletion/restore, hard delete,
+cascade cleanup and identifier reuse without resurrection. Injection controls
+only extraction, so this evidence is separate from the live model check.
+
+**Live/UI evidence.** `frontend/scripts/check-mika-memory.mjs` verified a real
+Russian popup preference for one short train example, close/reopen → full page →
+reload with matching live/tab/server chat IDs, then a new chat explaining 到达
+with a train-arrival example. `.playwright-cli/mika-memory/result.json` records
+the real replies and Russian notes. A focused `--controls-only` rerun verified
+the remaining Russian phone controls (390×844), edit/save/clear/reload, A/B and
+zh/en isolation, spoofed body-ID rejection as an identity source and anonymous
+401s; no page errors. `controls-result.json` and inspected `phone-memory.png`
+record this separately. The fixture supplies a short display name: the raw long
+dev identifier exposed an unrelated pre-existing account-header overflow.
+Harness fixes: project-local browser import after setting its cache path,
+scoped chat input and API readiness wait. Windows Docker needed a frontend
+restart to load the hook fix. The first live extraction wrote Chinese notes;
+an explicit native-language instruction fixed the subsequent Russian check.
+
+Backend `npx tsc --noEmit -p .` and frontend `npx next build` passed after final
+changes (existing frontend warnings). Persistence/session review completed:
+additive migration, per-user/source-language ownership, cascading deletion,
+bounded payloads/retries, no user creation or body/query-ID authorization.
+Memory remains a compact best-effort summary; it is not an unlimited biography.
+Card-context follow-up: `backend/scripts/check-mika-memory-card.ts` passed a
+local real-Qwen HTTP check: pinned boat preference produced `船到达了港口。`
+and persisted a zh checkpoint. Card requests carry their conversation ID too,
+so a repeated preference in a genuinely new chat is not treated as an old retry.
+
 ## Part 15 — Russian Mika explanations and toggleable ruby pinyin
 
 - [ ] Implement and verify.
+
+**Additional observed evidence (Part 14 live check).** A correct train-arrival
+example for 到达 came with incorrect model pinyin (`dádá` in the heading and
+`dídá` inside the sentence). Include this word in the context-appropriate ruby
+verification; the memory check establishes personalization, not reading accuracy.
 
 **Report.** Screenshot 11 reports Chinese leaking into a Russian explanation.
 Add a pinyin button that reveals readings above Han characters, like Reader;

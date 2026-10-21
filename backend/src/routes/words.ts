@@ -14,6 +14,7 @@ import { coachSceneSetup } from "../services/coachSceneSetup.js";
 import { SITUATIONS } from "../services/wordPages.js";
 import { coachSceneTurn } from "../services/coachSceneTurn.js";
 import { getProfile, updateProfile, profilePreamble, rememberFromSession } from "../services/coachMemory.js";
+import { checkpointMemory, memorySnapshot } from "../services/mikaMemory.js";
 import { ocrImage, transcribeAudio } from "../services/llm.js";
 import { speechClip, TTS_MAX_CHARS } from "../services/tts.js";
 import { previewImportedWords, importWordsForUser } from "../services/importWords.js";
@@ -1019,6 +1020,7 @@ wordsRouter.post("/words/:id/family", async (req, res) => {
 // clipped, so the caps here only bound the payload — at 20 messages / 4000 chars a
 // long card chat or one long answer failed every follow-up after it.
 const askBody = z.object({
+  chatId: z.string().regex(/^[a-z0-9]{4,40}$/i).optional(),
   messages: z
     .array(
       z.object({
@@ -1037,13 +1039,32 @@ wordsRouter.post("/words/:id/ask", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  const id = String(req.params.id);
+  let snapshot: Awaited<ReturnType<typeof memorySnapshot>>;
+  let profileNote: string;
+  try {
+    const word = await prisma.word.findUnique({ where: { id }, select: { sourceLang: true } });
+    if (!word) { res.status(404).json({ error: "Word not found" }); return; }
+    snapshot = await memorySnapshot(callerId(req), word.sourceLang);
+    profileNote = await coachNote(callerId(req), word.sourceLang);
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: (err as Error).message });
+    return;
+  }
+  const answer = async (onDelta?: (t: string) => void, signal?: AbortSignal) => {
+    const result = await askAboutWord(id, parsed.data.messages, onDelta ? { onDelta, signal } : undefined, profileNote);
+    try {
+      await checkpointMemory(snapshot, [...parsed.data.messages, { role: "assistant", content: result.answer }], parsed.data.chatId ?? `word:${id}`);
+    } catch (err) { console.error("Mika card checkpoint:", (err as Error).message); }
+    return result;
+  };
   if (parsed.data.stream) {
-    const id = String(req.params.id);
-    await streamNdjson(req, res, (onDelta, signal) => askAboutWord(id, parsed.data.messages, { onDelta, signal }));
+    await streamNdjson(req, res, answer);
     return;
   }
   try {
-    res.json(await askAboutWord(req.params.id, parsed.data.messages));
+    res.json(await answer());
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
@@ -1337,6 +1358,7 @@ const chatImage = z
   .max(3_000_000)
   .regex(/^data:image\/(jpeg|png|webp|gif);base64,/, "Expected an image data URL");
 const tutorBody = z.object({
+  chatId: z.string().regex(/^[a-z0-9]{4,40}$/i).optional(),
   readerContext: z.object({
     id: z.string().max(100).optional(), title: z.string().max(120).optional(),
     content: z.string().min(1).max(20_000), selection: z.string().max(2000).optional(), sentence: z.string().max(20_000).optional(),
@@ -1370,26 +1392,38 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
     return;
   }
   const { stream, ...rest } = parsed.data;
-  const telegramId = readSession(req) ?? rest.telegramId;
+  const telegramId = callerId(req);
   if (rest.readerContext?.id && !await getText(callerId(req), rest.readerContext.id)) {
     res.status(404).json({ error: "Text not found" });
     return;
   }
   // DB read happens before any streaming headers so an early failure is a clean 502.
+  let snapshot: Awaited<ReturnType<typeof memorySnapshot>>;
   let profileNote: string | undefined;
   try {
+    // Edits during generation invalidate writes captured by this snapshot.
+    snapshot = await memorySnapshot(telegramId, rest.sourceLang ?? "en");
     profileNote = await coachNote(telegramId, rest.sourceLang);
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
     return;
   }
+  const answer = async (onDelta?: (t: string) => void, signal?: AbortSignal) => {
+    const result = await tutorChat({ ...rest, profileNote, onDelta, signal });
+    // The completed turn is checkpointed on the server before sending the final
+    // response; closing/navigating cannot cancel its eventual memory update.
+    try {
+      await checkpointMemory(snapshot, [...rest.messages, { role: "assistant", content: result.answer }], rest.chatId);
+    } catch (err) { console.error("Mika checkpoint:", (err as Error).message); }
+    return result;
+  };
   if (stream) {
-    await streamNdjson(req, res, (onDelta, signal) => tutorChat({ ...rest, profileNote, onDelta, signal }));
+    await streamNdjson(req, res, answer);
     return;
   }
   try {
-    res.json(await tutorChat({ ...rest, profileNote }));
+    res.json(await answer());
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
@@ -1398,7 +1432,7 @@ wordsRouter.post("/tutor/ask", async (req, res) => {
 
 // GET /api/coach/profile -> what the coach remembers about the learner for one language.
 wordsRouter.get("/coach/profile", async (req, res) => {
-  const telegramId = readSession(req) ?? String(req.query.telegramId ?? "");
+  const telegramId = callerId(req);
   const lang = String(req.query.lang ?? "").trim() || "en";
   if (!telegramId) {
     res.json({ goal: "", interests: "", notes: "" });
@@ -1426,7 +1460,7 @@ wordsRouter.put("/coach/profile", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  const telegramId = callerId(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not signed in." });
     return;
@@ -1452,7 +1486,7 @@ wordsRouter.post("/coach/remember", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const telegramId = readSession(req) ?? parsed.data.telegramId;
+  const telegramId = callerId(req);
   if (!telegramId) {
     res.json({ ok: true }); // nothing to remember for an anon caller
     return;

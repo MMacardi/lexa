@@ -52,7 +52,7 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
-   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 14 next and
+   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 15 next and
    complete only one part per implementation session. Covers truthful HSK level/
    target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
    numbered/unpunctuated audio and the reported fourth tone; whole-text listening
@@ -83,7 +83,14 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    Part 13 is verified: localized remembered Han-language names and change/reset
    explanations, preserved legacy/browser scope, and reactive Add selection;
    seeded preferences, account switch, phone settings and cross-tab reset checked.
-   Parts 14–18 remain open; Parts 1–13 are complete. Keep hidden features and
+   Part 14 is verified: durable server checkpoints, bounded memory extraction,
+   edit/clear/deletion race protection and account/language isolation; memory
+   controls linked from Mika, stable conversation ID across reopen/reload.
+   Deterministic lifecycle checks, live train-preference recall in a new chat,
+   and Russian phone edit/clear/session-identity checks pass. A raw long dev ID
+   used as a display name exposed existing account-header overflow; defer that
+   separate account layout fix (the phone fixture uses a normal short name).
+   Parts 15–18 remain open; Parts 1–14 are complete. Keep hidden features and
    deferred landing work out of scope; this explicit batch takes priority over
    the time-gated retention proof.
 

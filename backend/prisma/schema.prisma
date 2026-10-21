@@ -118,11 +118,32 @@ model CoachMemory {
   goal      String   @default("")
   interests String   @default("")
   notes     String   @default("")
+  // Learner edits take precedence over inferred notes; revision invalidates queued work.
+  pinnedNotes String @default("")
+  revision Int @default(0)
+  updates CoachMemoryUpdate[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, lang])
   @@index([userId])
+}
+
+// Durable completed-turn checkpoints. Processed rows retain only their hash so
+// retries cannot relearn cleared facts; transcripts are discarded after processing.
+model CoachMemoryUpdate {
+  id String @id @default(cuid())
+  memoryId String
+  memory CoachMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  fingerprint String
+  revision Int
+  transcript String
+  state String @default("pending")
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  @@unique([memoryId, fingerprint])
+  @@index([state, availableAt])
 }
 
 // A friend link between two users. `requester` sent it; `addressee` accepts. Once

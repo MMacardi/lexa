@@ -11,6 +11,7 @@ import { useSharedTutorChat, useTutorLastPath } from "@/components/TutorChatProv
 import { ChatPairPicker } from "@/components/ChatPairPicker";
 import { FIXED_PAIR } from "@/lib/langs";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
+import { MikaMemoryLink } from "@/components/MikaMemoryLink";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { MikaPracticeCards, MikaPracticeLinks } from "@/components/MikaPractice";
@@ -128,6 +129,7 @@ export default function MikaPage() {
             {card && <p className="truncate text-[12px] font-semibold text-sage-deep">{card.word}</p>}
           </div>
           <ChatHistoryMenu chat={chat} withLabel />
+          <MikaMemoryLink lang={pair.source} compact />
           {messages.length > 0 && (
             <button
               type="button"
@@ -162,6 +164,7 @@ export default function MikaPage() {
           </div>
           <div className="flex shrink-0 items-center gap-1 pt-1.5 text-[13px] text-ink-soft">
             <ChatHistoryMenu chat={chat} withLabel />
+            <MikaMemoryLink lang={pair.source} />
             {messages.length > 0 && (
               <button
                 type="button"

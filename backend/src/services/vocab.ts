@@ -1317,6 +1317,7 @@ export async function askAboutWord(
   id: string,
   history: { role: "user" | "assistant"; content: string }[],
   live?: LiveText,
+  profileNote = "",
 ): Promise<WordChatResult> {
   const word = await prisma.word.findUnique({
     where: { id },
@@ -1347,7 +1348,7 @@ export async function askAboutWord(
     {
       role: "system",
       content:
-        `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
+        profileNote + `You are a friendly ${sourceName} teacher helping a learner whose language is ${targetName}. ` +
         `The learner is asking follow-up questions about this ${sourceName} word/phrase. ` +
         `Answer in the "answer" field in ${targetName} (the ${sourceName} examples aside), concise and practical. ` +
         `Give ${sourceName} examples where helpful. ` +

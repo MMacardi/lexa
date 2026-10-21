@@ -2756,6 +2756,7 @@ const DICT: Record<string, Entry> = {
   },
   // Coach memory (what the personal mentor remembers about you)
   "coachmem.title": { en: "What Mika knows about you", ru: "Что Мика знает о тебе", zh: "米卡对你的了解" },
+  "coachmem.link": { en: "Memory", ru: "Память", zh: "记忆" },
   "coachmem.hint": {
     en: "Practice and word picks follow this.",
     ru: "Под это подстраиваются практика и подбор слов.",
@@ -2769,9 +2770,9 @@ const DICT: Record<string, Entry> = {
   "coachmem.notes": { en: "Mika's observations", ru: "Наблюдения Мики", zh: "米卡的观察" },
   "coachmem.notesEmpty": { en: "Mika fills this in as she gets to know you.", ru: "Мика заполнит это, узнавая тебя.", zh: "米卡会在了解你的过程中填写。" },
   "coachmem.notesHint": {
-    en: "Mika adds to this after practice.",
-    ru: "Мика дописывает это после практик.",
-    zh: "米卡会在练习后补充。",
+    en: "After completed replies, Mika saves a short summary of stated preferences and learning difficulties for this language. Your edits take priority. Clear removes these notes and pending updates; new chats can add new notes.",
+    ru: "После завершённых ответов Мика кратко сохраняет названные предпочтения и трудности в этом языке. Твои правки важнее её выводов. Очистка убирает заметки и ожидающие обновления; новые разговоры могут добавить новые заметки.",
+    zh: "完成回复后，米卡会简要记下你明确表达的偏好和该语言的学习困难。你的修改优先。清除会移除笔记和待处理更新；新对话仍可添加新笔记。",
   },
   "coachmem.exam": { en: "Exam", ru: "Экзамен", zh: "考试" },
   "coachmem.why": { en: "Why Chinese", ru: "Зачем китайский", zh: "为什么学中文" },

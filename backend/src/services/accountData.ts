@@ -417,6 +417,7 @@ export async function importAccount(telegramId: string, file: Rec): Promise<Impo
             goal: str(x.goal) ?? "",
             interests: str(x.interests) ?? "",
             notes: str(x.notes) ?? "",
+            pinnedNotes: str(x.pinnedNotes) ?? str(x.notes) ?? "",
           })),
         skipDuplicates: true,
       });
@@ -480,7 +481,11 @@ export const DELETE_GRACE_DAYS = 14;
 /** Schedule the erase; returns when it will happen, or null if there's no account. */
 export async function scheduleDeletion(telegramId: string, now = new Date()): Promise<Date | null> {
   const deleteAfter = new Date(now.getTime() + DELETE_GRACE_DAYS * 86_400_000);
-  const r = await prisma.user.updateMany({ where: { telegramId }, data: { deleteAfter } });
+  const r = await prisma.$transaction(async (tx) => {
+    const result = await tx.user.updateMany({ where: { telegramId }, data: { deleteAfter } });
+    await tx.coachMemory.updateMany({ where: { user: { telegramId } }, data: { revision: { increment: 1 } } });
+    return result;
+  });
   return r.count ? deleteAfter : null;
 }
 
