@@ -1,4 +1,4 @@
-﻿# Backlog — one item per session
+# Backlog — one item per session
 
 **One list, in order — resume `SESSION.md` first; otherwise take the first incomplete item.**
 Do it, mark it complete, update the handoff, then start a fresh session for unrelated work.

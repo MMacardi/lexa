@@ -14,7 +14,7 @@
 - Local check: .playwright-cli/check-reader-source.mjs (ignored); throwaway users deleted.
   Initial sessionStorage handoff fixture timed out in dev; saved-text attribution
   was verified through the library instead. No app changes followed the checks.
-- No schema changes or production data access. Main push follows this handoff update.
+- No schema changes or production data access. Fix c28be5d pushed to main.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
 - Previous Mika model investigation remains read-only; no tutor changes made.
 - Part 18 remains open. Retention and landing work remain deferred.
