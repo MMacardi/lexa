@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cedictCard, cedictEntries, cedictHas, cedictKnows, cedictLookup, isChinese, isMeaningGloss, mainReading, type CedictEntry } from "./cedict.js";
 import { hskFrequency, hskTagFor, normalizeHanzi, type HskTag } from "./hsk.js";
-import { headGloss, hskPage, readsAs, type WordPage } from "./wordPages.js";
+import { headGloss, hskPage, readsAs, matchingSenseIndexes, meaningTerm, type WordPage } from "./wordPages.js";
+import { cachedDictionary, localizedDictionary } from "./localizedDictionary.js";
 import { prisma } from "./db.js";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -72,9 +73,8 @@ function ruIndex(): Map<string, string> {
 /**
  * Cards still carrying a default the list has since corrected (热 «нагревать; горячий»
  * → «горячий; нагревать», 之所以 «поэтому» → «причина того, что») move to the current
- * one, in its page's wording (`cardMeaning`) — as do cards made before cards took that
- * wording, still on the one-line default; a hand pick of senses made for the old
- * wording goes along. A meaning the learner wrote is never a default, so it stays.
+ * one, in its page's wording (`cardMeaning`). Normalization of current wording
+ * applies to new cards; older cards and explicit sense picks keep their wording.
  * Called before a card or the list is read.
  */
 export async function refreshDefaultMeanings(where: Prisma.WordWhereInput): Promise<number> {
@@ -86,13 +86,13 @@ export async function refreshDefaultMeanings(where: Prisma.WordWhereInput): Prom
   let n = 0;
   for (const c of cards) {
     const m = c.meaningZh?.trim();
-    if (!m || !isChinese(c.sourceLang) || !(oldRu.get(c.word)?.has(m) || defaultMeaning(c.word, "ru") === m)) continue;
+    if (!m || !isChinese(c.sourceLang) || !oldRu.get(c.word)?.has(m)) continue;
     const next = cardMeaning(c.word, "ru");
     if (!next || next === m) continue;
     const senses = (await prisma.word.findUnique({ where: { id: c.id }, select: { senses: true } }))?.senses as { for?: string } | null;
-    const carried = senses && typeof senses === "object" && senses.for === m ? { senses: { ...senses, for: next } as Prisma.InputJsonValue } : {};
+    if (senses?.for === m) continue;
     // Compare-and-set on the meaning read: an edit made meanwhile wins.
-    n += (await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: next, ...carried } })).count;
+    n += (await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh }, data: { meaningZh: next } })).count;
   }
   return n;
 }
@@ -146,8 +146,7 @@ const heads = (meaning: string) => meaning.split(/[;；]/).map(headGloss).filter
 // The page senses a meaning ticks, as the word page ticks the ones a card tests
 // (services/vocab.ts, flagByMeaning): every sense whose head gloss is one of its heads.
 const ticked = (page: WordPage, meaning: string) => {
-  const hs = new Set(heads(meaning));
-  return page.s.flatMap((s, i) => (hs.has(headGloss(s.m)) ? [i] : []));
+  return matchingSenseIndexes(page.s.map((s) => s.m), meaning);
 };
 
 const wording = new Map<string, string | null>();
@@ -171,12 +170,12 @@ export function cardMeaning(word: string, lang: string | null | undefined): stri
   const picked = page ? ticked(page, m) : [];
   if (page && picked.length) {
     const full = composeSenses(picked.map((i) => page.s[i].m));
-    const has = new Set(glossTerms(full).map((x) => x.toLowerCase()));
+    const has = new Set(glossTerms(full).map(meaningTerm));
     // The default's senses in the page's order: a default that leads with another
     // sense (海 «море») keeps its lead.
-    const order = heads(m).map((h) => page.s.findIndex((s) => headGloss(s.m) === h)).filter((i) => i >= 0);
+    const order = heads(m).map((h) => matchingSenseIndexes(page.s.map((s) => s.m), h)[0] ?? -1).filter((i) => i >= 0);
     const inOrder = order.every((i, k) => k === 0 || i >= order[k - 1]);
-    if (inOrder && ticked(page, full).join() === picked.join() && glossTerms(m).every((x) => has.has(x.toLowerCase()))) out = full;
+    if (inOrder && ticked(page, full).join() === picked.join() && glossTerms(m).every((x) => has.has(meaningTerm(x)))) out = full;
   }
   wording.set(key, out);
   return out;
@@ -527,14 +526,15 @@ function wordsIn(text: string): string[] {
 async function hit(word: string, lang: string, senseAt?: number, answer?: RuAnswer): Promise<LookupHit | null> {
   const card = await cedictCard(word, { count: false });
   if (!card) return null;
-  const meaning = defaultMeaning(word, lang);
-  const s = senseAt === undefined ? undefined : hskPage(word, "ru")?.s[senseAt];
+  const meaning = cardMeaning(word, lang) ?? (await cachedDictionary(word, lang))?.meaning;
+  const s = senseAt === undefined ? undefined : hskPage(word, lang)?.s[senseAt];
+  const localizedAnswer = lang === "ru" ? answer : undefined;
   const phrase = s?.p[0] ? { text: s.p[0].t, translation: s.p[0].ru } : answer ? everyday.get(word) : undefined;
   const sense: LookupSense | undefined =
-    s || answer
+    s || localizedAnswer
       ? {
           ...(s ? { index: senseAt } : {}),
-          meaning: answer?.m ?? s!.m,
+          meaning: s?.m ?? localizedAnswer!.m,
           ...(s?.r && !readsAs(word, s.r, card.phonetic) ? { reading: s.r } : {}),
           ...(phrase ? { phrase } : {}),
         }
@@ -639,13 +639,21 @@ const GLOSS_CACHE_MAX = 20_000;
 /**
  * A lookup row off the HSK list (有钱) has only CC-CEDICT's English, a third
  * language to a Russian speaker. The lookup itself stays instant and model-free;
- * the form asks for these after it, and the row switches from the English once
- * they land. One fast call for the rows not cached, grounded on the dictionary's
+ * the form asks for these after it, keeping a localized placeholder until ready.
+ * One shared cached adaptation is grounded on the dictionary's
  * senses (pick and translate, never invent). An English interface keeps the
  * English: the rows follow the interface language, not the card's (2026-10-02).
  */
 export async function translateGlosses(words: string[], lang: string): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
+  if (lang === "ru") {
+    await Promise.all([...new Set(words)].slice(0, MAX_HITS).map(async (word) => {
+      const prepared = cardMeaning(word, lang);
+      const meaning = prepared ?? (await localizedDictionary(word, lang))?.meaning;
+      if (meaning) out[word] = meaning;
+    }));
+    return out;
+  }
   // A Chinese interface keeps the English: a gloss in Chinese would only restate the word.
   if (!lang || lang === "en" || isChinese(lang)) return out;
   const todo: { word: string; senses: string }[] = [];

@@ -5,8 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–10
-are complete; Parts 11–18 remain open. Next implementation session: **Part 11**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–11
+are complete; Parts 12–18 remain open.
+Next implementation session: **Part 12**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1007,7 +1008,39 @@ and reuse of clips across speeds. Count AI synthesis consistently in Part 18.
 
 ## Part 11 — Russian dictionary loading and one saved meaning
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-21).
+
+**Implemented.** Add suggestions use the card's target language and canonical
+prepared wording, discard previous-query rows, and keep pinyin plus a localized
+placeholder during translation. Failures expose retry without English fallback.
+The same rule covers saved popups, Reader lookup, detail and review; a failed
+review card retries and updates while open. English targets retain dictionary English.
+
+Russian CC-CEDICT adaptations outside the prepared list are shared by lookup,
+creation, enrichment and detail. `DictionaryAdaptation` caches the public inventory's
+translation and readings in Postgres, keyed by inventory/version; concurrent requests
+share a promise. The additive migration touches no learner rows. AI translates/groups
+supplied dictionary senses; prepared data remains first, and dictionary gaps retain
+the existing generated path. Attribution distinguishes adapted wording from quotations.
+Action glosses must retain their verb; the versioned cache invalidates an incomplete
+translation found during visual verification, with a live verb-preservation assertion.
+
+Shared matching handles punctuation, complete synonyms and Russian grammatical
+variants such as внимательно/внимательный. Explicit sense picks persist their flags
+and reading, including switching back from bēi to bèi; enrichment uses compare-and-set
+guards for meaning, reading and sense metadata. Context mappings retain their displayed
+wording. Old current defaults and explicit manual picks are not normalized on read;
+there is no deduplication or bulk rewrite.
+
+**Verified.** Reproduced English 照镜子, unmatched fresh 仔细 and lookup/card wording
+drift in 及时 before changes. `check-dictionary-meanings.ts --live` passed those words,
+背, off-list 蛤蜊 and gap 拮据的 through add/enrichment/detail/reload, plus English output.
+Controlled checks passed edit/selection races, retries, context wording and cached
+off-list context mapping. A fresh process with Qwen disabled reused persisted wording.
+The phone Chromium check passed Russian delayed/failed translation, retry, query switch,
+real add/detail/reload, review and Reader failure; its focused recovery phase passed
+failed-card retry and live review update. Screenshots: `.playwright-cli/dictionary-meanings`.
+Backend TypeScript and frontend production build passed (existing lint warnings only).
 
 **Report.** 照镜子 briefly shows English before Russian in screenshot 4. 仔细's
 new card meaning differs from its Definitions in screenshot 8. Keep CC-CEDICT

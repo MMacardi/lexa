@@ -31,7 +31,8 @@ import { likedFromIds } from "../lib/interests.js";
 import { hskLevelLeft, hskNextWords, learnWord, levelCards, readyCards, unlearnWord } from "../services/newWords.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
 import { cedictCard, cedictCredit } from "../services/cedict.js";
-import { defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
+import { cardMeaning, defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
+import { cachedDictionary } from "../services/localizedDictionary.js";
 import { fillMissingPhonetic, refreshCardReadings } from "../services/capture.js";
 import { removeExample } from "../services/exampleWrites.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
@@ -1169,7 +1170,9 @@ wordsRouter.get("/dict", async (req, res) => {
   const word = String(req.query.word ?? "").trim().slice(0, 40);
   const lang = String(req.query.lang ?? "");
   const card = word ? await cedictCard(word, { count: false }) : null;
-  const entry = card ? { ...card, meaning: defaultMeaning(word, lang), settled: defaultIsSettled(word, lang) } : null;
+  const adapted = card ? await cachedDictionary(word, lang) : null;
+  const entry = card ? { ...card, meaning: cardMeaning(word, lang) ?? adapted?.meaning ?? null,
+    settled: adapted ? adapted.senses.length === 1 : defaultIsSettled(word, lang) } : null;
   res.json({ entry, ...(entry ? { credit: cedictCredit() } : {}) });
 });
 
@@ -1197,7 +1200,7 @@ wordsRouter.get("/dict/chars", async (req, res) => {
 
 // POST /api/dict/glosses {words, lang} -> {meanings}: the lookup rows that only have
 // the dictionary's English, in the learner's language (services/lookup.ts). Asked
-// after the lookup so it stays instant; a failure just leaves the English up.
+// after the lookup so it stays instant; failure keeps the localized retry state.
 const glossesBody = z.object({ words: z.array(z.string().max(40)).max(8), lang: z.string().min(2).max(10) });
 wordsRouter.post("/dict/glosses", async (req, res) => {
   const parsed = glossesBody.safeParse(req.body);
@@ -1209,7 +1212,7 @@ wordsRouter.post("/dict/glosses", async (req, res) => {
     res.json({ meanings: await translateGlosses(parsed.data.words, parsed.data.lang) });
   } catch (err) {
     console.error("[lookup] glosses failed", (err as Error).message);
-    res.json({ meanings: {} });
+    res.status(502).json({ error: "Dictionary translation failed" });
   }
 });
 

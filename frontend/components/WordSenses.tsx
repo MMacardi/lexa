@@ -75,7 +75,7 @@ export function WordSenses({ word }: { word: Word }) {
   // Chinese readings in tone colours; other scripts' transcriptions as they are.
   const reading = (text: string, className: string) =>
     isChineseLang(word.sourceLang) ? <Pinyin text={text} className={className} /> : <span className={className}>{text}</span>;
-  const sensesKey = ["senses", word.id, word.word, word.sourceLang, word.targetLang];
+  const sensesKey = ["senses", word.id, word.word, word.sourceLang, word.targetLang, word.meaningZh, word.phonetic];
   const q = useQuery({
     queryKey: sensesKey,
     queryFn: () => api.wordSenses(word.id),
@@ -93,7 +93,7 @@ export function WordSenses({ word }: { word: Word }) {
   // plainly; a one-sense word has its sense ready to save, a word with several
   // waits for the pick.
   const card = word.meaningZh ?? "";
-  const offList = initial.size === 0 && senses.length > 0 && card.trim() !== "";
+  const offList = initial.size === 0 && senses.length > 0 && card.trim() !== "" && !(word.dictMeaning && word.targetLang === "ru");
   const start = useMemo(() => (offList && senses.length === 1 ? new Set([0]) : initial), [offList, senses.length, initial]);
   const [picked, setPicked] = useState<Set<number>>(start);
   useEffect(() => setPicked(start), [start]);

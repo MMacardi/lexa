@@ -232,6 +232,28 @@ export function readingInPhrase(word: string, text: string, reading: string): st
 export const headGloss = (s: string) =>
   (s.replace(/\s*[(（][^)）]*[)）]/g, " ").split(/[;；,，、/]/)[0] ?? "").trim().toLowerCase();
 
+// Compare complete gloss terms, allowing punctuation and Russian adjective/adverb
+// variants (внимательный / внимательно), without matching arbitrary word prefixes.
+export const meaningTerm = (s: string) => s.toLowerCase().replace(/[?!？！.]+$/u, "").trim()
+  .replace(/([а-яё]{5,})(?:ый|ий|ая|ое|ые|ого|ому|ым|ую|ой|о)$/u, "$1");
+export function meaningTerms(s: string): string[] {
+  return s.replace(/\s*[(（][^)）]*[)）]/g, " ").split(/[;；,，、/]/).map(meaningTerm).filter(Boolean);
+}
+
+export function matchingSenseIndexes(glosses: string[], meaning: string): number[] {
+  const picked = new Set<number>();
+  for (const part of meaning.split(/[;；]/).filter((s) => s.trim())) {
+    const head = meaningTerm(headGloss(part));
+    const exact = glosses.flatMap((g, i) => meaningTerm(headGloss(g)) === head ? [i] : []);
+    if (exact.length) { exact.forEach((i) => picked.add(i)); continue; }
+    const terms = meaningTerms(part);
+    const matches = glosses.flatMap((g, i) => meaningTerms(g).some((t) => terms.includes(t)) ? [i] : []);
+    // A synonym shared by two genuinely different senses cannot identify either.
+    if (matches.length === 1) picked.add(matches[0]);
+  }
+  return [...picked].sort((a, b) => a - b);
+}
+
 /**
  * The page as the word page's sense list. A sense under another reading than the
  * card's says so (还 hái → "huán: возвращать"); the ticks are the caller's, read

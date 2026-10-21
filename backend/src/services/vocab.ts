@@ -18,10 +18,11 @@ import { FOCUS } from "../lib/env.js";
 import { cedictCredit, cedictInventory, isChinese, measureWordsFor } from "./cedict.js";
 import { cardSense, dictCardFields, hasDictMeaning, pageCardFields, pickedSense } from "./capture.js";
 import { isDefaultMeaning } from "./lookup.js";
+import { cachedDictionary, localizedDictionary } from "./localizedDictionary.js";
 import { exampleBrief, isPoolSentence, keepIfNatural, placePoolExamples, poolRegister, sentenceWords, writtenLabel } from "./sentences.js";
 import { track } from "./analytics.js";
 import { queueCardUpgrade } from "./cardJobs.js";
-import { headGloss, hskPage, pageSenses } from "./wordPages.js";
+import { headGloss, hskPage, pageSenses, matchingSenseIndexes, readsAs } from "./wordPages.js";
 import { asTimeZone, beforeExam, DEFAULT_TZ, easyFloor, placeDue, type Placing } from "./schedule.js";
 
 // FSRS scheduler (Anki's modern default). Target retention 90%; fuzz spreads due
@@ -125,6 +126,8 @@ export async function addWordForUser(params: {
     // A sense picked in the lookup makes the card in that sense, and its example is
     // written in it: the pool's sentences may show another (背 «спина»).
     const picked = params.senseIndex === undefined ? null : pickedSense(params.word, targetLang, params.senseIndex, dict);
+    const adapted = await cachedDictionary(params.word, targetLang);
+    const senses = picked ? hskPage(params.word, targetLang) : null;
     const sense = params.sense ?? picked?.sense;
     // The page's details now, except for a card made in another sense (the upgrade
     // takes that sense's part of speech).
@@ -137,7 +140,12 @@ export async function addWordForUser(params: {
         targetLang,
         phonetic: picked?.phonetic ?? dict.phonetic,
         meaningZh: picked?.meaningZh ?? dict.meaningZh,
-        partOfSpeech: page?.partOfSpeech || null,
+        ...(senses ? { senses: { v: SENSES_VERSION, for: picked!.meaningZh, grounded: true,
+          list: pageSenses(senses, picked!.phonetic).map((s, i) => ({ ...s, onCard: i === params.senseIndex }))
+        } as unknown as Prisma.InputJsonValue } : adapted ? {
+          senses: { v: SENSES_VERSION, list: adapted.senses, grounded: true } as unknown as Prisma.InputJsonValue,
+        } : {}),
+        partOfSpeech: page?.partOfSpeech || adapted?.senses.find((s) => s.onCard)?.pos || null,
         collocations: page?.collocations ?? [],
         synonyms: page?.synonyms ?? [],
         antonyms: page?.antonyms ?? [],
@@ -568,9 +576,25 @@ export async function updateWord(
     const shown = cur ? sensesAtHand(cur) : null;
     if (fields.senseIndexes !== undefined && shown?.senses.length) {
       const picked = new Set(fields.senseIndexes);
+      const page = cur && isChinese(cur.sourceLang) ? hskPage(cur.word, cur.targetLang) : null;
+      const shared = cur && isChinese(cur.sourceLang) && !page ? await cachedDictionary(cur.word, cur.targetLang) : null;
+      let list = shown.senses;
+      if (picked.size === 1) {
+        const index = [...picked][0];
+        const reading = page?.s[index]?.r ?? (shared?.senses[index] ? shared.senses[index].reading ?? shared.phonetic : shown.senses[index]?.reading);
+        if (reading) {
+          data.phonetic = reading;
+          if (page) list = pageSenses(page, reading);
+          else if (shared) list = shared.senses.map((s) => {
+            const { reading: alternate, ...rest } = s;
+            const absolute = alternate ?? shared.phonetic;
+            return { ...rest, ...(!readsAs(cur!.word, absolute, reading) ? { reading: absolute } : {}) };
+          });
+        }
+      }
       data.senses = {
         v: SENSES_VERSION,
-        list: shown.senses.map((s, i) => ({ ...s, onCard: picked.has(i) })),
+        list: list.map((s, i) => ({ ...s, onCard: picked.has(i) })),
         grounded: shown.grounded,
         for: ("meaningZh" in data ? (data.meaningZh as string | null) : cur?.meaningZh) ?? "",
       } as unknown as Prisma.InputJsonValue;
@@ -994,14 +1018,12 @@ export type SenseList = { senses: WordSense[]; grounded: boolean };
  * показать…"), so a sense is tested when one of those segments opens with its head
  * gloss. Matching on any shared word instead ticked every Chinese sense at once,
  * because they share one (指出 / 指明，指出): the card said 指出 and the page claimed
- * both senses were on it. When nothing is recognisable (a hand-written meaning),
- * the model's own flag from generation time stands.
+ * both senses were on it. Complete synonym terms and Russian grammatical variants
+ * also identify a sense when unambiguous; explicit picks are stored separately.
  */
 function flagByMeaning(list: WordSense[], meaning: string): WordSense[] {
-  const heads = new Set(meaning.split(/[;；]/).map(headGloss).filter(Boolean));
-  if (!heads.size) return list;
-  const out = list.map((s) => ({ ...s, onCard: heads.has(headGloss(s.meaning)) }));
-  return out.some((s) => s.onCard) ? out : list;
+  const picked = new Set(matchingSenseIndexes(list.map((s) => s.meaning), meaning));
+  return list.map((s, i) => ({ ...s, onCard: picked.has(i) }));
 }
 
 // Crude stem for comparing two glosses: enough to see that "внимательно" and
@@ -1150,6 +1172,17 @@ export async function wordSenses(id: string): Promise<SenseList> {
   const at = sensesAtHand(word);
   if (at) return at;
 
+  const shared = isChinese(word.sourceLang) ? await localizedDictionary(word.word, word.targetLang) : null;
+  if (shared) {
+    const list = flagByMeaning(shared.senses, word.meaningZh ?? "");
+    // Reading the dictionary must not overwrite a pick made while it was loading.
+    await prisma.word.updateMany({ where: { id, meaningZh: word.meaningZh, phonetic: word.phonetic,
+      senses: { equals: word.senses ?? Prisma.DbNull } },
+      data: { senses: { v: SENSES_VERSION, list, grounded: true } as unknown as Prisma.InputJsonValue } });
+    const current = await prisma.word.findUnique({ where: { id } });
+    return (current && sensesAtHand(current)) ?? { senses: list, grounded: true };
+  }
+
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
   const cjk = ["zh", "zh-Hant", "ja", "ko"].includes(word.sourceLang);
@@ -1213,11 +1246,12 @@ Part of speech on the card: ${word.partOfSpeech ?? "—"}`,
   // A curated card often means several of these senses at once ("указать, отметить;
   // показать…"), while the model flags only the one it wrote the gloss from — so the
   // ticks are re-read off the card's meaning, exactly as they are on every later open.
-  const flagged = flagByMeaning(clean, word.meaningZh ?? "");
+  const mapped = flagByMeaning(clean, word.meaningZh ?? "");
+  const flagged = mapped.some((s) => s.onCard) ? mapped : clean;
   if (flagged.length) {
     await prisma.word
-      .update({
-        where: { id },
+      .updateMany({
+        where: { id, meaningZh: word.meaningZh, phonetic: word.phonetic, senses: { equals: word.senses ?? Prisma.DbNull } },
         data: {
           senses: { v: SENSES_VERSION, list: flagged, grounded: inventory !== null } as unknown as Prisma.InputJsonValue,
         },

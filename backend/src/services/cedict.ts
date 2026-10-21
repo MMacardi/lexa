@@ -342,7 +342,7 @@ export function measureWordsFor(word: string, phonetic: string | null | undefine
  * reading's next syllable, which is not always pinyin-pro's (一应俱全 is yì yīng,
  * where it reads 应 yìng).
  */
-async function spokenReading(head: string, numbered: string): Promise<string> {
+export async function spokenReading(head: string, numbered: string): Promise<string> {
   const syllables = numbered.split(" ");
   const chars = Array.from(head);
   if (!/[一不]/.test(head) || chars.length !== syllables.length) return toneMarked(numbered);

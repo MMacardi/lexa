@@ -255,6 +255,13 @@ model DeckReport {
   @@index([status])
 }
 
+// Shared translations of public CC-CEDICT data; no learner content.
+model DictionaryAdaptation {
+  key       String   @id
+  entry     Json
+  createdAt DateTime @default(now())
+}
+
 model Word {
   id           String    @id @default(cuid())
   userId       String

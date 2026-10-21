@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpeakButton, SpeakingIcon, useSpeechNotice } from "@/components/SpeakButton";
 import { FitText } from "@/components/FitText";
-import { DictMeaningLabel } from "@/components/DictMeaningLabel";
+import { DictMeaningLabel, holdsEnglish, upgradePending, MeaningRetry } from "@/components/DictMeaningLabel";
 import { PronounceButton } from "@/components/PronounceButton";
 import { ExampleText } from "@/components/ExampleText";
 import { GlossText } from "@/components/GlossText";
@@ -259,6 +259,17 @@ export default function FlashcardsPage() {
   // its play button says it again. `start` unlocks speech inside its tap for iOS.
   const listenFront = layout.front.includes("audio");
   const cardId = started ? deck[index]?.id : undefined;
+  const meaningPending = Boolean(started && deck[index] && holdsEnglish(deck[index]) && upgradePending(deck[index]));
+  useEffect(() => {
+    if (!cardId || !meaningPending) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      api.getWord(cardId).then((word) => {
+        if (!cancelled) setDeck((cards) => cards.map((w) => w.id === cardId ? { ...w, ...word } : w));
+      }).catch(() => {});
+    }, 3000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [cardId, meaningPending]);
   useEffect(() => {
     const w = deck[index];
     if (!listenFront || !cardId || !w) return;
@@ -1172,6 +1183,11 @@ export default function FlashcardsPage() {
           <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{word.partOfSpeech}</div>
         ) : null;
       case "meaning":
+        if (holdsEnglish(word)) return <div>
+          <DictMeaningLabel word={word} />
+          {!upgradePending(word) && <MeaningRetry wordId={word.id}
+            onQueued={(queued) => setDeck((cards) => cards.map((w) => w.id === queued.id ? queued : w))} />}
+        </div>;
         return word.meaningZh ? (
           <div>
             {back && word.cardSenses?.length ? (

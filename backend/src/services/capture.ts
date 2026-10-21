@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./db.js";
 import { saveGeneratedExample } from "./exampleWrites.js";
@@ -12,6 +12,7 @@ import { langName } from "../lib/langs.js";
 import { hasLocalPhonetic, localPhonetic } from "../lib/transcribe.js";
 import { cedictCard, isCedictGloss, isChinese } from "./cedict.js";
 import { cardMeaning, isDefaultMeaning } from "./lookup.js";
+import { cachedDictionary, localizedDictionary } from "./localizedDictionary.js";
 import {
   addPoolExample,
   exampleBrief,
@@ -23,7 +24,7 @@ import {
   sentenceWords,
   writtenLabel,
 } from "./sentences.js";
-import { headGloss, hskPage, readsAs } from "./wordPages.js";
+import { headGloss, hskPage, readsAs, pageSenses, matchingSenseIndexes, type WordPage } from "./wordPages.js";
 
 /**
  * Instant capture: the dictionary makes the card, the model comes second.
@@ -53,7 +54,9 @@ export async function dictCardFields(
 ): Promise<{ phonetic: string; meaningZh: string } | null> {
   if (!isChinese(sourceLang)) return null;
   const card = await cedictCard(word);
-  return card ? { phonetic: card.phonetic, meaningZh: cardMeaning(word, targetLang) ?? card.gloss } : null;
+  const prepared = cardMeaning(word, targetLang);
+  const cached = card && !prepared ? await cachedDictionary(word, targetLang) : null;
+  return card ? { phonetic: card.phonetic, meaningZh: prepared ?? cached?.meaning ?? card.gloss } : null;
 }
 
 /**
@@ -98,9 +101,9 @@ export function cardSense(card: {
 /**
  * The card for the word-page sense picked in the add form's lookup: 背 found by
  * «нести» is «нести на себе, таскать на спине» read bēi, not the default «спина;
- * нести на себе» under bèi; 背 found by «учить» is «учить наизусть». Null when the
- * default already opens with that sense (买 found by «купить»): it stays, it may
- * say more. `sense` is the gloss the upgrade writes the example in — with its
+ * нести на себе» under bèi; 背 found by «учить» is «учить наизусть». An explicit
+ * pick keeps exactly that sense, including the default reading.
+ * `sense` is the gloss the upgrade writes the example in — with its
  * clarifier («богатый (о ресурсах, чувствах)»), which is what tells the senses apart.
  */
 export function pickedSense(
@@ -111,7 +114,7 @@ export function pickedSense(
 ): { phonetic: string; meaningZh: string; sense: string } | null {
   const page = hskPage(word, targetLang);
   const s = page?.s[index];
-  if (!page || !s || headGloss(s.m) === headGloss(card.meaningZh.split(/[;；]/)[0] ?? "")) return null;
+  if (!page || !s) return null;
   return {
     phonetic: s.r && !readsAs(page.w, s.r, card.phonetic) ? s.r : card.phonetic,
     meaningZh: s.m,
@@ -241,7 +244,32 @@ export async function translateDictMeanings(cardIds: string[]): Promise<void> {
     where: { id: { in: cardIds } },
     include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true, captured: true } } },
   });
-  const todo = cards.filter((c) => c.targetLang !== "en" && hasDictMeaning(c));
+  const pending = cards.filter((c) => c.targetLang !== "en" && hasDictMeaning(c));
+  // Russian dictionary cards use the same cached adaptation as the lookup, not
+  // another prompt's independently worded translation.
+  for (const c of pending.filter((c) => c.targetLang === "ru")) {
+    const entry = await localizedDictionary(c.word, c.targetLang);
+    if (!entry) continue;
+    const met = c.examples.find((e) => e.captured || e.sourceName !== AI_SOURCE)?.sentenceEn;
+    let selected: number | undefined;
+    if (met) {
+      const r = await chatJson({
+        system: 'Choose the dictionary sense used by the Chinese word in the sentence. ' +
+          'Return its 1-based number, or 0 for a use absent from the dictionary (including personal names). JSON: {"n":1}.',
+        user: JSON.stringify({ word: c.word, sentence: met, senses: entry.senses.map((s) => s.meaning) }),
+        schema: z.object({ n: z.number().int().min(0) }), label: "capture.pageSense",
+      });
+      if (r.n < 1 || r.n > entry.senses.length) continue; // Let contextual enrichment fill an actual gap.
+      selected = r.n - 1;
+    }
+    const meaning = selected === undefined ? entry.meaning : entry.senses[selected].meaning;
+    await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaningZh, phonetic: c.phonetic,
+      senses: { equals: c.senses ?? Prisma.DbNull } }, data: { meaningZh: meaning,
+        ...(selected === undefined ? {} : { phonetic: entry.senses[selected].reading ?? entry.phonetic }),
+        senses: { v: 5, list: entry.senses.map((s, i) => ({ ...s, onCard: selected === undefined ? s.onCard : i === selected })),
+          grounded: true, ...(selected === undefined ? {} : { for: meaning }) } as unknown as Prisma.InputJsonValue } });
+  }
+  const todo = pending.filter((c) => c.targetLang !== "ru");
   const byTarget = new Map<string, typeof todo>();
   for (const c of todo) byTarget.set(c.targetLang, [...(byTarget.get(c.targetLang) ?? []), c]);
 
@@ -281,24 +309,29 @@ const pageSenseSchema = z.object({ items: z.array(z.object({ n: z.number().int()
  * came in as «ответ», and its page, whose senses are «откликаться (на призыв)» and
  * «реагировать, отвечать на запрос», ticked neither (the author, 2026-10-14). So
  * for a word with a page, one model call names the page sense each such meaning
- * is (in its sentence, when there is one), and the card takes that sense's
- * wording, and its reading where that sense reads otherwise. A meaning that is
+ * is (in its sentence, when there is one). Store that mapping while preserving
+ * the contextual wording, with its reading where that sense reads otherwise. A meaning that is
  * none of them stays, as does one changed meanwhile. Runs after the add returns:
  * the card is reviewable at once either way.
  */
 export async function fitMeaningsToPages(cards: { id: string; word: string; meaning: string; sentence?: string }[], targetLang: string) {
-  const todo = cards.flatMap((c) => {
-    const page = hskPage(c.word, targetLang);
-    const heads = new Set(c.meaning.split(/[;；]/).map(headGloss).filter(Boolean));
+  const todo = (await Promise.all(cards.map(async (c) => {
+    let page = hskPage(c.word, targetLang);
+    if (!page) {
+      const shared = await localizedDictionary(c.word, targetLang);
+      if (shared) page = { w: c.word, pos: "", syn: [], ant: [], s: shared.senses.map((s) => ({
+        r: s.reading ?? shared.phonetic, pos: s.pos ?? "", m: s.meaning, g: [], p: [],
+      })) } satisfies WordPage;
+    }
     // Already one of the page's senses (in its wording or by its head word).
-    if (!page || !heads.size || page.s.some((s) => heads.has(headGloss(s.m)))) return [];
-    return [{ ...c, page }];
-  });
+    if (!page || !c.meaning.trim() || matchingSenseIndexes(page.s.map((s) => s.m), c.meaning).length) return null;
+    const snapshot = await prisma.word.findUnique({ where: { id: c.id }, select: { phonetic: true, senses: true } });
+    if (!snapshot || (snapshot.senses as { for?: string } | null)?.for === c.meaning) return null;
+    return { ...c, page, snapshot };
+  }))).filter((c) => c !== null);
   if (!todo.length) return;
   const picks = new Map<string, number>();
-  const ask = todo.filter((c) => c.page.s.length > 1 || c.sentence);
-  // A one-sense page leaves nothing to choose.
-  for (const c of todo) if (c.page.s.length === 1 && !c.sentence) picks.set(c.id, 0);
+  const ask = todo;
   for (let i = 0; i < ask.length; i += 20) {
     const chunk = ask.slice(i, i + 20);
     const r = await chatJson({
@@ -328,10 +361,14 @@ export async function fitMeaningsToPages(cards: { id: string; word: string; mean
     const at = picks.get(c.id);
     if (at === undefined) continue;
     const s = c.page.s[at];
-    const card = await prisma.word.findUnique({ where: { id: c.id }, select: { phonetic: true } });
+    const card = c.snapshot;
     const reading = s.r && card?.phonetic && !readsAs(c.page.w, s.r, card.phonetic) ? { phonetic: s.r } : {};
     // Compare-and-set: an edit made meanwhile wins.
-    await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaning }, data: { meaningZh: s.m, ...reading } });
+    await prisma.word.updateMany({ where: { id: c.id, meaningZh: c.meaning, phonetic: card.phonetic,
+      senses: { equals: card.senses ?? Prisma.DbNull } }, data: { ...reading,
+        senses: { v: 5, for: c.meaning, grounded: true,
+          list: pageSenses(c.page, reading.phonetic ?? card.phonetic).map((sense, i) => ({ ...sense, onCard: i === at }))
+        } as unknown as Prisma.InputJsonValue } });
   }
 }
 
@@ -359,11 +396,17 @@ export type UpgradeOptions = {
  * page's "fill this in" (`POST /api/words/:id/enrich`).
  */
 export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Promise<void> {
-  const card = await prisma.word.findUnique({
+  let card = await prisma.word.findUnique({
     where: { id: wordId },
     include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true, captured: true } } },
   });
   if (!card) return;
+  if (card.targetLang === "ru" && hasDictMeaning(card)) {
+    await translateDictMeanings([wordId]);
+    card = await prisma.word.findUnique({ where: { id: wordId },
+      include: { examples: { orderBy: { createdAt: "asc" }, select: { sentenceEn: true, sourceName: true, captured: true } } } });
+    if (!card) return;
+  }
   // Original context also includes a sentence intentionally captured from Mika.
   const met = card.examples.find((e) => e.captured || e.sourceName !== AI_SOURCE)?.sentenceEn;
   // Only the pool's sentence on it (placed at add) still counts as "no example of its own".
@@ -389,14 +432,18 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // labelled, in the register the word lives in — unless they asked for another.
   const style = !met && isChinese(card.sourceLang) && isFormalWord(card.word) && poolRegister(opts.exampleStyle) ? "news" : opts.exampleStyle;
   const page = isChinese(card.sourceLang) ? hskPage(card.word, card.targetLang) : null;
+  const adapted = !page && isChinese(card.sourceLang) ? await cachedDictionary(card.word, card.targetLang) : null;
+  const stored = card.senses as { for?: string } | null;
+  const pinned = stored?.for === card.meaningZh;
   // A card made in one of its page's senses (picked in the lookup) gets its example
   // in that sense, pinned by the sense's reading and phrases.
-  const own = opts.sense ? cardSense(card) : null;
+  const own = opts.sense || pinned ? cardSense(card) : null;
+  const wantedSense = own?.sense ?? (pinned || (adapted && !met) ? card.meaningZh ?? undefined : opts.sense);
   // An HSK word with its page and the shared default meaning, and nothing pointing
   // at another sense: the meaning stays and the page has the details, so the full
   // entry would be thrown away. Only their own example is left to write — and no
   // call at all when the card takes no example.
-  const settled = Boolean(page) && isDefaultMeaning(card) && !met && !opts.sense;
+  const settled = Boolean(page) && (isDefaultMeaning(card) || pinned) && !met;
   // What both calls write the example with: the level, their words and interests.
   const forExample = {
     level: opts.level,
@@ -416,6 +463,8 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
             targetLang: card.targetLang,
             withExample: true,
             exampleOnly: { meaning: card.meaningZh! },
+            sense: own?.sense,
+            senseAnchor: own?.anchor,
             ...forExample,
           })
         : NO_ENTRY
@@ -426,7 +475,7 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
           synonymLevel: opts.synonymLevel,
           withExample: personal,
           meaningInstruction: opts.meaningInstruction,
-          sense: opts.sense,
+          sense: wantedSense,
           senseAnchor: own?.anchor,
           context: met,
           ...forExample,
@@ -446,14 +495,16 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
   // model was thinking keeps their edit. The shared default gives way only to a
   // sense the learner pointed at — the sentence they met the word in, or the
   // meaning they typed to find it; otherwise the model would just reword it.
-  const replaceable = hasDictMeaning(card) || (isDefaultMeaning(card) && Boolean(met || opts.sense));
+  const explicitSense = pinned || Boolean(opts.sense && cardSense(card));
+  const sharedDefault = adapted?.meaning === card.meaningZh;
+  const replaceable = !explicitSense && (hasDictMeaning(card) || ((isDefaultMeaning(card) || sharedDefault) && Boolean(met || opts.sense)));
   if (entry.meaningZh.trim() && (!card.meaningZh?.trim() || replaceable)) {
     const written = await prisma.word.updateMany({
-      where: { id: card.id, meaningZh: card.meaningZh },
+      where: { id: card.id, meaningZh: card.meaningZh, phonetic: card.phonetic, senses: { equals: card.senses ?? Prisma.DbNull } },
       data: { meaningZh: entry.meaningZh.trim() },
     });
     // The sense of the sentence, in the model's words: as its page words it.
-    if (written.count && page && met && !opts.sense) {
+    if (written.count && (page || adapted) && met && !opts.sense) {
       await fitMeaningsToPages([{ id: card.id, word: card.word, meaning: entry.meaningZh.trim(), sentence: met }], card.targetLang).catch((err) =>
         console.error(`[capture] page sense failed for ${card.word}`, (err as Error).message),
       );
@@ -527,7 +578,8 @@ export async function upgradeCard(wordId: string, opts: UpgradeOptions = {}): Pr
     where: { id: card.id },
     data: {
       ...(card.phonetic ? {} : { phonetic: entry.phonetic || null }),
-      ...(card.partOfSpeech ? {} : { partOfSpeech: own?.pos || page?.pos || entry.partOfSpeech || null }),
+      ...(card.partOfSpeech ? {} : { partOfSpeech: own?.pos || page?.pos ||
+        adapted?.senses.find((s) => s.meaning === card.meaningZh || (sharedDefault && s.onCard))?.pos || entry.partOfSpeech || null }),
       ...(card.collocations.length ? {} : { collocations: settled ? (pageCardFields(card.word, card.sourceLang, card.targetLang)?.collocations ?? []) : entry.collocations }),
       ...(card.synonyms.length ? {} : { synonyms: page ? page.syn : entry.synonyms }),
       ...(card.antonyms.length ? {} : { antonyms: page ? page.ant : entry.antonyms }),

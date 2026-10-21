@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { SpeakButton } from "@/components/SpeakButton";
 import { Pinyin } from "@/components/Pinyin";
 import { cn } from "@/lib/utils";
+import { holdsEnglish, shownMeaning, upgradePending, pollWhileUpgrading, MeaningRetry } from "@/components/DictMeaningLabel";
 
 const srcFont = (l: string) => (l === "zh" || l === "zh-Hant" || l === "ja" ? "font-zh" : "");
 
@@ -46,6 +47,7 @@ export function WordMeaningPop({
   // A direct card link can open before the word list has ever been cached.
   const deck = useQuery({
     queryKey: ["words", accountId],
+    refetchInterval: (q) => pollWhileUpgrading(q.state.data),
     queryFn: () => api.listWords(accountId),
     enabled: !!accountId,
   });
@@ -112,7 +114,9 @@ export function WordMeaningPop({
   }, [target.anchor, positioned]);
 
   const { word, sourceLang, targetLang, isNew } = target;
-  const meaning = owned?.meaningZh || target.meaning;
+  const meaning = owned && holdsEnglish(owned)
+    ? t(upgradePending(owned) ? "capture.filling" : "capture.meaningFailed")
+    : (owned ? shownMeaning(owned) : null) || target.meaning;
   const transcription = owned?.phonetic || target.transcription;
   const loading = target.loading && !owned;
   const saved = added || !!owned;
@@ -162,6 +166,7 @@ export function WordMeaningPop({
             {t("pop.add")}
           </button>
         )}
+        {owned && holdsEnglish(owned) && !upgradePending(owned) && <MeaningRetry wordId={owned.id} />}
       </div>
     </div>,
     document.body,

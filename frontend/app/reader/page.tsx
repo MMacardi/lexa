@@ -50,7 +50,7 @@ import { dictEntry, isChineseLang, peekDictEntry } from "@/lib/dictEntry";
 import { Button } from "@/components/ui/button";
 import { PairChip } from "@/components/PairChip";
 import { FOCUS } from "@/lib/focus";
-import { holdsEnglish } from "@/components/DictMeaningLabel";
+import { holdsEnglish, shownMeaning, upgradePending, pollWhileUpgrading, MeaningRetry } from "@/components/DictMeaningLabel";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { Segmented } from "@/components/ui/Segmented";
 import { HighlightWord } from "@/components/HighlightWord";
@@ -383,6 +383,7 @@ export default function ReaderPage() {
 
   const { data: words } = useQuery({
     queryKey: ["words", accountId],
+    refetchInterval: (q) => pollWhileUpgrading(q.state.data),
     queryFn: () => api.listWords(accountId),
   });
 
@@ -1286,7 +1287,7 @@ export default function ReaderPage() {
             {glossCedict?.phonetic || glossTr}
           </div>
         ) : null}
-        {glossCedict && !glossCedict.meaning && (targetLang === "en" || (!glossLoading && (!glossText || glossText === t("reader.translateFailed")))) && (
+        {glossCedict && !glossCedict.meaning && targetLang === "en" && (
           <div className={cn("mt-0.5 select-text text-ink-soft", docked ? "text-[14px]" : "text-[12px]")}>
             {glossCedict.gloss}
             <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
@@ -1298,8 +1299,18 @@ export default function ReaderPage() {
         {glossLoading && glossCedict?.meaning && (
           <div className={cn("mt-0.5 text-ink-faint", docked ? "text-[12px]" : "text-[11px]")}>{t("reader.contextPending")}</div>
         )}
+        {!glossLoading && glossText === t("reader.translateFailed") && (
+          <button type="button" className="mt-1 rounded-md px-2 py-1 text-[13px] font-semibold text-sage-deep"
+            onClick={() => { if (glossElRef.current) openGloss(gloss.key, gloss.word, glossElRef.current, sentenceForKey(gloss.key)); }}>
+            {t("errState.retry")}
+          </button>
+        )}
       </>
     );
+  const knownCard = knownPop ? words?.find((w) => w.id === knownPop.wordId) : undefined;
+  const knownMeaning = knownCard ? shownMeaning(knownCard) : knownPop?.meaning;
+  const knownHeld = knownCard ? holdsEnglish(knownCard) : knownPop?.filling;
+  const knownPending = knownCard ? upgradePending(knownCard) : knownPop?.filling;
   const knownBody = (docked: boolean) =>
     knownPop && (
       <>
@@ -1315,10 +1326,11 @@ export default function ReaderPage() {
             {knownPop.phonetic}
           </div>
         )}
-        {knownPop.filling && <div className="mt-0.5 text-[12px] text-ink-faint">{t("capture.filling")}</div>}
-        {knownPop.meaning && (
+        {knownHeld && <div className="mt-0.5 text-[12px] text-ink-faint">{t(knownPending ? "capture.filling" : "capture.meaningFailed")}</div>}
+        {knownHeld && !knownPending && <MeaningRetry wordId={knownPop.wordId} />}
+        {knownMeaning && (
           <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
-            {knownPop.meaning}
+            {knownMeaning}
             {knownPop.dictMeaning && (
               <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
             )}

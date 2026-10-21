@@ -2655,6 +2655,7 @@ const DICT: Record<string, Entry> = {
     zh: "正在用你的语言写释义…",
   },
   "capture.fill": { en: "Fill this in", ru: "Дополнить", zh: "补全" },
+  "capture.meaningFailed": { en: "Couldn't load the meaning", ru: "Не удалось загрузить значение", zh: "无法加载释义" },
   "capture.fillHint": {
     en: "The meaning or example didn't arrive — ask for it again.",
     ru: "Значение или пример не пришли — запросите ещё раз.",

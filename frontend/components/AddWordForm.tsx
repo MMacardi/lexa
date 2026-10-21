@@ -514,30 +514,31 @@ export function AddWordForm({
   // The dictionary under the field (zhMode): hanzi → the word and the longer words
   // it starts (a character drawn on the pad already offers 访问 for 访); a meaning
   // or pinyin → the Chinese words for it. Local data, no model call — the tap on a
-  // row is the add. Debounced; the last answer stays up while the next one loads.
+  // row is the add. Debounced; each answer belongs only to the current input.
   const [lookupQ, setLookupQ] = useState("");
   useEffect(() => {
     const next = zhMode ? typedNow : "";
     const id = setTimeout(() => setLookupQ(next), next ? 200 : 0);
     return () => clearTimeout(id);
   }, [typedNow, zhMode]);
-  // The rows speak the interface's language, whatever the card's: Russian rows for a
-  // Russian interface, CC-CEDICT's English for an English one.
+  // Lookup and the saved card use the same target language and wording.
   const lookupQuery = useQuery({
-    queryKey: ["lookup", lookupQ, locale],
-    queryFn: () => api.lookup(lookupQ, locale),
+    queryKey: ["lookup", lookupQ, targetLang],
+    queryFn: () => api.lookup(lookupQ, targetLang),
     enabled: Boolean(lookupQ),
     staleTime: Infinity,
-    placeholderData: (prev) => prev,
   });
-  const looked = typedNow && lookupQ ? lookupQuery.data : undefined;
-  // Rows off the HSK list come back in English; one fast call puts them in the
-  // learner's language, and the English stands until it lands (or if it fails).
+  const looked = typedNow && lookupQ === typedNow ? lookupQuery.data : undefined;
+  // Off-list Russian rows hold a placeholder until the dictionary adaptation lands.
   const englishRows = (looked?.hits ?? []).filter((h) => h.english).map((h) => h.word);
   const glossQuery = useQuery({
-    queryKey: ["lookupGlosses", englishRows.join(","), locale],
-    queryFn: () => api.lookupGlosses(englishRows, locale),
-    enabled: englishRows.length > 0 && locale === "ru",
+    queryKey: ["lookupGlosses", englishRows.join(","), targetLang],
+    queryFn: async () => {
+      const result = await api.lookupGlosses(englishRows, targetLang);
+      if (englishRows.some((w) => !result.meanings[w])) throw new Error("Missing dictionary translation");
+      return result;
+    },
+    enabled: englishRows.length > 0 && targetLang === "ru",
     staleTime: Infinity,
     retry: false,
   });
@@ -912,7 +913,7 @@ export function AddWordForm({
             {lookupHits.map((h) => {
               const owned = ownedZh.has(h.word);
               return (
-                <li key={h.word}>
+                <li key={h.word} data-testid="lookup-row">
                   <button
                     type="button"
                     disabled={busy}
@@ -942,7 +943,9 @@ export function AddWordForm({
                           h.english && !h.sense ? "italic text-ink-faint" : "text-ink-soft",
                         )}
                       >
-                        {h.sense?.meaning ?? h.meaning}
+                        {h.english && targetLang === "ru"
+                          ? t(glossQuery.isError ? "capture.meaningFailed" : "capture.filling")
+                          : h.sense?.meaning ?? h.meaning}
                       </span>
                       {h.sense?.phrase && (
                         <span className="block truncate text-[12px] leading-snug text-ink-faint">
@@ -956,6 +959,12 @@ export function AddWordForm({
                       <Plus className="h-4 w-4 shrink-0 text-sage-deep" />
                     )}
                   </button>
+                  {h.english && targetLang === "ru" && glossQuery.isError && (
+                    <button type="button" onClick={() => void glossQuery.refetch()}
+                      className="mb-2 ml-3 rounded-md px-2 py-1 text-[13px] font-semibold text-sage-deep">
+                      {t("errState.retry")}
+                    </button>
+                  )}
                 </li>
               );
             })}
