@@ -6,7 +6,7 @@ import { FIXED_PAIR } from "@/lib/langs";
 import { cacheScope } from "./sessionCache";
 
 // Learner preferences. Most are local-only display settings (example style, card
-// layout, reader source). Four of them — level, native language, daily goal and
+// layout). Four of them — level, native language, daily goal and
 // retention — belong to the learner model and live on the account: the bot and a
 // second device have to see the same numbers. Those are still mirrored into
 // localStorage, which stays the synchronous read path for the whole app and keeps
@@ -279,35 +279,6 @@ export function useLearnerLevel(lang: string): string | null {
     };
   }, [lang]);
   return level;
-}
-
-// --- Reader: default "source" of pasted/scanned text (used to attribute the
-// example/context when adding words from the Reader). Defaults to the user's own. ---
-const READER_SOURCE_KEY = "lexa.readerSource";
-
-export function getReaderSource(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(READER_SOURCE_KEY) ?? "";
-}
-
-export function setReaderSource(src: string) {
-  localStorage.setItem(READER_SOURCE_KEY, src);
-  window.dispatchEvent(new Event(EVT));
-}
-
-export function useReaderSource(): string {
-  const [src, setState] = useState("");
-  useEffect(() => {
-    const sync = () => setState(getReaderSource());
-    sync();
-    window.addEventListener(EVT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return src;
 }
 
 // --- Recently used language pairs (for quick re-selection when adding) ---

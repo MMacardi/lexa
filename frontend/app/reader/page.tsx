@@ -20,11 +20,8 @@ import { useToast } from "@/lib/toast";
 import { useDialog } from "@/lib/dialog";
 import { detectDominantLang, FIXED_PAIR, isAiSupported, langLabel, scriptFamily } from "@/lib/langs";
 import {
-  getReaderSource,
   hasTranscription,
   pushRecentPair,
-  setReaderSource,
-  useReaderSource,
   useRecentPairs,
   useAutoGloss,
   setAutoGloss,
@@ -118,7 +115,8 @@ export default function ReaderPage() {
   const { show, trackImport } = useToast();
   const { confirm } = useDialog();
   const recentPairs = useRecentPairs();
-  const readerSource = useReaderSource();
+  // Attribution belongs to this text, not a preference restored for every paste.
+  const [readerSource, setReaderSource] = useState("");
   const autoGloss = useAutoGloss();
   const rubyAll = useRubyAll();
   const underlines = useReaderUnderlines();
@@ -797,7 +795,7 @@ export default function ReaderPage() {
     setOpenText(full); // editing this one → Save updates it instead of duplicating
     setSavedRow({ id: full.id, content: full.content, title: full.title });
     // Attribute words added from this text to its title (falls back to "Reader").
-    if (full.title?.trim()) setReaderSource(full.title.trim());
+    setReaderSource(full.title?.trim() ?? "");
     if (full.sourceLang && full.sourceLang !== "auto") setSourceLang(full.sourceLang);
     if (full.targetLang) setTargetLang(full.targetLang);
     if (full.translation) {
@@ -1112,7 +1110,7 @@ export default function ReaderPage() {
         targetLang,
         // carry each word's sentence so the card's example/context comes from the Reader
         items: keys.map((k) => ({ word: k, sentence: sentenceForKey(k) })),
-        source: getReaderSource().trim() || t("reader.sourceDefault"),
+        source: readerSource.trim() || t("reader.sourceDefault"),
         enrich,
       });
       setAdded((prev) => new Set([...prev, ...keys]));

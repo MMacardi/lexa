@@ -1,4 +1,4 @@
-# Backlog — one item per session
+﻿# Backlog — one item per session
 
 **One list, in order — resume `SESSION.md` first; otherwise take the first incomplete item.**
 Do it, mark it complete, update the handoff, then start a fresh session for unrelated work.
@@ -1411,6 +1411,17 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
   edge over SmallTalk2Me and co. is calibration against users' real band scores. `[S3]`
 
 ## Done
+
+### Reader source stays with the current text (2026-10-21, asked for directly)
+- A saved text's title was persisted as a global Reader source while the passage
+  itself was not restored, leaving an unrelated Chinese title in an empty form.
+- Source attribution now lives with the current Reader state. Fresh visits ignore
+  the legacy storage value; saved texts and custom sources still attribute words
+  correctly, and New text clears the form after a successful save.
+- Backend type-check and frontend production build passed (existing warnings).
+  Russian Chromium 390×844 verified stale-source isolation, custom/saved attribution,
+  New text and reload; no horizontal overflow or browser errors. Local test users
+  deleted. No schema changes or production data access.
 
 ### Russian character meanings without English fallback (2026-10-21, asked for directly)
 - The word page's Characters panel uses prepared Russian meanings, including the

@@ -1,23 +1,20 @@
 ﻿# Session handoff — 2026-10-21
 
-- Task: Russian character meanings without English fallback; complete.
-- User: English character glosses on the 偶尔 page are unsuitable for Russian learners.
-- backend/src/services/characters.ts uses Russian defaults, reading-matched HSK
-  senses and shared dictionary adaptations; missing Russian stays empty on reads.
-- backend/data/everyday-ru.jsonl adds grounded Russian meanings for 偶 and 尔.
-- POST /api/dict/chars/localize fills gaps; session/invite + AI limiter apply.
-- frontend/components/WordCharacters.tsx loads gaps after prepared content and
-  shows Russian loading/failure/retry, including for alternate readings.
-- frontend/lib/api.ts adds the call; i18n removes the English-italics notice.
-- Attribution and existing card links/add controls are preserved; no migration.
-- Checks: backend npx tsc --noEmit -p .; frontend npx next build passed
-  (existing warnings). Updated backend/scripts/check-characters.ts passed.
-- frontend/scripts/check-character-meanings.mjs passed against local production:
-  Russian dark-mode Chromium 390×844; session/invite, loading/failure/retry,
-  live dictionary adaptation (first pass), prepared meanings (final pass),
-  cached reload, attribution, no overflow/browser errors. Test accounts deleted.
-- Evidence: .playwright-cli/character-meanings/{phone.png,result.json}; inspected.
-- Local services use its compose.verify.yml (prebuilt production, bot disabled).
-- BACKLOG.md Done updated. No production data accessed.
-- Part 18 remains open; do not start automatically. Retention and landing deferred.
+- Task: fix the unrelated Chinese source shown on a fresh Reader visit; complete.
+- Root cause: opening a saved text persisted its title in lexa.readerSource,
+  while the passage itself remained transient and disappeared on navigation/reload.
+- frontend/app/reader/page.tsx now owns source attribution as local React state.
+  Fresh visits ignore the old storage value; saved-text opening sets its title;
+  custom and saved sources still reach word/example attribution.
+- frontend/lib/learnPrefs.ts: removed the unused persistent Reader source helper.
+- BACKLOG.md Done records this directly requested fix; no backlog item started.
+- Checks: backend npx tsc --noEmit -p . and frontend npx next build passed.
+  Existing lint warnings remain. Russian Chromium 390×844 passed stale-source,
+  custom/saved word attribution, New text, reload, overflow and browser-error checks.
+- Local check: .playwright-cli/check-reader-source.mjs (ignored); throwaway users deleted.
+  Initial sessionStorage handoff fixture timed out in dev; saved-text attribution
+  was verified through the library instead. No app changes followed the checks.
+- No schema changes or production data access. Main push follows this handoff update.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
+- Previous Mika model investigation remains read-only; no tutor changes made.
+- Part 18 remains open. Retention and landing work remain deferred.
