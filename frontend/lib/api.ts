@@ -1035,6 +1035,10 @@ export const api = {
     http<{ chars: CharInfo[]; credit?: DictCredit }>(
       `/api/dict/chars?word=${encodeURIComponent(word)}&phonetic=${encodeURIComponent(phonetic)}&lang=${encodeURIComponent(lang)}`,
     ),
+  localizeDictChars: (word: string, phonetic: string) =>
+    http<{ chars: CharInfo[]; credit?: DictCredit }>(`/api/dict/chars/localize`, {
+      method: "POST", body: JSON.stringify({ word, phonetic, lang: "ru" }),
+    }),
   // The add form's dictionary, both ways and with no model call: hanzi → the word
   // and the longer words it starts; Russian / English / pinyin → Chinese words.
   lookup: (q: string, lang: string) =>

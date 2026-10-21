@@ -93,7 +93,7 @@ export const wordsRouter = Router();
 // scripted abuse of the paid model. Reads/list/stats and the fast import poll are
 // untouched.
 const AI_POST_PATH =
-  /^\/(gloss|dict\/glosses|ocr|translate(\/alignment)?|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
+  /^\/(gloss|dict\/(glosses|chars\/localize)|ocr|translate(\/alignment)?|transcribe|languages\/check|tutor\/ask|reader\/generate|coach\/(picks|drill|chat|stt|remember|scene\/(setup|turn))|words(\/(suggest|batch|import|import\/preview|starter-candidates))?)$|^\/words\/[^/]+\/(example|explain|ask|senses|family|enrich)$/;
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 40, name: "ai" });
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && AI_POST_PATH.test(req.path)) return aiLimiter(req, res, next);
@@ -1233,6 +1233,25 @@ wordsRouter.get("/dict/chars", async (req, res) => {
   const lang = String(req.query.lang ?? "ru").slice(0, 10);
   const chars = await wordCharacters(telegramId, word, phonetic, lang);
   res.json({ chars, ...(chars.length ? { credit: cedictCredit() } : {}) });
+});
+
+// Fill only dictionary gaps after the character panel has rendered its prepared data.
+const charsBody = z.object({ word: z.string().trim().min(1).max(16), phonetic: z.string().max(80), lang: z.literal("ru") });
+wordsRouter.post("/dict/chars/localize", async (req, res) => {
+  const parsed = charsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const { word, phonetic, lang } = parsed.data;
+    const chars = await wordCharacters(readSession(req)!, word, phonetic, lang, true);
+    if (chars.some((c) => c.english || c.words.some((w) => w.english))) throw new Error("Missing character translation");
+    res.json({ chars, ...(chars.length ? { credit: cedictCredit() } : {}) });
+  } catch (err) {
+    console.error("[characters] localization failed", (err as Error).message);
+    res.status(502).json({ error: "Dictionary translation failed" });
+  }
 });
 
 // POST /api/dict/glosses {words, lang} -> {meanings}: the lookup rows that only have

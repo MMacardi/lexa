@@ -1,6 +1,8 @@
 import { prisma } from "./db.js";
 import { cedictCard, cedictLookup, readingGloss, toneMarked } from "./cedict.js";
 import { defaultMeaning } from "./lookup.js";
+import { cachedDictionary, localizedDictionary } from "./localizedDictionary.js";
+import { hskPage, readsAs } from "./wordPages.js";
 import { asHskVersion, hskFrequency, hskTagFor, hskWordsWith, normalizeHanzi, type HskTag, type HskVersion } from "./hsk.js";
 
 // The word page's Characters block (learning audit 8e): each character of a
@@ -8,13 +10,13 @@ import { asHskVersion, hskFrequency, hskTagFor, hskWordsWith, normalizeHanzi, ty
 // easiest first and the learner's own cards marked. Between HSK 4 and 5 (about
 // 1,200 → 2,500 words) the characters are what let a learner guess a new word
 // and keep it: the 电 of 电脑 is the 电 of 电视, 电话 and 电影. Dictionary and
-// list data only, no model call.
+// list data first; missing Russian glosses use the shared dictionary adaptation.
 
 export type CharWord = {
   word: string;
   pinyin: string;
   meaning: string;
-  english: boolean; // the dictionary's English: nothing in the learner's language
+  english: boolean; // no localized meaning yet; Russian responses keep it empty
   level: number | null; // on the learner's list
   id?: string; // the learner's card for it
 };
@@ -25,24 +27,34 @@ const WORDS_PER_CHAR = 6;
 // A tone mark on any vowel: a syllable without one is a neutral tone.
 const TONED = /[̀́̄̌]/;
 
-/**
- * The character as the word reads it. Usually its own reading and meaning, but a
- * word may use another one: 觉 is jiào in 睡觉 and jué alone, 好 is hào in 爱好,
- * 长 zhǎng in 长大. Then that reading with its gloss, since the default meaning
- * belongs to the other. A neutral tone (西 in 东西) and 一/不's tone changes are
- * the character's own reading said in passing, not another one.
- */
-async function charReading(ch: string, said: string | undefined, lang: string) {
+async function russianMeaning(word: string, reading: string, own: string, localize: boolean) {
+  if (readsAs(word, reading, own)) {
+    const meaning = defaultMeaning(word, "ru");
+    if (meaning) return meaning;
+  }
+  const prepared = hskPage(word, "ru")?.s.filter((s) => readsAs(word, s.r, reading)).map((s) => s.m).join("; ");
+  if (prepared) return prepared;
+  const adapted = await (localize ? localizedDictionary(word, "ru") : cachedDictionary(word, "ru"));
+  return adapted?.senses.filter((s) => readsAs(word, s.reading ?? adapted.phonetic, reading))
+    .map((s) => s.meaning).join("; ") || "";
+}
+
+// Match the reading in the word, including alternate readings (长大 zhǎng),
+// while keeping neutral tones and 一/不's tone changes on their usual reading.
+async function charReading(ch: string, said: string | undefined, lang: string, localize: boolean) {
   const card = await cedictCard(ch, { count: false });
   const ru = defaultMeaning(ch, lang);
   const own = { pinyin: card?.phonetic ?? "", meaning: ru ?? card?.gloss ?? "", english: !ru && Boolean(card?.gloss) };
   const s = said?.toLowerCase();
-  if (!s || !TONED.test(s.normalize("NFD")) || /[一不]/.test(ch) || s === own.pinyin.toLowerCase()) return own;
-  const other = cedictLookup(ch, { count: false })?.readings.find(
-    (r) => r.pinyin[0] === r.pinyin[0].toLowerCase() && toneMarked(r.pinyin) === s,
-  );
+  const other = s && TONED.test(s.normalize("NFD")) && !/[一不]/.test(ch) && s !== own.pinyin.toLowerCase()
+    ? cedictLookup(ch, { count: false })?.readings.find(
+        (r) => r.pinyin[0] === r.pinyin[0].toLowerCase() && toneMarked(r.pinyin) === s,
+      ) : undefined;
   const gloss = other ? readingGloss(other) : "";
-  return gloss ? { pinyin: s, meaning: gloss, english: true } : own;
+  const result = gloss ? { pinyin: s!, meaning: gloss, english: true } : own;
+  if (lang !== "ru") return result;
+  const meaning = await russianMeaning(ch, result.pinyin, own.pinyin, localize);
+  return { pinyin: result.pinyin, meaning, english: !meaning && Boolean(result.meaning) };
 }
 
 // The words on the lists built on a character: the learner's list first, by
@@ -58,7 +70,7 @@ function wordsWith(ch: string, head: string, version: HskVersion) {
 }
 
 /** The Characters block for a learner's word; [] for a word with no hanzi. */
-export async function wordCharacters(telegramId: string, word: string, phonetic: string, lang: string): Promise<CharInfo[]> {
+export async function wordCharacters(telegramId: string, word: string, phonetic: string, lang: string, localize = false): Promise<CharInfo[]> {
   const head = normalizeHanzi(word);
   const chars = Array.from(head);
   if (!chars.length || chars.length > 8) return [];
@@ -88,11 +100,14 @@ export async function wordCharacters(telegramId: string, word: string, phonetic:
   const describe = async (w: string): Promise<CharWord> => {
     const card = await cedictCard(w, { count: false });
     const mine = owned.get(w);
-    const ru = (mine?.targetLang === lang && mine.meaningZh?.trim()) || defaultMeaning(w, lang);
+    const saved = mine?.targetLang === lang && mine.meaningZh?.trim();
+    const ru = lang === "ru"
+      ? (saved && /[а-яё]/i.test(saved) ? saved : await russianMeaning(w, card?.phonetic ?? "", card?.phonetic ?? "", localize))
+      : saved || defaultMeaning(w, lang);
     return {
       word: w,
       pinyin: card?.phonetic ?? "",
-      meaning: ru || card?.gloss || "",
+      meaning: ru || (lang === "ru" ? "" : card?.gloss) || "",
       english: !ru && Boolean(card?.gloss),
       level: level(w),
       ...(mine ? { id: mine.id } : {}),
@@ -103,7 +118,7 @@ export async function wordCharacters(telegramId: string, word: string, phonetic:
       const mine = owned.get(p.ch);
       return {
         word: p.ch,
-        ...(await charReading(p.ch, p.said, lang)),
+        ...(await charReading(p.ch, p.said, lang, localize)),
         level: level(p.ch),
         ...(mine ? { id: mine.id } : {}),
         words: await Promise.all(p.words.map(describe)),

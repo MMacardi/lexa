@@ -25,7 +25,7 @@ const HAN = /\p{Script=Han}/u;
  * on it, the easiest first. A word the learner has opens its card; any other is
  * one tap from being added. Between HSK 4 and 5 the characters are what let a
  * new word be guessed and kept. "Write it" opens the writing trainer on the
- * whole word. Dictionary data, no model call.
+ * whole word. Prepared dictionary data first, shared Russian adaptation for gaps.
  */
 export function WordCharacters({ word }: { word: Word }) {
   const { t } = useI18n();
@@ -41,9 +41,19 @@ export function WordCharacters({ word }: { word: Word }) {
     enabled: on,
     staleTime: 5 * 60_000,
   });
-  const chars = data?.chars ?? [];
+  const needsRussian = word.targetLang === "ru" && (data?.chars ?? []).some((c) => c.english || c.words.some((w) => w.english));
+  const glossQuery = useQuery({
+    queryKey: ["dictCharsLocalized", accountId, word.word, word.phonetic ?? "", word.targetLang],
+    queryFn: () => api.localizeDictChars(word.word, word.phonetic ?? ""),
+    enabled: on && needsRussian,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const chars = (needsRussian ? glossQuery.data?.chars : undefined) ?? data?.chars ?? [];
   if (!on || !chars.length) return null;
-  const someEnglish = word.targetLang !== "en" && chars.some((c) => c.english || c.words.some((w) => w.english));
+  const missingRussian = (w: CharWord) => word.targetLang === "ru" && w.english;
+  const meaningText = (w: CharWord) => missingRussian(w)
+    ? t(glossQuery.isError ? "capture.meaningFailed" : "capture.filling") : w.meaning;
 
   // The Reader's capture: the dictionary's card at once, filled in behind.
   async function add(w: CharWord) {
@@ -61,6 +71,7 @@ export function WordCharacters({ word }: { word: Word }) {
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["dictChars"] });
+      qc.invalidateQueries({ queryKey: ["dictCharsLocalized"] });
       if (r.job) trackImport({ jobId: r.job.id, telegramId: accountId, words: [w.word], total: r.job.total, processed: 0 });
       show({ icon: "🌱", title: t("pop.addedToast", { word: w.word }) });
     } catch (e) {
@@ -71,8 +82,8 @@ export function WordCharacters({ word }: { word: Word }) {
   }
 
   const meaning = (w: CharWord) => (
-    <span className={cn("min-w-0 truncate", w.english && word.targetLang !== "en" ? "italic text-ink-faint" : "text-ink-soft")}>
-      {w.meaning}
+    <span className="min-w-0 truncate text-ink-soft">
+      {meaningText(w)}
     </span>
   );
 
@@ -119,8 +130,8 @@ export function WordCharacters({ word }: { word: Word }) {
                   </span>
                 )}
               </div>
-              <p className={cn("break-words text-[15px] leading-snug", c.english && word.targetLang !== "en" ? "italic text-ink-soft" : "text-ink")}>
-                {c.meaning}
+              <p className="break-words text-[15px] leading-snug text-ink">
+                {meaningText(c)}
               </p>
             </div>
           </div>
@@ -168,10 +179,15 @@ export function WordCharacters({ word }: { word: Word }) {
           )}
         </div>
       ))}
+      {needsRussian && glossQuery.isError && (
+        <button type="button" onClick={() => void glossQuery.refetch()}
+          className="rounded-md px-2 py-2 text-[13px] font-semibold text-sage-deep">
+          {t("errState.retry")}
+        </button>
+      )}
       {/* CC-CEDICT's licence asks for its name wherever its data shows. */}
       {data?.credit && (
         <p className="text-[13px] text-ink-faint">
-          {someEnglish && <>{t("chars.englishNote")} </>}
           <a href={data.credit.url} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-ink-soft">
             {data.credit.source}
           </a>

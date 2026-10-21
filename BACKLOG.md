@@ -1412,6 +1412,20 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Russian character meanings without English fallback (2026-10-21, asked for directly)
+- The word page's Characters panel uses prepared Russian meanings, including the
+  matching senses of alternate readings (觉 jué, 长 zhǎng). Added dictionary-grounded
+  Russian defaults for 偶 and 尔 from the reported screenshot.
+- Missing meanings load through the shared dictionary adaptation cache after the
+  panel renders. Russian loading/failure/retry replaces raw English; removed the
+  English-italics notice. The localization endpoint uses session identity, invite
+  gating and the existing AI rate limiter; attribution is retained.
+- Backend type-check and frontend production build passed (existing warnings).
+  Character service checks passed; Russian dark-mode Chromium 390×844 verified
+  loading/failure/retry, real gap adaptation, prepared meanings, cached reload,
+  attribution, no overflow or browser errors. Throwaway local accounts deleted.
+  No schema changes or production data access.
+
 ### Faster repeat opens and quiet session verification (2026-10-21, asked for directly)
 - Normal session verification on cached opens stays quiet for 1.5 seconds; longer
   checks and actual failures retain the connection banner and retry. Cached content

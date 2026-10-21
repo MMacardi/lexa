@@ -2846,7 +2846,6 @@ const DICT: Record<string, Entry> = {
   "chars.strokesAgain": { en: "Again", ru: "Ещё раз", zh: "再播一遍" },
   "chars.add": { en: "Add {word} to my words", ru: "Добавить {word} в мои слова", zh: "把{word}加入我的单词" },
   "chars.yours": { en: "In your words", ru: "Есть в ваших словах", zh: "已在你的单词中" },
-  "chars.englishNote": { en: "Meanings in italics are the dictionary's English.", ru: "Значения курсивом — английские, из словаря.", zh: "斜体释义为词典的英文释义。" },
   "write.title": { en: "Writing", ru: "Пропись", zh: "写字" },
   "write.subtitle": { en: "Write your Chinese words from their meaning. Writing has its own schedule, apart from your reviews.", ru: "Пишите китайские слова по их значению. У письма своё расписание, отдельно от повторений.", zh: "看释义写出你的中文词。书写有自己的复习计划，与单词复习分开。" },
   "write.mode": { en: "How to write", ru: "Как писать", zh: "写法" },

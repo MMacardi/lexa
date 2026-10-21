@@ -40,15 +40,21 @@ try {
   const sleep = await wordCharacters(TG, "睡觉", "shuì jiào", "ru");
   check("觉 of 睡觉 is its own jiào «сон»", sleep[1]?.pinyin === "jiào" && !sleep[1].english, `${sleep[1]?.pinyin} ${sleep[1]?.meaning}`);
   const feel = await wordCharacters(TG, "觉得", "jué de", "ru");
-  check("觉 of 觉得 is jué with that reading's gloss", feel[0]?.pinyin === "jué" && feel[0].english && /feel/i.test(feel[0].meaning), `${feel[0]?.pinyin} ${feel[0]?.meaning}`);
+  check("觉 of 觉得 is jué with that reading's Russian gloss", feel[0]?.pinyin === "jué" && !feel[0].english && /чувств|ощущ/i.test(feel[0].meaning), `${feel[0]?.pinyin} ${feel[0]?.meaning}`);
   const grow = await wordCharacters(TG, "长大", "zhǎng dà", "ru");
-  // The reading's first glosses ("chief; head; elder"), not the sense 长大 uses: no model here.
-  check("长 of 长大 is zhǎng, not cháng «длинный»", grow[0]?.pinyin === "zhǎng" && grow[0].english, `${grow[0]?.pinyin} ${grow[0]?.meaning}`);
+  check("长 of 长大 is zhǎng with its Russian senses", grow[0]?.pinyin === "zhǎng" && !grow[0].english && /расти|старш/i.test(grow[0].meaning), `${grow[0]?.pinyin} ${grow[0]?.meaning}`);
   const thing = await wordCharacters(TG, "东西", "dōng xi", "ru");
   check("西 of 东西 (neutral tone) is still xī", thing[1]?.pinyin === "xī" && !thing[1].english, `${thing[1]?.pinyin} ${thing[1]?.meaning}`);
   const mum = await wordCharacters(TG, "妈妈", "mā ma", "ru");
   check("妈妈 → 妈 once", mum.length === 1 && mum[0].word === "妈");
   check("a word with no hanzi → nothing", (await wordCharacters(TG, "hello", "", "ru")).length === 0);
+  const occasional = await wordCharacters(TG, "偶尔", "ǒu ěr", "ru");
+  check("偶 and 尔 have prepared Russian meanings", occasional.every((c) => !c.english && /[а-яё]/i.test(c.meaning)));
+  check("missing Russian is empty, never raw English", occasional.every((c) => [c, ...c.words].every((w) => w.english ? !w.meaning : /[а-яё]/i.test(w.meaning))));
+  const gap = await wordCharacters(TG, "儡", "lěi", "ru");
+  check("a dictionary gap never exposes English", gap.every((c) => !c.english || !c.meaning));
+  const english = await wordCharacters(TG, "偶尔", "ǒu ěr", "en");
+  check("English cards retain English meanings", /accidental/.test(english[0]?.meaning));
 
   console.log("\n2. Words built on it");
   const near = dian?.words.map((w) => w.word) ?? [];
