@@ -417,6 +417,8 @@ const DICT: Record<string, Entry> = {
   },
   "reader.readAloud": { en: "Read aloud", ru: "Чтение вслух", zh: "朗读" },
   "listen.title": { en: "Listen to the text", ru: "Слушать текст", zh: "听全文" },
+  "listen.collapse": { en: "Minimize player", ru: "Свернуть плеер", zh: "收起播放器" },
+  "listen.locateHint": { en: "Scroll to the passage currently being read aloud.", ru: "Перейти к фрагменту, который сейчас звучит.", zh: "滚动到当前正在朗读的段落。" },
   "listen.play": { en: "Play text", ru: "Включить текст", zh: "播放全文" },
   "listen.pause": { en: "Pause text", ru: "Пауза", zh: "暂停全文" },
   "listen.resume": { en: "Resume text", ru: "Продолжить", zh: "继续播放" },

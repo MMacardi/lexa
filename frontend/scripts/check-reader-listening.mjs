@@ -16,6 +16,7 @@ function db(code){return execFileSync('docker',['compose','exec','-T','backend',
 const configurations=[
   {name:'phone-chromium',engine:chromium,...devices['Pixel 7']},
   {name:'phone-webkit',engine:webkit,...devices['iPhone 13']},
+  {name:'desktop-chromium',engine:chromium,viewport:{width:1440,height:1000}},
 ];
 for(const {name,engine,...options} of configurations.filter(c=>c.name===(process.argv[2]||'phone-chromium'))){
   const browser=await engine.launch({headless:true,downloadsPath:out});
@@ -45,6 +46,12 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
     await page.locator('textarea').filter({visible:true}).first().fill(source);
     await page.getByRole('button',{name:'Читать',exact:true}).click();
     const player=page.locator('[data-reader-player]');await player.waitFor();
+    const openPlayer=async()=>{
+      const trigger=player.getByRole('button',{name:'Слушать текст',exact:true});
+      if(await trigger.count())await trigger.click();
+    };
+    assert.equal(await player.locator('section').count(),0,'player starts collapsed');
+    await openPlayer();
     const status=async value=>{
       await page.waitForFunction(v=>{const s=document.querySelector('[data-reader-player]')?.dataset.playbackState;return s===v||s==='error';},value);
       assert.equal(await player.getAttribute('data-playback-state'),value);
@@ -56,6 +63,71 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
     assert.ok(source.length>300&&total>12);
     assert.equal(requests.length,0,'opening a text never synthesizes it');
     console.log(name+': player loaded, no eager synthesis');
+    if(process.argv[3]==='layout-only'){
+      const fit=async()=>{
+        const box=await player.boundingBox();
+        assert.ok(box.x>=0&&box.x+box.width<=(await page.evaluate(()=>innerWidth))+1,'player fits horizontally');
+        const headers=page.locator('header').filter({visible:true});
+        const header=await headers.count()?await headers.boundingBox():null;
+        assert.ok(box.y>=(header?header.y+header.height:0),'player stays below the header');
+        const tabbars=page.locator('[data-tabbar]').filter({visible:true});
+        const tabs=await tabbars.count()?await tabbars.boundingBox():null;
+        assert.ok(box.y+box.height<=(tabs?tabs.y:await page.evaluate(()=>innerHeight)),'player stays above navigation');
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      };
+      await fit();
+      await button('Включить текст').click();await status('playing');
+      await button('Пауза').click();await status('paused');
+      const paused=await media();
+      await button('Свернуть плеер').click();
+      assert.equal(await player.locator('section').count(),0);
+      assert.equal(await player.getByRole('button',{name:'Слушать текст',exact:true}).evaluate(el=>el===document.activeElement),true,'collapse restores keyboard focus');
+      await page.evaluate(()=>window.scrollTo(0,document.querySelector('[data-reader-source]').offsetTop+400));
+      await fit();await page.screenshot({path:path.join(out,`${name}-compact.png`)});
+      await openPlayer();await fit();
+      assert.equal((await media()).src,paused.src,'collapse keeps the current audio');
+      assert.ok(Math.abs((await media()).time-paused.time)<0.05,'collapse keeps paused position');
+      await page.evaluate(()=>document.documentElement.classList.add('dark'));
+      const count=requests.length;
+      for(const rate of ['1.25','1.5','0.75','1']){
+        await button('Скорость чтения текста').click();
+        await page.getByRole('button',{name:rate+'×',exact:true}).click();
+        assert.equal((await media()).rate,Number(rate));
+      }
+      assert.equal(requests.length,count,'styled speed choices reuse audio');
+      await button('Скорость чтения текста').click();
+      await page.screenshot({path:path.join(out,`${name}-speed-menu.png`)});
+      await page.keyboard.press('Escape');
+      await page.getByRole('button',{name:'0.75×',exact:true}).waitFor({state:'hidden'});
+      assert.equal(await player.locator('section').count(),1,'Escape closes only the speed menu');
+      const locate=button('Показать место в тексте');
+      assert.ok(await locate.textContent(),'locate is visibly labelled on touch screens');
+      if(name.startsWith('desktop')){
+        await locate.hover();
+        await page.getByText('Перейти к фрагменту, который сейчас звучит.',{exact:true}).waitFor();
+        await page.screenshot({path:path.join(out,`${name}-locate-tip.png`)});
+      }
+      await page.screenshot({path:path.join(out,`${name}-expanded.png`)});
+      await seek(8);await status('paused');
+      await locate.click();await page.waitForTimeout(500);await fit();
+      const passage=await page.locator('[data-reader-unit="7"]').boundingBox();
+      const panel=await player.locator('section').boundingBox();
+      assert.ok(passage.y>=155&&passage.y+passage.height<=panel.y,'locate leaves the passage visible above the expanded player');
+      await button('Продолжить').click();await status('playing');
+      await button('Свернуть плеер').click();await status('playing');
+      await openPlayer();await status('playing');
+      await button('Остановить текст').click();await status('idle');
+      await button('Включить текст').focus();await page.keyboard.press('Escape');
+      assert.equal(await player.locator('section').count(),0,'Escape minimizes the player');
+      await page.getByRole('button',{name:'Новый текст',exact:true}).click();
+      await page.locator('textarea').filter({visible:true}).first().fill('今天下雨。');
+      await page.getByRole('button',{name:'Читать',exact:true}).click();
+      assert.equal(await player.locator('section').count(),0,'another text starts collapsed');
+      await openPlayer();await fit();
+      assert.deepEqual(errors,[]);
+      console.log(name+': compact/expanded placement, real playback, minimize/reopen, styled rates, locate hint, keyboard and text reset passed');
+      continue;
+    }
     if(process.argv[3]==='lifecycle-only'){
       await button('Включить текст').click();await status('playing');
       await page.getByRole('button',{name:'Инструменты чтения',exact:true}).click();
@@ -65,6 +137,7 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
       await page.getByRole('textbox',{name:'Название',exact:true}).fill('Listening lifecycle');
       await page.getByRole('button',{name:'Обновить',exact:true}).click();
       await page.getByRole('textbox',{name:'Текст',exact:true}).waitFor({state:'hidden'});
+      await openPlayer();
       await button('Включить текст').click();await status('playing');
       assert.equal(await player.getByRole('slider').getAttribute('max'),'2');
       await page.getByRole('button',{name:'Инструменты чтения',exact:true}).click();
@@ -74,7 +147,7 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
       await player.waitFor({state:'hidden'});assert.equal((await media()).src,null);assert.equal((await media()).paused,true);
       const oldText='这是一次等待返回的旧课文。',newText='今天下雨。';
       await page.locator('textarea').filter({visible:true}).first().fill(oldText);
-      await page.getByRole('button',{name:'Читать',exact:true}).click();
+      await page.getByRole('button',{name:'Читать',exact:true}).click();await openPlayer();
       let release;const gate=new Promise(r=>release=r);
       const clip=await ctx.request.get(api+'/tts?lang=zh&text='+encodeURIComponent(newText));
       assert.equal(clip.status(),200);const bytes=await clip.body();
@@ -85,7 +158,7 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
       await button('Включить текст').click();await status('loading');
       await page.getByRole('button',{name:'Новый текст',exact:true}).click();
       await page.locator('textarea').filter({visible:true}).first().fill(newText);
-      await page.getByRole('button',{name:'Читать',exact:true}).click();await button('Включить текст').click();await status('playing');
+      await page.getByRole('button',{name:'Читать',exact:true}).click();await openPlayer();await button('Включить текст').click();await status('playing');
       const newest=(await media()).src;release();await page.waitForTimeout(300);
       assert.equal((await media()).src,newest,'late old text cannot replace the new text');
       await page.unroute('**/api/tts?**');assert.deepEqual(errors,[]);
@@ -102,7 +175,8 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
     assert.ok((await media()).time>=paused.time,'resume does not restart');
     for(const rate of ['1.25','1.5','0.75','1']){
       const before=(await media());const count=requests.length;
-      await player.getByRole('combobox',{name:'Скорость чтения текста'}).selectOption(rate);
+      await button('Скорость чтения текста').click();
+      await page.getByRole('button',{name:rate+'×',exact:true}).click();
       const after=await media();assert.equal(after.rate,Number(rate));assert.equal(after.pitch,true);
       assert.equal(after.src,before.src);assert.ok(after.time>=before.time);assert.equal(requests.length,count,'rate does not request new audio');
     }
@@ -134,7 +208,7 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
     const switchText=async text=>{
       await page.getByRole('button',{name:'Новый текст',exact:true}).click();
       await page.locator('textarea').filter({visible:true}).first().fill(text);
-      await page.getByRole('button',{name:'Читать',exact:true}).click();await player.waitFor();
+      await page.getByRole('button',{name:'Читать',exact:true}).click();await player.waitFor();await openPlayer();
     };
     const errorText='今天我去学校学习中文。\n明天我和朋友一起回家。\n下雨的时候我喜欢在家看书。\n最后一句结束了。';
     await switchText(errorText);
@@ -180,6 +254,7 @@ for(const {name,engine,...options} of configurations.filter(c=>c.name===(process
     if(await player.count())await page.getByRole('button',{name:'Новый текст',exact:true}).click();
     await page.locator('textarea').filter({visible:true}).first().fill('这是另一个还没有播放的新故事。');
     await page.getByRole('button',{name:'Читать',exact:true}).click();
+    await openPlayer();
     let late;const pending=new Promise(r=>late=r);
     await page.route('**/api/tts?**',async r=>{await pending;await r.fulfill({status:200,contentType:'audio/mpeg',body:bytes}).catch(()=>{});});
     await button('Включить текст').click();await status('loading');

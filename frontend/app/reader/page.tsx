@@ -448,16 +448,23 @@ export default function ReaderPage() {
   useEffect(() => { playback.activate(); return playback.dispose; }, [playback]);
   useEffect(() => () => stopSpeech(), [text, reading, sourceLang, openText?.id]);
   const passageRef = useRef<HTMLDivElement>(null);
+  const passageBottom = useCallback(() => {
+    const panel = passageRef.current?.parentElement?.querySelector("[data-reader-player] section");
+    return Math.min(window.innerHeight - 90, panel ? panel.getBoundingClientRect().top - 12 : Infinity);
+  }, []);
   const locatePassage = useCallback(() => {
-    passageRef.current?.querySelector(`[data-reader-unit="${playback.getSnapshot().unit}"]`)
-      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [playback]);
+    const el = passageRef.current?.querySelector(`[data-reader-unit="${playback.getSnapshot().unit}"]`);
+    if (!el) return;
+    const rect = el.getBoundingClientRect(), bottom = passageBottom();
+    const delta = rect.top < 160 || rect.height > bottom - 160 ? rect.top - 160 : Math.max(0, rect.bottom - bottom);
+    if (delta) window.scrollBy({ top: delta, behavior: "smooth" });
+  }, [playback, passageBottom]);
   useEffect(() => {
     if (listening.status !== "playing" || selected.size || activeToken || gloss || knownPop || window.getSelection()?.toString()) return;
     const el = passageRef.current?.querySelector(`[data-reader-unit="${listening.unit}"]`);
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    if (rect.top < 160 || rect.bottom > window.innerHeight - 90) locatePassage();
+    if (rect.top < 160 || rect.bottom > passageBottom()) locatePassage();
     // Follow passage changes only; closing a popup must not move the page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listening.unit, listening.status, locatePassage]);
@@ -1830,30 +1837,31 @@ export default function ReaderPage() {
           columns + min-w-0: a grid column otherwise grows to the text's
           min-content width, which is the longest line when a browser finds no
           break inside the pinyin. */}
-      {isChineseLang(sourceLang) && <div className="sticky top-2 z-20 mb-3">
-        <ReaderListeningPlayer playback={playback} locate={locatePassage} />
-      </div>}
       <div className={cn("grid grid-cols-1 gap-4", showTr && trReady && "md:grid-cols-2")}>
         <div
-          ref={passageRef}
           data-reader-source
           className={cn(
-            "min-w-0 select-none whitespace-pre-wrap break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
+            "relative min-w-0 select-none break-words rounded-[20px] border border-black/[0.06] bg-surface p-5 font-serif text-[19px] text-ink sm:p-7 sm:text-[21px]",
             rubyOn ? "leading-[2.7]" : "leading-[1.9]",
             sourceFont(sourceLang),
           )}
         >
-          {audioGroups.map((group, i) => <Fragment key={i}>
-            {group.before.map(renderToken)}
-            {group.text && <span data-reader-unit={i} data-listening-active={listening.unit === i && listening.status !== "idle" ? "true" : undefined}
-              className={cn("scroll-mt-40", listening.unit === i && listening.status !== "idle" && "rounded bg-sage-tint/60")}>
-              {group.head.map(renderToken)}
-              <span data-sentence-tail className="whitespace-nowrap [&_wbr]:hidden">
-                {group.tail.map(renderToken)}
-                <SpeakButton text={group.text} lang={sourceLang} size="inline" sentence className="ml-0.5" />
-              </span>
-            </span>}
-          </Fragment>)}
+          <div ref={passageRef} className="whitespace-pre-wrap">
+            {audioGroups.map((group, i) => <Fragment key={i}>
+              {group.before.map(renderToken)}
+              {group.text && <span data-reader-unit={i} data-listening-active={listening.unit === i && listening.status !== "idle" ? "true" : undefined}
+                className={cn("scroll-mt-40", listening.unit === i && listening.status !== "idle" && "rounded bg-sage-tint/60")}>
+                {group.head.map(renderToken)}
+                <span data-sentence-tail className="whitespace-nowrap [&_wbr]:hidden">
+                  {group.tail.map(renderToken)}
+                  <SpeakButton text={group.text} lang={sourceLang} size="inline" sentence className="ml-0.5" />
+                </span>
+              </span>}
+            </Fragment>)}
+          </div>
+          {isChineseLang(sourceLang) && <div className="sticky bottom-[calc(72px_+_env(safe-area-inset-bottom))] z-10 mt-4 md:bottom-6">
+            <ReaderListeningPlayer key={listeningOwner + text + (openText?.id ?? "")} playback={playback} locate={locatePassage} />
+          </div>}
         </div>
 
         {showTr && trReady && (

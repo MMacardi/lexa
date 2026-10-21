@@ -975,6 +975,18 @@ finish server-side after cancellation and remains real provider usage; distingui
 that from listening uses/cache hits when adding logical-function accounting in
 Part 18. No new payment limit or duplicate usage log was introduced here.
 
+**Layout follow-up (2026-10-21).** The player now starts as a small listening
+button at the source card's lower-right edge on phone and desktop. Expanding it
+reveals controls above the mobile navigation, without the old top-sticky block.
+Minimizing retains playback/position; a different text starts collapsed. Speed
+uses the existing themed `Select`; locate has a visible label and hover explanation
+in ru/en/zh. Locate and automatic following account for the expanded panel's height.
+`check-reader-listening.mjs {phone-chromium|desktop-chromium} layout-only` passed:
+real local MP3, pause/resume, minimize/reopen during playback, all speeds without
+new requests, header/navigation bounds, long/short texts, unobscured locate,
+keyboard close/focus restoration, and text reset. Screenshots inspected in
+`.playwright-cli/reader-listening`; throwaway accounts removed.
+
 **Report.** Add AI reading for the complete Reader text, faster playback and a
 useful audio progress tracker. Existing “Чтение вслух” is pronunciation practice
 (`ReadAloudCheck`), not whole-text listening; do not silently replace that feature.

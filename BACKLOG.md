@@ -102,6 +102,11 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    small popup at the bottom, center and fix the second card popup, remove hold.
    Follow-up complete (2026-10-20): selecting a saved text resets Reader to the top;
    mobile WebKit verified switching/reopening from a scrolled library.
+   Audio layout follow-up complete (2026-10-21): a small listening button at the
+   text's lower-right edge expands the player on phone and desktop, clear of the
+   header/navigation. Styled speed menu, labelled locate action with hover help;
+   locating/following keeps the passage above the expanded player. Real local
+   playback and compact/expanded layouts verified on phone/desktop Chromium.
    Separate finding during Part 5 checks: a cold hidden scene `?session=<id>` link
    returned to setup with a saved local session; investigate resume separately.
    New scene generation and its shared popup passed; scene surfaces remain hidden.
