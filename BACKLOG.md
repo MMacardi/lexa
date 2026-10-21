@@ -1412,6 +1412,26 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Russian openings and complete examples in Mika replies (2026-10-21, asked for directly)
+- The shared Russian teaching guard had allowed any Chinese-only line as an
+  example, so untranslated introductions passed before Russian definitions.
+  Chinese examples now require a complete following Russian translation; legacy
+  pinyin lines remain supported, and quoted terms in Russian prose remain valid.
+- Reject Russian/mixed example sentences followed by a Russian translation,
+  including entirely duplicated Russian examples found during the live check.
+  The existing single bounded repair handles these failures; en/zh are unchanged.
+- Prompt requires Russian openings/connectors and direct Russian word meanings.
+  No model switch, factual grammar checker or schema/UI change is included.
+- check-mika-format.ts covers the reported introduction, stray 或, missing/mixed
+  translations, malformed examples, preserved pinyin and bounded recovery.
+- Backend type-check and frontend production build passed (existing warnings).
+  Actual streamed 积累参加 query passed in Russian Chromium 390×844: both meanings,
+  Chinese examples with Russian translations, saved-history reload, no overflow
+  or browser errors. Throwaway accounts deleted; no production data accessed.
+  Evidence: .playwright-cli/mika-russian-opening/result.json (local, ignored).
+- General grammar reliability remains unresolved. User offered to switch Codex
+  to Astra for the next investigation; model comparison/grounding work is pending.
+
 ### Mika Chinese explanation reliability evaluation (2026-10-21, asked for directly)
 - Reproduced the reported 进行交流 reversal with live Bailian calls. Compared
   qwen-plus and qwen3.5-plus with current/general accuracy instructions on ten
