@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–15
-are complete; Parts 16–18 remain open.
-Next implementation session: **Part 16**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–16
+are complete; Parts 17–18 remain open.
+Next implementation session: **Part 17**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1364,7 +1364,7 @@ without truncation, plus control/renderer synchronization.
 
 ## Part 16 — Usable Reader and Mika at browser zoom
 
-- [ ] Implement and verify.
+- [x] Implement and verify.
 
 **Report.** Screenshot 12 shows a zoomed layout with excessive blank/clipped
 space. Reproduce page zoom separately from mobile pinch zoom and text size.
@@ -1387,6 +1387,39 @@ Check a scrolled conversation and composer focus, no horizontal page overflow or
 inaccessible buttons, then one normal phone/keyboard spot-check. Add pinch-zoom
 coverage only if the reproduced failure involves the visual viewport. Capture
 before/after for the actual visual failure, not a full-site screenshot sweep.
+
+**Reproduction (2026-10-21).** Actual Chromium page zoom from 1600×900 at 100%
+to 800×450 CSS pixels at 200% (DPR 2, visual-viewport scale 1) made Mika's
+non-wrapping desktop actions squeeze the subtitle into a narrow column. Its
+header overflowed the chat height, the conversation collapsed and intercepted
+composer clicks. The sidebar's account entry fell below its unscrollable box.
+A Reader card dragged left/down at 100% ended wholly outside the window at
+200% (left -460, top 478). Mika's existing desktop position clamp already worked.
+
+**Implementation.** Mika's desktop header/actions wrap at their available width;
+the page uses the height left by the shell padding. Headers and composers retain
+their natural height while the conversation gets a bounded, shrinkable scroll
+area. The floating thread no longer forces a 160px minimum on short windows.
+Long drafts scroll within a cap based on the visible viewport, including the
+keyboard space. Desktop navigation scrolls to its bottom entries. Reader's card
+re-clamps after dragging and window/panel resizing, including zoom and returning
+from the phone layout. Typography and browser zoom remain unchanged; no new copy.
+
+**Verification.** Backend `npx tsc --noEmit -p .` and frontend `npx next build`
+passed (existing warnings). `frontend/scripts/check-reader-mika-zoom.mjs` passed
+13 focused checks with one throwaway local account: long Reader/ruby content,
+saved-word popup, card actions/close and full card bounds after dragging/zoom;
+long/scrolled Mika history with pinyin on at 100/200%, focused composer, long
+drafts, send/close/history controls and sidebar account access. Also checked
+1280×720 → 640×360 at 200% across the responsive breakpoint and Russian phone
+layout at 390×844, then 390×430 with composer focus and a controlled send response.
+The keyboard check simulates reduced available space; it does not open a native
+OS keyboard. No horizontal page overflow or browser errors. No pinch-zoom case
+was needed: the failures reproduce with page zoom and visual scale 1.
+Evidence in `.playwright-cli/reader-mika-zoom/`: `result.json`, inspected
+`before-mika-200.png` / `after-mika-200.png` and
+`before-reader-card-200.png` / `after-reader-card-200.png`. Local fixtures cleaned;
+no migrations, production data or live AI generation used.
 
 ## Part 17 — Search saved words by pinyin without spaces
 

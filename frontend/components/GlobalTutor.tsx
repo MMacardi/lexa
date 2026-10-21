@@ -174,7 +174,7 @@ export function GlobalTutor() {
           data-closing={closing || undefined}
           ref={mobile ? sheetRef : panelRef}
           className={cn(
-            "z-[60] flex flex-col overflow-hidden bg-surface",
+            "z-[60] flex min-h-0 flex-col overflow-hidden bg-surface",
             mobile
               ? "anim-sheet relative max-h-[calc(100%-12px)] min-h-[min(420px,calc(100%-12px))] rounded-t-[24px] border-t border-black/[0.08] shadow-[0_-12px_40px_rgba(46,42,38,0.25)]"
               : "anim-panel fixed right-4 bottom-6 max-h-[75vh] w-[400px] rounded-[22px] border border-black/[0.08] shadow-[0_24px_60px_rgba(46,42,38,0.34)]",
@@ -189,7 +189,7 @@ export function GlobalTutor() {
           {/* header — title, centered drag handle, clickable language pair, actions.
               On a phone the grab bar sits inside it, under the same tint: above it,
               it left a white strip across the top of the sheet. */}
-          <div ref={gripRef} className={cn("border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pb-4", mobile ? "touch-none pt-2" : "pt-3")}>
+          <div ref={gripRef} className={cn("shrink-0 border-b border-black/[0.06] bg-gradient-to-br from-sage-tint/70 to-transparent px-4 pb-4", mobile ? "touch-none pt-2" : "pt-3")}>
             {mobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />}
             <div className="relative flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-serif text-[17px] font-semibold text-ink">
@@ -276,7 +276,7 @@ export function GlobalTutor() {
           </div>
 
           {/* conversation / welcome */}
-          <div className="relative flex min-h-[160px] flex-1 flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col">
           <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
             {messages.length === 0 && (
               <div className="space-y-3">
@@ -300,7 +300,7 @@ export function GlobalTutor() {
           </div>
 
           {/* footer: input (collection choice appears with the "create cards" action) */}
-          <div ref={footerRef} className={cn("border-t border-black/[0.06] px-3 py-2.5", mobile && "kb-pad pb-[calc(10px+var(--safe-bottom))]")}>
+          <div ref={footerRef} className={cn("shrink-0 border-t border-black/[0.06] px-3 py-2.5", mobile && "kb-pad pb-[calc(10px+var(--safe-bottom))]")}>
             {/* free recall, right in the chat: write what you remember, Mika grades it */}
             {card && messages.length > 0 && !busy && (
               <button

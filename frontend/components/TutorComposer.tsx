@@ -167,8 +167,8 @@ export function TutorComposer({
             placeholder={t(canAttach ? "tutor.placeholderPhoto" : "tutor.placeholder")}
             disabled={busy || chat.loadingChat}
             className={cn(
-              "min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[16px] leading-snug text-ink placeholder:text-ink-faint focus:outline-none",
-              large ? "max-h-[180px] min-h-10 sm:text-[15px]" : "max-h-[120px] min-h-9 sm:text-[14px]",
+              "min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-[16px] leading-snug text-ink placeholder:text-ink-faint focus:outline-none",
+              large ? "max-h-[min(180px,calc(var(--vv-h,100dvh)/4))] min-h-10 sm:text-[15px]" : "max-h-[min(120px,calc(var(--vv-h,100dvh)/4))] min-h-9 sm:text-[14px]",
             )}
           />
           <button

@@ -218,6 +218,7 @@ export default function ReaderPage() {
   const rubyCache = useRef<Map<string, string>>(new Map());
   // Draggable word-card panel: offset from its docked position (reset per card).
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 });
+  const cardPanelRef = useRef<HTMLDivElement>(null);
   const cardDrag = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const pressRef = useRef<{ x: number; y: number; moved: boolean; fired: boolean } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -302,6 +303,27 @@ export default function ReaderPage() {
     setCardOffset({ x: 0, y: 0 });
   }, [cardPanel?.wordId]);
 
+  const clampCardPanel = useCallback(() => {
+    const el = cardPanelRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    const dx = r.left < pad ? pad - r.left : Math.min(0, window.innerWidth - pad - r.right);
+    const dy = r.top < pad ? pad - r.top : Math.min(0, window.innerHeight - pad - r.bottom);
+    if (dx || dy) setCardOffset(o => ({ x: o.x + dx, y: o.y + dy }));
+  }, []);
+  useEffect(() => {
+    const el = cardPanelRef.current;
+    if (!cardPanel || mobile || !el) return;
+    const ro = new ResizeObserver(clampCardPanel);
+    ro.observe(el);
+    window.addEventListener("resize", clampCardPanel);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", clampCardPanel);
+    };
+  }, [cardPanel, mobile, clampCardPanel]);
+
   function startCardDrag(e: React.PointerEvent) {
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     cardDrag.current = { sx: e.clientX, sy: e.clientY, ox: cardOffset.x, oy: cardOffset.y };
@@ -313,6 +335,7 @@ export default function ReaderPage() {
   }
   function endCardDrag() {
     cardDrag.current = null;
+    clampCardPanel();
   }
 
   // Restore the shared pair (Reader needs a concrete source language, not auto).
@@ -1968,6 +1991,7 @@ export default function ReaderPage() {
           if (!w) return null;
           return createPortal(
             <div
+              ref={cardPanelRef}
               className={mobile ? "pointer-events-none fixed left-0 top-[var(--vv-top,0px)] z-[85] flex h-[var(--vv-h,100dvh)] w-screen items-center justify-center p-4" : "fixed right-4 top-20 z-[85] w-[360px]"}
               style={mobile ? undefined : { transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)` }}
             >

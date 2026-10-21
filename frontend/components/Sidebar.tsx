@@ -127,7 +127,7 @@ export function Sidebar() {
   return (
     <>
       {/* ---------- Desktop sidebar ---------- */}
-      <aside className="hidden shrink-0 flex-col gap-6 border-r border-black/[0.07] bg-surface px-[18px] py-[26px] md:sticky md:top-0 md:flex md:h-screen md:w-[252px]">
+      <aside className="hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-black/[0.07] bg-surface px-[18px] py-[26px] md:sticky md:top-0 md:flex md:h-dvh md:w-[252px] [&>*]:shrink-0">
         <Link href="/" aria-label={t("nav.today")} className="flex items-baseline gap-2 px-2.5 transition-opacity hover:opacity-80">
           <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink">Onomika</span>
           <span className="h-[7px] w-[7px] rounded-full bg-sage" />

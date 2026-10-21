@@ -103,7 +103,7 @@ export default function MikaPage() {
       {...drop.props}
       ref={pageRef}
       style={tabBar === null ? undefined : ({ "--mika-bar": `${tabBar}px` } as React.CSSProperties)}
-      className="mika-chat relative mx-auto flex max-w-[760px] flex-col max-md:bg-surface md:h-[calc(100dvh-140px)]"
+      className="mika-chat relative mx-auto flex min-h-0 min-w-0 max-w-[760px] flex-col max-md:bg-surface md:h-[calc(100dvh-88px)]"
     >
       {drop.dragging && <DropHint />}
       {/* Phones: a messenger's bar — back, her name (and the card a card chat is
@@ -155,16 +155,16 @@ export default function MikaPage() {
           under the subtitle, which left the header lopsided — and History's menu
           (right-aligned, as menus are) dropped straight over the pair chip next to
           it. */}
-      <div className="mb-4 max-md:hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+      <div className="mb-4 shrink-0 max-md:hidden">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 basis-[220px]">
             <h1 className="flex items-center gap-2 font-serif text-[28px] font-medium text-ink sm:text-[32px]">
               <Sparkles className="h-6 w-6 text-sage-deep" />
               {t("mika.title")}
             </h1>
             <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">{t("mika.subtitle")}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-1 pt-1.5 text-[13px] text-ink-soft">
+          <div className="flex max-w-full flex-wrap items-center gap-1 pt-1.5 text-[13px] text-ink-soft">
             <ChatHistoryMenu chat={chat} withLabel />
             <MikaMemoryLink lang={pair.source} />
             <MikaPinyinToggle lang={pair.source} />
@@ -267,7 +267,7 @@ export default function MikaPage() {
 
       {/* composer — pinned under the thread, so it sits in the same place whether
           the conversation is two lines or twenty */}
-      <div ref={barRef} className="mt-3 max-md:mt-0 max-md:border-t max-md:border-black/[0.06] max-md:px-3 max-md:py-2">
+      <div ref={barRef} className="mt-3 shrink-0 max-md:mt-0 max-md:border-t max-md:border-black/[0.06] max-md:px-3 max-md:py-2">
         {unfinished && <p className="mb-1.5 px-3 text-[13px] text-ink-muted">{t("tutor.finishTemplate")}</p>}
         <TutorComposer chat={chat} inputRef={inputRef} fileRef={fileRef} large />
       </div>
