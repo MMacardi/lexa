@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type LookupHit } from "@/lib/api";
+import { api, type LookupHit, type Word } from "@/lib/api";
+import { cacheScope, sameScope } from "@/lib/sessionCache";
 import { useAccount } from "@/lib/account";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
@@ -56,6 +58,7 @@ import { HandwritingPad } from "@/components/HandwritingPad";
 import { PasteButton } from "@/components/PasteButton";
 import { HskBadge } from "@/components/HskBadge";
 import { cn } from "@/lib/utils";
+import { wordsQuery } from "@/lib/wordQueries";
 import { useEnsureStyle } from "@/lib/useEnsureStyle";
 import { Collapse } from "@/components/ui/Collapse";
 import { Pinyin } from "@/components/Pinyin";
@@ -128,10 +131,11 @@ export function AddWordForm({
   compose?: boolean;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const { accountId } = useAccount();
   const { t, locale } = useI18n();
   const { show, startAdd } = useToast();
-  const { confirm, choose } = useDialog();
+  const { choose } = useDialog();
 
   const [mode, setMode] = useState<Mode>("auto");
   const [word, setWord] = useState("");
@@ -181,7 +185,7 @@ export function AddWordForm({
   const [reversing, setReversing] = useState(false);
   // The card just made, so the form can open it: closing the sheet and finding the
   // word in My words was the only way to see what the add produced.
-  const [lastAdded, setLastAdded] = useState<{ id: string; word: string } | null>(null);
+  const [lastAdded, setLastAdded] = useState<{ id: string; word: string; accountId: string } | null>(null);
   // Example/synonym tuning and notes are collapsed by default to keep the form light.
   const [showAdvanced, setShowAdvanced] = useState(false);
   // "Ввожу на" — which side of the pair the learner types. false = source
@@ -287,9 +291,11 @@ export function AddWordForm({
   // Words are already cached (Sidebar/My words use the same key) — used to spot
   // duplicates before adding another card for the same spelling.
   const { data: words } = useQuery({
-    queryKey: ["words", accountId],
-    queryFn: () => api.listWords(accountId),
+    ...wordsQuery(accountId),
   });
+  useEffect(() => {
+    if (lastAdded && (lastAdded.accountId !== accountId || (words && !words.some((w) => w.id === lastAdded.id)))) setLastAdded(null);
+  }, [words, accountId, lastAdded]);
 
   useEffect(() => {
     const stored = readStoredPair();
@@ -410,10 +416,11 @@ export function AddWordForm({
     },
     onSuccess: (created) => {
       pushRecentPair(created.sourceLang, created.targetLang);
+      qc.setQueryData(["words", accountId], (previous: Word[] | undefined) => previous ? [created, ...previous] : [created]);
       qc.invalidateQueries({ queryKey: ["words"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       setSuggestions(null);
-      setLastAdded({ id: created.id, word: created.word });
+      setLastAdded({ id: created.id, word: created.word, accountId });
       reset(); // keep collIds so several words can go into the same set(s)
     },
   });
@@ -438,6 +445,7 @@ export function AddWordForm({
   async function addWithChecks(vars: AddVars) {
     if (mutation.isPending || checkingAdd.current) return;
     checkingAdd.current = true;
+    const { revision } = cacheScope();
     try {
       const effLang = vars.sourceLangOverride ?? sourceLang;
 
@@ -458,29 +466,44 @@ export function AddWordForm({
       // already exists; otherwise: any card with the same spelling.
       if (!skipDupWarn) {
         const w = vars.chosen.trim().toLowerCase();
-        const matches = (words ?? []).filter((x) => x.word.toLowerCase() === w);
+        if (!sameScope(accountId, revision)) return;
+        const matches = (qc.getQueryData<Word[]>(["words", accountId]) ?? []).filter((x) =>
+          x.word.trim().toLowerCase() === w && x.sourceLang === effLang && x.targetLang === targetLang);
         const fromForm = vars.manual && mode === "manual";
         const isDup = fromForm
           ? matches.some((x) => (x.meaningZh ?? "").trim().toLowerCase() === meaning.trim().toLowerCase())
           : matches.length > 0;
         if (isDup) {
-          const existingMeaning = matches.map((x) => x.meaningZh).find(Boolean);
+          const existingMeaning = matches.length === 1 ? matches[0].meaningZh : null;
           let dontAsk = false;
-          const ok = await confirm({
+          const choice = await choose({
             title: t("dup.title"),
             message: existingMeaning
               ? t("dup.withMeaning", { word: vars.chosen.trim(), meaning: existingMeaning })
               : t("dup.plain", { word: vars.chosen.trim() }),
-            confirmLabel: t("dup.addAnyway"),
+            layout: "list",
+            options: [
+              ...matches.map((card, i) => ({
+                value: card.id,
+                label: t("add.openCard"),
+                hint: `${i + 1}. ${card.word}${card.phonetic ? ` · ${card.phonetic}` : ""}`,
+                exampleNote: card.dictMeaning && card.targetLang !== "en" ? t("capture.filling") : card.meaningZh || undefined,
+              })),
+              { value: "add", label: t("dup.addAnyway") },
+            ],
             checkboxLabel: t("dup.dontAsk"),
             onResult: (c) => (dontAsk = c),
           });
+          if (!sameScope(accountId, revision)) return;
+          if (choice !== "add") {
+            if (choice && qc.getQueryData<Word[]>(["words", accountId])?.some((card) => card.id === choice)) router.push(`/word/${choice}`);
+            return;
+          }
           if (dontAsk) skipDupWarn = true;
-          if (!ok) return;
         }
       }
 
-      await mutation.mutateAsync({ ...vars, level, exampleStyle }).catch(() => {});
+      if (sameScope(accountId, revision)) await mutation.mutateAsync({ ...vars, level, exampleStyle }).catch(() => {});
     } finally { checkingAdd.current = false; }
   }
 
@@ -886,7 +909,7 @@ export function AddWordForm({
       {/* One slot under the field, whose content takes turns: what to type, the
           dictionary's rows, the card just made. Above it nothing comes or goes, so
           the field and the pad stay where the finger left them. */}
-      {!typedNow && lastAdded ? (
+      {!typedNow && lastAdded?.accountId === accountId && words?.some((w) => w.id === lastAdded.id) ? (
         <div className="anim-fade-in flex items-center gap-2.5 rounded-[14px] border border-sage/30 bg-sage-tint/40 py-2 pr-2 pl-3">
           <Check className="h-4 w-4 shrink-0 text-sage-deep" />
           <span className="min-w-0 flex-1 truncate text-[13px] text-ink-soft">

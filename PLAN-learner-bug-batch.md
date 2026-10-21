@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–11
-are complete; Parts 12–18 remain open.
-Next implementation session: **Part 12**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–12
+are complete; Parts 13–18 remain open.
+Next implementation session: **Part 13**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1083,7 +1083,27 @@ retries and in-flight enrichment; test one Russian phone add/detail flow.
 
 ## Part 12 — Existing-card action, deleted-card links and useful errors
 
-- [ ] Implement and verify.
+- [x] Implement and verify (2026-10-21).
+
+**Completed.** Duplicate choices show every same-spelling card in the exact owned
+source/target pair, with reading and meaning; opening preserves its ID and creates
+nothing. Cancel, intentional duplicate creation and its session preference remain.
+The Add success action follows the live deck. List/detail/bulk deletion and
+authoritative 404s clear shared card/list and offline snapshots; tombstones guard
+late enrichment and background import refreshes. Reader drops deleted popup/card
+snapshots and stale saved highlights. Old URLs show a calm missing/deleted state
+and a My words route; auth, not-found and temporary failures are distinguished.
+Removed the developer-facing connectivity hint in ru/en/zh; retry remains for
+temporary failures and cached cards remain visible through them.
+
+**Verified.** Backend `npx tsc --noEmit -p .` (after refreshing the project-local
+Prisma client for Part 11); frontend `npx next build` (existing warnings).
+`node frontend/scripts/check-existing-card.mjs`: real disposable local accounts;
+Russian phone Chromium exact pair/multiple meanings, owned ID/no creation,
+Cancel/Add anyway/preference, deletion/revisited Add/direct URL/Reader, foreign-ID
+404, authoritative 404 after caching, cached and uncached 502; desktop mounted
+Add success-link removal through list deletion. No browser page errors; accounts
+cleaned. Evidence: `.playwright-cli/existing-card/` (results and phone dialog).
 
 **Report.** Add “Открыть карточку” to screenshot 5's duplicate dialog. Removing
 及时 then following the old success link leads to “Слово не найдено” with

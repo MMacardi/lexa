@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, isDue, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
-import { updateWordCaches, wordsQuery } from "@/lib/wordQueries";
+import { deleteWordCached, updateWordCaches, wordsQuery } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
@@ -114,8 +114,7 @@ export default function WordsPage() {
   }, []);
 
   const del = useMutation({
-    mutationFn: (id: string) => api.deleteWord(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["words"] }),
+    mutationFn: (id: string) => deleteWordCached(qc, accountId, id),
   });
 
   // Add every selected word to the chosen collection in one go, creating it first
@@ -143,7 +142,7 @@ export default function WordsPage() {
   // Delete every selected word at once.
   const bulkDelete = useMutation({
     mutationFn: async () => {
-      await Promise.all([...selected].map((id) => api.deleteWord(id)));
+      await Promise.all([...selected].map((id) => deleteWordCached(qc, accountId, id)));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["words"] });
@@ -270,7 +269,7 @@ export default function WordsPage() {
           ))}
         </div>
       )}
-      {isError && <ErrorState message={errText(error, t)} onRetry={() => refetch()} />}
+      {isError && <ErrorState error={error} message={errText(error, t)} onRetry={() => refetch()} />}
 
       {data && words.length === 0 && (
         <p className="rounded-[18px] border border-dashed border-black/[0.12] bg-surface/60 p-8 text-center text-sm text-ink-soft">

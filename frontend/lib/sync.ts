@@ -1,6 +1,6 @@
 "use client";
 
-import { api, isTransientError, type ReviewSource, type Word } from "./api";
+import { api, ApiError, isTransientError, type ReviewSource, type Word } from "./api";
 import { kvGet, kvSet, outboxAdd, outboxAll, outboxCount, outboxDelete } from "./idb";
 import { cacheScope, sameScope, ConnectionError } from "./sessionCache";
 
@@ -10,11 +10,24 @@ import { cacheScope, sameScope, ConnectionError } from "./sessionCache";
 
 const wordsKey = (accountId: string) => `words:${accountId}`;
 const wordKey = (accountId: string, id: string) => `word:${accountId}:${id}`;
+const deletedWords = new Set<string>();
+export const wordWasDeleted = (accountId: string, id: string) => deletedWords.has(wordKey(accountId, id));
+const liveWords = (accountId: string, words: Word[]) => words.filter((w) => !wordWasDeleted(accountId, w.id));
+
+/** A tombstone also blocks late enrichment responses from restoring a deleted card. */
+export async function forgetWordCache(accountId: string, id: string) {
+  const { revision } = cacheScope();
+  if (cacheScope().owner !== accountId) return;
+  deletedWords.add(wordKey(accountId, id));
+  await kvSet(wordKey(accountId, id), null, () => sameScope(accountId, revision));
+  const words = await readWordsCache(accountId);
+  if (words) await mirrorWords(accountId, words);
+}
 
 export async function readWordsCache(accountId: string) {
   const { revision } = cacheScope();
   const words = await kvGet<Word[]>(wordsKey(accountId));
-  return sameScope(accountId, revision) ? words : undefined;
+  return sameScope(accountId, revision) && words ? liveWords(accountId, words) : undefined;
 }
 
 export function isOnline(): boolean {
@@ -27,10 +40,10 @@ export async function fetchWordsCached(accountId: string): Promise<Word[]> {
   const { revision, verified } = cacheScope();
   try {
     if (!verified || !isOnline()) throw new ConnectionError();
-    const w = await api.listWords(accountId);
+    const w = liveWords(accountId, await api.listWords(accountId));
     if (!sameScope(accountId, revision)) throw new ConnectionError();
-    await kvSet(wordsKey(accountId), w, () => sameScope(accountId, revision));
-    return w;
+    await mirrorWords(accountId, w);
+    return liveWords(accountId, w);
   } catch (e) {
     if (!isTransientError(e) || !sameScope(accountId, revision)) throw e;
     const cached = await readWordsCache(accountId);
@@ -45,9 +58,11 @@ export async function fetchWordCached(accountId: string, id: string): Promise<Wo
     if (!verified || !isOnline()) throw new ConnectionError();
     const word = await api.getWord(id);
     if (!sameScope(accountId, revision)) throw new ConnectionError();
-    await kvSet(wordKey(accountId, id), word, () => sameScope(accountId, revision));
+    if (wordWasDeleted(accountId, id)) throw new ApiError("Word not found", 404);
+    await mirrorWord(accountId, word);
     return word;
   } catch (error) {
+    if (error instanceof ApiError && error.status === 404 && sameScope(accountId, revision)) await forgetWordCache(accountId, id);
     if (!isTransientError(error) || !sameScope(accountId, revision)) throw error;
     const cached = await readWordCache(accountId, id);
     if (cached) return cached;
@@ -57,22 +72,25 @@ export async function fetchWordCached(accountId: string, id: string): Promise<Wo
 
 export async function readWordCache(accountId: string, id: string) {
   const { revision } = cacheScope();
-  const detail = await kvGet<Word>(wordKey(accountId, id));
+  if (wordWasDeleted(accountId, id)) return undefined;
+  const detail = await kvGet<Word | null>(wordKey(accountId, id));
+  if (detail === null) return undefined;
   const word = detail ?? (await readWordsCache(accountId))?.find((w) => w.id === id);
-  return sameScope(accountId, revision) ? word : undefined;
+  return sameScope(accountId, revision) && !wordWasDeleted(accountId, id) ? word : undefined;
 }
 
 /** Overwrite the offline words snapshot (after an optimistic local update). */
 export async function mirrorWords(accountId: string, words: Word[]): Promise<void> {
   const { revision } = cacheScope();
   if (cacheScope().owner !== accountId) return;
-  await kvSet(wordsKey(accountId), words, () => sameScope(accountId, revision));
+  const live = liveWords(accountId, words);
+  await kvSet(wordsKey(accountId), live, () => sameScope(accountId, revision) && live.every((w) => !wordWasDeleted(accountId, w.id)));
 }
 
 export async function mirrorWord(accountId: string, word: Word): Promise<void> {
   const { revision } = cacheScope();
   if (cacheScope().owner !== accountId) return;
-  await kvSet(wordKey(accountId, word.id), word, () => sameScope(accountId, revision));
+  await kvSet(wordKey(accountId, word.id), word, () => sameScope(accountId, revision) && !wordWasDeleted(accountId, word.id));
 }
 
 /** Send a review grade now, or queue it if offline/failed. Returns true if it

@@ -399,6 +399,20 @@ export default function ReaderPage() {
     return m;
   }, [words, sourceLang, targetLang]);
 
+  const previousKnownMap = useRef(knownMap);
+  // Popup snapshots and just-added highlights must follow the live owned deck.
+  useEffect(() => {
+    if (!words) return;
+    if (knownPop && !words.some((w) => w.id === knownPop.wordId)) setKnownPop(null);
+    if (cardPanel && !words.some((w) => w.id === cardPanel.wordId)) setCardPanel(null);
+    const removed = new Set([...previousKnownMap.current.keys()].filter((key) => !knownMap.has(key)));
+    previousKnownMap.current = knownMap;
+    setAdded((previous) => {
+      const next = new Set([...previous].filter((key) => !removed.has(key)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [words, knownMap, knownPop, cardPanel]);
+
   // Of those, the words the learner knows: a card past FSRS's learning steps, or
   // one they can use — the readiness mark's "recognise". A card still in learning
   // is shown apart and doesn't count as known. Same rule as the saved-text %

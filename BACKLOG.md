@@ -52,7 +52,7 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 ---
 
 0. [ ] **Reader, dictionary and personalized Mika follow-up (2026-10-20).**
-   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 12 next and
+   Tracked as Parts 7–18 of `PLAN-learner-bug-batch.md`; start Part 13 next and
    complete only one part per implementation session. Covers truthful HSK level/
    target counts; repeat-tap close, popup bounds and meaning/pinyin previews;
    numbered/unpunctuated audio and the reported fourth tone; whole-text listening
@@ -77,7 +77,10 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
    Part 11 is verified: Russian loading/failure/retry without English fallback;
    shared persistent dictionary adaptations and prepared wording; accurate tested
    senses/readings, preserved contextual/manual meanings and enrichment race guards.
-   Parts 12–18 remain open; Parts 1–11 are complete. Keep hidden features and
+   Part 12 is verified: explicit exact-pair existing-card choices, live deletion
+   cleanup across Add/Reader/detail and offline caches, calm old-link 404s, localized
+   errors and retained cached content on transient failure; phone/browser checks pass.
+   Parts 13–18 remain open; Parts 1–12 are complete. Keep hidden features and
    deferred landing work out of scope; this explicit batch takes priority over
    the time-gated retention proof.
 

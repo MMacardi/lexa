@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, type ImportJob, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { updateWordCaches } from "@/lib/wordQueries";
+import { wordWasDeleted } from "@/lib/sync";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -209,7 +210,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const list: Word[] = await api.listWords(accountId);
+        const list: Word[] = (await api.listWords(accountId)).filter((w) => !wordWasDeleted(accountId, w.id));
         if (cancelled) return;
         // Push the freshly-enriched cards into the query cache so every view (My
         // words, the word page…) shows the filled-in meaning/example without an F5.

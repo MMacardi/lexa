@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, isTransientError, type Word } from "@/lib/api";
+import { api, ApiError, isTransientError, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { fetchWordCached, readWordCache } from "@/lib/sync";
-import { updateWordCaches } from "@/lib/wordQueries";
+import { deleteWordCached, removeWordCaches, updateWordCaches } from "@/lib/wordQueries";
 import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, isFixedPair, pairLabel } from "@/lib/langs";
@@ -101,6 +101,7 @@ export default function WordDetailPage() {
     networkMode: "always",
     refetchOnReconnect: true,
     enabled: !!accountId,
+    retry: (count, error) => isTransientError(error) && count < 2,
     // Tapped from the list or a review: the card is already in the list's cache, so
     // the page draws at once and the fetch only refreshes it.
     placeholderData: () => qc.getQueryData<Word[]>(["words", accountId])?.find((w) => w.id === id),
@@ -108,8 +109,11 @@ export default function WordDetailPage() {
     refetchInterval: (q) => pollWhileUpgrading(q.state.data ? [q.state.data] : null),
   });
   useEffect(() => {
-    if (word) updateWordCaches(qc, accountId, [word], { details: false });
-  }, [word, accountId, qc]);
+    if (word && (!error || isTransientError(error))) updateWordCaches(qc, accountId, [word], { details: false });
+  }, [word, error, accountId, qc]);
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 404) void removeWordCaches(qc, accountId, id, { detail: false });
+  }, [error, qc, accountId, id]);
   useEffect(() => {
     let active = true;
     void readWordCache(accountId, id).then((cached) => {
@@ -168,9 +172,7 @@ export default function WordDetailPage() {
     if (!ok) return;
     setDeleting(true);
     try {
-      await api.deleteWord(word.id);
-      qc.invalidateQueries({ queryKey: ["words"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
+      await deleteWordCached(qc, accountId, word.id);
       show({ icon: "🗑", title: t("word.deleted") });
       router.push("/words");
     } catch (e) {
@@ -196,7 +198,8 @@ export default function WordDetailPage() {
           {t("word.back")}
         </Link>
         <ErrorState
-          message={t("word.notFound")}
+          kind={error instanceof ApiError && error.status === 404 ? "notFound" : error instanceof ApiError && [401, 403].includes(error.status) ? "auth" : error && !isTransientError(error) ? "other" : "transient"}
+          message={error instanceof ApiError && error.status === 404 ? t("word.notFoundHint") : error instanceof ApiError && [401, 403].includes(error.status) ? t("errState.authHint") : errText(error, t)}
           onRetry={() => refetch()}
         />
       </div>
