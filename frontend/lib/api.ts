@@ -1094,8 +1094,8 @@ export const api = {
   ocr: (payload: { image: string; sourceLang?: string }) =>
     http<{ text: string }>(`/api/ocr`, { method: "POST", body: JSON.stringify(payload) }),
   // Contextual meaning of one word within its sentence (Reader press-and-hold).
-  gloss: (payload: { word: string; sentence: string; sourceLang?: string; targetLang?: string; withTranscription?: boolean }) =>
-    http<{ gloss: string; transcription?: string }>(`/api/gloss`, { method: "POST", body: JSON.stringify(payload) }),
+  gloss: (payload: { word: string; sentence: string; sourceLang?: string; targetLang?: string; withTranscription?: boolean; contextual?: boolean }) =>
+    http<{ gloss: string; transcription?: string; dictionary?: boolean }>(`/api/gloss`, { method: "POST", body: JSON.stringify(payload) }),
   // Is a learner-typed custom language name a real language? Decides whether AI stays on for it.
   checkLanguage: (name: string) =>
     http<{ isLanguage: boolean; canonicalName: string }>(`/api/languages/check`, { method: "POST", body: JSON.stringify({ name }) }),

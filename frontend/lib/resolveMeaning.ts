@@ -1,11 +1,10 @@
-// Shared tap lookup: the dictionary's meaning and reading first, including words
-// with several senses. Only gaps in the learner's language use a contextual AI
-// gloss, cached per sentence across sessions. Dictionary data takes precedence
-// over older AI cache entries. Chinese/Korean transcription is computed locally.
+// Dictionary by default; the optional AI mode picks a sentence's sense instead.
+// Dictionary gaps use the same AI fallback. AI results are cached per sentence.
 
 import { api } from "./api";
 import { getGloss, setGloss } from "./glossCache";
-import { getShowTranscription, hasTranscription } from "./learnPrefs";
+import { getShowTranscription, hasTranscription, getTapMeaningMode } from "./learnPrefs";
+import { cacheScope } from "./sessionCache";
 import { isLocalTr, localTranscribe } from "./transcribe";
 import { dictEntry, isChineseLang } from "./dictEntry";
 
@@ -28,13 +27,15 @@ export async function resolveMeaning(opts: {
   if (!word) return { meaning: "", transcription: "" };
 
   const sentence = opts.sentence?.trim() || "";
-  const key = JSON.stringify([opts.sourceLang, opts.targetLang, word, sentence]);
+  const contextual = getTapMeaningMode() === "ai" && Boolean(sentence);
+  const scope = cacheScope();
+  const key = JSON.stringify([scope.owner, scope.revision, contextual, opts.sourceLang, opts.targetLang, word, sentence]);
   const running = inflight.get(key);
   if (running) return running;
 
   const task = (async (): Promise<ResolvedMeaning> => {
     const showTr = getShowTranscription() && hasTranscription(opts.sourceLang);
-    if (isChineseLang(opts.sourceLang)) {
+    if (!contextual && isChineseLang(opts.sourceLang)) {
       const d = await dictEntry(word, opts.targetLang);
       const meaning = d?.meaning?.trim() || (opts.targetLang === "en" ? d?.gloss.trim() : "");
       if (d && meaning) return { meaning, transcription: showTr ? d.phonetic : "" };
@@ -50,10 +51,13 @@ export async function resolveMeaning(opts: {
         sourceLang: opts.sourceLang,
         targetLang: opts.targetLang,
         withTranscription: showTr && !local,
+        contextual,
       }),
     ]);
     const entry = { gloss: res.gloss, tr: local ? localTr : (res.transcription ?? "").trim() };
-    setGloss(word, opts.sourceLang, opts.targetLang, entry, sentence);
+    // A failed client dictionary lookup can still get the dictionary from /gloss.
+    // Keep that response out of the contextual AI cache.
+    if (!res.dictionary) setGloss(word, opts.sourceLang, opts.targetLang, entry, sentence);
     return { meaning: entry.gloss, transcription: entry.tr };
   })();
 

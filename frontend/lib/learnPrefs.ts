@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type HskVersion, type LearnerPrefs } from "@/lib/api";
 import { FIXED_PAIR } from "@/lib/langs";
+import { cacheScope } from "./sessionCache";
 
 // Learner preferences. Most are local-only display settings (example style, card
 // layout, reader source). Four of them — level, native language, daily goal and
@@ -822,7 +823,34 @@ export function useShowTranscription(): boolean {
   return on;
 }
 
-// Auto-translate a word when you select it in the Reader (a per-tap model call).
+export type TapMeaningMode = "dictionary" | "ai";
+const tapMeaningKey = () => `lexa.tapMeaningMode:${cacheScope().owner}`;
+export function getTapMeaningMode(): TapMeaningMode {
+  if (typeof window === "undefined" || !cacheScope().owner) return "dictionary";
+  try { return localStorage.getItem(tapMeaningKey()) === "ai" ? "ai" : "dictionary"; }
+  catch { return "dictionary"; }
+}
+export function setTapMeaningMode(mode: TapMeaningMode) {
+  if (!cacheScope().owner) return;
+  try { localStorage.setItem(tapMeaningKey(), mode); } catch { return; }
+  window.dispatchEvent(new Event(EVT));
+}
+export function useTapMeaningMode(accountId: string): TapMeaningMode {
+  const [mode, setMode] = useState<TapMeaningMode>("dictionary");
+  useEffect(() => {
+    const sync = () => setMode(getTapMeaningMode());
+    sync();
+    window.addEventListener(EVT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(EVT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [accountId]);
+  return mode;
+}
+
+// Show a word's meaning when you select it in the Reader.
 // Off = tapping just selects it, no request — handy for batch-adding.
 const AUTOGLOSS_KEY = "lexa.autoGloss";
 export function getAutoGloss(): boolean {

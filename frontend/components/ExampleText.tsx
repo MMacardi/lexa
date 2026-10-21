@@ -12,7 +12,8 @@ import { api, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { errText } from "@/lib/errText";
 import { useI18n } from "@/lib/i18n";
-import { useExamplePinyin, useToneColors } from "@/lib/learnPrefs";
+import { useExamplePinyin, useToneColors, useTapMeaningMode } from "@/lib/learnPrefs";
+import { useUpsell } from "@/lib/useUpsell";
 import { resolveMeaning } from "@/lib/resolveMeaning";
 import { segment, type Token } from "@/lib/segment";
 import { useToast } from "@/lib/toast";
@@ -73,6 +74,8 @@ export function ExampleText({
   const [readings, setReadings] = useState<string[] | null>(null);
   const { t } = useI18n();
   const { accountId } = useAccount();
+  const tapMeaningMode = useTapMeaningMode(accountId);
+  const upsell = useUpsell();
   const { show, trackImport } = useToast();
   const qc = useQueryClient();
   const [pop, setPop] = useState<WordPopTarget | null>(null);
@@ -80,6 +83,12 @@ export function ExampleText({
   const [adding, setAdding] = useState(false);
   const addingRef = useRef(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const request = useRef(0);
+  useEffect(() => {
+    request.current++;
+    setPop(null);
+    setSpan(null);
+  }, [tapMeaningMode, accountId]);
 
   useEffect(() => {
     if (!on) {
@@ -137,26 +146,31 @@ export function ExampleText({
   }
 
   async function open(i: number, anchor: HTMLElement) {
+    const lookup = ++request.current;
     const got = await wordAt(i);
+    if (lookup !== request.current) return;
     // The card's own word is the answer (on the front) or already on screen.
     if (!got || got.text === word.trim() || !targetLang) return;
     setSpan({ from: got.from, to: got.to });
-    const base = { word: got.text, sentence: text, sourceLang: lang, targetLang, anchor };
+    const base = { word: got.text, sentence: text, sourceLang: lang, targetLang, anchor, contextual: tapMeaningMode === "ai" };
     setPop({ ...base, meaning: "", isNew: true, loading: true });
     try {
       // Lookup may still work offline; the popup separately checks ownership before enabling Add.
       const deck = await qc.fetchQuery<Word[]>({ queryKey: ["words", accountId], queryFn: () => api.listWords(accountId) }).catch(() => undefined);
       const owned = deck?.find((d) => d.word === got.text && d.sourceLang === lang && d.targetLang === targetLang);
-      if (owned) {
+      if (lookup !== request.current) return;
+      if (owned && !base.contextual) {
         setPop((cur) => cur?.anchor === anchor ? { ...cur, meaning: owned.meaningZh ?? "", transcription: owned.phonetic ?? "", isNew: false, loading: false } : cur);
         return;
       }
       const r = await resolveMeaning({ word: got.text, sentence: text, sourceLang: lang, targetLang });
       // The reading always: an unknown word in a sentence is first a sound to learn.
       const transcription = r.transcription || (await localTranscribe(got.text, lang).catch(() => ""));
-      setPop((cur) => (cur?.anchor === anchor ? { ...cur, meaning: r.meaning, transcription, loading: false } : cur));
-    } catch {
-      setPop((cur) => (cur?.anchor === anchor ? { ...cur, meaning: t("reader.translateFailed"), loading: false, isNew: false } : cur));
+      if (lookup === request.current) setPop((cur) => (cur?.anchor === anchor ? { ...cur, meaning: r.meaning, transcription, loading: false } : cur));
+    } catch (error) {
+      if (lookup !== request.current) return;
+      setPop((cur) => (cur?.anchor === anchor ? { ...cur, meaning: (error as { code?: string })?.code === "ai_quota" ? errText(error, t) : t("reader.translateFailed"), loading: false, isNew: false } : cur));
+      if ((error as { code?: string })?.code === "ai_quota") upsell({ word: got.text });
     }
   }
 
@@ -274,6 +288,7 @@ export function ExampleText({
             added={added.has(pop.word)}
             onAdd={pop.isNew ? () => void add(pop) : undefined}
             onClose={() => {
+              request.current++;
               setPop(null);
               setSpan(null);
             }}

@@ -32,7 +32,9 @@ import {
   setRubyAll,
   useReaderUnderlines,
   setReaderUnderlines,
+  useTapMeaningMode,
 } from "@/lib/learnPrefs";
+import { useUpsell } from "@/lib/useUpsell";
 import { segment, wordKey, type Token } from "@/lib/segment";
 import { sentences, sentenceGroups, splitSentenceTokens } from "@/lib/sentences";
 import { stopSpeech } from "@/lib/speak";
@@ -108,6 +110,8 @@ const SAMPLE: Record<string, string> = {
 
 export default function ReaderPage() {
   const { accountId, profile } = useAccount();
+  const tapMeaningMode = useTapMeaningMode(accountId);
+  const upsell = useUpsell();
   const mobile = useIsMobile();
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -153,6 +157,7 @@ export default function ReaderPage() {
   const [glossText, setGlossText] = useState<string | null>(null);
   const [glossTr, setGlossTr] = useState<string>(""); // transcription (pinyin/romaji)
   const [glossLoading, setGlossLoading] = useState(false);
+  const [glossError, setGlossError] = useState<string | null>(null);
   // Dictionary reading and meaning; only missing meanings need an AI fallback.
   const [glossCedict, setGlossCedict] = useState<DictEntry | null>(null);
   const glossKeyRef = useRef<string>("");
@@ -170,7 +175,15 @@ export default function ReaderPage() {
   const [dictInterim, setDictInterim] = useState("");
   const dictRef = useRef<DictationController | null>(null);
   // Saved words open a meaning popup; desktop also supports holding for the card.
-  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string } | null>(null);
+  const [knownPop, setKnownPop] = useState<{ wordId: string; word: string; phonetic: string | null; meaning: string | null; dictMeaning?: boolean; filling?: boolean; sentence: string; contextMeaning?: string; contextLoading?: boolean; contextError?: string } | null>(null);
+  const knownRequest = useRef(0);
+  useEffect(() => {
+    glossKeyRef.current = "";
+    knownRequest.current++;
+    setGloss(null);
+    setGlossError(null);
+    setKnownPop(null);
+  }, [tapMeaningMode, accountId]);
   const knownElRef = useRef<HTMLElement | null>(null); // tapped word, to follow on scroll
   const knownPopRef = useRef<HTMLDivElement | null>(null); // popup box, to detect outside taps
   const [knownClosing, setKnownClosing] = useState(false);
@@ -807,6 +820,8 @@ export default function ReaderPage() {
     if (glossCloseTimer.current) window.clearTimeout(glossCloseTimer.current);
     setGlossClosing(false);
     setGloss({ key, word: wordText });
+    knownRequest.current++;
+    setGlossError(null);
     glossKeyRef.current = requestKey;
     glossElRef.current = el;
     // The dictionary answers at once, with no model call: the reading, and the
@@ -831,11 +846,15 @@ export default function ReaderPage() {
           setGlossLoading(false);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (glossKeyRef.current === requestKey) {
           // No contextual sense, but the default is still a meaning.
           setGlossText(peekDictEntry(wordText, targetLang)?.meaning ?? t("reader.translateFailed"));
           setGlossLoading(false);
+          if (error?.code === "ai_quota") {
+            setGlossError(errText(error, t));
+            upsell({ word: wordText });
+          }
         }
       });
   }
@@ -875,6 +894,7 @@ export default function ReaderPage() {
 
   // Animate the known-word popup out, then unmount.
   const closeKnown = useCallback(() => {
+    knownRequest.current++;
     setKnownClosing(true);
     if (knownCloseTimer.current) window.clearTimeout(knownCloseTimer.current);
     knownCloseTimer.current = window.setTimeout(() => {
@@ -971,6 +991,8 @@ export default function ReaderPage() {
     glossKeyRef.current = "";
     setGloss(null);
     const w = (words ?? []).find((x) => x.id === wordId);
+    const request = ++knownRequest.current;
+    const sentence = sentenceAround(index);
     knownElRef.current = el;
     setKnownPop({
       wordId,
@@ -979,8 +1001,18 @@ export default function ReaderPage() {
       meaning: w && holdsEnglish(w) ? null : (w?.meaningZh ?? null),
       dictMeaning: w?.dictMeaning,
       filling: Boolean(w && holdsEnglish(w)),
-      sentence: sentenceAround(index),
+      sentence,
+      contextLoading: tapMeaningMode === "ai",
     });
+    if (tapMeaningMode === "ai") {
+      void resolveMeaning({ word: wordText, sentence, sourceLang, targetLang }).then((r) => {
+        if (knownRequest.current === request) setKnownPop(cur => cur ? { ...cur, contextMeaning: r.meaning, contextLoading: false } : cur);
+      }).catch((error) => {
+        if (knownRequest.current !== request) return;
+        setKnownPop(cur => cur ? { ...cur, contextLoading: false, contextError: errText(error, t) } : cur);
+        if (error?.code === "ai_quota") upsell({ word: wordText });
+      });
+    }
   }
 
   // Add the tapped sentence as a new example on an existing card (translate first).
@@ -1298,6 +1330,10 @@ export default function ReaderPage() {
         <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
           {glossLoading ? (glossCedict?.meaning ?? (targetLang === "en" ? glossCedict?.gloss : null) ?? t("reader.translating")) : glossText}
         </div>
+        {glossLoading && tapMeaningMode === "ai" && glossCedict?.meaning && (
+          <div className="mt-0.5 text-[12px] text-ink-faint">{t("reader.contextPending")}</div>
+        )}
+        {glossError && <p className="mt-1 text-[12px] text-ink-soft">{glossError}</p>}
         {!glossLoading && glossText === t("reader.translateFailed") && (
           <button type="button" className="mt-1 rounded-md px-2 py-1 text-[13px] font-semibold text-sage-deep"
             onClick={() => { if (glossElRef.current) openGloss(gloss.key, gloss.word, glossElRef.current, sentenceForKey(gloss.key)); }}>
@@ -1307,8 +1343,8 @@ export default function ReaderPage() {
       </>
     );
   const knownCard = knownPop ? words?.find((w) => w.id === knownPop.wordId) : undefined;
-  const knownMeaning = knownCard ? shownMeaning(knownCard) : knownPop?.meaning;
-  const knownHeld = knownCard ? holdsEnglish(knownCard) : knownPop?.filling;
+  const knownMeaning = knownPop?.contextMeaning ?? (knownCard ? shownMeaning(knownCard) : knownPop?.meaning);
+  const knownHeld = !knownPop?.contextMeaning && (knownCard ? holdsEnglish(knownCard) : knownPop?.filling);
   const knownPending = knownCard ? upgradePending(knownCard) : knownPop?.filling;
   const knownBody = (docked: boolean) =>
     knownPop && (
@@ -1330,11 +1366,13 @@ export default function ReaderPage() {
         {knownMeaning && (
           <div className={cn("mt-0.5 select-text text-sage-deep", docked ? "text-[16px]" : "text-[13px]", sourceFont(targetLang))}>
             {knownMeaning}
-            {knownPop.dictMeaning && (
+            {knownPop.dictMeaning && !knownPop.contextMeaning && (
               <span className="ml-1 text-[11px] font-semibold tracking-[0.04em] text-ink-faint">{t("capture.dictLabel")}</span>
             )}
           </div>
         )}
+        {knownPop.contextLoading && <p className="mt-0.5 text-[12px] text-ink-faint">{t("reader.contextPending")}</p>}
+        {knownPop.contextError && <p className="mt-1 text-[12px] text-ink-soft">{knownPop.contextError}</p>}
         <div className={cn("mt-2.5 flex gap-1.5", docked ? "flex-row" : "flex-col")}>
           <button
             type="button"

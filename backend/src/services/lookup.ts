@@ -97,6 +97,15 @@ export async function refreshDefaultMeanings(where: Prisma.WordWhereInput): Prom
   return n;
 }
 
+/** The same read-only dictionary entry for tap lookup and contextual-AI allowance checks. */
+export async function tapDictionaryEntry(word: string, lang: string) {
+  const card = word ? await cedictCard(word, { count: false }) : null;
+  if (!card) return null;
+  const adapted = await cachedDictionary(word, lang);
+  return { ...card, meaning: cardMeaning(word, lang) ?? adapted?.meaning ?? null,
+    settled: adapted ? adapted.senses.length === 1 : defaultIsSettled(word, lang) };
+}
+
 /** The shared default meaning of a Chinese headword in the learner's language, or null. */
 export function defaultMeaning(word: string, lang: string | null | undefined): string | null {
   if (lang !== "ru") return null;

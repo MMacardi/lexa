@@ -1,24 +1,27 @@
 ﻿# Session handoff — 2026-10-21
 
-- Task: Zhijia for all Mandarin audio; complete.
-- Backend: services/tts.ts now uses the existing Sambert/Zhijia WebSocket pipeline
-  for words, sentences and Reader chunks. wordTts.ts allows bounded 16 MB WAVs.
-- Rates: isolated characters 1.25; longer text 1.0. MP3 96 kbps for playback.
-- Accepted word cache keys preserved; sentence DB keys retire Cherry.
-  frontend/lib/api.ts versions sentence URLs with v=zhijia-1, words keep word-3.
-- backend/.env.example documents the shared voice. inspect-tts.ts remains a Qwen
-  comparison tool with its own default; word-audio check expects new sentence URL.
-- Checks passed: backend npx tsc --noEmit -p .; frontend npx next build
-  (existing warnings). Local Docker backend/frontend restarted after changes.
-- check-tts-policy.ts and check-tts-http.ts passed: sentence model/rates, cache,
-  large frames, provider/encoding failures, timeout and byte ranges.
-- check-zhijia-sentences.mjs: real sentence + 300-character synthesis and cached
-  replay passed; usage records sambert-zhijia-v1. Initial review selector was wrong;
-  corrected it and --playback-only passed phone Reader + card real MP3 playback,
-  new URL, normal rate, no browser fallback/errors. Test accounts cleaned.
-- Evidence: .playwright-cli/zhijia-sentences/{sentence,passage}.mp3 and result.json.
-- No migrations or production data used. Docker npm lockfile churn restored.
+- Task: dictionary / contextual AI tap setting; complete.
+- Settings: Account → More settings → Reading. Dictionary is default; AI in context
+  is optional. learnPrefs stores the choice per account in this browser (no schema).
+- Files: frontend app/account, app/reader, ExampleText, WordMeaningPop,
+  lib/{learnPrefs,resolveMeaning,api,i18n}; backend routes/words + services/lookup.
+- Reader/card examples use contextual AI for saved and unsaved words when selected;
+  saved definitions remain untouched. Pending popups invalidate on mode/account
+  changes or close. Dictionary mode prefers dictionary data over cached AI.
+- API /gloss defaults to dictionary; absent translations keep the free AI fallback.
+  contextual=true uses the existing daily AI pool; Pro/beta remains uncapped.
+  Cap shows the Pro upsell + localized error while keeping dictionary text readable.
+- Server dictionary responses carry dictionary=true and never enter the AI cache.
+- Checks: backend npx tsc --noEmit -p . and frontend npx next build passed
+  (existing warnings). Local Docker backend/frontend restarted for verification.
+- check-tap-dictionary.mjs: default dictionary/gaps, settings persistence,
+  Reader/card AI for saved/unsaved words, distinct sentences/cache, unchanged cards
+  passed. Corrected second-account fixture; --settings-quota-only passed account
+  isolation, real daily charging, exhausted cap, free dictionary/gap and phone upsell.
+- Focused actual-resolver check: failed client lookup/server dictionary response
+  cannot mask a later contextual AI answer; AI replay cached.
+- Evidence: .playwright-cli/tap-dictionary/{result.json,phone-settings.png}.
+  All throwaway local accounts cleaned. No migrations or production data used.
 - Prior plan: PLAN-learner-bug-batch.md Parts 1–15 complete; Parts 16–18 open.
-  Do not start Part 16 automatically in this task.
+  Do not start Part 16 automatically. Retention evidence and landing remain deferred.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
-- Grouped-word retention evidence and landing work remain deferred.

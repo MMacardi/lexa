@@ -52,6 +52,8 @@ import {
   type MeaningMode,
   type GraphAddMethod,
   type MicEngine,
+  useTapMeaningMode,
+  setTapMeaningMode,
 } from "@/lib/learnPrefs";
 import { useIsPro } from "@/lib/useIsPro";
 import { useUpsell } from "@/lib/useUpsell";
@@ -299,6 +301,30 @@ function MicSection() {
         />
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t("mic.hint")}</p>
+    </section>
+  );
+}
+
+function TapMeaningSection() {
+  const { accountId } = useAccount();
+  const { t } = useI18n();
+  const mode = useTapMeaningMode(accountId);
+  return (
+    <section data-testid="tap-meaning-settings" className="rounded-[20px] border border-black/[0.06] bg-surface p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">{t("tapMeaning.title")}</h2>
+      <Segmented
+        ariaLabel={t("tapMeaning.title")}
+        className="mt-3"
+        size="lg"
+        value={mode}
+        onChange={setTapMeaningMode}
+        options={[
+          { value: "dictionary", label: t("tapMeaning.dictionary") },
+          { value: "ai", label: t("tapMeaning.ai") },
+        ]}
+      />
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{t(`tapMeaning.${mode}Hint`)}</p>
+      <p className="mt-2 text-[12px] leading-snug text-ink-faint">{t("tapMeaning.allowance")} <Link href="/pro" className="font-semibold text-sage-deep hover:underline">Onomika Pro</Link></p>
     </section>
   );
 }
@@ -738,6 +764,7 @@ export default function AccountPage() {
 
         {/* ── Reading: how words/texts are shown ── */}
         <GroupHeading>{t("settings.groupReading")}</GroupHeading>
+        <TapMeaningSection />
         {/* transcription (pinyin/romaji) in quick tap lookups */}
         <TranscriptionSection />
         <TextLevelSection />

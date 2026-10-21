@@ -31,9 +31,8 @@ import { gapDeckOfDays, hskDailyWords } from "../services/wordGroups.js";
 import { likedFromIds } from "../lib/interests.js";
 import { hskLevelLeft, hskNextWords, learnWord, levelCards, readyCards, unlearnWord } from "../services/newWords.js";
 import { checkBodySchema, checkResult, nextCheckScreen } from "../services/placementCheck.js";
-import { cedictCard, cedictCredit } from "../services/cedict.js";
-import { cardMeaning, defaultIsSettled, defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses } from "../services/lookup.js";
-import { cachedDictionary } from "../services/localizedDictionary.js";
+import { cedictCredit, isChinese } from "../services/cedict.js";
+import { defaultMeaning, lookup, refreshDefaultMeanings, translateGlosses, tapDictionaryEntry } from "../services/lookup.js";
 import { fillMissingPhonetic, refreshCardReadings } from "../services/capture.js";
 import { removeExample } from "../services/exampleWrites.js";
 import { checkOldExamples, refreshPoolExample } from "../services/sentences.js";
@@ -110,8 +109,9 @@ wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
 });
 // Daily "generation" pool (free tier): only the actions that produce/expand cards
 // spend from the daily quota — add a word, add an example, or a tutor/word chat.
-// Cheap or UX-critical calls (gloss, transcribe, translate, spell-check suggest)
-// stay free; reader text generation and OCR have their own monthly quotas.
+// Dictionary-gap glosses, transcribe, translate and spell-check suggest stay free.
+// Optional contextual glosses are guarded in /gloss after checking dictionary coverage;
+// reader text generation and OCR have their own monthly quotas.
 const DAILY_POOL_PATH = /^\/(tutor\/ask|words)$|^\/words\/[^/]+\/(example|explain|ask)$/;
 wordsRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "POST" && DAILY_POOL_PATH.test(req.path)) return aiQuotaGuard(req, res, next);
@@ -1166,15 +1166,34 @@ const glossBody = z.object({
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   withTranscription: z.boolean().optional(),
+  contextual: z.boolean().optional(),
 });
-wordsRouter.post("/gloss", async (req, res) => {
+wordsRouter.post("/gloss", async (req, res, next) => {
   const parsed = glossBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
   try {
-    res.json(await glossInContext(parsed.data));
+    req.body = parsed.data;
+    // Default requests use the dictionary; omitting the mode cannot get a paid
+    // contextual answer for free. Dictionary gaps retain their free AI fallback.
+    const entry = isChinese(parsed.data.sourceLang)
+      ? await tapDictionaryEntry(parsed.data.word.trim(), parsed.data.targetLang ?? "zh") : null;
+    const meaning = entry?.meaning || (parsed.data.targetLang === "en" ? entry?.gloss : null);
+    if (!parsed.data.contextual && meaning) {
+      res.json({ gloss: meaning, transcription: parsed.data.withTranscription ? entry?.phonetic ?? "" : "", dictionary: true });
+      return;
+    }
+    if (parsed.data.contextual) {
+      await aiQuotaGuard(req, res, next);
+      return;
+    }
+    next();
+  } catch (err) { next(err); }
+}, async (req, res) => {
+  try {
+    res.json(await glossInContext(req.body));
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: (err as Error).message });
@@ -1190,10 +1209,7 @@ wordsRouter.post("/gloss", async (req, res) => {
 wordsRouter.get("/dict", async (req, res) => {
   const word = String(req.query.word ?? "").trim().slice(0, 40);
   const lang = String(req.query.lang ?? "");
-  const card = word ? await cedictCard(word, { count: false }) : null;
-  const adapted = card ? await cachedDictionary(word, lang) : null;
-  const entry = card ? { ...card, meaning: cardMeaning(word, lang) ?? adapted?.meaning ?? null,
-    settled: adapted ? adapted.senses.length === 1 : defaultIsSettled(word, lang) } : null;
+  const entry = await tapDictionaryEntry(word, lang);
   res.json({ entry, ...(entry ? { credit: cedictCredit() } : {}) });
 });
 

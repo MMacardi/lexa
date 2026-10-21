@@ -1404,6 +1404,24 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Dictionary / contextual AI tap setting (2026-10-21, asked for directly)
+- Settings → More settings → Reading offers Dictionary (default) and AI in context.
+  The display preference is stored per account in the browser; ru/en/zh copy explains
+  speed, meaning selection and allowance. Dictionary gaps retain their free AI fallback.
+- Reader and card example taps respect AI mode for saved and unsaved words. Saved card
+  definitions are never overwritten; repeat contextual answers reuse the sentence cache.
+  Switching back prefers dictionary data over cached AI. Mode/account changes and closing
+  popups invalidate pending UI results. Server dictionary responses stay out of the AI cache.
+- Monetization: fresh explicitly contextual requests share the daily AI allowance;
+  Pro/beta is uncapped. Omitting AI mode returns a dictionary meaning when available.
+  At the cap, the UI shows the existing Pro upsell and keeps dictionary text readable.
+- Backend typecheck and frontend build passed (existing warnings). Phone checks passed
+  dictionary defaults/gaps, setting persistence/account isolation, both Reader/card modes,
+  sentence cache, unchanged saved cards and real allowance/free-gap/upsell behavior.
+  `frontend/scripts/check-tap-dictionary.mjs`; account-fixture setup corrected and only
+  settings/quota cases rerun. A focused resolver check covers dictionary-response cache isolation.
+  Artifacts: `.playwright-cli/tap-dictionary`. Throwaway local accounts cleaned; no migration.
+
 ### Zhijia for all Mandarin audio (2026-10-21, asked for directly)
 - Sentences and Reader chunks use the same Sambert/Zhijia voice as words.
   Single characters keep synthesis rate 1.25; longer text uses 1.0.

@@ -19,6 +19,7 @@ export type WordPopTarget = {
   meaning?: string;
   transcription?: string; // pinyin / romaji, when the source language has one
   loading?: boolean; // the gloss request is still in flight
+  contextual?: boolean; // selected contextual answer takes precedence over a saved meaning
   sentence?: string; // the bubble the word was tapped in → the card's example
   sourceLang: string;
   targetLang: string;
@@ -114,11 +115,11 @@ export function WordMeaningPop({
   }, [target.anchor, positioned]);
 
   const { word, sourceLang, targetLang, isNew } = target;
-  const meaning = owned && holdsEnglish(owned)
+  const meaning = target.contextual ? target.meaning : owned && holdsEnglish(owned)
     ? t(upgradePending(owned) ? "capture.filling" : "capture.meaningFailed")
     : (owned ? shownMeaning(owned) : null) || target.meaning;
   const transcription = owned?.phonetic || target.transcription;
-  const loading = target.loading && !owned;
+  const loading = target.loading && (!owned || target.contextual);
   const saved = added || !!owned;
 
   return createPortal(
