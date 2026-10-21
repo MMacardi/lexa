@@ -8,6 +8,7 @@ import { chatJson, chatJsonConversation, chatJsonConversationStream, type ChatMe
 import { normalizeLang } from "../lib/detect.js";
 import { langName, scriptNote } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
+import { checkedTeachingReply, teachingLanguageIssue } from "../lib/teachingLanguage.js";
 import { chatGuard, noVendor } from "../lib/persona.js";
 import { Prisma } from "@prisma/client";
 import { explanationSchema, familySchema, sensesSchema, wordChatSchema, type WordChatResult, type WordSense } from "../lib/schemas.js";
@@ -961,7 +962,10 @@ export async function explainWord(id: string, live?: LiveText): Promise<string> 
     select: { word: true, sourceLang: true, targetLang: true, meaningZh: true, partOfSpeech: true, synonyms: true, explainCache: true },
   });
   if (!word) throw new Error("Word not found");
-  if (word.explainCache?.startsWith(EXPLAIN_TAG)) return word.explainCache.slice(EXPLAIN_TAG.length).trim();
+  if (word.explainCache?.startsWith(EXPLAIN_TAG)) {
+    const cached = word.explainCache.slice(EXPLAIN_TAG.length).trim();
+    if (!teachingLanguageIssue(cached, word.targetLang)) return cached;
+  }
 
   const sourceName = langName(word.sourceLang);
   const targetName = langName(word.targetLang);
@@ -972,7 +976,7 @@ export async function explainWord(id: string, live?: LiveText): Promise<string> 
       `The first line is the word in bold and what it really means. Then a bullet each for: when and how it's ` +
       `used; how it differs from close synonyms; register (formal/casual/slang); one common mistake learners ` +
       `make. Then one or two example sentences. Do not just repeat the dictionary gloss.` +
-      answerFormat(word.sourceLang, word.targetLang, "explanation") +
+      answerFormat(word.sourceLang, word.targetLang, "explanation", true) +
       scriptNote(word.sourceLang) +
       scriptNote(word.targetLang) +
       ` Respond as JSON: {"explanation": string}.`,
@@ -981,21 +985,26 @@ export async function explainWord(id: string, live?: LiveText): Promise<string> 
       (word.synonyms.length ? `\nListed synonyms: ${word.synonyms.join(", ")}` : ""),
     schema: explanationSchema,
   };
-  const { explanation } = live
+  const checked = await checkedTeachingReply(async (repair) => {
+    const messages: ChatMessage[] = [
+      { role: "system", content: ask.system + (repair ? "\nREPAIR: " + repair : "") },
+      { role: "user", content: ask.user },
+    ];
+    const result = live && !repair
     ? await chatJsonConversationStream({
-        messages: [
-          { role: "system", content: ask.system },
-          { role: "user", content: ask.user },
-        ],
+        messages,
         schema: ask.schema,
         onDelta: live.onDelta,
         field: "explanation",
         signal: live.signal,
         timeoutMs: 60000,
         label: "explain.stream",
+        retried: true,
       })
-    : await chatJson(ask);
-  const text = explanation.trim();
+    : await chatJsonConversation({ messages, schema: ask.schema, timeoutMs: 60000, signal: live?.signal, label: repair ? "explain.repair" : "explain", retried: true });
+    return { answer: result.explanation };
+  }, word.targetLang, live?.signal);
+  const text = checked.answer.trim();
   // Cache it on the card so re-opening the word is free.
   await prisma.word.update({ where: { id }, data: { explainCache: EXPLAIN_TAG + text } }).catch(() => {});
   return text;
@@ -1370,7 +1379,7 @@ export async function askAboutWord(
         `If the learner asks to SAVE/ADD an example sentence to this card (e.g. "add this example", ` +
         `"save that sentence"), put it in "addExamples" as {sentence: the ${sourceName} sentence, ` +
         `translation: its ${targetName} translation}. Otherwise leave the arrays empty.` +
-        answerFormat(word.sourceLang, word.targetLang, "answer") +
+        answerFormat(word.sourceLang, word.targetLang, "answer", true) +
         scriptNote(word.sourceLang) +
         scriptNote(word.targetLang) +
         ' Respond as JSON: {"answer": string, "addSynonyms": string[], "addAntonyms": string[], "addWords": string[], "addExamples": {"sentence": string, "translation": string}[]}.\n\n' +
@@ -1382,17 +1391,21 @@ export async function askAboutWord(
     ...clipped,
   ];
 
-  const result = live
+  const result = await checkedTeachingReply(async (repair) => {
+    const prompt = repair ? messages.map(m => m.role === "system" ? { ...m, content: m.content + "\nREPAIR: " + repair } : m) : messages;
+    return live && !repair
     ? await chatJsonConversationStream({
-        messages,
+        messages: prompt,
         schema: wordChatSchema,
         onDelta: live.onDelta,
         field: "answer",
         signal: live.signal,
         timeoutMs: 60000,
         label: "askWord.stream",
+        retried: true,
       })
-    : await chatJsonConversation({ messages, schema: wordChatSchema, timeoutMs: 60000 });
+    : await chatJsonConversation({ messages: prompt, schema: wordChatSchema, timeoutMs: 60000, signal: live?.signal, label: repair ? "askWord.repair" : "askWord", retried: true });
+  }, word.targetLang, live?.signal);
   // Don't re-suggest words the card already has.
   const have = new Set([...word.synonyms, ...word.antonyms].map((s) => s.trim().toLowerCase()));
   const self = word.word.trim().toLowerCase();

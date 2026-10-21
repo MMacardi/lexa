@@ -1,29 +1,26 @@
 ﻿# Session handoff — 2026-10-21
 
-- Task: Part 14, Mika memory in popup/full page; complete.
-- Files: backend services/mikaMemory.ts, coachMemory.ts, accountData.ts, vocab.ts;
-  routes/words.ts, index.ts, Prisma schema + mika_memory_checkpoints migration;
-  frontend useTutorChat, MikaMemoryLink, CoachMemorySection, Mika headers/i18n/API.
-- Server checkpoints completed replies before final response; durable worker,
-  idempotent hashes, batches ≤20, input ≤4k/statement, notes ≤900, ≤3 attempts.
-- Manual revisions invalidate pending/in-flight writes; learner notes pinned.
-  Delete/restore and hard deletion cannot resurrect memory or recreate a user.
-  Per-account/source-language data, session-only identity and usage attribution.
-- Memory controls linked in both surfaces, ru/en/zh. Fixed discarded Strict Mode
-  chat ID in sessionStorage: one history across popup/page/reload.
-- Checks: backend npx tsc --noEmit -p .; frontend npx next build passed (existing
-  warnings). Docker frontend stopped for builds, restarted afterwards.
-- Deterministic lifecycle: backend/scripts/check-mika-memory.ts passed on local
-  throwaway accounts: retries, leases, concurrent edits/clear, isolation/deletion.
-- Live Qwen: Russian train preference retained, new chat used train example;
-  matching tab/request/server IDs across popup/page/reload. Notes now use native
-  language. Phone controls rerun passed edit/clear/reload, A/B, spoofed IDs/401s.
-- UI script: frontend/scripts/check-mika-memory.mjs; --controls-only isolates
-  phone checks. Evidence .playwright-cli/mika-memory/, inspected phone-memory.png.
-- Review: additive migration, cascade deletion, bounded inference and session
-  identity. Test users cleaned. Raw long dev-name overflow recorded separately.
-- Card HTTP check: check-mika-memory-card.ts passed live boat preference + zh
-  checkpoint; card-context requests also carry the conversation ID.
-- Next: Part 15 only; Parts 1–14 complete, 15–18 open. Live 到达 pinyin errors
-  recorded in Part 15. Grouped-word retention evidence/landing remain deferred.
+- Task: Part 15, Russian Mika explanations and toggleable ruby pinyin; complete.
+- Plan: PLAN-learner-bug-batch.md, Part 15; do not start Part 16 here.
+- Backend: lib/teachingLanguage.ts, answerFormat.ts, services/tutorChat.ts,
+  vocab.ts and llm.ts. Russian prose/translation validation, one silent repair,
+  cancellation, distinct usage labels; invalid cached explanations regenerated.
+- Frontend: RichText, TutorThread, MikaPinyinToggle, lib/mikaPinyin,
+  GlobalTutor, app/mika/page, i18n. Local context readings for completed lines;
+  no per-token transcription. Safe markdown, legacy reading cleanup, plain copy.
+- Display choice is browser-persistent, keyed by account + source language;
+  default on through HSK 4, off HSK 5+. Manual choice overrides level changes.
+- Phrase readings include 到达, 银行/行走 across partial bold, and 还给.
+- Checks: final backend npx tsc --noEmit -p . and frontend npx next build passed
+  (existing warnings). Docker frontend stopped for build, restarted afterwards.
+- scripts/check-mika-format.ts: deterministic quotation/translation/retry/abort
+  checks pass; real local Qwen general + card follow-up Russian replies pass.
+- frontend/scripts/check-mika-pinyin.mjs: full flow passed defaults, isolation,
+  history, streaming, phone/copy, partial-bold context. Final --render-only passed
+  second-dash translation preservation and shared toggle; no browser errors.
+- Live opening explanation also passed invalid-cache regeneration + cache reuse.
+- Evidence: .playwright-cli/mika-pinyin/{result,render-result}.json and inspected
+  phone-ruby.png. All throwaway local accounts cleaned; no schema changes.
+- Next: Part 16 only. Parts 1–15 complete; Parts 16–18 remain open.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.
+- Grouped-word retention evidence and landing work remain deferred.

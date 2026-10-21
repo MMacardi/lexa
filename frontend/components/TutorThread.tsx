@@ -8,6 +8,8 @@ import { useToast } from "@/lib/toast";
 import { displayCode, pairLabel } from "@/lib/langs";
 import { CollectionMultiSelect } from "@/components/CollectionMultiSelect";
 import { RichText } from "@/components/RichText";
+import { useMikaPinyin } from "@/components/MikaPinyinToggle";
+import { mikaDisplayText } from "@/lib/mikaPinyin";
 import { HoverTip } from "@/components/ui/HoverTip";
 import { cn } from "@/lib/utils";
 import { BookOpen, Check, Copy, Pencil, RefreshCw, X } from "lucide-react";
@@ -40,6 +42,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
     regenerate,
     editLast,
   } = chat;
+  const { on: pinyin } = useMikaPinyin(pair.source);
   const lastUser = messages.map((m) => m.role).lastIndexOf("user");
 
   async function copy(text: string) {
@@ -56,7 +59,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
       {messages.map((m, i) =>
         m.role === "assistant" ? (
           <div key={i} className="anim-msg space-y-2">
-            <RichText text={m.content} streaming={m.streaming} className={cn("select-text text-ink", large ? "text-[15px]" : "text-[14px]")} />
+            <RichText text={m.content} streaming={m.streaming} mika pinyin={pinyin && (pair.source === "zh" || pair.source === "zh-Hant")} className={cn("select-text text-ink", large ? "text-[15px]" : "text-[14px]")} />
             {!m.streaming && m.readerText && (
               <button type="button" disabled={chat.openingReader} onClick={() => chat.openInReader(m.readerText!)}
                 className="inline-flex items-center gap-2 rounded-xl border border-sage/40 bg-sage-tint px-3 py-2 text-sm font-semibold text-sage-deep disabled:opacity-50">
@@ -65,7 +68,7 @@ export function TutorThread({ chat, large = false }: { chat: TutorChat; large?: 
             )}
             {!m.streaming && (
               <div className="-ml-1.5 flex items-center gap-0.5 text-ink-faint">
-                <MsgAction label={t("tutor.copy")} onClick={() => copy(m.content)}>
+                <MsgAction label={t("tutor.copy")} onClick={() => copy(mikaDisplayText(m.content))}>
                   <Copy className="h-3.5 w-3.5" />
                 </MsgAction>
                 {i === messages.length - 1 && !busy && (

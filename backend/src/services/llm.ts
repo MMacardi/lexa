@@ -277,6 +277,7 @@ export async function chatJsonConversation<T>(opts: {
   label?: string;
   model?: string; // override MODEL (e.g. FAST_MODEL for trivial calls)
   retried?: boolean; // internal: see notObject
+  signal?: AbortSignal;
 }): Promise<T> {
   let completion;
   const t0 = Date.now();
@@ -289,9 +290,10 @@ export async function chatJsonConversation<T>(opts: {
         temperature: 0.4,
         ...noThinking(opts.model ?? MODEL),
       },
-      opts.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}), ...(opts.signal ? { signal: opts.signal } : {}) },
     );
   } catch (err) {
+    if (opts.signal?.aborted) throw abortError();
     throw friendlyLlmError(err);
   }
   logUsage(opts.label ?? "chatJsonConversation", opts.model ?? MODEL, "text", completion, Date.now() - t0);

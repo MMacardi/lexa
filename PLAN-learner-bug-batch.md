@@ -5,9 +5,9 @@ verification are recorded under each part. Implement one part per session, in
 order, unless the author explicitly chooses another part. The previous
 `PLAN-reader-mika-fixes.md` is complete; do not restart it.
 
-The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–14
-are complete; Parts 15–18 remain open.
-Next implementation session: **Part 15**.
+The 2026-10-20 screenshot follow-up is tracked as **Parts 7–18** below. Parts 1–15
+are complete; Parts 16–18 remain open.
+Next implementation session: **Part 16**.
 Screenshot numbers refer to the author's
 message; reported symptoms without a visible example still need reproduction.
 
@@ -1294,7 +1294,7 @@ so a repeated preference in a genuinely new chat is not treated as an old retry.
 
 ## Part 15 — Russian Mika explanations and toggleable ruby pinyin
 
-- [ ] Implement and verify.
+- [x] Implement and verify.
 
 **Additional observed evidence (Part 14 live check).** A correct train-arrival
 example for 到达 came with incorrect model pinyin (`dádá` in the heading and
@@ -1332,6 +1332,35 @@ Toggle a completed reply, receive a streamed reply, reopen saved history, and
 move between widget/full page. HSK 4 starts on, HSK 5 starts off, manual setting
 persists and account switch isolates it. Ruby aligns at phone width and copy
 remains useful; a focused live format check complements deterministic rendering.
+
+**Implementation (2026-10-21).** Mika's general chat, card opening explanation
+and follow-up now validate Russian prose and translations, preserving quoted
+Chinese terms and separate examples. A failed JSON/language check gets at most
+one non-streamed repair; cancellation and distinct usage labels are retained.
+An invalid legacy explanation cache is regenerated; a valid one remains reusable.
+
+Both Mika surfaces expose the same accessible ru/en/zh pinyin control. Its manual
+choice is saved in this browser per account/source language; the HSK 4/5 default
+boundary applies only without a choice. Completed lines get cached local ruby
+readings; unfinished streamed lines stay plain. Readings use the full visible
+line even across partial bold, including 银行/行走 and 到达, with a correction for
+the dictionary's 还给 reading. Legacy model reading lines/parentheses are removed
+only for display, preserving translations, highlights, lists and stored content.
+Selection copy excludes ruby readings; message copy excludes legacy readings.
+
+**Verification.** Backend `npx tsc --noEmit -p .` passed. Frontend `npx next build`
+passed with existing warnings. `backend/scripts/check-mika-format.ts` covers
+quoted terms, mixed Russian/Chinese clauses, translation lines (including bold
+fragments), bounded recovery and cancellation. Local real-Qwen streamed general
+and card follow-up replies passed; `--live --explain-only` also replaced an invalid
+legacy opening explanation and proved the validated cache is reused.
+`frontend/scripts/check-mika-pinyin.mjs` passed Russian phone ruby/copy/selection,
+safe markdown, legacy-history preservation, partial-word bold, partial streaming,
+popup/full-page/reload, HSK 4/5 defaults, manual level-change persistence and account
+isolation. Evidence: `.playwright-cli/mika-pinyin/phone-ruby.png` (inspected),
+`result.json` and `render-result.json`. Throwaway local accounts are cleaned. The
+final `--render-only` check passed legacy translations containing a second dash
+without truncation, plus control/renderer synchronization.
 
 ## Part 16 — Usable Reader and Mika at browser zoom
 

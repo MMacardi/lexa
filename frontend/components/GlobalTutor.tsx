@@ -12,6 +12,7 @@ import { FIXED_PAIR } from "@/lib/langs";
 import { MikaPracticeLinks } from "@/components/MikaPractice";
 import { ChatHistoryMenu } from "@/components/ChatHistoryMenu";
 import { MikaMemoryLink } from "@/components/MikaMemoryLink";
+import { MikaPinyinToggle } from "@/components/MikaPinyinToggle";
 import { TutorThread } from "@/components/TutorThread";
 import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorComposer";
 import { HoverTip } from "@/components/ui/HoverTip";
@@ -258,6 +259,7 @@ export function GlobalTutor() {
               {/* Past chats sit next to the pair, where the eye already is, rather
                   than as one more grey icon among the window controls. */}
               <ChatHistoryMenu chat={chat} compact />
+              <MikaPinyinToggle lang={pair.source} />
               <MikaMemoryLink lang={pair.source} onClick={close} />
               {card && (
                 <Link

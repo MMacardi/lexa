@@ -328,6 +328,7 @@ const DICT: Record<string, Entry> = {
     ru: "Выкл — тап только выделяет слово, без запроса к ИИ.",
     zh: "关闭后点按只选中单词，不请求 AI。",
   },
+  "mika.pinyin": { en: "Pinyin", ru: "Пиньинь", zh: "拼音" },
   "reader.ruby": { en: "Pinyin", ru: "Транскрипция", zh: "拼音" },
   "reader.rubyLoading": { en: "Transcribing…", ru: "Транскрибирую…", zh: "生成中…" },
   "reader.viewCards": { en: "Cards", ru: "Карточки", zh: "卡片" },

@@ -6,6 +6,7 @@ import { chatGuard, noVendor } from "../lib/persona.js";
 import { levelName } from "../lib/level.js";
 import { chatWindow } from "../lib/chatWindow.js";
 import { focusedWords } from "../lib/wordOffers.js";
+import { checkedTeachingReply } from "../lib/teachingLanguage.js";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
 const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
@@ -127,9 +128,9 @@ export async function tutorChat(params: {
         scriptNote(params.sourceLang ?? "en") +
         ` (This applies to example sentences, vocabulary, and every ${source} word you write.)` +
         // Last before the JSON line, so the layout is fresh and the JSON is the final word.
-        answerFormat(params.sourceLang ?? "en", params.targetLang ?? "zh", "answer") +
+        answerFormat(params.sourceLang ?? "en", params.targetLang ?? "zh", "answer", true) +
         ` Respond with a JSON OBJECT, never a bare or empty string. Begin with {"answer":. ` +
-        `The answer's explanations MUST be in ${target}, including explanations of corrections. Every Chinese example, including an opening corrected sentence, has pinyin immediately under it. ` +
+        `The answer's explanations MUST be in ${target}, including explanations of corrections. Every example, including an opening corrected sentence, has its translation immediately under it. ` +
         'Shape: {"answer":"your reply", "readerText":null, "addWords":["source word"], "addCards":[]}. addWords contains ONLY strings, never objects; use [] when offering no words. ' +
         'When offering a passage, replace readerText:null with {"title":"short title","content":"exact passage"}. ' +
         'Each addCards entry has {"word":"word","meaning":"meaning","example":"sentence","exampleTr":"translation","lang":""}.',
@@ -140,10 +141,10 @@ export async function tutorChat(params: {
 
   // A photo anywhere in the window needs the vision model; plain text stays on qwen-plus.
   const model = withPhotos ? CHAT_VISION_MODEL : undefined;
-  const ask = (stream: boolean, retry = false) => {
-    const prompt = retry ? messages.map((m) => m.role === "system" ? { ...m, content: m.content + '\nYour previous output was not a JSON object. Answer the learner, beginning with {"answer": and include the other fields. Never return an empty string.' } : m) : messages;
+  const ask = (repair?: string) => {
+    const prompt = repair ? messages.map((m) => m.role === "system" ? { ...m, content: m.content + '\nREPAIR: ' + repair } : m) : messages;
     return (
-    stream && params.onDelta
+    !repair && params.onDelta
       ? chatJsonConversationStream({
           messages: prompt,
           schema: tutorChatSchema,
@@ -152,18 +153,15 @@ export async function tutorChat(params: {
           signal: params.signal,
           timeoutMs: 60000,
           label: "tutorChat.stream",
+          retried: true, // checkedTeachingReply owns the single bounded repair
           model,
         })
-      : chatJsonConversation({ messages: prompt, schema: tutorChatSchema, timeoutMs: 60000, label: "tutorChat", model }));
+      : chatJsonConversation({ messages: prompt, schema: tutorChatSchema, timeoutMs: 60000, label: repair ? "tutorChat.repair" : "tutorChat", model, signal: params.signal, retried: true }));
   };
-  // One retry on an off-schema reply (e.g. a bare string) — it rarely repeats. The
+  // One retry for invalid JSON or mixed-language prose. The
   // retry does NOT stream: its deltas would append to the half-written first attempt
   // in the open bubble. The client replaces that text with the final answer anyway.
-  const result = await ask(true).catch((err: Error) => {
-    if (err.name === "AbortError") throw err;
-    if (err.name !== "ZodError" && !err.message.startsWith("LLM did not return valid JSON")) throw err;
-    return ask(false, true);
-  });
+  const result = await checkedTeachingReply(ask, params.targetLang ?? "zh", params.signal);
   const offered = focusedWords(params.messages.filter((m) => m.role === "user").at(-1)?.content ?? "", (result.addWords ?? []).map((w) => typeof w === "string" ? w : w.word)).slice(0, 30);
   return {
     answer: noVendor(result.answer),
