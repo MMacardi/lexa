@@ -1412,6 +1412,21 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Faster repeat opens and quiet session verification (2026-10-21, asked for directly)
+- Normal session verification on cached opens stays quiet for 1.5 seconds; longer
+  checks and actual failures retain the connection banner and retry. Cached content
+  remains usable while verification runs; the server still authorizes every request.
+- Google Fonts CSS is preloaded and applied after hydration, so it cannot block
+  first paint or app startup. Existing fonts and ru/en/zh strings are preserved.
+- Moved the theme boot script into a shared module: importing its string from a
+  client component caused an intermittent production hydration failure on startup.
+- Backend type-check and frontend production build passed (existing warnings).
+  Russian dark-mode 390×844 Chromium check against the local production build passed:
+  delayed/failed fonts, quiet one-second verification, slow verification, 503 + retry,
+  offline/reconnect, expired-session cache clearing, no overflow or browser errors.
+  Throwaway local account deleted. Public anonymous timings did not establish a
+  Vercel/Railway cold start; no production user data or hosting settings were accessed.
+
 ### Reader paste without keyboard shortcut hints (2026-10-21, asked for directly)
 - Removed shortcut notation from the Reader placeholder in ru/en/zh. Native text/image
   paste and the photo picker remain available; the Reader paste button now also accepts

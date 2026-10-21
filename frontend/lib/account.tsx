@@ -103,13 +103,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     void qc.cancelQueries().then(() => qc.invalidateQueries());
   }, [clear, qc]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (initial = false) => {
     let request = ++sequence.current;
     if (current.current) {
       setCacheScope(current.current.telegramId, false);
       setVerified(false);
     }
-    setConnection(navigator.onLine ? "reconnecting" : "offline");
+    setConnection(navigator.onLine ? (initial ? "checking" : "reconnecting") : "offline");
     try {
       if (logoutPending()) {
         await finishLogout();
@@ -166,7 +166,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         if (words && cacheScope().owner === cached.telegramId && !qc.getQueryData(["words", cached.telegramId])) qc.setQueryData(["words", cached.telegramId], words);
       });
     }
-    void refresh();
+    void refresh(true);
     const onOnline = () => void refresh();
     const onOffline = () => {
       if (current.current) setCacheScope(current.current.telegramId, false);
@@ -178,7 +178,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const onRevoked = () => { void clear(); setReady(true); setConnection("online"); };
     const onStorage = (event: StorageEvent) => {
       if (event.key === SNAPSHOT_KEY && readAccountSnapshot()?.telegramId !== current.current?.telegramId) {
-        void clear(false).then(refresh);
+        void clear(false).then(() => refresh());
       }
     };
     window.addEventListener("online", onOnline);

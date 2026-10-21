@@ -5,7 +5,8 @@ import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
 import { FlagEmojiPolyfill } from "@/components/FlagEmojiPolyfill";
 import { TitleTips } from "@/components/TitleTips";
-import { themeBootScript } from "@/lib/theme";
+import { FontStyles } from "@/components/FontStyles";
+import { themeBootScript } from "@/lib/themeBoot";
 
 // The Telegram Mini App SDK, only inside Telegram (it opens the app with
 // #tgWebAppData; a reload there keeps the mark in sessionStorage). It is written in
@@ -17,6 +18,7 @@ const telegramBootScript =
 
 // metadataBase makes the og:image absolute — Telegram and Google need a full URL.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://onomika-lac.vercel.app";
+const FONT_STYLESHEET = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap";
 
 const TITLE = "Onomika — подготовка к HSK";
 const DESCRIPTION =
@@ -69,17 +71,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: telegramBootScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* App Router root layout: these load globally for every page. */}
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
+        <link rel="preload" as="style" href={FONT_STYLESHEET} />
       </head>
       <body>
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <FontStyles href={FONT_STYLESHEET} />
         <PwaRegister />
         <FlagEmojiPolyfill />
         <TitleTips />

@@ -2,14 +2,13 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { prefersReducedMotion } from "@/lib/motion";
+import { THEME_KEY as KEY } from "@/lib/themeBoot";
 
 type Theme = "light" | "dark";
 const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({
   theme: "light",
   toggle: () => {},
 });
-
-const KEY = "lexa.theme";
 
 function apply(theme: Theme) {
   const root = document.documentElement;
@@ -50,12 +49,3 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useTheme = () => useContext(ThemeCtx);
-
-// Runs before paint (injected in <head>) so the page never flashes the wrong
-// theme. Kept as a plain string for next/script dangerouslySetInnerHTML.
-export const themeBootScript = `
-(function(){try{
-  var s=localStorage.getItem('${KEY}');
-  if(s==='dark') document.documentElement.classList.add('dark');
-}catch(e){}})();
-`;
