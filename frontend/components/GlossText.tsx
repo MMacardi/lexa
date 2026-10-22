@@ -56,7 +56,13 @@ export function GlossText({ text, meaning }: { text: string; meaning?: string | 
   let at = 0;
   for (const m of text.matchAll(WORD)) {
     const w = m[0].toLowerCase();
-    const hit = stems.some((s) => (HAN.test(s) ? w.includes(s) : w.startsWith(s)));
+    const hit = stems.some((s) => {
+      if (HAN.test(s)) return w.includes(s);
+      if (!w.startsWith(s)) return false;
+      // Short Russian roots need a matching inflected stem: «боль» → «боли»,
+      // but never «больнице» just because both start with «бол».
+      return !CYR.test(s) || s.length >= 4 || stemOf(w).replace(/ь$/, "") === s.replace(/ь$/, "");
+    });
     if (!hit) continue;
     parts.push(<Fragment key={`t${at}`}>{text.slice(at, m.index)}</Fragment>);
     parts.push(

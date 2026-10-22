@@ -1412,6 +1412,14 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### False translation highlight: боль → больнице (2026-10-22, asked for directly)
+- Short Russian stems now require a matching inflected stem rather than any prefix:
+  боль no longer marks больнице; боль, боли and болью still match.
+- Passed frontend production build (existing warnings) and a Russian Chromium
+  iPhone 13 spot-check with the reported definition, including overflow/page errors.
+  Reproduce: `node frontend/scripts/check-gloss-highlight.mjs` against local :3000/:3001.
+- Idiom fallback work is parked below; no dictionary/generation change shipped.
+
 ### Character meaning recovery and handwriting at the cursor (2026-10-22, asked for directly)
 - Added the CC-CEDICT senses of 程 to the prepared Russian dictionary: 编程's
   character panel no longer needs a model request for that character.
@@ -2205,6 +2213,14 @@ territory; returns only as HSK tones in S2) · Pro Plus tier · further communit
 
 ### Parked (🧊, only if asked)
 Traditional Chinese toggle · Anki export (import matters more) · custom scenes.
+
+- [ ] **Idioms missing from CC-CEDICT: natural equivalents (deferred 2026-10-22).**
+  伤口上撒盐 has no entry in the connected dictionary. Its generated card gives a
+  lengthy explanation instead of «сыпать соль на рану». One real Qwen check of a
+  generic equivalent-first prompt instead produced «добавлять масла в огонь»;
+  that prompt change was reverted. Existing cards remain unchanged. The author
+  requested only a simple fix within their token budget; resume broader work only
+  when asked. Keep this lexical gap separate from Mika's grammar reference work.
 
 - [ ] **Mika: source-backed grammar explanations (deferred 2026-10-22).**
   The author explicitly postponed this work because of the session token budget;
