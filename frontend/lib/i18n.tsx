@@ -1430,7 +1430,7 @@ const DICT: Record<string, Entry> = {
   },
   "draw.undo": { en: "Undo stroke", ru: "Отменить черту", zh: "撤销一笔" },
   "draw.clear": { en: "Clear", ru: "Стереть", zh: "清除" },
-  "draw.backspace": { en: "Delete last character", ru: "Удалить последний иероглиф", zh: "删除最后一个字" },
+  "draw.backspace": { en: "Delete selection or character before cursor", ru: "Удалить выделенное или иероглиф перед курсором", zh: "删除选中文字或光标前的字" },
   "han.remembered": { en: "Language of words written only in Han characters", ru: "Язык слов из иероглифов", zh: "纯汉字词的语言" },
   "han.hint": {
     en: "Used in Add when the language is set to Auto-detect. Resetting uses Chinese. This choice is shared by accounts in this browser.",

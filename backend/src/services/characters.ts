@@ -34,7 +34,11 @@ async function russianMeaning(word: string, reading: string, own: string, locali
   }
   const prepared = hskPage(word, "ru")?.s.filter((s) => readsAs(word, s.r, reading)).map((s) => s.m).join("; ");
   if (prepared) return prepared;
-  const adapted = await (localize ? localizedDictionary(word, "ru") : cachedDictionary(word, "ru"));
+  const adapted = await (localize ? localizedDictionary(word, "ru").catch((err: unknown) => {
+    // A failed gap must not discard the other characters' completed translations.
+    console.error("[characters] missing Russian meaning", word, (err as Error).message);
+    return null;
+  }) : cachedDictionary(word, "ru"));
   return adapted?.senses.filter((s) => readsAs(word, s.reading ?? adapted.phonetic, reading))
     .map((s) => s.meaning).join("; ") || "";
 }

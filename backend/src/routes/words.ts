@@ -1246,7 +1246,7 @@ wordsRouter.post("/dict/chars/localize", async (req, res) => {
   try {
     const { word, phonetic, lang } = parsed.data;
     const chars = await wordCharacters(readSession(req)!, word, phonetic, lang, true);
-    if (chars.some((c) => c.english || c.words.some((w) => w.english))) throw new Error("Missing character translation");
+    // Keep partial results; the client marks untranslated rows and can retry gaps.
     res.json({ chars, ...(chars.length ? { credit: cedictCredit() } : {}) });
   } catch (err) {
     console.error("[characters] localization failed", (err as Error).message);

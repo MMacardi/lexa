@@ -1412,6 +1412,25 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Character meaning recovery and handwriting at the cursor (2026-10-22, asked for directly)
+- Added the CC-CEDICT senses of 程 to the prepared Russian dictionary: 编程's
+  character panel no longer needs a model request for that character.
+- General character localization preserves successful translations when another
+  gap fails. Missing rows show failure/retry; retry reuses completed shared cache
+  entries and translates remaining gaps. Network/model failures are still possible.
+- Handwriting candidates replace the selection or insert at the caret, then move
+  the caret after the inserted character without reopening the phone keyboard.
+  Pad backspace respects selection/caret and supplementary Unicode characters;
+  its label is updated in Russian, English and Chinese.
+- Passed backend type-check, frontend production build (existing warnings),
+  character service checks and controlled failed-adaptation/retry/cache check.
+  Russian Chromium iPhone 13 viewport against the local production build verified
+  prepared 程, partial result/retry, real handwriting candidates at start/middle/end,
+  repeated insertion, selection replacement and deletion. Throwaway users cleaned.
+- Reproduce: `docker compose exec -T backend npx tsx scripts/check-character-recovery.ts`
+  and `node frontend/scripts/check-capture-input.mjs` (local :3000/:3001).
+  Evidence: ignored `.playwright-cli/capture-input/result.json`. No schema changes.
+
 ### Review Mika teaching replies before streaming (2026-10-22, asked for directly)
 - Audited the original golds, model comparison, history, routing, memory and
   streaming/repair path. Added 14 synthetic scenarios with verdict/explanation

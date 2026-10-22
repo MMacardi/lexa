@@ -50,6 +50,10 @@ try {
   check("a word with no hanzi → nothing", (await wordCharacters(TG, "hello", "", "ru")).length === 0);
   const occasional = await wordCharacters(TG, "偶尔", "ǒu ěr", "ru");
   check("偶 and 尔 have prepared Russian meanings", occasional.every((c) => !c.english && /[а-яё]/i.test(c.meaning)));
+  const programming = await wordCharacters(TG, "编程", "biān chéng", "ru", true);
+  const cheng = programming.find((c) => c.word === "程");
+  check("程 of 编程 has prepared Russian senses without a model call", cheng?.pinyin === "chéng" && !cheng.english && cheng.meaning === "правило; порядок; норма; формула; путь; процедура", cheng?.meaning);
+  check("编程's whole character panel needs no adaptation", programming.every((c) => [c, ...c.words].every((w) => !w.english && /[а-яё]/i.test(w.meaning))));
   check("missing Russian is empty, never raw English", occasional.every((c) => [c, ...c.words].every((w) => w.english ? !w.meaning : /[а-яё]/i.test(w.meaning))));
   const gap = await wordCharacters(TG, "儡", "lěi", "ru");
   check("a dictionary gap never exposes English", gap.every((c) => !c.english || !c.meaning));

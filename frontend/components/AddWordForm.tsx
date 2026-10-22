@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -139,6 +139,19 @@ export function AddWordForm({
 
   const [mode, setMode] = useState<Mode>("auto");
   const [word, setWord] = useState("");
+  const wordInput = useRef<HTMLInputElement>(null);
+  const wordSelection = useRef<{ value: string; start: number; end: number } | null>(null);
+  const rememberWordSelection = (input: HTMLInputElement) => {
+    wordSelection.current = {
+      value: input.value,
+      start: input.selectionStart ?? input.value.length,
+      end: input.selectionEnd ?? input.value.length,
+    };
+  };
+  useLayoutEffect(() => {
+    const selection = wordSelection.current;
+    if (selection?.value === word) wordInput.current?.setSelectionRange(selection.start, selection.end);
+  }, [word]);
   const [sourceLang, setSourceLang] = useState(FIXED_PAIR?.sourceLang ?? "en");
   const [targetLang, setTargetLang] = useState(FIXED_PAIR?.targetLang ?? "zh");
   const [pairReady, setPairReady] = useState(false);
@@ -279,6 +292,19 @@ export function AddWordForm({
     setWord(next);
     if (suggestions) setSuggestions(null);
     if (reverse) setReverse(null);
+  };
+  const editFromPad = (ch: string) => {
+    // Keep the selection when the pad takes focus; don't reopen the phone keyboard.
+    if (wordInput.current === document.activeElement) rememberWordSelection(wordInput.current!);
+    const selection = wordSelection.current;
+    let start = selection?.value === word ? selection.start : word.length;
+    const end = selection?.value === word ? selection.end : word.length;
+    if (!ch && start === end) start -= Array.from(word.slice(0, start)).at(-1)?.length ?? 0;
+    const next = word.slice(0, start) + ch + word.slice(end);
+    const caret = start + ch.length;
+    wordSelection.current = { value: next, start: caret, end: caret };
+    if (next === word) wordInput.current?.setSelectionRange(caret, caret);
+    typeWord(next);
   };
 
   const { data: collections } = useQuery({
@@ -843,8 +869,14 @@ export function AddWordForm({
       {/* the word itself — the main action, right under the pair it's in (or on top, in compose) */}
       <div className="flex gap-2">
         <Input
+          ref={wordInput}
           value={word}
-          onChange={(e) => typeWord(e.target.value)}
+          onChange={(e) => {
+            rememberWordSelection(e.currentTarget);
+            typeWord(e.currentTarget.value);
+          }}
+          onSelect={(e) => rememberWordSelection(e.currentTarget)}
+          onBlur={(e) => rememberWordSelection(e.currentTarget)}
           placeholder={
             zhMode
               ? t("add.zhPlaceholder")
@@ -896,8 +928,8 @@ export function AddWordForm({
 
       {canDraw && drawOpen && (
         <HandwritingPad
-          onPick={(ch) => typeWord(word + ch)}
-          onBackspace={() => typeWord(Array.from(word).slice(0, -1).join(""))}
+          onPick={editFromPad}
+          onBackspace={() => editFromPad("")}
           canBackspace={word.length > 0}
           disabled={busy}
         />

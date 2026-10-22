@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 
 // Multi-line field styling (matches Input, but wraps so long examples/notes are
 // fully visible and editable instead of being clipped in a one-line box).
@@ -8,7 +8,7 @@ import type { InputHTMLAttributes } from "react";
 export const textareaClass =
   "w-full resize-y rounded-[14px] border border-black/[0.08] bg-surface px-4 py-2.5 text-[16px] leading-relaxed text-ink placeholder:text-[#b3aa9a] focus:border-sage focus:outline-none sm:text-[15px] [field-sizing:content] min-h-[46px]";
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(

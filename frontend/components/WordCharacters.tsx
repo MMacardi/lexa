@@ -50,10 +50,12 @@ export function WordCharacters({ word }: { word: Word }) {
     retry: false,
   });
   const chars = (needsRussian ? glossQuery.data?.chars : undefined) ?? data?.chars ?? [];
+  const missingMeanings = chars.some((c) => c.english || c.words.some((w) => w.english));
+  const localizationFailed = !glossQuery.isFetching && (glossQuery.isError || (glossQuery.isSuccess && missingMeanings));
   if (!on || !chars.length) return null;
   const missingRussian = (w: CharWord) => word.targetLang === "ru" && w.english;
   const meaningText = (w: CharWord) => missingRussian(w)
-    ? t(glossQuery.isError ? "capture.meaningFailed" : "capture.filling") : w.meaning;
+    ? t(localizationFailed ? "capture.meaningFailed" : "capture.filling") : w.meaning;
 
   // The Reader's capture: the dictionary's card at once, filled in behind.
   async function add(w: CharWord) {
@@ -179,7 +181,7 @@ export function WordCharacters({ word }: { word: Word }) {
           )}
         </div>
       ))}
-      {needsRussian && glossQuery.isError && (
+      {needsRussian && localizationFailed && (
         <button type="button" onClick={() => void glossQuery.refetch()}
           className="rounded-md px-2 py-2 text-[13px] font-semibold text-sage-deep">
           {t("errState.retry")}
