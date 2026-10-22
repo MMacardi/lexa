@@ -1,7 +1,7 @@
 ﻿# Session handoff — 2026-10-22
 
-- Task: independently audit/improve Mika reliability; partial mitigation implemented
-  and locally verified. General grammar reliability remains unresolved.
+- Task: source-backed Mika follow-up parked at user's request; resume only when asked.
+- Previous partial mitigation is implemented; general grammar reliability unresolved.
 - Starting main: 7a46f62; its Russian teaching guard is unchanged.
 - zh→ru text: hidden qwen-plus draft → pinned qwen3.8-max-0902 review → existing
   bounded format repair. No unchecked-draft fallback; cancel stops between stages.
@@ -22,6 +22,6 @@
 - Evidence local/ignored: .playwright-cli/mika-reliability/*.json and
   .playwright-cli/mika-reliability-phone/result.json. Reproduction in report.
 - Rollback: BAILIAN_TUTOR_REVIEW_MODEL=off, restart; Russian fix remains.
-- Remaining: source-backed grammar references with explicit coverage and fresh
-  human-graded cases. No other backlog/landing work authorized in this session.
+- Deferred plan: BACKLOG.md §Parked → Mika: source-backed grammar explanations.
+  Includes review-stage rollback decision, source pilot and fresh human-graded cases.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.

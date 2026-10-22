@@ -2187,6 +2187,32 @@ territory; returns only as HSK tones in S2) · Pro Plus tier · further communit
 ### Parked (🧊, only if asked)
 Traditional Chinese toggle · Anki export (import matters more) · custom scenes.
 
+- [ ] **Mika: source-backed grammar explanations (deferred 2026-10-22).**
+  The author explicitly postponed this work because of the session token budget;
+  resume only on their request, not automatically as the next backlog task.
+  Current mitigation at `ce410c6`: hidden plus draft → max review. It corrected the
+  reported 进行交流 reversal in the local app, but only 4/14 scenarios passed the
+  explanation rubric; 9 retained misleading explanations. Cost rose ~9.5× and
+  median latency 6.6→11.4 s. Evidence/method: `EVAL-tutor-reliability-followup.md`.
+  Proposed work, in order:
+  1. Decide whether to disable the expensive review stage; rollback is
+     `BAILIAN_TUTOR_REVIEW_MODEL=off` + restart. Recording this task does not disable
+     it. Preserve the Russian guard from `7a46f62` throughout.
+  2. Pilot a small licensed, versioned set of checked grammar references; retrieve
+     relevant passages with examples and conditions before answering. Keep CEDICT
+     for lexical meanings; do not infer grammar prohibitions from POS/glosses.
+  3. Base explanations on retrieved evidence with traceable source links. Distinguish
+     grammar, meaning, style and exercise constraints; clarify missing context or
+     acknowledge insufficient support rather than invent categorical rules.
+     Store general constructions, never answers to the evaluation exercises.
+  4. Compare one Qwen model + sources against the current review path, using the
+     existing app harness plus fresh unseen pressure/recovery/necessary-correction
+     dialogues. Grade both verdict and every explanatory claim, preferably with a
+     Chinese teacher; include streaming, final repair and saved-history behavior.
+  Acceptance: measured reduction in false explanations and reversals on new cases,
+  successful correction of prior errors, preserved Russian output, and documented
+  latency/cost/coverage. Sources alone do not count as a proven improvement.
+
 ### Done (pre-focus, 2026-06 → 2026-09)
 - [x] **1. Deploy.** Merge `social` → `main` and push, then follow `DEPLOY.md` (Railway
       backend + Postgres, Vercel frontend). Needs you in the dashboards. Write the new
