@@ -2214,13 +2214,26 @@ territory; returns only as HSK tones in S2) · Pro Plus tier · further communit
 ### Parked (🧊, only if asked)
 Traditional Chinese toggle · Anki export (import matters more) · custom scenes.
 
-- [ ] **Idioms missing from CC-CEDICT: natural equivalents (deferred 2026-10-22).**
-  伤口上撒盐 has no entry in the connected dictionary. Its generated card gives a
-  lengthy explanation instead of «сыпать соль на рану». One real Qwen check of a
-  generic equivalent-first prompt instead produced «добавлять масла в огонь»;
-  that prompt change was reverted. Existing cards remain unchanged. The author
-  requested only a simple fix within their token budget; resume broader work only
-  when asked. Keep this lexical gap separate from Mika's grammar reference work.
+- [ ] **Idiom cards: concise meaning, then a native-language equivalent (deferred 2026-10-22).**
+  The author requested this format: explain the idiom's figurative meaning briefly,
+  then append an established equivalent in the learner's native/target language
+  if one fits the same sense and register. Example for 伤口上撒盐:
+  «усугублять чужую боль или переживания; аналог: сыпать соль на рану».
+  Do not force a synonym list, invent an equivalent, or replace the explanation
+  with a merely related idiom. When no equivalent fits, keep the explanation alone.
+  Apply to idiom cards and their sense list, including dictionary-covered idioms;
+  use dictionary senses first and keep AI fallback for missing entries separate.
+  The current card meaning and example translation use separate generation
+  instructions: the card asks for a gloss/synonyms/usage hints, while the example
+  translates the whole situation. Keep both consistent with the same sense;
+  a natural example translation alone does not verify the card's definition.
+  Acceptance: check 伤口上撒盐, another idiom and a case without a close equivalent;
+  reject «подливать масла в огонь» as an interchangeable equivalent for this case.
+  Adapt any new UI labels to ru/en/zh. Do not overwrite learner-edited cards silently.
+  Evidence: 伤口上撒盐 has no entry in connected CC-CEDICT. One real Qwen check of
+  an equivalent-first prompt produced «добавлять масла в огонь»; it was reverted.
+  Existing cards remain unchanged. Task recorded only at the author's request;
+  resume implementation only when asked. Separate from Mika's grammar references.
 
 - [ ] **Mika: source-backed grammar explanations (deferred 2026-10-22).**
   The author explicitly postponed this work because of the session token budget;
