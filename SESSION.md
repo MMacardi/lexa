@@ -1,27 +1,27 @@
-﻿# Session handoff — 2026-10-21
+﻿# Session handoff — 2026-10-22
 
-- Task: fix untranslated Chinese openings in Mika's Russian answers; complete.
-- Reported query: 积累参加 что значит, with Chinese intro and stray 或 in Russian.
-- backend/src/lib/teachingLanguage.ts now requires a Russian translation after
-  Chinese-only examples; legacy separate pinyin remains valid. Quoted terms work.
-- Russian/mixed source examples followed by Russian translations are rejected,
-  including duplicated Russian examples observed in live verification.
-- Shared prompt requires Russian opening/connectors and direct vocabulary meanings.
-- Existing one-repair limit is preserved; English/Chinese targets are unchanged.
-- backend/scripts/check-mika-format.ts covers reported payload and related cases,
-  valid pinyin/labels, translations, bounded repair and cancellation; passed.
-- Backend npx tsc --noEmit -p . and frontend npx next build passed (existing warnings).
-- Local production backend compiled/restarted with bot disabled. Actual phone
-  Chromium 390×844 query passed: Russian meanings for both terms, Chinese examples
-  with full Russian translations, history reload, no overflow/browser errors.
-- Evidence: .playwright-cli/mika-russian-opening/result.json; browser script ignored.
-  An initial post-restart race was fixed with readiness polling. Test accounts deleted.
-- BACKLOG.md Done updated. No schema/UI/model change or production data access.
-- General grammar reliability is still unresolved; earlier 73-call diagnosis remains
-  in EVAL-tutor-reliability.md and backend/scripts/eval-tutor-reliability.ts (1465301).
-- User offered Astra in Codex for this broader issue. Agreed it can be used next;
-  switching Codex does not change Mika. No new model comparison started this turn.
-- Proposed next work: dictionary-grounded meanings; compare stronger candidates on
-  observed failures + unseen cases, then verify full app repair/streaming before rollout.
-- Part 18 remains open; retention and landing deferred. No new backlog item started.
+- Task: independently audit/improve Mika reliability; partial mitigation implemented
+  and locally verified. General grammar reliability remains unresolved.
+- Starting main: 7a46f62; its Russian teaching guard is unchanged.
+- zh→ru text: hidden qwen-plus draft → pinned qwen3.8-max-0902 review → existing
+  bounded format repair. No unchecked-draft fallback; cancel stops between stages.
+- Reviewer cannot expand word offers or rewrite Reader passage metadata.
+  Photos/other language pairs keep their prior path. Shared web/Telegram service.
+- Files: services/tutorChat.ts, tutorReview.ts, llm.ts; lib/pricing.ts;
+  scripts/eval-tutor-app.ts, tutor-reliability-cases.ts, check-tutor-review.ts.
+  scripts/tutor-review-compact.ts is a rejected experimental control only.
+- Report: EVAL-tutor-reliability-followup.md; original report linked; BACKLOG Done
+  updated. Manual verdict/explanation grading, timings/costs and limits included.
+- 14 scenarios: 4 rubric passes, 9 misleading explanations, 1 delivery error.
+  Baseline: 1 pass, 3 warnings, 1 wrong judgment, 9 delivery errors. Small sample.
+- Actual local phone/browser: seeded 进行 error corrected, false objection resisted,
+  vocabulary in Russian; streamed/final/saved history, Reader/profile checked.
+  Throwaway user deleted. No production learner data or live Telegram access.
+- Passed backend/script type-checks, check-tutor-review, check-mika-format,
+  frontend production build (existing warnings), local browser behavior check.
+- Evidence local/ignored: .playwright-cli/mika-reliability/*.json and
+  .playwright-cli/mika-reliability-phone/result.json. Reproduction in report.
+- Rollback: BAILIAN_TUTOR_REVIEW_MODEL=off, restart; Russian fix remains.
+- Remaining: source-backed grammar references with explicit coverage and fresh
+  human-graded cases. No other backlog/landing work authorized in this session.
 - Preserve unrelated frontend/.env.example and untracked h3.txt/p.out.

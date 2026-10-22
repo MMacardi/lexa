@@ -1,5 +1,10 @@
 # Mika Chinese explanation reliability — 2026-10-21
 
+Historical first-response experiment at `1465301`. The independent audit,
+application-path comparison and subsequently deployed partial mitigation are in
+[the follow-up](EVAL-tutor-reliability-followup.md). Statements about unchanged
+production behavior below describe this original experiment only.
+
 The reported failure is reproducible. On this diagnostic sample, neither a model
 switch nor a generic accuracy instruction is sufficient for a reliable tutor.
 No production prompt, model, application behavior or learner data was changed.

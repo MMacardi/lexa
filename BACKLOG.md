@@ -1412,6 +1412,27 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Review Mika teaching replies before streaming (2026-10-22, asked for directly)
+- Audited the original golds, model comparison, history, routing, memory and
+  streaming/repair path. Added 14 synthetic scenarios with verdict/explanation
+  rubrics, including new constructions and recovery from a different seeded error.
+- Compared available dated Qwen models, reasoning, dictionary evidence and several
+  response arrangements. Selected a hidden qwen-plus draft reviewed by pinned
+  qwen3.8-max-0902 for zh→ru text; shared web/Telegram service, bounded format repair.
+  No case answers in production prompts. Russian guard from 7a46f62 is unchanged.
+- Partial improvement only: 4/14 rubric passes versus 1/14 baseline; 9 still have
+  misleading explanations. Valid final delivery 19/20 attempted turns versus 10/19;
+  small diagnostic sample, not general accuracy. Median 11.4 s, about ¥0.022/turn.
+- Actual local mobile web session corrected the seeded 进行交流 rejection, resisted
+  a false objection, and explained new vocabulary in Russian. Checked streaming,
+  Reader/profile context and saved-history reload; throwaway account deleted.
+- Backend/script type-checks, deterministic review/format checks and frontend build
+  passed (existing frontend warnings). No UI/schema/migration changes.
+- Method, costs, manual grading, rollback and remaining limits:
+  EVAL-tutor-reliability-followup.md. General grammar reliability remains open;
+  next step is source-backed explanations with an explicit coverage boundary and
+  independent human grading, not another generic accuracy instruction.
+
 ### Russian openings and complete examples in Mika replies (2026-10-21, asked for directly)
 - The shared Russian teaching guard had allowed any Chinese-only line as an
   example, so untranslated introductions passed before Russian definitions.
@@ -1429,8 +1450,8 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
   Chinese examples with Russian translations, saved-history reload, no overflow
   or browser errors. Throwaway accounts deleted; no production data accessed.
   Evidence: .playwright-cli/mika-russian-opening/result.json (local, ignored).
-- General grammar reliability remains unresolved. User offered to switch Codex
-  to Astra for the next investigation; model comparison/grounding work is pending.
+- General grammar reliability remains unresolved. The follow-up comparison and
+  partial mitigation are recorded in EVAL-tutor-reliability-followup.md.
 
 ### Mika Chinese explanation reliability evaluation (2026-10-21, asked for directly)
 - Reproduced the reported 进行交流 reversal with live Bailian calls. Compared

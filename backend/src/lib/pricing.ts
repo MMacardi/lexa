@@ -15,6 +15,10 @@ export const PRICING: Record<string, { in: number; out: number }> = {
   "qwen-vl-plus": { in: 1.5, out: 4.5 },
   // Mika chat turns with a photo. Verified 2026-09-26 (≤128K input tier, non-thinking).
   "qwen3.5-plus": { in: 0.8, out: 4.8 },
+  // Mika factual review, Beijing flat tier; verified 2026-10-21:
+  // https://help.aliyun.com/zh/model-studio/model-pricing
+  "qwen3.8-max-0902": { in: 12, out: 36 },
+  "qwen3.8-max": { in: 12, out: 36 },
   "qwen3-asr-flash": { in: 0, out: 0 },
   // Speech (services/tts.ts) is billed per character: ¥0.8 per 10,000 = ¥80 per 1M,
   // and its usage rows log characters as prompt tokens. Verified 2026-10-10 (Beijing).

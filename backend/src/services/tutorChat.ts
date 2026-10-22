@@ -1,4 +1,4 @@
-import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, type ChatMessage } from "./llm.js";
+import { chatJsonConversation, chatJsonConversationStream, CHAT_VISION_MODEL, TUTOR_REVIEW_MODEL, type ChatMessage } from "./llm.js";
 import { tutorChatSchema, type TutorChatResult } from "../lib/schemas.js";
 import { langName, scriptNote, LANG_NAMES } from "../lib/langs.js";
 import { answerFormat } from "../lib/answerFormat.js";
@@ -7,6 +7,8 @@ import { levelName } from "../lib/level.js";
 import { chatWindow } from "../lib/chatWindow.js";
 import { focusedWords } from "../lib/wordOffers.js";
 import { checkedTeachingReply } from "../lib/teachingLanguage.js";
+import { tutorReviewMessages } from "./tutorReview.js";
+import type { input } from "zod";
 
 // Codes Mika may tag a suggested word with (legacy zh-Hant isn't offered).
 const OFFERABLE_LANGS = Object.keys(LANG_NAMES).filter((c) => c !== "zh-Hant");
@@ -139,11 +141,21 @@ export async function tutorChat(params: {
     ...clipped,
   ];
 
-  // A photo anywhere in the window needs the vision model; plain text stays on qwen-plus.
+  // Photos and other language pairs keep their existing path. Only the evaluated
+  // zh→ru text path gets an independent review; its draft never reaches onDelta.
   const model = withPhotos ? CHAT_VISION_MODEL : undefined;
-  const ask = (repair?: string) => {
-    const prompt = repair ? messages.map((m) => m.role === "system" ? { ...m, content: m.content + '\nREPAIR: ' + repair } : m) : messages;
-    return (
+  const review = !withPhotos && params.sourceLang === "zh" && params.targetLang === "ru" && TUTOR_REVIEW_MODEL !== "off";
+  let draft: input<typeof tutorChatSchema> | undefined;
+  const ask = async (repair?: string) => {
+    const repairing = (input: ChatMessage[]) => repair ? input.map((m) => m.role === "system" ? { ...m, content: m.content + '\nREPAIR: ' + repair } : m) : input;
+    if (review && !draft) {
+      draft = await chatJsonConversation({ messages: repairing(messages), schema: tutorChatSchema,
+        timeoutMs: 60000, label: "tutorChat.draft", signal: params.signal, retried: true });
+      params.signal?.throwIfAborted();
+    }
+    const prompt = repairing(draft ? tutorReviewMessages(messages, JSON.stringify(draft)) : messages);
+    const replyModel = review ? TUTOR_REVIEW_MODEL : model;
+    const result = await (
     !repair && params.onDelta
       ? chatJsonConversationStream({
           messages: prompt,
@@ -152,11 +164,20 @@ export async function tutorChat(params: {
           field: "answer", // Mika's reply lives in "answer", the coach's in "say"
           signal: params.signal,
           timeoutMs: 60000,
-          label: "tutorChat.stream",
+          label: review ? "tutorChat.review.stream" : "tutorChat.stream",
           retried: true, // checkedTeachingReply owns the single bounded repair
-          model,
+          model: replyModel,
         })
-      : chatJsonConversation({ messages: prompt, schema: tutorChatSchema, timeoutMs: 60000, label: repair ? "tutorChat.repair" : "tutorChat", model, signal: params.signal, retried: true }));
+      : chatJsonConversation({ messages: prompt, schema: tutorChatSchema, timeoutMs: 60000,
+          label: review ? (repair ? "tutorChat.review.repair" : "tutorChat.review") : (repair ? "tutorChat.repair" : "tutorChat"),
+          model: replyModel, signal: params.signal, retried: true }));
+    // Review may correct card definitions, but must not rewrite a transcribed
+    // Reader passage or invent additional save actions. Existing filtering below
+    // still limits cards to the offered words.
+    if (!draft) return result;
+    const proposed = new Set((draft.addWords ?? []).map((w) => typeof w === "string" ? w : w.word));
+    return { ...result, readerText: draft.readerText,
+      addWords: (result.addWords ?? []).filter((w) => proposed.has(typeof w === "string" ? w : w.word)) };
   };
   // One retry for invalid JSON or mixed-language prose. The
   // retry does NOT stream: its deltas would append to the half-written first attempt

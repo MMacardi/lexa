@@ -98,6 +98,9 @@ stub.listen(0, "127.0.0.1");
 await once(stub, "listening");
 const port = (stub.address() as { port: number }).port;
 process.env.BAILIAN_API_KEY = "evaluation-stub-only";
+// This historical comparison measures the original first draft, not the new
+// app review stage. Use eval-tutor-app.ts --app for the production pipeline.
+process.env.BAILIAN_TUTOR_REVIEW_MODEL = "off";
 process.env.BAILIAN_BASE_URL = `http://127.0.0.1:${port}/v1`;
 process.env.DATABASE_URL = "postgresql://unused:unused@127.0.0.1:1/unused?connect_timeout=1";
 let system: string;

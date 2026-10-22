@@ -60,6 +60,10 @@ const MODEL = "qwen-plus";
 // back to qwen-plus instantly without a code change.
 export const FAST_MODEL = process.env.BAILIAN_FAST_MODEL || "qwen-flash";
 
+// Pinned snapshot evaluated for Russian explanations of Chinese. "off" restores
+// the previous one-model tutor path; it is not an automatic error fallback.
+export const TUTOR_REVIEW_MODEL = process.env.BAILIAN_TUTOR_REVIEW_MODEL || "qwen3.8-max-0902";
+
 // Log per-call token usage so we can compare prompt strategies (combined vs
 // separate) with real numbers, AND persist a row so the owner admin dashboard can
 // show real spend by day/feature/model. Bailian returns OpenAI-style `usage`.
