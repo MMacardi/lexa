@@ -18,6 +18,7 @@ import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorCompose
 import { HoverTip } from "@/components/ui/HoverTip";
 import { OPEN_MIKA, takeMikaOpen, useDragDownDismiss, useIsMobile, useLockScroll, useSheetDrag } from "@/lib/mobileNav";
 import { useChatScroll } from "@/lib/chatScroll";
+import { useChatViewport } from "@/lib/chatViewport";
 import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
 import { Sparkles, RotateCcw, X, LocateFixed, GripHorizontal, Maximize2, BookOpen, PenLine } from "lucide-react";
@@ -328,11 +329,14 @@ export function GlobalTutor() {
 // Phones: dim the page and dock the panel to the bottom of the visible viewport
 // (above the keyboard). Desktop: render the floating panel as-is.
 function SheetScrim({ mobile, closing, onClose, shadeRef, children }: { mobile: boolean; closing: boolean; onClose: () => void; shadeRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  useChatViewport(viewportRef, mobile);
   if (!mobile) return <>{children}</>;
   return (
     <div
+      ref={viewportRef}
       data-closing={closing || undefined}
-      className="vv-overlay anim-scrim z-[60] flex flex-col justify-end"
+      className="vv-overlay chat-viewport anim-scrim z-[60] flex flex-col justify-end"
       onClick={onClose}
     >
       <div ref={shadeRef} aria-hidden className="absolute inset-0 bg-black/35" />

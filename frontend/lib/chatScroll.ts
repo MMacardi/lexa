@@ -19,7 +19,21 @@ export function useChatScroll(ref: RefObject<HTMLElement | null>, messages: { ro
   const pinned = useRef(true);
   const opened = useRef(false);
   const count = useRef(messages.length);
-  useKeepBottom(ref, on);
+  // Suggestions read from the top; only a conversation anchors its bottom.
+  useKeepBottom(ref, on && messages.length > 0, pinned);
+
+  // Ruby readings and images can finish laying out after the message update.
+  // Follow that growth only while reading the newest reply; an older passage
+  // the learner scrolled to must stay put.
+  useEffect(() => {
+    const el = ref.current;
+    if (!on || !el || !messages.length) return;
+    const ro = new ResizeObserver(() => {
+      if (pinned.current) el.scrollTop = el.scrollHeight;
+    });
+    for (const child of el.children) ro.observe(child);
+    return () => ro.disconnect();
+  }, [ref, on, messages.length]);
 
   // Only the reader's own scrolling unpins: a finger or a wheel, and the momentum
   // a flick leaves behind. The scrolls made here keep the pin as it is.
@@ -27,7 +41,7 @@ export function useChatScroll(ref: RefObject<HTMLElement | null>, messages: { ro
     const el = ref.current;
     if (!on || !el) return;
     let touching = false;
-    let lastGesture = 0;
+    let lastGesture = -Infinity;
     const onTouchStart = () => {
       touching = true;
     };
@@ -82,7 +96,7 @@ export function useChatScroll(ref: RefObject<HTMLElement | null>, messages: { ro
     // Something they just sent brings them down to it, wherever they were.
     if (grew && messages[messages.length - 1]?.role === "user") {
       pinned.current = true;
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      el.scrollTop = el.scrollHeight;
     } else if (pinned.current) {
       el.scrollTop = el.scrollHeight;
     }

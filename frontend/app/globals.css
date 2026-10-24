@@ -35,7 +35,7 @@ html {
 /* Mika's page on a phone is the chat over the whole screen, as a messenger is:
    sized to the visible viewport like the overlays above, ending at the tab bar's
    top while the keyboard is down (--mika-bar, measured by the page) and at the
-   keyboard while it is up, gliding between the two with it. Unlayered, so it
+   keyboard while it is up, following the measured viewport. Unlayered, so it
    beats the page's own `relative` and width. */
 @media (max-width: 767px) {
   .mika-chat {
@@ -46,13 +46,8 @@ html {
     max-width: none;
     z-index: 35;
   }
-  :root[data-kb] .mika-chat {
+  .mika-chat[data-chat-keyboard] {
     height: var(--vv-h, 100dvh);
-  }
-  :root[data-vv-anim] .mika-chat {
-    transition:
-      top var(--dur-kb) var(--ease-kb),
-      height var(--dur-kb) var(--ease-kb);
   }
 }
 
@@ -66,6 +61,16 @@ html {
 }
 .kb-pad {
   transition: padding-bottom var(--dur-kb) var(--ease-kb);
+}
+
+/* Chat tracks the actual visual viewport (useChatViewport). A second transition
+   trails Safari's pan and can clip the header or expose a gap by the keyboard. */
+:root .vv-overlay.chat-viewport,
+.chat-viewport .kb-pad {
+  transition: none;
+}
+.chat-viewport .overflow-y-auto {
+  overflow-anchor: none;
 }
 
 /* Phones: a chip/toolbar row that would wrap into several lines becomes one

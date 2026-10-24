@@ -300,21 +300,23 @@ export function useDragDownDismiss(area: RefObject<HTMLElement | null>, bar: Ref
 // the start of the answer. Run in a ResizeObserver, so the new scroll position is
 // painted in the same frame as the new size, every frame of the keyboard's glide.
 // `on` = the scroller is mounted (a sheet that is open).
-export function useKeepBottom(ref: RefObject<HTMLElement | null>, on = true) {
+export function useKeepBottom(ref: RefObject<HTMLElement | null>, on = true, pinned?: RefObject<boolean>) {
   useEffect(() => {
     const el = ref.current;
     if (!on || !el) return;
     let top = el.scrollTop;
     let h = el.clientHeight;
     const onScroll = () => {
-      top = el.scrollTop;
+      // WebKit may clamp scrollTop and emit scroll before the resize observer.
+      // Keep the pre-resize position until the observer has adjusted it once.
+      if (el.clientHeight === h) top = el.scrollTop;
     };
     const ro = new ResizeObserver(() => {
       const next = el.clientHeight;
       if (next === h) return;
       // The browser may already have clamped scrollTop to the smaller range;
       // `top` is where it was before the resize.
-      el.scrollTop = top + (h - next);
+      el.scrollTop = pinned?.current ? el.scrollHeight : top + (h - next);
       top = el.scrollTop;
       h = next;
     });
@@ -324,7 +326,7 @@ export function useKeepBottom(ref: RefObject<HTMLElement | null>, on = true) {
       ro.disconnect();
       el.removeEventListener("scroll", onScroll);
     };
-  }, [ref, on]);
+  }, [ref, on, pinned]);
 }
 
 // Freeze the page behind an open sheet so a swipe inside it doesn't scroll the page.

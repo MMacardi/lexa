@@ -18,6 +18,7 @@ import { TutorComposer, useImageDrop, DropHint } from "@/components/TutorCompose
 import { MikaPracticeCards, MikaPracticeLinks } from "@/components/MikaPractice";
 import { useDragDownDismiss, useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { useChatScroll } from "@/lib/chatScroll";
+import { useChatViewport } from "@/lib/chatViewport";
 import { JumpToLatest } from "@/components/JumpToLatest";
 import { cn } from "@/lib/utils";
 import { GraduationCap, Tags, Scale, Layers, BookOpen, CalendarCheck, RotateCcw, Sparkles, Camera, ArrowLeft, type LucideIcon } from "lucide-react";
@@ -70,6 +71,7 @@ export default function MikaPage() {
   const mobile = useIsMobile();
   useLockScroll(mobile);
   const pageRef = useRef<HTMLDivElement>(null);
+  useChatViewport(pageRef, mobile);
   const barRef = useRef<HTMLDivElement>(null);
   useDragDownDismiss(pageRef, barRef, mobile);
   // Where the tab bar starts, measured (its height carries the home indicator's room).
@@ -103,7 +105,7 @@ export default function MikaPage() {
       {...drop.props}
       ref={pageRef}
       style={tabBar === null ? undefined : ({ "--mika-bar": `${tabBar}px` } as React.CSSProperties)}
-      className="mika-chat relative mx-auto flex min-h-0 min-w-0 max-w-[760px] flex-col max-md:bg-surface md:h-[calc(100dvh-88px)]"
+      className="mika-chat chat-viewport relative mx-auto flex min-h-0 min-w-0 max-w-[760px] flex-col max-md:bg-surface md:h-[calc(100dvh-88px)]"
     >
       {drop.dragging && <DropHint />}
       {/* Phones: a messenger's bar — back, her name (and the card a card chat is

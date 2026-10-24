@@ -1412,6 +1412,26 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Mika mobile keyboard and chat motion (2026-10-24, asked for directly)
+- The sheet and full-page chat follow measured visual viewport height and pan,
+  with local CSS variables. Removed the extra keyboard easing and predicted
+  close geometry from Mika; sheet entrance/exit and drag gestures remain.
+- Welcome suggestions retain their top position. Conversations keep the newest
+  reply visible through keyboard resizing and delayed pinyin/image layout;
+  reading older messages preserves the distance from the end. WebKit scroll
+  clamping before resize no longer causes a second adjustment. Sending a message
+  no longer starts a competing smooth scroll.
+- Checked [MDN VisualViewport](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
+  and [Chrome keyboard viewport guidance](https://developer.chrome.com/blog/viewport-resize-behavior).
+- Passed backend typecheck, frontend production build (existing warnings), and
+  `node frontend/scripts/check-chat-keyboard.mjs`: Russian WebKit phone, Reader
+  attachment, frame-by-frame pan/resize, Done, rapid refocus, progressive resize,
+  older-message reading, close/reopen and full-page chat. Throwaway local user deleted.
+- Baseline pan lag was about 100px; checked frames now track the viewport within
+  2px. Inspected screenshot and measurements in `.playwright-cli/chat-keyboard/`.
+  Software keyboard readings are simulated; physical iPhone animation/FPS still
+  needs a device check. No production data or landing changes.
+
 ### Graph drag tooltip and localized parts of speech (2026-10-24, asked for directly)
 - Dictionary previews are suppressed while dragging graph nodes, including focus
   previews and pointer entry with a pressed mouse button; rehover uses the new position.

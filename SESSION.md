@@ -1,20 +1,22 @@
-# Session handoff ? 2026-10-24
+﻿# Session handoff — 2026-10-24
 
-- Task: completed requested graph drag tooltip and English part-of-speech fixes.
-- Graph disables DictionaryPreview during drag, restores normal hover afterward;
-  mouse entry with a pressed button cannot reopen the preview mid-drag.
-- frontend/lib/partOfSpeech.ts translates known labels/abbreviations/compounds
-  to ru/en/zh, preserving custom labels and stored card data.
-- Applied to word header/senses, review, Reader, Today and community rows.
-- Passed backend `npx tsc --noEmit -p .` and frontend `npx next build`
-  inside local Docker; only existing frontend warnings.
-- Passed `node frontend/scripts/check-word-graph.mjs`: desktop drag hides
-  tooltip, rehover anchors at moved node, cancel resets drag; Russian iPhone
-  shows ??????? for stored preposition on ?, no overflow/page errors.
-- Inspected desktop drag and phone screenshots in ignored
-  `.playwright-cli/word-graph/`; throwaway local account deleted.
-- BACKLOG Done updated; no other backlog item started. No landing work.
+- Task: completed requested Mika mobile chat/keyboard motion fixes.
+- `frontend/lib/chatViewport.ts` follows actual visual viewport height/pan
+  locally for the sheet and /mika, bypassing predicted close/easing.
+- `chatScroll.ts` keeps welcome at top, follows delayed pinyin/image growth
+  only at the newest reply, and removes smooth scrolling when sending.
+- `mobileNav.ts` ignores resize-driven scroll clamping before adjustment;
+  keeps pinned conversations at bottom and older reading position stable.
+- Checked MDN VisualViewport and Chrome keyboard viewport guidance.
+- Passed backend `npx tsc --noEmit -p .` and final frontend `npx next build`
+  in Docker; existing frontend warnings only.
+- Passed `node frontend/scripts/check-chat-keyboard.mjs`: Russian WebKit
+  phone/Reader, rendered-frame pan/resize, Done, rapid refocus, progressive
+  resize, newest/older messages, close/reopen and full-page chat.
+- Baseline pan lag ~100px; checked frames now within 2px. Screenshot inspected
+  in ignored `.playwright-cli/chat-keyboard/`; throwaway local user deleted.
+- Real iPhone keyboard/FPS remains a physical-device check.
+- BACKLOG Done updated; no other item started. No landing changes.
 - Preserved unrelated frontend/.env.example, h3.txt and p.out.
-- Local frontend serves verified production build via
-  `.playwright-cli/compose.verified.yml`; backend Telegram bot remains disabled.
-- No remaining steps for this task.
+- Local frontend serves verified production build; backend bot stays disabled.
+- No remaining implementation steps; physical-device verification noted above.
