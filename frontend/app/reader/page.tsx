@@ -37,7 +37,7 @@ import { sentences, sentenceGroups, splitSentenceTokens } from "@/lib/sentences"
 import { stopSpeech } from "@/lib/speak";
 import { ReaderPlayback } from "@/lib/readerPlayback";
 import { ReaderListeningPlayer } from "@/components/ReaderListeningPlayer";
-import { useIsMobile, useLockScroll } from "@/lib/mobileNav";
+import { openMikaOnReader, useIsMobile, useLockScroll } from "@/lib/mobileNav";
 import { usePresence } from "@/lib/motion";
 import { MobileSheet } from "@/components/MobileSheet";
 import { SheetRow } from "@/components/SheetRow";
@@ -59,7 +59,7 @@ import { recorderSupported } from "@/lib/record";
 import { getShowTextLevel, micBrowserFailed, markMicBrowserFailed } from "@/lib/learnPrefs";
 import { ReadAloudCheck } from "@/components/ReadAloudCheck";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Trash2, Underline } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Camera, Check, CheckCheck, Mic, MoreHorizontal, Save, Languages, X, GripHorizontal, LocateFixed, Baseline, Loader2, PenLine, Trash2, Underline, Sparkles } from "lucide-react";
 
 const PAIR_KEY = "lexa.wordPair"; // shared with the Add form so the pair follows you
 
@@ -202,6 +202,7 @@ export default function ReaderPage() {
   // The saved row the text on screen lives in. Every text is kept the moment it
   // is read (autosave); the full editor updates that same row.
   const [savedRow, setSavedRow] = useState<{ id: string; content: string; title: string } | null>(null);
+  const autosaveRequest = useRef(0);
   const currentSaved = savedRow?.content === text.trim() ? savedRow : null;
   // Read-aloud practice (server STT — works on mobile and in China, unlike the
   // browser recogniser): toggle + per-sentence scoring panel under the text.
@@ -690,12 +691,14 @@ export default function ReaderPage() {
   // else becomes a new one (the server hands back the old row for a text read
   // before, translation and all). A failure costs nothing — Save still works.
   async function autosave(content: string) {
+    const request = ++autosaveRequest.current;
     const prev = savedRow;
     try {
       if (prev && sameText(prev.content, content)) {
         if (prev.content !== content) await api.updateReaderText(prev.id, { telegramId: accountId, content });
-        setSavedRow({ ...prev, content });
         const full = await api.readerText(prev.id, accountId);
+        if (request !== autosaveRequest.current) return;
+        setSavedRow({ ...prev, content });
         setTextLevel(full.level ?? null);
         setTextLevelSource(full.levelSource ?? null);
       } else {
@@ -708,6 +711,8 @@ export default function ReaderPage() {
           sourceLang,
           targetLang,
         });
+        qc.invalidateQueries({ queryKey: ["reader-texts"] });
+        if (request !== autosaveRequest.current) return;
         setSavedRow({ id: saved.id, content, title: saved.title });
         setTextLevel(saved.level ?? null);
         setTextLevelSource(saved.levelSource ?? null);
@@ -725,6 +730,7 @@ export default function ReaderPage() {
 
   // Start a new text; keep the input only if autosave failed.
   function leaveReading() {
+    autosaveRequest.current++;
     stopSpeech();
     if (currentSaved) {
       setText("");
@@ -787,6 +793,7 @@ export default function ReaderPage() {
   // Open a saved text: restore its content, pair, translation and the words the
   // reader had engaged with, then jump straight into the reading view.
   function openSavedText(full: ReaderTextFull) {
+    autosaveRequest.current++;
     stopSpeech();
     setAlignment(validAlignment(full.translationAlignment, full.content, full.translation ?? ""));
     setText(full.content);
@@ -1599,6 +1606,17 @@ export default function ReaderPage() {
 
   return (
     <div className="mx-auto max-w-[720px] pb-28 md:pb-6">
+      <button
+        type="button"
+        onClick={openMikaOnReader}
+        className="mb-3 flex w-full items-start gap-3 rounded-[14px] border border-sage/25 bg-sage-tint px-4 py-3 text-left transition-colors hover:border-sage/50"
+      >
+        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-sage-deep" />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-sage-deep">{t("reader.discussMika")}</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">{t("reader.discussMikaHint")}</span>
+        </span>
+      </button>
       {/* sticky toolbar. A phone keeps back, pinyin and the translation here and
           the rest goes in the tools sheet (⋯): all ten chips in one sideways row
           put the ones you came for off-screen. */}
@@ -2233,6 +2251,7 @@ export default function ReaderPage() {
           initialLevel={openText?.level ?? ""}
           onClose={() => setShowSave(false)}
           onSaved={(saved) => {
+            autosaveRequest.current++;
             setOpenText({ ...openText, ...saved, sourceLang, targetLang, status: "ready" });
             setSavedRow({ id: saved.id, content: saved.content, title: saved.title });
             setText(saved.content);

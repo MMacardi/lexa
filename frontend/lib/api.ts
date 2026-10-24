@@ -1468,7 +1468,7 @@ export const api = {
     level?: string;
     sourceLang?: string;
     targetLang?: string;
-    autosave?: boolean; // the Reader keeps every text it opens: dedupes, never AI-names
+    autosave?: boolean; // keeps every opened text; reuses existing rows and their titles
   }) =>
     http<{ id: string; title: string; level?: string | null; levelSource?: ReaderLevelSource | null; translation?: string | null; translationAlignment?: TranslationAlignment | null }>(`/api/reader/texts`, {
       method: "POST",
@@ -1479,6 +1479,7 @@ export const api = {
     payload: {
       telegramId: string;
       title?: string;
+      autoName?: boolean;
       content?: string;
       collection?: string | null;
       level?: string | null;

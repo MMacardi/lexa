@@ -7,9 +7,10 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { useMicInput } from "@/lib/useMicInput";
 import { imageFiles } from "@/lib/image";
-import { chatWindow } from "@/lib/readerContext";
+import { chatWindow, useReaderContext } from "@/lib/readerContext";
+import { useAccount } from "@/lib/account";
 import { cn } from "@/lib/utils";
-import { ArrowUp, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
+import { ArrowUp, BookOpen, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
 
 /**
  * Mika's composer, shared by the floating widget and the /mika page: text, photos
@@ -29,6 +30,9 @@ export function TutorComposer({
 }) {
   const { t } = useI18n();
   const { show } = useToast();
+  const { accountId } = useAccount();
+  const liveReader = useReaderContext(accountId);
+  const reader = chat.card ? undefined : liveReader ?? [...chat.messages].reverse().find((m) => m.readerContext)?.readerContext;
   const { input, setInput, send, stop, busy, unfinished, attachments, attaching, addImages, removeAttachment, canAttach, pair } = chat;
   const ownFileRef = useRef<HTMLInputElement>(null);
   const fileRef = outerFileRef ?? ownFileRef;
@@ -62,6 +66,15 @@ export function TutorComposer({
 
   return (
     <div>
+      {reader && (
+        <div className="mb-2 flex items-start gap-2 rounded-[12px] bg-sage-tint px-3 py-2 text-xs text-sage-deep" role="status">
+          <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-semibold">{t("tutor.readerAttached")}</p>
+            {reader.title && <p className="truncate text-ink-muted">{reader.title}</p>}
+          </div>
+        </div>
+      )}
       {chatWindow(chat.messages).length < chat.messages.length && (
         <p role="status" className="mb-1 text-xs text-ink-faint">{t("tutor.contextLimit")}</p>
       )}

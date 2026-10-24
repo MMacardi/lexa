@@ -33,6 +33,7 @@ interface PromptOptions {
 interface ChooseOption {
   value: string;
   label: string;
+  labelClass?: string;
   hint?: string;
   // "list" layout only: a sample line under the label (+ a smaller gloss), with
   // optional font classes (CJK), and a "recommended" badge.
@@ -201,7 +202,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                         className="block w-full rounded-[14px] border border-black/[0.08] bg-surface px-4 py-3 text-left transition-colors hover:border-sage hover:bg-sage-tint"
                       >
                         <span className="flex flex-wrap items-baseline gap-x-2">
-                          <span className="font-serif text-[17px] font-semibold text-ink">{o.label}</span>
+                          <span className={cn("font-semibold text-ink", o.labelClass ?? "font-serif text-[17px]")}>{o.label}</span>
                           {o.hint && <span className="text-[12px] text-ink-faint">{o.hint}</span>}
                           {o.recommended && (
                             <span className="ml-auto rounded-full bg-sage-tint px-2 py-0.5 text-[11px] font-semibold text-sage-deep">

@@ -1874,6 +1874,7 @@ wordsRouter.post("/reader/texts", async (req, res) => {
 const readerUpdateBody = z.object({
   telegramId: z.string().optional(),
   title: z.string().max(120).optional(),
+  autoName: z.boolean().optional(),
   content: z.string().max(20_000).optional(),
   collection: z.string().max(60).nullish(),
   level: z.string().max(4).nullish(),

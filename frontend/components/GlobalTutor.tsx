@@ -45,16 +45,20 @@ export function GlobalTutor() {
   // it plain. Kept in a ref so the listener is registered once.
   const startRef = useRef(startCard);
   startRef.current = startCard;
+  const readerResetRef = useRef(() => {});
+  readerResetRef.current = () => { if (card) reset(); };
   useEffect(() => {
     const on = (e: Event) => {
       const queued = takeMikaOpen();
-      const ctx = (e as CustomEvent<{ card?: TutorCardCtx }>).detail?.card ?? queued?.card;
+      const detail = (e as CustomEvent<{ card?: TutorCardCtx; reader?: boolean }>).detail ?? queued;
+      const ctx = detail?.card;
       setOpen(true);
+      if (detail?.reader) readerResetRef.current();
       if (ctx) startRef.current(ctx);
     };
     window.addEventListener(OPEN_MIKA, on);
     const queued = takeMikaOpen();
-    if (queued) { setOpen(true); if (queued.card) startRef.current(queued.card); }
+    if (queued) { setOpen(true); if (queued.reader) readerResetRef.current(); if (queued.card) startRef.current(queued.card); }
     return () => window.removeEventListener(OPEN_MIKA, on);
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);

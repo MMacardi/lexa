@@ -15,6 +15,10 @@ type Entry = { en: string; ru: string; zh: string };
 const DICT: Record<string, Entry> = {
   "tutor.openReader": { ru: "Открыть в Читалке", en: "Open in Reader", zh: "在阅读器中打开" },
   "tutor.readerContext": { ru: "Текст из Читалки", en: "Reader text", zh: "阅读器文本" },
+  "tutor.readerAttached": { ru: "Мика видит весь текст из Читалки", en: "Mika can see the full Reader text", zh: "米卡可以看到阅读器的全文" },
+  "reader.discussMika": { ru: "Обсудить с Микой", en: "Discuss with Mika", zh: "和米卡讨论" },
+  "reader.discussMikaHint": { ru: "Текст передастся целиком. Попроси объяснить, перевести или помочь с заданием.", en: "The full text is attached automatically. Ask for an explanation, translation, or help with an exercise.", zh: "全文会自动附上。可以请米卡讲解、翻译或帮你做练习。" },
+  "reader.aiTitlePh": { ru: "ИИ придумает название при сохранении", en: "AI will name it when you save", zh: "保存时由 AI 生成标题" },
   "tutor.contextLimit": { ru: "Этот чат стал длинным: его начало больше не входит в контекст и сохранённую историю. Напомни важные детали или начни новый чат.", en: "This chat is long: its oldest messages are no longer included in context or saved history. Repeat important details or start a new chat.", zh: "聊天内容较长，最早的消息已不再纳入上下文和保存的记录。请重述重要细节，或开始新聊天。" },
   "tutor.textLimit": { ru: "В одном сообщении — до 20 000 символов. Раздели текст на части: он ещё не отправлен.", en: "A message can contain up to 20,000 characters. Split this text into parts; it has not been sent.", zh: "每条消息最多20,000个字符。请分段发送；这条消息尚未发送。" },
   "tutor.readerLimit": { ru: "Для Читалки и Мики — до 20 000 символов в одном тексте. Раздели его на части.", en: "Reader and Mika accept up to 20,000 characters per passage. Split it into parts.", zh: "阅读器和米卡每篇最多支持20,000个字符，请分成几篇。" },

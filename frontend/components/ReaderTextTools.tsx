@@ -117,9 +117,9 @@ export function SaveModal({
   const { t } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
-  const [title, setTitle] = useState((initialTitle ?? text).trim().slice(0, 50));
+  const [title, setTitle] = useState(initialTitle?.trim() ?? "");
   const [content, setContent] = useState(text);
-  const [aiName, setAiName] = useState(false);
+  const [aiName, setAiName] = useState(!initialTitle?.trim());
   const [collection, setCollection] = useState(initialCollection ?? "");
   const [known, setKnown] = useState<string[]>([]);
   const [level, setLevel] = useState<string>(asLevelValue(sourceLang, initialLevel) || (editId || usesHsk(sourceLang) ? "" : getLearnerLevel(sourceLang)) || "");
@@ -143,6 +143,7 @@ export function SaveModal({
         ? await api.updateReaderText(editId, {
             telegramId: accountId,
             title: aiName ? undefined : title.trim(),
+            autoName: aiName,
             content: body,
             collection: collVal,
             ...(levelTouched ? { level: level || null } : {}),
@@ -190,18 +191,19 @@ export function SaveModal({
         <label className="mb-1 block text-[12px] font-medium text-ink-soft">{t("reader.titleLabel")}</label>
         <Input
           aria-label={t("reader.titleLabel")}
-          value={title}
+          value={aiName ? "" : title}
           onChange={(e) => {
             setTitle(e.target.value);
             if (aiName) setAiName(false);
           }}
-          placeholder={t("reader.titlePh")}
+          placeholder={t(aiName ? "reader.aiTitlePh" : "reader.titlePh")}
           autoFocus
           className="h-11"
         />
         <button
           type="button"
           onClick={() => setAiName((a) => !a)}
+          aria-pressed={aiName}
           className={cn(
             "mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
             aiName ? "border-sage bg-sage-tint text-sage-deep" : "border-black/[0.1] text-ink-muted hover:border-sage/50 hover:text-sage-deep",

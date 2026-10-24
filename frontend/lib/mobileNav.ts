@@ -12,12 +12,17 @@ import { FOCUS } from "./focus";
 export const OPEN_MIKA = "onomika:open-mika";
 export const OPEN_BUG = "onomika:open-bug";
 export const OPEN_ADD = "onomika:open-add";
-let pendingMika: { card?: TutorCardCtx } | null = null;
+let pendingMika: { card?: TutorCardCtx; reader?: boolean } | null = null;
 export const takeMikaOpen = () => { const pending = pendingMika; pendingMika = null; return pending; };
 
 export const open = (event: string) => {
   if (event === OPEN_MIKA) pendingMika = {};
   return window.dispatchEvent(new Event(event));
+};
+
+export const openMikaOnReader = () => {
+  pendingMika = { reader: true };
+  window.dispatchEvent(new CustomEvent(OPEN_MIKA, { detail: pendingMika }));
 };
 
 // Open Mika on a chat about one card ("Explain with Onomika" on the word page).

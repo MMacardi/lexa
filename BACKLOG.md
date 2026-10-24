@@ -1412,6 +1412,23 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Reader context, AI titles and duplicate-card layout (2026-10-24, asked for directly)
+- Mika receives the complete Reader attachment next to the latest question, with an
+  explicit access instruction that overrides earlier mistaken denials in chat history.
+- Reader has a localized Discuss with Mika entry; the shared composer shows the full
+  text attachment, including after expanding/reloading Mika. A Reader entry exits card chat.
+- New untitled texts get an AI topic title, including autosave. Existing titles and
+  typed names are preserved; the editor can now actually regenerate an existing title.
+  Failed naming retains the text; late autosaves cannot replace another passage's metadata.
+- Duplicate cards show the action, word/pinyin and meaning on separate lines, with
+  smaller sans-serif action labels. All new strings cover ru/en/zh.
+- Verified backend tsc and frontend production build; live Qwen correctly answered
+  C → B → A from the reported passage after a seeded false denial and a selected word.
+  Russian phone checks cover attachment/reload, default naming, AI/manual renaming,
+  deduplication, delayed saves, duplicate layout and the correct card destination.
+- Reproduce: `node frontend/scripts/check-reader-context-followup.mjs` with local
+  :3000/:3001; `--navigation-only` or `--layout-only` skips already verified AI calls.
+
 ### False translation highlight: боль → больнице (2026-10-22, asked for directly)
 - Short Russian stems now require a matching inflected stem rather than any prefix:
   боль no longer marks больнице; боль, боли and болью still match.
