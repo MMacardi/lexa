@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flag, Plus } from "lucide-react";
 import { api, type DeckWord, type ReportReason } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import { errText } from "@/lib/errText";
 import { pairLabel } from "@/lib/langs";
 import { DeckAuthor, DeckCounters } from "@/components/DeckCard";
@@ -215,7 +216,7 @@ function ReportDeck({ id, code }: { id: string; code?: string }) {
 }
 
 function WordRow({ w, canAdd, pending, onAdd }: { w: DeckWord; canAdd: boolean; pending: boolean; onAdd: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -223,7 +224,7 @@ function WordRow({ w, canAdd, pending, onAdd }: { w: DeckWord; canAdd: boolean; 
           <span className="font-serif text-[18px] font-semibold text-ink">{w.word}</span>
           {w.phonetic && <span className="text-sm text-ink-faint">{w.phonetic}</span>}
           {w.partOfSpeech && (
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{w.partOfSpeech}</span>
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-faint">{localizePartOfSpeech(w.partOfSpeech, locale)}</span>
           )}
         </div>
         {w.meaning && <p className={cn("text-sm text-sage-deep", targetFont(w.targetLang))}>{w.meaning}</p>}

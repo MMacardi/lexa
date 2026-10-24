@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Word, type WordSense } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import { useToast } from "@/lib/toast";
 import { errText } from "@/lib/errText";
 import { hasTranscription, useShowTranscription } from "@/lib/learnPrefs";
@@ -68,7 +69,7 @@ function composeMeaning(picked: WordSense[], targetLang: string): string {
  * flashcard tests, which rewrites meaningZh. Falls back to the collocation chips.
  */
 export function WordSenses({ word }: { word: Word }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { show } = useToast();
   const qc = useQueryClient();
   const showTr = useShowTranscription() && hasTranscription(word.sourceLang);
@@ -190,7 +191,7 @@ export function WordSenses({ word }: { word: Word }) {
                       cut as «услуга / , сервис». */}
                   <p className="min-w-0 break-words leading-snug">
                     {showTr && s.reading && <>{reading(s.reading, "mr-1 text-[13px] font-semibold text-sage-deep")} </>}
-                    {s.pos && <><span className="mr-1 text-[13px] italic text-ink-faint">{s.pos}</span> </>}
+                    {s.pos && <><span className="mr-1 text-[13px] italic text-ink-faint">{localizePartOfSpeech(s.pos, locale)}</span> </>}
                     <span lang={word.targetLang} className={cn("hyphens-auto text-[18px] font-semibold text-ink", tgtFont(word.targetLang))}>
                       {s.meaning}
                     </span>

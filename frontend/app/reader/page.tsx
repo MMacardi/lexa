@@ -15,6 +15,7 @@ import { readerCoverage, readerVocabulary, hskRange, hskTop } from "@/lib/reader
 import { PasteButton } from "@/components/PasteButton";
 import { SavedTexts } from "@/components/SavedTexts";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import { errText } from "@/lib/errText";
 import { useToast } from "@/lib/toast";
 import { useDialog } from "@/lib/dialog";
@@ -110,7 +111,7 @@ export default function ReaderPage() {
   const tapMeaningMode = useTapMeaningMode(accountId);
   const upsell = useUpsell();
   const mobile = useIsMobile();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { show, trackImport } = useToast();
   const { confirm } = useDialog();
@@ -2065,7 +2066,7 @@ export default function ReaderPage() {
                   {w.phonetic && <div className="text-[15px] text-ink-faint">{w.phonetic}</div>}
                 </div>
                 {w.partOfSpeech && (
-                  <div className="mt-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{w.partOfSpeech}</div>
+                  <div className="mt-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{localizePartOfSpeech(w.partOfSpeech, locale)}</div>
                 )}
                 {w.meaningZh && (
                   <div className={cn("mt-1.5 text-[18px] font-semibold text-sage-deep", sourceFont(w.targetLang))}>{w.meaningZh}</div>

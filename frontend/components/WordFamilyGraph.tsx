@@ -125,6 +125,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
   const ensureLevel = useEnsureLevel();
   const [pending, setPending] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   // On a touch screen the pills are tapped, not dragged: a finger landing on the
   // canvas has to scroll the page, and arranging pills by hand isn't worth that.
   const touch = useTouchOnly();
@@ -773,6 +774,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     if (!rect || !n) return;
     if (!d.moved) {
       d.moved = true;
+      setDragging(true);
       // lifted: it rides over the other pills and casts a deeper shadow
       const el = elRefs.current.get(n.id);
       if (el) {
@@ -792,6 +794,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
     if (d?.id !== node.id) return;
     dragRef.current = null;
     draggingId.current = null;
+    setDragging(false);
     const el = elRefs.current.get(node.id);
     if (el) {
       el.style.zIndex = "";
@@ -960,7 +963,7 @@ export function WordFamilyGraph({ word }: { word: Word }) {
               onPointerEnter={() => setHovered(n.id)}
               onPointerLeave={() => setHovered((h) => (h === n.id ? null : h))}
             >
-              <DictionaryPreview word={n.label} sourceLang={word.sourceLang} targetLang={word.targetLang}>
+              <DictionaryPreview word={n.label} sourceLang={word.sourceLang} targetLang={word.targetLang} disabled={dragging}>
                 {(descriptionId) => (
                   <button
                     type="button"

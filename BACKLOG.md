@@ -1412,6 +1412,19 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Graph drag tooltip and localized parts of speech (2026-10-24, asked for directly)
+- Dictionary previews are suppressed while dragging graph nodes, including focus
+  previews and pointer entry with a pressed mouse button; rehover uses the new position.
+- Known parts of speech in old cards and dictionary senses display in the interface
+  language (ru/en/zh), including preposition → предлог for 由. Compound labels and
+  abbreviations are supported; custom text is preserved. Applied to word detail,
+  review, Reader, Today and community word rows; stored card data stays intact.
+- Passed backend tsc and frontend production build (existing lint warnings).
+- Local desktop drag/drop/cancel and Russian iPhone Chromium checks passed:
+  no stale tooltip, correct rehover anchor, translated label, no overflow/page errors.
+- Reproduce: `node frontend/scripts/check-word-graph.mjs`; throwaway local user
+  is deleted afterward. Evidence: ignored `.playwright-cli/word-graph/`.
+
 ### Reader context, AI titles and duplicate-card layout (2026-10-24, asked for directly)
 - Mika receives the complete Reader attachment next to the latest question, with an
   explicit access instruction that overrides earlier mistaken denials in chat history.

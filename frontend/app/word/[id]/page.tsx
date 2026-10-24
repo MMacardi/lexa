@@ -13,6 +13,7 @@ import { isChineseLang } from "@/lib/dictEntry";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { isAiSupported, isFixedPair, pairLabel } from "@/lib/langs";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import { errText } from "@/lib/errText";
 import { useDialog } from "@/lib/dialog";
 import { useToast } from "@/lib/toast";
@@ -83,7 +84,7 @@ function isReaderSource(ex: { sourceName: string; sourceUrl: string }): boolean 
 export default function WordDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { confirm } = useDialog();
   const { show, trackImport } = useToast();
@@ -267,7 +268,7 @@ export default function WordDetailPage() {
             ))}
           {word.partOfSpeech && (
             <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-faint">
-              {word.partOfSpeech}
+              {localizePartOfSpeech(word.partOfSpeech, locale)}
             </span>
           )}
           {!isFixedPair(word.sourceLang, word.targetLang) && (

@@ -7,6 +7,7 @@ import { api, isDue, isFresh, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { wordsQuery } from "@/lib/wordQueries";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import { errText } from "@/lib/errText";
 import { FirstRun } from "@/components/FirstRun";
 import { StatsPanel } from "@/components/StatsPanel";
@@ -314,7 +315,7 @@ export default function TodayPage() {
                     </div>
                     <div className="mt-1 text-xs font-medium text-ink-faint">
                       {isFresh(w) ? t("today.neverReviewed") : t("today.reviewsDone", { n: w.reps ?? w.reviewCount })}
-                      {w.partOfSpeech ? ` · ${w.partOfSpeech}` : ""}
+                      {w.partOfSpeech ? ` · ${localizePartOfSpeech(w.partOfSpeech, locale)}` : ""}
                     </div>
                   </Link>
                 ))}

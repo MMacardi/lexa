@@ -8,6 +8,7 @@ import { api, isDue, isFresh, isNewWord, type Word } from "@/lib/api";
 import { useAccount } from "@/lib/account";
 import { isChineseLang } from "@/lib/dictEntry";
 import { useI18n } from "@/lib/i18n";
+import { localizePartOfSpeech } from "@/lib/partOfSpeech";
 import {
   useCardLayout,
   setCardLayout,
@@ -100,7 +101,7 @@ function presetIdOf(layout: CardLayout): string {
 export default function FlashcardsPage() {
   const qc = useQueryClient();
   const { accountId, profile } = useAccount();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const layout = useCardLayout();
   const activePreset = presetIdOf(layout);
   const mobile = useIsMobile();
@@ -1180,7 +1181,7 @@ export default function FlashcardsPage() {
         );
       case "pos":
         return word.partOfSpeech ? (
-          <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{word.partOfSpeech}</div>
+          <div className="text-[13px] font-semibold uppercase tracking-[0.14em] text-taupe-dim">{localizePartOfSpeech(word.partOfSpeech, locale)}</div>
         ) : null;
       case "meaning":
         if (holdsEnglish(word)) return <div>
