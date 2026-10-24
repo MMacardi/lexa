@@ -1412,6 +1412,23 @@ it legal and named. 23–25 make the result mean something. 27+ is after that.
 
 ## Done
 
+### Keep Today still behind Mika (2026-10-24, asked for directly)
+- Mika freezes the body at the captured page offset before its first paint,
+  preserving the mobile header's existing position as well as the content.
+  The page stays frozen through the exit animation; closing restores its styles
+  and scroll position together. Shared locks release only after the last overlay.
+- Replaces overflow-only locking for the mobile Mika sheet; it does not focus
+  the composer or open the keyboard on entry. Related WebKit behavior:
+  [overflow hidden in iOS PWA](https://bugs.webkit.org/show_bug.cgi?id=259568).
+- Passed backend typecheck and final frontend production build (existing warnings).
+  `node frontend/scripts/check-mika-background.mjs` passes in Russian WebKit phone
+  layout at Today offsets 0 and 280: entrance/exit frames, forced root pan,
+  unchanged background/header positions, original offset after closing.
+- Existing `node frontend/scripts/check-chat-keyboard.mjs` also passes, including
+  keyboard resize/pan, Done, rapid refocus, message anchors and full-page handoff.
+  Inspected `.playwright-cli/mika-background/after-{0,280}.png`; local throwaway
+  accounts deleted. Native iPhone keyboard timing remains device-only verification.
+
 ### Mika mobile keyboard and chat motion (2026-10-24, asked for directly)
 - The sheet and full-page chat follow measured visual viewport height and pan,
   with local CSS variables. Removed the extra keyboard easing and predicted

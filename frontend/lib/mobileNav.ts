@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { TutorCardCtx } from "./useTutorChat";
 import { dragFollower } from "./dragFollow";
 import { FOCUS } from "./focus";
@@ -329,19 +329,46 @@ export function useKeepBottom(ref: RefObject<HTMLElement | null>, on = true, pin
   }, [ref, on, pinned]);
 }
 
-// Freeze the page behind an open sheet so a swipe inside it doesn't scroll the page.
-export function useLockScroll(active: boolean) {
-  useEffect(() => {
+let scrollLock: {
+  count: number; x: number; y: number; frozen: boolean;
+  styles: { name: string; value: string; priority: string }[];
+} | undefined;
+
+// Overflow alone still lets iOS move the background behind Mika. Fix the body
+// at its existing scroll offset before paint; keep that freeze until every
+// overlapping overlay releases its lock, then restore the page in one frame.
+export function useLockScroll(active: boolean, freezePage = false) {
+  useLayoutEffect(() => {
     if (!active) return;
-    const prev = document.body.style.overflow;
-    const x = window.scrollX;
-    const y = window.scrollY;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-      window.scrollTo(x, y);
+    const style = document.body.style;
+    const lock = scrollLock ??= {
+      count: 0, x: window.scrollX, y: window.scrollY, frozen: false,
+      styles: ["overflow", "position", "top", "left", "width", "--page-lock-header-top"].map((name) => ({
+        name, value: style.getPropertyValue(name), priority: style.getPropertyPriority(name),
+      })),
     };
-  }, [active]);
+    lock.count++;
+    if (freezePage && !lock.frozen) {
+      const headerTop = document.querySelector<HTMLElement>("[data-mobile-header]")?.getBoundingClientRect().top ?? 0;
+      lock.frozen = true;
+      style.position = "fixed";
+      style.top = `${-lock.y}px`;
+      style.left = `${-lock.x}px`;
+      style.width = "100%";
+      // Fixing the body changes the sticky header's scroll reference too.
+      style.setProperty("--page-lock-header-top", `${headerTop}px`);
+    }
+    style.overflow = "hidden";
+    return () => {
+      if (--lock.count) return;
+      for (const { name, value, priority } of lock.styles) {
+        if (value) style.setProperty(name, value, priority);
+        else style.removeProperty(name);
+      }
+      window.scrollTo({ left: lock.x, top: lock.y, behavior: "instant" });
+      scrollLock = undefined;
+    };
+  }, [active, freezePage]);
 }
 
 // A training screen that fits a phone's screen is pinned while it's up: the page

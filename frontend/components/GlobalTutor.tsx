@@ -32,7 +32,7 @@ export function GlobalTutor() {
   // The phone sheet slides back off the edge and the desktop panel shrinks into
   // its corner before either unmounts.
   const { closing, close: animateClose } = useClosing(open, () => setOpen(false), mobile ? 200 : 150);
-  useLockScroll(open && mobile);
+  useLockScroll(open && mobile, true);
   useReportPanelOpen(open);
   useEffect(() => {
     const onReader = () => setOpen(false);

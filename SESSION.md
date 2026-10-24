@@ -1,22 +1,22 @@
 ﻿# Session handoff — 2026-10-24
 
-- Task: completed requested Mika mobile chat/keyboard motion fixes.
-- `frontend/lib/chatViewport.ts` follows actual visual viewport height/pan
-  locally for the sheet and /mika, bypassing predicted close/easing.
-- `chatScroll.ts` keeps welcome at top, follows delayed pinyin/image growth
-  only at the newest reply, and removes smooth scrolling when sending.
-- `mobileNav.ts` ignores resize-driven scroll clamping before adjustment;
-  keeps pinned conversations at bottom and older reading position stable.
-- Checked MDN VisualViewport and Chrome keyboard viewport guidance.
+- Task: completed requested background jump fix when opening/closing Mika.
+- GlobalTutor opts into fixed-body scroll locking before paint; mobileNav
+  captures the original page/body styles and freezes at the existing offset.
+- Sidebar preserves the mobile header's original sticky position through
+  --page-lock-header-top. Styles and scroll restore together after exit.
+- Scroll locks are counted so overlapping overlays cannot unlock prematurely.
 - Passed backend `npx tsc --noEmit -p .` and final frontend `npx next build`
   in Docker; existing frontend warnings only.
-- Passed `node frontend/scripts/check-chat-keyboard.mjs`: Russian WebKit
-  phone/Reader, rendered-frame pan/resize, Done, rapid refocus, progressive
-  resize, newest/older messages, close/reopen and full-page chat.
-- Baseline pan lag ~100px; checked frames now within 2px. Screenshot inspected
-  in ignored `.playwright-cli/chat-keyboard/`; throwaway local user deleted.
-- Real iPhone keyboard/FPS remains a physical-device check.
-- BACKLOG Done updated; no other item started. No landing changes.
-- Preserved unrelated frontend/.env.example, h3.txt and p.out.
+- Passed `node frontend/scripts/check-mika-background.mjs`: Russian WebKit
+  phone Today at offsets 0/280, opening/closing frames, forced root pan,
+  stable content/header positions and exact offset restoration.
+- Passed existing `node frontend/scripts/check-chat-keyboard.mjs` after final
+  code: keyboard resize/pan, Done/refocus, message anchors, full-page handoff.
+- Inspected ignored `.playwright-cli/mika-background/after-0.png` and
+  after-280.png; throwaway local accounts deleted. No production data used.
+- Actual native iPhone keyboard animation/FPS remains a device check.
+- BACKLOG Done updated; no unrelated backlog/landing work started.
+- Preserved frontend/.env.example, h3.txt and p.out.
 - Local frontend serves verified production build; backend bot stays disabled.
-- No remaining implementation steps; physical-device verification noted above.
+- No remaining implementation steps.
